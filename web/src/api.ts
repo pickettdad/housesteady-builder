@@ -68,7 +68,7 @@ export interface ImportReport {
       verified: number
       byKind: { kind: string | null; count: number; bytes: number }[]
       byOwner: { owner_kind: string | null; count: number; bytes: number }[]
-      byFileStatus: { file_status: string; n: number }[]
+      verification: { verified: number; failed: number; absent: number; presentUnverified: number }
     }
     notes: number
     chatThreads: number
@@ -123,10 +123,12 @@ export interface ImportReport {
     reopenReasons: string[]
     closedWithNoWork: boolean
   }[]
+  unrecognized: { resolutions: number; events: number }
   validation: {
     status: string
     checks: Check[]
     checksRun: string[]
+    unrecognizedTerms: { field: string; value: string; count: number; examples: string[] }[]
     counts: { errors: number; warnings: number; infos: number }
   }
 }
@@ -180,11 +182,19 @@ export const api = {
   getReport: (importId: string) => req<ImportReport>(`/api/imports/${importId}/report`),
 }
 
+/**
+ * Decimal MB, not binary MiB, deliberately.
+ *
+ * The manifest declares bytes. Anyone cross-checking a figure here against the
+ * export's own number must land on the same value — 122,680,159 bytes is
+ * 122.7 MB here and 117.0 MiB under the other convention, and a 5 MB
+ * discrepancy in a report about honesty is the wrong place to be clever.
+ */
 export const fmtBytes = (n: number): string => {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`
-  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`
-  return `${(n / 1024 ** 3).toFixed(2)} GB`
+  if (n < 1000) return `${n} B`
+  if (n < 1000 ** 2) return `${(n / 1000).toFixed(1)} KB`
+  if (n < 1000 ** 3) return `${(n / 1000 ** 2).toFixed(1)} MB`
+  return `${(n / 1000 ** 3).toFixed(2)} GB`
 }
 
 export const fmtTime = (s: string | null | undefined): string =>

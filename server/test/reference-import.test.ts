@@ -100,8 +100,44 @@ describe('the real reference export', () => {
   })
 
   it('reports every file as absent and unverified in manifest-only mode', () => {
-    assert.deepEqual(report.counts.media.byFileStatus, [{ file_status: 'absent', n: 37 }])
-    assert.equal(report.counts.media.verified, 0)
+    // All four states reported, zeroes included — "0 failed" is a different
+    // statement from an omitted row.
+    assert.deepEqual(report.counts.media.verification, {
+      verified: 0,
+      failed: 0,
+      absent: 37,
+      presentUnverified: 0,
+    })
+  })
+
+  it('reconciles every declared total, so no totals warning appears', () => {
+    assert.ok(!report.validation.checks.some((c) => c.code === 'totals.mismatch'))
+  })
+
+  it('finds no dangling references anywhere in the export', () => {
+    const integrity = report.validation.checks.filter((c) => c.code.startsWith('integrity.'))
+    assert.deepEqual(integrity, [], 'the reference export cross-references cleanly')
+  })
+
+  it('finds every anchor inside the 0-1 canvas range', () => {
+    assert.ok(!report.validation.checks.some((c) => c.code === 'anchor.out-of-bounds'))
+    const anchors = db
+      .prepare('SELECT x, y FROM anchors WHERE import_id = ?')
+      .all(report.import.id) as { x: number; y: number }[]
+    assert.equal(anchors.length, 7)
+    for (const a of anchors) {
+      assert.ok(a.x >= 0 && a.x <= 1 && a.y >= 0 && a.y <= 1)
+    }
+  })
+
+  it('finds the event log contiguous from 1', () => {
+    assert.ok(!report.validation.checks.some((c) => c.code.startsWith('events.')))
+  })
+
+  it('recognises every word in the export', () => {
+    assert.deepEqual(report.validation.unrecognizedTerms, [])
+    assert.equal(report.unrecognized.resolutions, 0)
+    assert.equal(report.unrecognized.events, 0)
   })
 
   it('splits gaps from findings, and findings from problems', () => {
