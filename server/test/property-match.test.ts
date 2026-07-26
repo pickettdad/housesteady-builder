@@ -14,7 +14,7 @@ import { newId, now } from '../src/db/index.js'
  * speak up when the house is genuinely different.
  */
 describe('property label matching', () => {
-  it('normalizes the abbreviations that vary between visits', () => {
+  it('normalizes the abbreviations that vary between visits', async () => {
     assert.equal(normalize('443 Wannamaker Rd.'), '443 wannamaker road')
     assert.equal(normalize('12 Dundas St W'), '12 dundas street west')
   })
@@ -24,7 +24,7 @@ describe('property label matching', () => {
   const loud = (a: string, b: string) =>
     assert.ok(similarity(a, b) < MATCH_THRESHOLD, `expected a warning: "${a}" vs "${b}" = ${similarity(a, b)}`)
 
-  it('stays quiet through ordinary variation', () => {
+  it('stays quiet through ordinary variation', async () => {
     quiet('443 Wannamaker Rd', '443 Wannamaker Road')
     quiet('443 Wannamaker Road', '443 Wannamaker Rd, Belleville ON K8N 4Z5')
     quiet('Wannamaker 443', '443 Wannamaker Road')
@@ -32,12 +32,12 @@ describe('property label matching', () => {
     quiet('The Pickett house', 'The Pickett house — 443 Wannamaker Rd')
   })
 
-  it('speaks up when the house is plainly different', () => {
+  it('speaks up when the house is plainly different', async () => {
     loud('88 Bridge St', '443 Wannamaker Road')
     loud('Test build 7 web app 1', '443 Wannamaker Road')
   })
 
-  it('catches the near-miss neighbour an absolute threshold cannot', () => {
+  it('catches the near-miss neighbour an absolute threshold cannot', async () => {
     // "12 Dundas St W" and "12 Dundas St E" are 90% alike, so no threshold
     // separates them. Comparing against every property on file does.
     const result = checkPropertyLabel({
@@ -50,7 +50,7 @@ describe('property label matching', () => {
     assert.equal(result.betterMatch?.id, 'east')
   })
 
-  it('does not invent a rival when the chosen property is the best fit', () => {
+  it('does not invent a rival when the chosen property is the best fit', async () => {
     const result = checkPropertyLabel({
       manifestLabel: '443 Wannamaker Road',
       propertyLabel: 'Wannamaker',
@@ -61,7 +61,7 @@ describe('property label matching', () => {
     assert.equal(result.looksWrong, false)
   })
 
-  it('treats an empty manifest label as nothing to say, not as a mismatch', () => {
+  it('treats an empty manifest label as nothing to say, not as a mismatch', async () => {
     const result = checkPropertyLabel({ manifestLabel: '', propertyLabel: 'Wannamaker' })
     assert.equal(result.looksWrong, false)
     assert.equal(result.betterMatch, null)
@@ -69,21 +69,21 @@ describe('property label matching', () => {
 })
 
 describe('the guard in a real import', () => {
-  it('warns, but still imports, when the export names a different house', () => {
+  it('warns, but still imports, when the export names a different house', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db, { label: 'Wannamaker', address: '443 Wannamaker Rd' })
-    const { importId } = runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
 
     assert.equal(report.import.status, 'ok_with_warnings')
     const warning = report.validation.checks.find((c) => c.code === 'property.label-mismatch')
     assert.ok(warning, 'a label this different must be flagged')
-    assert.match(warning!.message, /corrupts the pin-number history/)
+    assert.match(warning!.message, /corrupts the record of both/)
     assert.equal(report.counts.pins.total, 11, 'the warning is advisory — the import still happened')
     db.close()
   })
 
-  it('points at the better-matching property when one exists', () => {
+  it('points at the better-matching property when one exists', async () => {
     const db = freshDb()
     // A second property whose label is exactly what the export says.
     db.prepare('INSERT INTO properties (id, label, address, created_at) VALUES (?, ?, ?, ?)').run(
@@ -93,7 +93,7 @@ describe('the guard in a real import', () => {
       now(),
     )
     const ids = makePropertyAndVisit(db, { label: 'Somewhere else entirely', address: '88 Bridge St' })
-    const { importId } = runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
 
     const warning = report.validation.checks.find((c) => c.code === 'property.better-match-elsewhere')
@@ -102,10 +102,10 @@ describe('the guard in a real import', () => {
     db.close()
   })
 
-  it('says nothing when the label matches', () => {
+  it('says nothing when the label matches', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db, { label: 'Test build 7 web app 1' })
-    const { importId } = runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
     assert.ok(!report.validation.checks.some((c) => c.code.startsWith('property.') && c.severity === 'warning'))
     db.close()

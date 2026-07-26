@@ -21,19 +21,19 @@ describe('the real reference export', () => {
   let propertyId: string
   let visitId: string
 
-  before(() => {
+  before(async () => {
     db = freshDb()
     dataDir = scratchDir()
     const ids = makePropertyAndVisit(db, { label: 'Test build 7 web app 1' })
     propertyId = ids.propertyId
     visitId = ids.visitId
-    const { importId } = runImport({ db, ...ids, raw: readReference(), dataDir })
+    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir })
     report = buildReport(db, importId)!
   })
 
   after(() => db.close())
 
-  it('imports, with media absence the only complaint', () => {
+  it('imports, with media absence the only complaint', async () => {
     assert.equal(report.import.status, 'ok_with_warnings')
     assert.equal(report.import.manifestSchemaVersion, 3)
     assert.equal(report.import.appVersion, '0.5.0')
@@ -45,20 +45,20 @@ describe('the real reference export', () => {
     )
   })
 
-  it('keeps the raw manifest byte-identical', () => {
+  it('keeps the raw manifest byte-identical', async () => {
     const stored = db.prepare('SELECT raw_manifest FROM imports WHERE id = ?').get(report.import.id) as {
       raw_manifest: string
     }
     assert.equal(stored.raw_manifest, readReference())
   })
 
-  it('writes the verbatim manifest to disk beside where its media will live', () => {
+  it('writes the verbatim manifest to disk beside where its media will live', async () => {
     const path = join(dataDir, 'properties', propertyId, 'visits', visitId, 'manifest.json')
     assert.ok(existsSync(path))
     assert.equal(readFileSync(path, 'utf8'), readReference())
   })
 
-  it('counts what is actually in the file', () => {
+  it('counts what is actually in the file', async () => {
     assert.equal(report.counts.zones, 2)
     assert.equal(report.counts.canvases, 3)
     assert.equal(report.counts.pins.total, 11)
@@ -72,7 +72,7 @@ describe('the real reference export', () => {
     assert.equal(report.counts.orphanEvents, 0)
   })
 
-  it('names the messy pins without letting the categories be added up', () => {
+  it('names the messy pins without letting the categories be added up', async () => {
     assert.equal(report.counts.pins.typeless, 2)
     assert.equal(report.counts.pins.retired, 2)
     assert.equal(report.counts.pins.unanchored, 4)
@@ -90,16 +90,16 @@ describe('the real reference export', () => {
     )
   })
 
-  it('reads media ownership from owner{}, not from the path', () => {
+  it('reads media ownership from owner{}, not from the path', async () => {
     const owners = Object.fromEntries(report.counts.media.byOwner.map((o) => [o.owner_kind, o.count]))
     assert.deepEqual(owners, { zone: 28, pin: 5, canvas: 3, inbox: 1 })
   })
 
-  it('breaks bytes out by kind — video will dwarf photos and must be visible coming', () => {
+  it('breaks bytes out by kind — video will dwarf photos and must be visible coming', async () => {
     assert.deepEqual(report.counts.media.byKind, [{ kind: 'photo', count: 37, bytes: 122_680_159 }])
   })
 
-  it('reports every file as absent and unverified in manifest-only mode', () => {
+  it('reports every file as absent and unverified in manifest-only mode', async () => {
     // All four states reported, zeroes included — "0 failed" is a different
     // statement from an omitted row.
     assert.deepEqual(report.counts.media.verification, {
@@ -110,16 +110,16 @@ describe('the real reference export', () => {
     })
   })
 
-  it('reconciles every declared total, so no totals warning appears', () => {
+  it('reconciles every declared total, so no totals warning appears', async () => {
     assert.ok(!report.validation.checks.some((c) => c.code === 'totals.mismatch'))
   })
 
-  it('finds no dangling references anywhere in the export', () => {
+  it('finds no dangling references anywhere in the export', async () => {
     const integrity = report.validation.checks.filter((c) => c.code.startsWith('integrity.'))
     assert.deepEqual(integrity, [], 'the reference export cross-references cleanly')
   })
 
-  it('finds every anchor inside the 0-1 canvas range', () => {
+  it('finds every anchor inside the 0-1 canvas range', async () => {
     assert.ok(!report.validation.checks.some((c) => c.code === 'anchor.out-of-bounds'))
     const anchors = db
       .prepare('SELECT x, y FROM anchors WHERE import_id = ?')
@@ -130,17 +130,17 @@ describe('the real reference export', () => {
     }
   })
 
-  it('finds the event log contiguous from 1', () => {
+  it('finds the event log contiguous from 1', async () => {
     assert.ok(!report.validation.checks.some((c) => c.code.startsWith('events.')))
   })
 
-  it('recognises every word in the export', () => {
+  it('recognises every word in the export', async () => {
     assert.deepEqual(report.validation.unrecognizedTerms, [])
     assert.equal(report.unrecognized.resolutions, 0)
     assert.equal(report.unrecognized.events, 0)
   })
 
-  it('splits gaps from findings, and findings from problems', () => {
+  it('splits gaps from findings, and findings from problems', async () => {
     assert.equal(report.checklist.total, 20)
 
     // One gap: a session item deferred to visit two.
@@ -167,7 +167,7 @@ describe('the real reference export', () => {
     assert.ok(report.checklist.findings.rows.every((f) => !gapIds.has(f.item_id)))
   })
 
-  it('reconciles resolutions[] against the event log', () => {
+  it('reconciles resolutions[] against the event log', async () => {
     const r = report.checklist.eventReconciliation
     assert.equal(r.itemResolved, 21)
     assert.equal(r.itemReopened, 1)
@@ -175,7 +175,7 @@ describe('the real reference export', () => {
     assert.equal(r.resolutionsLength, 20)
   })
 
-  it('surfaces zone rework that the zone record alone would hide', () => {
+  it('surfaces zone rework that the zone record alone would hide', async () => {
     const bedroom = report.zones.find((z) => z.label === 'bedroom')!
     assert.equal(bedroom.closeCount, 3)
     assert.equal(bedroom.reopenCount, 2)
@@ -183,7 +183,7 @@ describe('the real reference export', () => {
     assert.equal(bedroom.closedWithNoWork, false)
   })
 
-  it('names a zone that was closed with nothing resolved in it', () => {
+  it('names a zone that was closed with nothing resolved in it', async () => {
     const ensuite = report.zones.find((z) => z.label === 'ensuite')!
     assert.equal(ensuite.closedWithNoWork, true)
     assert.equal(ensuite.resolutionCount, 0)
@@ -193,7 +193,7 @@ describe('the real reference export', () => {
     assert.equal(ensuite.standardUnresolved, 11)
   })
 
-  it('stores the zone audit summary exactly as exported', () => {
+  it('stores the zone audit summary exactly as exported', async () => {
     // Recomputing it is the audit engine's job in Increment 3, not this one's.
     const row = db
       .prepare('SELECT audit_summary FROM zones WHERE import_id = ? AND label = ?')
@@ -204,14 +204,14 @@ describe('the real reference export', () => {
     assert.ok(audit.coreUnresolved.includes('bth.toilet-secure'))
   })
 
-  it('keeps the pin-scoped evidence nested inside resolution{}', () => {
+  it('keeps the pin-scoped evidence nested inside resolution{}', async () => {
     const row = db
       .prepare('SELECT evidence FROM resolutions WHERE import_id = ? AND item_id = ?')
       .get(report.import.id, 'int.alarms') as { evidence: string }
     assert.deepEqual(JSON.parse(row.evidence), { pinId: '019f9a3a-04e8-77d6-8ef8-979e43e8b998' })
   })
 
-  it('numbers chat messages by position, since the export carries no seq', () => {
+  it('numbers chat messages by position, since the export carries no seq', async () => {
     const rows = db
       .prepare('SELECT seq, role, model FROM chat_messages WHERE import_id = ? ORDER BY seq')
       .all(report.import.id) as { seq: number; role: string; model: string | null }[]
@@ -221,7 +221,7 @@ describe('the real reference export', () => {
     ])
   })
 
-  it('leaves typeless pins genuinely empty rather than inventing a type', () => {
+  it('leaves typeless pins genuinely empty rather than inventing a type', async () => {
     const rows = db
       .prepare(
         'SELECT number, type_kind, component_type, freeform_label FROM pins WHERE import_id = ? AND type_kind IS NULL ORDER BY number',
@@ -234,16 +234,16 @@ describe('the real reference export', () => {
     }
   })
 
-  it('refuses the same export twice into the same visit', () => {
-    assert.throws(
+  it('refuses the same export twice into the same visit', async () => {
+    await assert.rejects(
       () => runImport({ db, propertyId, visitId, raw: readReference(), dataDir }),
       /already been imported/,
     )
   })
 
-  it('allows the same export into a different visit — that is a re-walk, not a duplicate', () => {
+  it('allows the same export into a different visit — that is a re-walk, not a duplicate', async () => {
     const otherVisit = addVisit(db, propertyId)
-    const { status } = runImport({ db, propertyId, visitId: otherVisit, raw: readReference(), dataDir })
+    const { status } = await runImport({ db, propertyId, visitId: otherVisit, raw: readReference(), dataDir })
     assert.equal(status, 'ok_with_warnings')
   })
 })

@@ -129,13 +129,18 @@ export function PropertyPage({ id }: { id: string }) {
                       <div className="row">
                         <input
                           type="file"
-                          accept=".json,application/json"
+                          multiple
+                          accept=".json,.zip,application/json,application/zip"
                           ref={(el) => { fileInputs.current[v.id] = el }}
                           onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) void doImport(v.id, () => api.importFile(v.id, file))
+                            const files = e.target.files
+                            if (files?.length) void doImport(v.id, () => api.importFiles(v.id, files))
                           }}
                         />
+                      </div>
+                      <div className="hint" style={{ marginTop: 0 }}>
+                        Pick the <code>manifest.json</code> on its own, or select it together with the visit's
+                        media archives — the order does not matter.
                       </div>
                       <div className="row">
                         <button

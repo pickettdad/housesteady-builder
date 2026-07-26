@@ -1,26 +1,36 @@
 import type { Db } from '../db/index.js'
 import { j, newId, now } from '../db/index.js'
-import type { Manifest, NaReason } from './manifest.js'
+import type { CanonicalImport } from './adapters/canonical.js'
+import type { PlacementMap } from './media.js'
 import type { ValidationReport } from './validate.js'
 
 export interface PersistInput {
   db: Db
   propertyId: string
   visitId: string
+  /** The original bytes, stored verbatim. Never the canonical shape. */
   raw: string
-  manifest: Manifest
+  canonical: CanonicalImport
   report: ValidationReport
   mediaMode: 'manifest_only' | 'with_media'
   /** Array indexes the vocabulary pass found unfamiliar words in. */
   unrecognizedResolutions?: Set<number>
   unrecognizedEvents?: Set<number>
+  /** What happened to each file on disk. Empty when no media was supplied. */
+  placement?: PlacementMap
 }
 
 /**
  * Writes one import to the database, in a single transaction.
  *
- * A failed import leaves no partial state — better-sqlite3's transaction
- * wrapper rolls the whole thing back on throw.
+ * Reads the CANONICAL shape only — this function has no idea which manifest
+ * version produced its input, and adding v4 must not require touching it.
+ *
+ * `raw_manifest` still holds the original bytes: the canonical shape is a
+ * convenience, the file is the evidence.
+ *
+ * A failed import leaves no partial state — better-sqlite3's transaction wrapper
+ * rolls the whole thing back on throw.
  */
 export function persistImport(input: PersistInput): string {
   const {
@@ -28,11 +38,12 @@ export function persistImport(input: PersistInput): string {
     propertyId,
     visitId,
     raw,
-    manifest: m,
+    canonical: c,
     report,
     mediaMode,
     unrecognizedResolutions = new Set<number>(),
     unrecognizedEvents = new Set<number>(),
+    placement,
   } = input
   const importId = newId()
   const ts = now()
@@ -50,12 +61,13 @@ export function persistImport(input: PersistInput): string {
       visit_id: visitId,
       property_id: propertyId,
       imported_at: ts,
-      manifest_schema_version: m.manifestSchemaVersion ?? null,
-      app_version: m.session?.appVersion ?? null,
-      session_id: m.session?.sessionId ?? null,
-      config_id: m.config?.configId ?? null,
-      config_version: m.config?.version ?? null,
-      config_hash: m.config?.hash ?? null,
+      // Recorded for provenance. Nothing downstream branches on it.
+      manifest_schema_version: c.sourceManifestVersion,
+      app_version: c.session.appVersion,
+      session_id: c.session.sessionId,
+      config_id: c.config.id,
+      config_version: c.config.version,
+      config_hash: c.config.hash,
       media_mode: mediaMode,
       raw_manifest: raw, // verbatim, whole, byte-for-byte what arrived
       validation_report: JSON.stringify(report),
@@ -71,16 +83,16 @@ export function persistImport(input: PersistInput): string {
         @completed_at, @exported_at, @lifecycle, @totals, @orphan_events, @events_count, @created_at)`,
     ).run({
       import_id: importId,
-      session_id: m.session?.sessionId ?? null,
-      property_label: m.session?.propertyLabel ?? null,
-      flags: j(m.session?.flags ?? []),
-      started_at: m.session?.startedAt ?? null,
-      completed_at: m.session?.completedAt ?? null,
-      exported_at: m.session?.exportedAt ?? null,
-      lifecycle: j(m.session?.lifecycle ?? []),
-      totals: j(m.totals ?? {}),
-      orphan_events: j(m.orphanEvents ?? []),
-      events_count: (m.events ?? []).length,
+      session_id: c.session.sessionId,
+      property_label: c.session.propertyLabel,
+      flags: j(c.session.flags),
+      started_at: c.session.startedAt,
+      completed_at: c.session.completedAt,
+      exported_at: c.session.exportedAt,
+      lifecycle: j(c.session.lifecycle),
+      totals: j(c.declaredTotals),
+      orphan_events: j(c.orphanEvents),
+      events_count: c.events.length,
       created_at: ts,
     })
 
@@ -88,14 +100,7 @@ export function persistImport(input: PersistInput): string {
     db.prepare(
       `INSERT INTO config_snapshots (import_id, config_id, config_version, config_hash, snapshot, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(
-      importId,
-      m.config?.configId ?? null,
-      m.config?.version ?? null,
-      m.config?.hash ?? null,
-      JSON.stringify(m.config?.snapshot ?? {}),
-      ts,
-    )
+    ).run(importId, c.config.id, c.config.version, c.config.hash, JSON.stringify(c.config.snapshot), ts)
 
     // ------------------------------------------------------- zones, canvases
     const insZone = db.prepare(
@@ -103,37 +108,36 @@ export function persistImport(input: PersistInput): string {
         attributes, closed_at, close_note, audit_summary, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
+    for (const z of c.zones) {
+      insZone.run(
+        z.zoneId,
+        importId,
+        propertyId,
+        visitId,
+        z.type,
+        z.label,
+        z.level,
+        j(z.attributes),
+        z.closedAt,
+        z.closeNote,
+        // Stored as the field app sent it. Recomputing is Increment 3's job.
+        z.auditSummary
+          ? JSON.stringify({
+              coreUnresolved: z.auditSummary.coreUnresolved,
+              standardUnresolved: z.auditSummary.standardUnresolved,
+              naCount: z.auditSummary.naCount,
+            })
+          : null,
+        ts,
+      )
+    }
+
     const insCanvas = db.prepare(
       `INSERT INTO canvases (canvas_id, zone_id, import_id, kind, retired, media_id, file, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    for (const z of m.zones ?? []) {
-      insZone.run(
-        z.zoneId ?? null,
-        importId,
-        propertyId,
-        visitId,
-        z.type ?? null,
-        z.label ?? null,
-        z.level ?? null,
-        j(z.attributes ?? {}),
-        z.closedAt ?? null,
-        z.closeNote ?? null,
-        j(z.audit ?? null),
-        ts,
-      )
-      for (const c of z.canvases ?? []) {
-        insCanvas.run(
-          c.canvasId ?? null,
-          z.zoneId ?? null,
-          importId,
-          c.kind ?? null,
-          c.retired ? 1 : 0,
-          c.mediaId ?? null,
-          c.file ?? null,
-          ts,
-        )
-      }
+    for (const cv of c.canvases) {
+      insCanvas.run(cv.canvasId, cv.zoneId, importId, cv.kind, cv.retired ? 1 : 0, cv.mediaId, cv.file, ts)
     }
 
     // --------------------------------------------------------- pins, anchors
@@ -143,42 +147,35 @@ export function persistImport(input: PersistInput): string {
         chat_thread_ids, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
+    for (const p of c.pins) {
+      // A pin with no type at all is valid — created and never typed. All three
+      // type columns stay null; nothing is invented to fill them.
+      insPin.run(
+        p.pinId,
+        importId,
+        propertyId,
+        visitId,
+        p.number,
+        p.zoneId,
+        p.typeKind,
+        p.componentType,
+        p.freeformLabel,
+        p.nickname,
+        p.flag,
+        p.retiredAt,
+        j(p.mediaIds),
+        j(p.noteIds),
+        j(p.chatThreadIds),
+        ts,
+      )
+    }
+
     const insAnchor = db.prepare(
       `INSERT INTO anchors (anchor_id, pin_id, canvas_id, x, y, import_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    for (const p of m.pins ?? []) {
-      // A pin with no `type` key at all is valid — created and never typed.
-      // All three type columns stay null; nothing is invented to fill them.
-      insPin.run(
-        p.pinId ?? null,
-        importId,
-        propertyId,
-        visitId,
-        p.number ?? null,
-        p.zoneId ?? null,
-        p.type?.kind ?? null,
-        p.type?.componentType ?? null,
-        p.type?.label ?? null,
-        p.label ?? null, // nickname — reserved, absent in the observed export
-        p.flag ?? null,
-        p.retired?.at ?? null,
-        j(p.mediaIds ?? []),
-        j(p.noteIds ?? []),
-        j(p.chatThreadIds ?? []),
-        ts,
-      )
-      for (const a of p.anchors ?? []) {
-        insAnchor.run(
-          a.anchorId ?? null,
-          p.pinId ?? null,
-          a.canvasId ?? null,
-          a.x ?? null,
-          a.y ?? null,
-          importId,
-          ts,
-        )
-      }
+    for (const a of c.anchors) {
+      insAnchor.run(a.anchorId, a.pinId, a.canvasId, a.x, a.y, importId, ts)
     }
 
     // ---------------------------------------------------------------- media
@@ -189,34 +186,37 @@ export function persistImport(input: PersistInput): string {
         duration_ms, source, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    for (const x of m.media ?? []) {
-      // Ownership comes from owner{}, never from parsing the path. The path is
-      // where the bytes live; owner is what the bytes are of.
+    for (const x of c.media) {
+      // With no media supplied the honest values are "not verified" and "not
+      // here" — never a hopeful default. When files did arrive, the media pass
+      // has already said what happened to each one.
+      const placed = (x.mediaId !== null ? placement?.get(x.mediaId) : undefined) ?? {
+        status: 'absent' as const,
+        shaVerified: false,
+        bytesOnDisk: null,
+      }
       insMedia.run(
-        x.mediaId ?? null,
+        x.mediaId,
         importId,
         propertyId,
         visitId,
-        x.kind ?? null,
-        x.owner?.kind ?? null,
-        x.owner?.zoneId ?? null,
-        x.owner?.pinId ?? null,
-        x.owner?.pinNumber ?? null,
-        x.owner?.canvasId ?? null,
-        x.group ?? null,
-        x.file ?? null,
-        x.mime ?? null,
-        x.bytes ?? null,
-        x.sha256 ?? null,
-        // Nothing has been verified because nothing has been copied yet. The
-        // checksum pass sets both of these; until then the honest values are
-        // "not verified" and "not here" — never a hopeful default.
-        0, // sha_verified
-        'absent', // file_status
-        null, // bytes_on_disk
-        x.capturedAt ?? null,
-        x.durationMs ?? null,
-        j(x.source ?? null),
+        x.kind,
+        x.ownerKind,
+        x.ownerZoneId,
+        x.ownerPinId,
+        x.ownerPinNumber,
+        x.ownerCanvasId,
+        x.groupKey,
+        x.file,
+        x.mime,
+        x.bytes,
+        x.sha256,
+        placed.shaVerified ? 1 : 0,
+        placed.status,
+        placed.bytesOnDisk,
+        x.capturedAt,
+        x.durationMs,
+        j(x.source),
         ts,
       )
     }
@@ -226,17 +226,8 @@ export function persistImport(input: PersistInput): string {
       `INSERT INTO notes (note_id, import_id, target_kind, target_id, text, at, source, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    for (const n of m.notes ?? []) {
-      insNote.run(
-        n.noteId ?? null,
-        importId,
-        n.target?.kind ?? null,
-        n.target?.id ?? null,
-        n.text ?? null,
-        n.at ?? null,
-        j(n.source ?? null),
-        ts,
-      )
+    for (const n of c.notes) {
+      insNote.run(n.noteId, importId, n.targetKind, n.targetId, n.text, n.at, j(n.source), ts)
     }
 
     // ---------------------------------------------------- chats and messages
@@ -248,37 +239,41 @@ export function persistImport(input: PersistInput): string {
       `INSERT INTO chat_messages (thread_id, import_id, seq, role, text, media_ids, model, at, source, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    for (const t of m.chats ?? []) {
-      insThread.run(t.threadId ?? null, importId, t.target?.kind ?? null, t.target?.id ?? null, ts)
-      // Messages carry no seq of their own; position in the array is the order.
-      ;(t.messages ?? []).forEach((msg, i) => {
+    for (const t of c.chatThreads) {
+      insThread.run(t.threadId, importId, t.targetKind, t.targetId, ts)
+      for (const msg of t.messages) {
         insMessage.run(
-          t.threadId ?? null,
+          t.threadId,
           importId,
-          i + 1,
-          msg.role ?? null,
-          msg.text ?? null,
-          j(msg.mediaIds ?? null),
-          msg.model ?? null,
-          msg.at ?? null,
-          j(msg.source ?? null),
+          msg.seq, // assigned by the adapter from position
+          msg.role,
+          msg.text,
+          j(msg.mediaIds),
+          msg.model,
+          msg.at,
+          j(msg.source),
           ts,
         )
-      })
+      }
     }
 
     // ----------------------------------------------------------- inbox refs
     const insInbox = db.prepare(
       `INSERT INTO inbox_refs (import_id, ref_kind, ref_id, created_at) VALUES (?, ?, ?, ?)`,
     )
-    for (const id of m.inbox?.mediaIds ?? []) insInbox.run(importId, 'media', id, ts)
-    for (const id of m.inbox?.noteIds ?? []) insInbox.run(importId, 'note', id, ts)
+    for (const ref of c.inboxRefs) insInbox.run(importId, ref.refKind, ref.refId, ts)
 
     // ----------------------------------------------------------- resolutions
     // The derived columns are computed here, from THIS import's own config
     // snapshot. Never from a list baked into the builder.
-    const reasons = new Map<string, NaReason>()
-    for (const r of m.config?.snapshot?.naReasons ?? []) reasons.set(r.id, r)
+    const reasons = new Map<string, { feedsGapList?: boolean; recordsFinding?: boolean }>()
+    const declared = c.config.snapshot.naReasons
+    if (Array.isArray(declared)) {
+      for (const r of declared) {
+        const reason = r as { id?: unknown; feedsGapList?: boolean; recordsFinding?: boolean }
+        if (typeof reason.id === 'string') reasons.set(reason.id, reason)
+      }
+    }
 
     const insRes = db.prepare(
       `INSERT INTO resolutions (import_id, property_id, visit_id, scope_kind, scope_zone_id,
@@ -286,33 +281,31 @@ export function persistImport(input: PersistInput): string {
         is_recognized, feeds_gap_list, records_finding, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    ;(m.resolutions ?? []).forEach((r, index) => {
-      const body = r.resolution ?? {}
-      const reason = body.reasonId ? reasons.get(body.reasonId) : undefined
+    c.resolutions.forEach((r, index) => {
+      const reason = r.reasonId ? reasons.get(r.reasonId) : undefined
 
       // An na reason the config does not declare has no flags, so it lands in
       // neither stream. That is the honest outcome — it is flagged unrecognized
       // and listed on the report rather than guessed into one column or the other.
-      const feedsGapList = body.kind === 'na' && reason?.feedsGapList === true
-      const recordsFinding =
-        (body.kind === 'na' && reason?.recordsFinding === true) || body.result === 'fail'
+      const feedsGapList = r.kind === 'na' && reason?.feedsGapList === true
+      const recordsFinding = (r.kind === 'na' && reason?.recordsFinding === true) || r.result === 'fail'
 
       insRes.run(
         importId,
         propertyId,
         visitId,
-        r.scope?.kind ?? null,
-        r.scope?.zoneId ?? null,
-        r.scope?.pinId ?? null,
-        r.itemId ?? null,
-        body.kind ?? null,
-        body.via ?? null,
-        body.result ?? null,
-        body.note ?? null,
-        body.reasonId ?? null,
-        j(body.evidence ?? null), // nested inside resolution{} — easy to drop, must not be
-        r.at ?? null,
-        j(r.source ?? null),
+        r.scopeKind,
+        r.scopeZoneId,
+        r.scopePinId,
+        r.itemId,
+        r.kind,
+        r.via,
+        r.result,
+        r.note,
+        r.reasonId,
+        j(r.evidence),
+        r.at,
+        j(r.source),
         unrecognizedResolutions.has(index) ? 0 : 1,
         feedsGapList ? 1 : 0,
         recordsFinding ? 1 : 0,
@@ -326,17 +319,17 @@ export function persistImport(input: PersistInput): string {
         payload, is_recognized, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    ;(m.events ?? []).forEach((e, index) => {
+    c.events.forEach((e, index) => {
       insEvent.run(
         importId,
-        (e.eventId as string) ?? null,
-        (e.seq as number) ?? null,
-        (e.type as string) ?? null,
-        (e.at as string) ?? null,
-        // Per-event schemaVersion is independent of manifestSchemaVersion.
-        (e.schemaVersion as number) ?? null,
-        j(e.source ?? null),
-        JSON.stringify(e), // the whole event, verbatim
+        e.eventId,
+        e.seq,
+        e.type,
+        e.at,
+        // Per-event schemaVersion is independent of the manifest's own version.
+        e.schemaVersion,
+        j(e.source),
+        JSON.stringify(e.payload), // the whole event, verbatim
         unrecognizedEvents.has(index) ? 0 : 1,
         ts,
       )
