@@ -55,7 +55,7 @@ The audit is the heart of it. The Home Binder Master Spec defines what a complet
 7. **Fail open on vocabulary, fail closed on structure.** Unknown resolution kinds, pin types, item IDs, na reasons, event types: preserve, display, count, mark unrecognized — never fail an import over a word the builder hasn't met. Wrong schema version, unparseable JSON, missing top-level sections: refuse loudly.
 8. **The Master Spec is the definition of done.** This software does not invent what a binder contains.
 
-## 5. Three distinctions that are easy to get wrong
+## 5. Distinctions that are easy to get wrong
 
 **Gaps are not findings.** A checklist item resolved as `satisfied / via check / result: fail` is *resolved* — it records a problem, not a hole. Keep three streams separate:
 
@@ -65,11 +65,25 @@ The audit is the heart of it. The Home Binder Master Spec defines what a complet
 
 Collapsing findings into gaps is the most damaging modelling mistake available here.
 
+**"Finding" does not mean "problem."** `records_finding` marks a substantive fact that belongs in the binder — which includes failed checks (defects) and confirmed absences (no fireplace; no moisture suspected). Never render the two under a heading that implies trouble. Report the total and the breakdown.
+
 **The config decides, not the builder.** Which na reasons feed the gap list is declared in each import's own config snapshot (`naReasons[].feedsGapList` / `.recordsFinding`). Read it per import. Never hardcode the list.
 
 **`resolutions[]` is state; `events[]` is history.** The array is a projection of the log — resolves minus reopens. The audit reads `resolutions[]`; the audit trail reads `events[]`. Store both.
 
-## 6. AI assist — why it exists and what it may not do
+**Media kinds are open vocabulary.** Today `photo` and `voice`; the field app is adding `video`, and `voice` may be renamed to `audio`. Treat `media.kind` as fail-open like every other vocabulary field — never switch on an exhaustive list. Video also changes the storage arithmetic materially, so always report bytes broken out by kind.
+
+## 6. The concierge is not an inspector
+
+The person doing the visit is a relationship professional who knows the house and coordinates the work. They are not a career home inspector and not a trades expert. This is the service's design, not a gap in hiring. Two consequences bind every line of code and every prompt:
+
+**The software carries the expertise, not the person.** The checklist decides what gets looked at; the audit decides whether it was covered; the house style decides how it is written. The concierge supplies accurate observation and accountability. Software that assumes a technical expert on the other end will produce inconsistent binders the moment there is more than one concierge.
+
+**Identification, never assessment.** The service identifies and documents; licensed specialists assess. "The panel is a Federal Pacific Stab-Lok" is identification. "The panel is unsafe" is assessment, and it is not the concierge's to make — professionally, contractually, or legally. Every template, rendered sentence, and AI prompt keeps the concierge on the identification side of that line. Where a judgement is genuinely required, the correct output is a triggered flag recommending a specialist, never a softened opinion.
+
+This reframes what a signature means. Signing does not mean "I certify this assessment." It means "I observed this, and this description matches what I saw." The AI supplies the framing; the concierge supplies the observation and owns its accuracy. That division is what makes AI drafting compatible with the honesty doctrine rather than in tension with it.
+
+## 7. AI assist — why it exists and what it may not do
 
 AI is not a convenience feature here. At one concierge the binder sounds like one person; at five, without intervention, clients receive documents that read like different companies. **AI assist is the mechanism by which many operators produce one consistent service.** The concierge supplies observation and accountability; the software supplies consistency.
 
@@ -83,7 +97,7 @@ AI is not a convenience feature here. At one concierge the binder sounds like on
 
 Full plan, including which task lands in which increment: `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1_2026-07-25.md`.
 
-## 7. Design decisions already made (don't relitigate; ask if they seem wrong)
+## 8. Design decisions already made (don't relitigate; ask if they seem wrong)
 
 - **Working surface:** the binder's table of contents is the spine. Two workspaces sit on it — **Triage** (fast, keyboard-driven, photo-heavy: verify what the field captured) and the **Section Workbench** (slow, text-heavy: assemble and write). Renders are outputs, not places.
 - **One state, many views.** A missing item appears as a dashed slot in the workbench, a status pip in the table of contents, and a row in the gap report — all reading the same state. Nothing tracked twice.
@@ -92,13 +106,13 @@ Full plan, including which task lands in which increment: `/docs/HouseSteady_Bin
 
 Full reasoning: `/docs/HouseSteady_Binder-Builder_Design_v1_*.md`.
 
-## 8. Expect messy input
+## 9. Expect messy input
 
 Real exports are structurally clean and substantively messy. The reference export in `/fixtures/reference/` contains typeless pins, retired pins, unanchored pins, and 28 of 37 photos owned by a zone with nothing pointing at them. That is a normal visit, not a corrupt file. **Graceful handling of mess is a feature requirement.** Never design against a pristine sample.
 
 Scale, measured: 123 MB for two rooms; roughly 1.5–2 GB for a full baseline visit.
 
-## 9. How to work here
+## 10. How to work here
 
 - **Build in increments, one at a time.** Each is a dated spec in `/docs`, independently usable, ending with something the owner can run and look at. Don't build ahead into the next increment because the code seems to want it.
 - **The owner is not a developer.** Explain in plain language what you built and what it does. Skip jargon in summaries; keep it in the code.
@@ -106,7 +120,7 @@ Scale, measured: 123 MB for two rooms; roughly 1.5–2 GB for a full baseline vi
 - **When the spec and this file disagree,** this file wins on doctrine, the spec wins on detail. Flag the conflict either way.
 - **Tests are part of done,** not a follow-up.
 
-## 10. Repo layout
+## 11. Repo layout
 
 ```
 /server     API, database, migrations
@@ -117,6 +131,6 @@ Scale, measured: 123 MB for two rooms; roughly 1.5–2 GB for a full baseline vi
 /data       runtime data — gitignored, never committed (real house data lives here)
 ```
 
-## 11. Privacy
+## 12. Privacy
 
 This repo will hold complete records of real people's homes — interior photos, documents, addresses. Test data from friends' houses gets the same treatment as client data. `/data` is gitignored and stays that way. Nothing goes to a third-party service without an explicit decision recorded in `/docs`.
