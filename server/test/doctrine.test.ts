@@ -276,3 +276,129 @@ describe('doctrine 7 — fail open on vocabulary, fail closed on structure', () 
     assert.ok(!/\bCHECK\s*\(/i.test(migration), 'vocabulary columns are plain TEXT, on purpose')
   })
 })
+
+describe('doctrine 1 — the canonical shape is derived from the raw, never a replacement for it', () => {
+  /**
+   * The refactor that introduced the canonical shape is exactly when this could
+   * have quietly stopped being true — by storing the normalized shape and
+   * treating it as the record. These pin that it did not.
+   */
+  it('round-trips the raw manifest to a deep-equal object, not just a similar one', async () => {
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db)
+    const raw = readReference()
+    const { importId } = await runImport({ db, ...ids, raw, dataDir: scratchDir() })
+    const stored = db.prepare('SELECT raw_manifest FROM imports WHERE id = ?').get(importId) as {
+      raw_manifest: string
+    }
+    assert.deepEqual(JSON.parse(stored.raw_manifest), JSON.parse(raw))
+    assert.equal(stored.raw_manifest, raw, 'and byte-for-byte, not merely equivalent')
+    db.close()
+  })
+
+  it('keeps a field the canonical shape does not model', async () => {
+    // This is the sharp one. The canonical shape is deliberately lossy — it
+    // models what the builder needs. That is only safe because the raw stays the
+    // record. If normalization ever became the record, everything the shape does
+    // not name would vanish silently.
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db)
+    const parsed = JSON.parse(readReference())
+    parsed.session.somethingTheBuilderHasNeverHeardOf = { weather: 'sleet', helper: 'Dana' }
+    parsed.pins[0].futureFieldFromV4 = 'concern-uuid-here'
+    const raw = JSON.stringify(parsed)
+
+    const { importId } = await runImport({ db, ...ids, raw, dataDir: scratchDir() })
+    const stored = JSON.parse(
+      (db.prepare('SELECT raw_manifest FROM imports WHERE id = ?').get(importId) as { raw_manifest: string })
+        .raw_manifest,
+    )
+    assert.deepEqual(stored.session.somethingTheBuilderHasNeverHeardOf, { weather: 'sleet', helper: 'Dana' })
+    assert.equal(stored.pins[0].futureFieldFromV4, 'concern-uuid-here')
+    db.close()
+  })
+
+  it('never persists the canonical shape itself', () => {
+    // No column holds it, and no code writes it. The normalized form is a
+    // transient convenience between the file and the tables.
+    const persist = codeOf(join(serverSrc, 'import', 'persist.ts'))
+    assert.ok(!/JSON\.stringify\(\s*c\s*\)/.test(persist), 'the canonical object is never serialised whole')
+    const migration = readFileSync(join(serverSrc, 'db', 'migrations', '001_initial.sql'), 'utf8')
+    assert.ok(!/canonical/i.test(migration), 'no table exists to store it in')
+  })
+
+  it('reads the record of truth back out for anything the tables do not carry', async () => {
+    // A measure resolution's numeric value has no column. It is not lost — it is
+    // in the raw, which is what "record of truth" has to mean in practice.
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db)
+    const parsed = JSON.parse(readReference())
+    parsed.resolutions[0].resolution = { kind: 'satisfied', via: 'measure', value: 52, unit: 'psi' }
+    const { importId } = await runImport({ db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
+
+    const stored = JSON.parse(
+      (db.prepare('SELECT raw_manifest FROM imports WHERE id = ?').get(importId) as { raw_manifest: string })
+        .raw_manifest,
+    )
+    assert.equal(stored.resolutions[0].resolution.value, 52)
+    assert.equal(stored.resolutions[0].resolution.unit, 'psi')
+    db.close()
+  })
+})
+
+describe('doctrine — nothing stored is tied to this machine', () => {
+  /**
+   * A restore onto a different machine, a different user account, or a different
+   * folder must not break every photo link. That is only true if paths are
+   * stored relative and resolved at read time — and it is cheap to keep true
+   * now, painful to retrofit once there are years of records.
+   */
+  it('stores every media and canvas path relative to the visit, never absolute', async () => {
+    const db = freshDb()
+    const dataDir = scratchDir()
+    const ids = makePropertyAndVisit(db)
+    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir })
+
+    const paths = [
+      ...(db.prepare('SELECT file FROM media WHERE import_id = ? AND file IS NOT NULL').all(importId) as { file: string }[]),
+      ...(db.prepare('SELECT file FROM canvases WHERE import_id = ? AND file IS NOT NULL').all(importId) as { file: string }[]),
+    ].map((r) => r.file)
+
+    assert.ok(paths.length > 0, 'sanity: there are paths to check')
+    for (const p of paths) {
+      assert.ok(!p.startsWith('/'), `"${p}" is absolute`)
+      assert.ok(!/^[A-Za-z]:[\\/]/.test(p), `"${p}" is an absolute Windows path`)
+      assert.ok(!p.includes(dataDir), `"${p}" embeds this machine's data directory`)
+      assert.ok(p.startsWith('media/'), `"${p}" should be relative to the visit directory`)
+    }
+    db.close()
+  })
+
+  it('puts no machine-specific path in any stored column', async () => {
+    const db = freshDb()
+    const dataDir = scratchDir()
+    const ids = makePropertyAndVisit(db)
+    await runImport({ db, ...ids, raw: readReference(), dataDir })
+
+    const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[])
+      .map((t) => t.name)
+
+    const offenders: string[] = []
+    for (const table of tables) {
+      const columns = (db.prepare('SELECT name FROM pragma_table_info(?)').all(table) as { name: string }[]).map((c) => c.name)
+      for (const column of columns) {
+        const rows = db.prepare(`SELECT "${column}" AS v FROM "${table}" WHERE "${column}" IS NOT NULL`).all() as { v: unknown }[]
+        for (const row of rows) {
+          if (typeof row.v === 'string' && row.v.includes(dataDir)) offenders.push(`${table}.${column}`)
+        }
+      }
+    }
+    assert.deepEqual([...new Set(offenders)], [], 'the database must survive being restored somewhere else')
+    db.close()
+  })
+
+  it('resolves the data root at runtime rather than storing it', () => {
+    const dbModule = codeOf(join(serverSrc, 'db', 'index.ts'))
+    assert.match(dbModule, /process\.env\.HOUSESTEADY_DATA/, 'the location is configurable, not baked in')
+  })
+})
