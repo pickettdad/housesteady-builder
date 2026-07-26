@@ -163,9 +163,14 @@ export const api = {
       body: JSON.stringify({ kind, visitDate: visitDate || null }),
     }),
 
-  importFile: (visitId: string, file: File) => {
+  /**
+   * Send whatever the operator picked. The server sorts the manifest from the
+   * media archives by what the files are, so the order they were selected in
+   * does not matter.
+   */
+  importFiles: (visitId: string, files: FileList | File[]) => {
     const fd = new FormData()
-    fd.append('manifest', file)
+    for (const file of Array.from(files)) fd.append('files', file)
     return req<{ importId: string; status: string }>(`/api/visits/${visitId}/import`, {
       method: 'POST',
       body: fd,

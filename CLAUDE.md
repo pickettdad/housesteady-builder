@@ -57,33 +57,71 @@ The audit is the heart of it. The Home Binder Master Spec defines what a complet
 
 ## 5. Distinctions that are easy to get wrong
 
-**Gaps are not findings.** A checklist item resolved as `satisfied / via check / result: fail` is *resolved* — it records a problem, not a hole. Keep three streams separate:
+**Four streams, never collapsed.** A checklist item resolved as `satisfied / via check / result: fail` is *resolved* — it records a problem, not a hole.
 
-- **Gaps** — unresolved items + `na` where the config's `naReasons` marks `feedsGapList: true` → gap report
-- **Findings** — `result: fail` + `na` where `recordsFinding: true` + pins flagged `issue` → condition assessment
-- **Triggered flags** — property flags and specialist referrals → gap report, third column
+| Stream | What it is | Feeds |
+|---|---|---|
+| **Gaps** | Unresolved items + `na` where the config's `naReasons` marks `feedsGapList: true` | Gap report, session plan. **Never becomes a concern** — a missing photo is not a problem with the house |
+| **Findings** | `result: fail` + `na` where `recordsFinding: true`. **Not synonymous with problems** | Condition assessment |
+| **Triggered flags** | Property flags and specialist referrals | Referral list, gap report column three |
+| **Concerns** | Tracked things needing attention, with their own identity and lifecycle | Dashboard, project register, session plan |
 
 Collapsing findings into gaps is the most damaging modelling mistake available here.
 
-**"Finding" does not mean "problem."** `records_finding` marks a substantive fact that belongs in the binder — which includes failed checks (defects) and confirmed absences (no fireplace; no moisture suspected). Never render the two under a heading that implies trouble. Report the total and the breakdown.
+**"Concern," never "issue."** "Issue" asserts a defect and carries quasi-legal weight; the concierge does not assess. "Concern" says this was noticed and is being tracked — true, and claims nothing more. Schema and client-facing copy use the same word.
 
 **The config decides, not the builder.** Which na reasons feed the gap list is declared in each import's own config snapshot (`naReasons[].feedsGapList` / `.recordsFinding`). Read it per import. Never hardcode the list.
 
-**`resolutions[]` is state; `events[]` is history.** The array is a projection of the log — resolves minus reopens. The audit reads `resolutions[]`; the audit trail reads `events[]`. Store both.
+**"Finding" does not mean "problem."** `records_finding` marks *a substantive fact that belongs in the binder* — which includes failed checks (defects) **and** confirmed absences (no fireplace; no moisture suspected). Never render the two under a heading that implies trouble. Report the total and the breakdown.
 
-**Media kinds are open vocabulary.** Today `photo` and `voice`; the field app is adding `video`, and `voice` may be renamed to `audio`. Treat `media.kind` as fail-open like every other vocabulary field — never switch on an exhaustive list. Video also changes the storage arithmetic materially, so always report bytes broken out by kind.
+**Media kinds are open vocabulary.** Today `photo` and `voice`; the field app is adding **video**, and `voice` may be renamed to audio. Treat `media.kind` as fail-open like every other vocabulary field — never switch on an exhaustive list. Video also changes the storage arithmetic materially (minutes of video can outweigh a whole visit's photos), so always report **bytes broken out by kind**.
+
+**`resolutions[]` is state; `events[]` is history.** The array is a projection of the log — resolves minus reopens. The audit reads `resolutions[]`; the audit trail reads `events[]`. Store both.
 
 ## 6. The concierge is not an inspector
 
-The person doing the visit is a relationship professional who knows the house and coordinates the work. They are not a career home inspector and not a trades expert. This is the service's design, not a gap in hiring. Two consequences bind every line of code and every prompt:
+The person doing the visit is a relationship professional who knows the house and coordinates the work. They are not a career home inspector and not a trades expert. **This is the service's design, not a gap in hiring.** Two consequences bind every line of code and every prompt:
 
 **The software carries the expertise, not the person.** The checklist decides what gets looked at; the audit decides whether it was covered; the house style decides how it is written. The concierge supplies accurate observation and accountability. Software that assumes a technical expert on the other end will produce inconsistent binders the moment there is more than one concierge.
 
-**Identification, never assessment.** The service identifies and documents; licensed specialists assess. "The panel is a Federal Pacific Stab-Lok" is identification. "The panel is unsafe" is assessment, and it is not the concierge's to make — professionally, contractually, or legally. Every template, rendered sentence, and AI prompt keeps the concierge on the identification side of that line. Where a judgement is genuinely required, the correct output is a triggered flag recommending a specialist, never a softened opinion.
+**Identification, never assessment.** The service identifies and documents; licensed specialists assess. *"The panel is a Federal Pacific Stab-Lok"* is identification. *"The panel is unsafe"* is assessment, and it is not the concierge's to make — professionally, contractually, or legally. Every template, rendered sentence, and AI prompt keeps the concierge on the identification side of that line. Where a judgement is genuinely required, the correct output is a **triggered flag recommending a specialist**, never a softened opinion.
 
-This reframes what a signature means. Signing does not mean "I certify this assessment." It means "I observed this, and this description matches what I saw." The AI supplies the framing; the concierge supplies the observation and owns its accuracy. That division is what makes AI drafting compatible with the honesty doctrine rather than in tension with it.
+This reframes what a signature means. Signing does not mean *"I certify this assessment."* It means **"I observed this, and this description matches what I saw."** The AI supplies the framing; the concierge supplies the observation and owns its accuracy. That division is what makes AI drafting compatible with the honesty doctrine rather than in tension with it.
 
-## 7. AI assist — why it exists and what it may not do
+## 7. The object / concern model — ratified, binds both apps
+
+Governing record: `/docs/HouseSteady_Object-Concern-Model_v1_2026-07-25.md`. Ratified by the owner; **neither Code session invents changes to it** — changes return through the owner as a new version of that file.
+
+Four kinds of thing. **"Pin" now means the marker on a canvas, not the entity.**
+
+| | What it is | Lifespan |
+|---|---|---|
+| **Zone** | A room or area | The house |
+| **Object** | A thing that lives in the house — water heater, panel, deck | Years; replaced, not resolved |
+| **Concern** | Something observed that needs tracking | Opens, is watched or acted on, closes |
+| **Capture** | Photo, audio, video, note, AI thread | Attached to any of the above |
+
+**Objects and concerns are separate entities, not one entity with a flag.** One object has many concerns over its life; each concern has its own history. Concerns may be zone-owned (a sloping floor belongs to the room, not to any object) or object-owned, and may float unattached until assigned.
+
+**The seam: the field app owns observations; this repo owns the concern record.** Field says *"on this visit, concern #47 was observed, still present, two photos."* The builder holds *"#47 — opened Aug 2026 at the water heater, observed on four visits, contractor engaged November, completed January, verified February."* Coordination, quotes, trades, and verification never touch the field app.
+
+**A concern never auto-closes from field data.** A previously-failed check passing on a later visit records *this check now passes* against an open concern; it does not resolve it. **Resolution is this repo's, always with a reason** — repaired by trade on date, homeowner fixed it, no longer observable. Two systems disagreeing about whether something is closed, with no adjudicator, is the failure this rule prevents.
+
+**Identity:** uuids are minted offline in the field and **this repo adopts them as canonical** — no mapping layer, no reconciliation. The session-plan export (this repo → field) is therefore the cross-visit identity mechanism, not a convenience: without it a five-year-old leak is minted fresh every visit and nothing lines up.
+
+**Retirement reasons drive binder inclusion, never deletion.** The event log is append-only and nothing vanishes. `misplaced` / `duplicate` → retained in the log, excluded from the binder. `removed` / `replaced` → retained and **included as house history** ("furnace present until 2027"). Same discipline as `none-present`: the reason *is* the data.
+
+**No condition grading on objects.** "Condition: poor" is a professional judgement a concierge cannot defend and a homeowner may act on. Component checklist answers across visits — `pass, pass, pass, fail` — tell a comparable story a grade cannot.
+
+## 8. Manifest versions — adapters, not assumptions
+
+The manifest **breaks cleanly to v4** when concerns become entities. There is exactly one real v3 export and it is archived, so **no dual support is required** — but the architecture must make the swap cheap:
+
+**One thin versioned adapter per manifest version. Everything downstream reads this repo's own tables, never manifest JSON.** The audit engine, the gap report, the schema work, and the workbench must not know which manifest version produced their data. v4 should be a new adapter module, not a rewrite.
+
+Treat the v3 import path as a **proving exercise, not production**. It exists to make the contract executable and to flush out mismatches early. The production path starts at v4.
+
+## 9. AI assist — why it exists and what it may not do
 
 AI is not a convenience feature here. At one concierge the binder sounds like one person; at five, without intervention, clients receive documents that read like different companies. **AI assist is the mechanism by which many operators produce one consistent service.** The concierge supplies observation and accountability; the software supplies consistency.
 
@@ -97,22 +135,22 @@ AI is not a convenience feature here. At one concierge the binder sounds like on
 
 Full plan, including which task lands in which increment: `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1_2026-07-25.md`.
 
-## 8. Design decisions already made (don't relitigate; ask if they seem wrong)
+## 10. Design decisions already made (don't relitigate; ask if they seem wrong)
 
 - **Working surface:** the binder's table of contents is the spine. Two workspaces sit on it — **Triage** (fast, keyboard-driven, photo-heavy: verify what the field captured) and the **Section Workbench** (slow, text-heavy: assemble and write). Renders are outputs, not places.
 - **One state, many views.** A missing item appears as a dashed slot in the workbench, a status pip in the table of contents, and a row in the gap report — all reading the same state. Nothing tracked twice.
-- **Stack:** local-first. Node + SQLite + media on disk, Vite/React front end, runs on the owner's machine. Longitudinal schema from the first commit — many visits per property, and **pin number is the join key identifying the same thing across years.** Moves to hosted database and object storage when a second operator, a client portal, or backup risk forces it. Not before.
+- **Stack:** local-first. Node + SQLite + media on disk, Vite/React front end, runs on the owner's machine. Longitudinal schema from the first commit — many visits per property, and **the field-minted uuid is the identity that carries across visits.** The human-facing *number* is session-scoped: the counter lives on the session row and restarts at 1 every visit. It is a display label, never a join key. Moves to hosted database and object storage when a second operator, a client portal, or backup risk forces it. Not before.
 - **Editions:** a delivered binder is a dated snapshot with a changelog. Late results produce a new edition. In-flight items render as *underway* with dates — never omitted, never claimed done.
 
 Full reasoning: `/docs/HouseSteady_Binder-Builder_Design_v1_*.md`.
 
-## 9. Expect messy input
+## 11. Expect messy input
 
 Real exports are structurally clean and substantively messy. The reference export in `/fixtures/reference/` contains typeless pins, retired pins, unanchored pins, and 28 of 37 photos owned by a zone with nothing pointing at them. That is a normal visit, not a corrupt file. **Graceful handling of mess is a feature requirement.** Never design against a pristine sample.
 
 Scale, measured: 123 MB for two rooms; roughly 1.5–2 GB for a full baseline visit.
 
-## 10. How to work here
+## 12. How to work here
 
 - **Build in increments, one at a time.** Each is a dated spec in `/docs`, independently usable, ending with something the owner can run and look at. Don't build ahead into the next increment because the code seems to want it.
 - **The owner is not a developer.** Explain in plain language what you built and what it does. Skip jargon in summaries; keep it in the code.
@@ -120,7 +158,7 @@ Scale, measured: 123 MB for two rooms; roughly 1.5–2 GB for a full baseline vi
 - **When the spec and this file disagree,** this file wins on doctrine, the spec wins on detail. Flag the conflict either way.
 - **Tests are part of done,** not a follow-up.
 
-## 11. Repo layout
+## 13. Repo layout
 
 ```
 /server     API, database, migrations
@@ -131,6 +169,6 @@ Scale, measured: 123 MB for two rooms; roughly 1.5–2 GB for a full baseline vi
 /data       runtime data — gitignored, never committed (real house data lives here)
 ```
 
-## 12. Privacy
+## 14. Privacy
 
 This repo will hold complete records of real people's homes — interior photos, documents, addresses. Test data from friends' houses gets the same treatment as client data. `/data` is gitignored and stays that way. Nothing goes to a third-party service without an explicit decision recorded in `/docs`.

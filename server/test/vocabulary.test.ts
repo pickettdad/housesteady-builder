@@ -18,12 +18,12 @@ import { freshDb, makePropertyAndVisit, readReference, scratchDir } from './help
 
 type Manifest = Record<string, any>
 
-function importMutated(mutate: (m: Manifest) => void): { report: ImportReport; db: Db } {
+async function importMutated(mutate: (m: Manifest) => void): Promise<{ report: ImportReport; db: Db }> {
   const db = freshDb()
   const ids = makePropertyAndVisit(db)
   const parsed = JSON.parse(readReference()) as Manifest
   mutate(parsed)
-  const { importId } = runImport({ db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
+  const { importId } = await runImport({ db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
   return { report: buildReport(db, importId)!, db }
 }
 
@@ -31,8 +31,8 @@ const term = (r: ImportReport, field: string, value: string) =>
   r.validation.unrecognizedTerms.find((t) => t.field === field && t.value === value)
 
 describe('unfamiliar words import cleanly and are listed', () => {
-  it('accepts the `choice` resolution kind that config v1.3 will bring', () => {
-    const { report, db } = importMutated((m) => {
+  it('accepts the `choice` resolution kind that config v1.3 will bring', async () => {
+    const { report, db } = await importMutated((m) => {
       m.resolutions[0].resolution = { kind: 'choice', via: 'check', selected: 'copper' }
     })
 
@@ -51,8 +51,8 @@ describe('unfamiliar words import cleanly and are listed', () => {
     db.close()
   })
 
-  it('accepts a `measure` resolution, which the reference export never exercises', () => {
-    const { report, db } = importMutated((m) => {
+  it('accepts a `measure` resolution, which the reference export never exercises', async () => {
+    const { report, db } = await importMutated((m) => {
       m.resolutions[0].resolution = { kind: 'satisfied', via: 'measure', note: '52 psi' }
     })
     // `measure` is a satisfy type in the config, so it must NOT be flagged.
@@ -61,8 +61,8 @@ describe('unfamiliar words import cleanly and are listed', () => {
     db.close()
   })
 
-  it('accepts a video without switching on an exhaustive media list', () => {
-    const { report, db } = importMutated((m) => {
+  it('accepts a video without switching on an exhaustive media list', async () => {
+    const { report, db } = await importMutated((m) => {
       m.media[0].kind = 'video'
       m.media[0].durationMs = 42_000
     })
@@ -72,8 +72,8 @@ describe('unfamiliar words import cleanly and are listed', () => {
     db.close()
   })
 
-  it('accepts `voice` renamed to `audio` — flagged, counted, never fatal', () => {
-    const { report, db } = importMutated((m) => {
+  it('accepts `voice` renamed to `audio` — flagged, counted, never fatal', async () => {
+    const { report, db } = await importMutated((m) => {
       m.media[0].kind = 'audio'
     })
     assert.notEqual(report.import.status, 'failed')
@@ -83,8 +83,8 @@ describe('unfamiliar words import cleanly and are listed', () => {
     db.close()
   })
 
-  it('breaks bytes out by kind so a new heavy media type is visible arriving', () => {
-    const { report, db } = importMutated((m) => {
+  it('breaks bytes out by kind so a new heavy media type is visible arriving', async () => {
+    const { report, db } = await importMutated((m) => {
       m.media[0].kind = 'video'
       m.media[0].bytes = 900_000_000
     })
@@ -97,8 +97,8 @@ describe('unfamiliar words import cleanly and are listed', () => {
     db.close()
   })
 
-  it('accepts an unfamiliar component type', () => {
-    const { report, db } = importMutated((m) => {
+  it('accepts an unfamiliar component type', async () => {
+    const { report, db } = await importMutated((m) => {
       m.pins[7].type = { kind: 'component', componentType: 'heat-recovery-widget' }
     })
     const t = term(report, 'pin.type.componentType', 'heat-recovery-widget')
@@ -107,8 +107,8 @@ describe('unfamiliar words import cleanly and are listed', () => {
     db.close()
   })
 
-  it('accepts an unfamiliar event type', () => {
-    const { report, db } = importMutated((m) => {
+  it('accepts an unfamiliar event type', async () => {
+    const { report, db } = await importMutated((m) => {
       m.events[50].type = 'MeasurementRecorded'
     })
     assert.ok(term(report, 'event.type', 'MeasurementRecorded'))
@@ -116,16 +116,16 @@ describe('unfamiliar words import cleanly and are listed', () => {
     db.close()
   })
 
-  it('leaves freeform pin labels alone — open vocabulary is the point of them', () => {
-    const { report, db } = importMutated((m) => {
+  it('leaves freeform pin labels alone — open vocabulary is the point of them', async () => {
+    const { report, db } = await importMutated((m) => {
       m.pins[0].type = { kind: 'freeform', label: 'mystery box' }
     })
     assert.deepEqual(report.validation.unrecognizedTerms, [])
     db.close()
   })
 
-  it('counts repeats rather than listing the same word over and over', () => {
-    const { report, db } = importMutated((m) => {
+  it('counts repeats rather than listing the same word over and over', async () => {
+    const { report, db } = await importMutated((m) => {
       for (const r of m.resolutions) r.resolution = { kind: 'choice', via: 'check' }
     })
     const t = term(report, 'resolution.kind', 'choice')!
@@ -136,8 +136,8 @@ describe('unfamiliar words import cleanly and are listed', () => {
 })
 
 describe('an na reason the config does not declare', () => {
-  it('warns loudly, because it lands in neither the gaps nor the findings', () => {
-    const { report, db } = importMutated((m) => {
+  it('warns loudly, because it lands in neither the gaps nor the findings', async () => {
+    const { report, db } = await importMutated((m) => {
       const r = m.resolutions.find((x: Manifest) => x.itemId === 'liv.fireplace')
       r.resolution = { kind: 'na', reasonId: 'weather' }
     })
@@ -154,8 +154,8 @@ describe('an na reason the config does not declare', () => {
     db.close()
   })
 
-  it('honours a NEW reason the config does declare, with no warning at all', () => {
-    const { report, db } = importMutated((m) => {
+  it('honours a NEW reason the config does declare, with no warning at all', async () => {
+    const { report, db } = await importMutated((m) => {
       m.config.snapshot.naReasons.push({
         id: 'weather',
         label: 'Weather prevented access',
@@ -174,8 +174,8 @@ describe('an na reason the config does not declare', () => {
 })
 
 describe('an item id the config does not define', () => {
-  it('imports and is listed', () => {
-    const { report, db } = importMutated((m) => {
+  it('imports and is listed', async () => {
+    const { report, db } = await importMutated((m) => {
       m.resolutions[0].itemId = 'int.something-new'
     })
     assert.ok(term(report, 'resolution.itemId', 'int.something-new'))

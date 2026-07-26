@@ -1,18 +1,22 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Db } from '../db/index.js'
 import { dataRoot } from '../db/index.js'
+import { parseToCanonical } from './adapters/parse.js'
 import {
   checkAnchorBounds,
+  checkCaptureWindow,
   checkConfigHash,
   checkEventSequence,
+  checkPinIdentityAcrossVisits,
   checkPinNumbers,
   checkReferentialIntegrity,
   checkResolutionReconciliation,
 } from './integrity.js'
+import { extractZip, placeMedia, type PlacementMap } from './media.js'
 import { persistImport } from './persist.js'
 import { checkPropertyLabel } from './propertyMatch.js'
-import { checkStructure, checkTotals, finalize, type Check } from './validate.js'
+import { checkTotals, finalize, type Check } from './validate.js'
 import { checkVocabulary } from './vocabulary.js'
 
 export class ImportRefused extends Error {
@@ -30,20 +34,33 @@ export interface RunImportArgs {
   propertyId: string
   visitId: string
   raw: string
-  /** Media handling lands with the checksum pass; today every import is manifest-only. */
-  mediaMode?: 'manifest_only' | 'with_media'
+  /**
+   * Zip archives holding the visit's media, at the export's own relative paths.
+   * Per-zone plus `_misc`, or one combined archive — the shape does not matter,
+   * they are all extracted into one staging tree and matched by declared path.
+   */
+  mediaZips?: string[]
+  /** An already-extracted media tree, for callers that have one. */
+  mediaDir?: string
   /** Overrides where the verbatim copy is written. Tests use a scratch directory. */
   dataDir?: string
 }
 
+/** Decimal MB, matching the manifest's own byte figures and the report screen. */
+const mb = (bytes: number): string => `${(bytes / 1_000_000).toFixed(0)} MB`
+
 /**
  * One import, end to end.
  *
- * Order matters: structure is checked BEFORE anything touches the database, so a
- * refused import leaves no trace at all — not a partial row, not a directory.
+ * Order matters: the file is parsed and structurally checked BEFORE anything
+ * touches the database, so a refused import leaves no trace at all — not a
+ * partial row, not a directory.
+ *
+ * Everything after `parseToCanonical` works on this repo's own shape. Nothing
+ * below this line knows which manifest version arrived.
  */
-export function runImport(args: RunImportArgs): { importId: string; status: string } {
-  const { db, propertyId, visitId, raw, mediaMode = 'manifest_only', dataDir = dataRoot } = args
+export async function runImport(args: RunImportArgs): Promise<{ importId: string; status: string }> {
+  const { db, propertyId, visitId, raw, mediaZips = [], mediaDir, dataDir = dataRoot } = args
 
   const property = db.prepare('SELECT * FROM properties WHERE id = ?').get(propertyId) as
     | { id: string; label: string; address: string | null }
@@ -58,22 +75,78 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
     throw new ImportRefused('That visit belongs to a different property.', [])
   }
 
-  // ------------------------------------------------- fail closed on structure
-  const { manifest, checks: structureChecks } = checkStructure(raw)
-  if (!manifest) {
-    // The headline says what is actually wrong. "Not a version 3 export" when the
-    // real problem is a truncated download sends someone looking in the wrong place.
-    const first = structureChecks.find((c) => c.severity === 'error')
+  // ---------------------------------------- fail closed on structure, then adapt
+  const { canonical, checks: parseChecks } = parseToCanonical(raw)
+  if (!canonical) {
+    // The headline says what is actually wrong. "Not a supported version" when
+    // the real problem is a truncated download sends someone looking in the
+    // wrong place.
+    const first = parseChecks.find((c) => c.severity === 'error')
     const headline =
       first?.code === 'structure.unparseable'
         ? 'This file could not be read as JSON, so nothing was imported.'
         : first?.code === 'structure.missing-section'
           ? 'This file is missing sections a manifest must have, so nothing was imported.'
-          : 'This file is not a manifest schema version 3 export, so nothing was imported.'
-    throw new ImportRefused(headline, structureChecks)
+          : 'This file is not a manifest version this builder can read, so nothing was imported.'
+    throw new ImportRefused(headline, parseChecks)
   }
 
-  const checks: Check[] = [...structureChecks]
+  const visitDir = join(dataDir, 'properties', propertyId, 'visits', visitId)
+  const stagingDir = join(visitDir, '.staging')
+  const hasMedia = mediaZips.length > 0 || mediaDir !== undefined
+  const mediaMode: 'manifest_only' | 'with_media' = hasMedia ? 'with_media' : 'manifest_only'
+
+  // -------------------------------------------------------- media, if supplied
+  // Only after the structure passed — a refused import must not leave a
+  // half-extracted gigabyte of photos behind.
+  let placement: PlacementMap | undefined
+  const checks: Check[] = [...parseChecks]
+
+  if (hasMedia) {
+    try {
+      let source = mediaDir
+      if (mediaZips.length > 0) {
+        mkdirSync(stagingDir, { recursive: true })
+        for (const zip of mediaZips) {
+          try {
+            const { skipped } = await extractZip(zip, stagingDir)
+            if (skipped.length > 0) {
+              checks.push({
+                code: 'media.unsafe-archive-entry',
+                severity: 'warning',
+                message:
+                  `${skipped.length} entr${skipped.length === 1 ? 'y' : 'ies'} in a media archive pointed outside ` +
+                  `the visit directory and ${skipped.length === 1 ? 'was' : 'were'} not written: ` +
+                  `${skipped.slice(0, 5).join(', ')}.`,
+                detail: { skipped },
+              })
+            }
+          } catch (e) {
+            // One unreadable or hostile archive must not cost the operator the
+            // other four. Its files simply never arrive, and are reported absent
+            // by the placement pass like any other missing file.
+            checks.push({
+              code: 'media.archive-unreadable',
+              severity: 'warning',
+              message:
+                `A media archive could not be read and was skipped: ${(e as Error).message}. Any files it held ` +
+                `are reported below as absent. Every other archive was extracted normally.`,
+              detail: { archive: zip.split('/').pop(), reason: (e as Error).message },
+            })
+          }
+        }
+        source = stagingDir
+      }
+      const placed = await placeMedia({ canonical, stagingDir: source!, visitDir })
+      placement = placed.placement
+      checks.push(...placed.checks)
+    } finally {
+      // The staging tree is scratch space; the files that mattered have been
+      // moved out of it by now.
+      rmSync(stagingDir, { recursive: true, force: true })
+    }
+  }
+
   const checksRun = [
     'structure',
     'totals',
@@ -82,41 +155,44 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
     'event sequence',
     'resolutions vs events',
     'pin numbers',
+    'pin identity across visits',
+    'capture window',
     'config hash',
     'vocabulary',
     'property label',
-    'media presence',
+    hasMedia ? 'media checksums' : 'media presence',
   ]
 
   // ------------------------------------------------------------------ totals
-  checks.push(...checkTotals(manifest))
+  checks.push(...checkTotals(canonical))
 
   // ------------------------------------------------- integrity and sequences
-  checks.push(...checkReferentialIntegrity(manifest))
-  checks.push(...checkAnchorBounds(manifest))
-  checks.push(...checkEventSequence(manifest))
-  checks.push(...checkResolutionReconciliation(manifest))
-  checks.push(...checkPinNumbers(db, propertyId, manifest))
-  checks.push(...checkConfigHash(db, propertyId, manifest))
+  checks.push(...checkReferentialIntegrity(canonical))
+  checks.push(...checkAnchorBounds(canonical))
+  checks.push(...checkEventSequence(canonical))
+  checks.push(...checkResolutionReconciliation(canonical))
+  checks.push(...checkPinNumbers(canonical))
+  checks.push(...checkPinIdentityAcrossVisits(db, propertyId, canonical))
+  checks.push(...checkCaptureWindow(canonical))
+  checks.push(...checkConfigHash(db, propertyId, canonical))
 
   // ------------------------------------------------------------- vocabulary
-  const vocabulary = checkVocabulary(manifest)
+  const vocabulary = checkVocabulary(canonical)
   checks.push(...vocabulary.checks)
 
   // ----------------------------------------------------------- media absence
-  // Manifest-only is a legitimate mode — it is how the reference export gets
-  // imported before its media zips exist. But an import whose photos are not on
-  // this machine is not a complete import, and the report must not imply it is.
-  const mediaCount = (manifest.media ?? []).length
+  // Manifest-only is a legitimate mode — it is how an export gets imported
+  // before its media zips exist. But an import whose photos are not on this
+  // machine is not a complete import, and the report must not imply it is.
+  const mediaCount = canonical.media.length
   if (mediaMode === 'manifest_only' && mediaCount > 0) {
-    const bytes = (manifest.media ?? []).reduce((n, m) => n + (m.bytes ?? 0), 0)
+    const bytes = canonical.media.reduce((n, m) => n + (m.bytes ?? 0), 0)
     checks.push({
       code: 'media.absent',
       severity: 'warning',
       message:
-        `The manifest was imported without its media. All ${mediaCount} files ` +
-        `(${(bytes / 1024 ** 2).toFixed(0)} MB) are listed and accounted for, but the files themselves are not ` +
-        `on this machine and no checksum has been verified.`,
+        `The manifest was imported without its media. All ${mediaCount} files (${mb(bytes)}) are listed and ` +
+        `accounted for, but the files themselves are not on this machine and no checksum has been verified.`,
       detail: { mediaCount, declaredBytes: bytes },
     })
   }
@@ -137,7 +213,7 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
     .all(propertyId) as { id: string; label: string; address: string | null }[]
 
   const match = checkPropertyLabel({
-    manifestLabel: manifest.session?.propertyLabel,
+    manifestLabel: canonical.session.propertyLabel,
     propertyLabel: property.label,
     propertyAddress: property.address,
     previousImportLabels: previousLabels,
@@ -151,8 +227,7 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
       message:
         `The export calls this property "${match.manifestLabel}", which looks more like your property ` +
         `"${match.betterMatch.label}" than like "${property.label}". Check this is the right house before ` +
-        `going further — a visit filed under the wrong property corrupts the pin-number history of both, ` +
-        `permanently and undetectably.`,
+        `going further — a visit filed under the wrong property corrupts the record of both.`,
       detail: match,
     })
   } else if (match.looksWrong) {
@@ -162,7 +237,7 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
       message:
         `The export calls this property "${match.manifestLabel}", which does not look like ` +
         `"${match.best?.value}". If this visit belongs to a different house, stop and re-import it there — ` +
-        `filing a visit under the wrong property corrupts the pin-number history of both, permanently.`,
+        `filing a visit under the wrong property corrupts the record of both.`,
       detail: match,
     })
   } else {
@@ -175,7 +250,7 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
   }
 
   // --------------------------------------------------------- refuse re-import
-  const sessionId = manifest.session?.sessionId ?? null
+  const sessionId = canonical.session.sessionId
   if (sessionId) {
     const existing = db
       .prepare('SELECT id FROM imports WHERE visit_id = ? AND session_id = ?')
@@ -203,17 +278,17 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
     propertyId,
     visitId,
     raw,
-    manifest,
+    canonical,
     report,
     mediaMode,
     unrecognizedResolutions: vocabulary.unrecognizedResolutions,
     unrecognizedEvents: vocabulary.unrecognizedEvents,
+    placement,
   })
 
   // The verbatim file on disk beside where its media will live. Two copies on
   // purpose: the database row is queryable, the file is what a human can open,
   // checksum, and hand to someone else in five years.
-  const visitDir = join(dataDir, 'properties', propertyId, 'visits', visitId)
   mkdirSync(visitDir, { recursive: true })
   writeFileSync(join(visitDir, 'manifest.json'), raw, 'utf8')
 

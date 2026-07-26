@@ -1,6 +1,7 @@
 import express from 'express'
 import multer from 'multer'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { newId, now, openDb } from './db/index.js'
 import { buildReport } from './import/report.js'
@@ -10,9 +11,12 @@ const db = openDb()
 const app = express()
 app.use(express.json({ limit: '2mb' }))
 
-// Manifests are small (215 KB for a two-zone visit). Media zips are gigabytes and
-// arrive with the checksum pass — they will stream to disk, not through memory.
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 64 * 1024 * 1024 } })
+// Media archives are gigabytes — a baseline visit is 1.5-2 GB — so uploads
+// stream to disk rather than through memory. The manifest is read back off disk
+// afterwards; it is only a few hundred kilobytes.
+const uploadRoot = join(tmpdir(), 'housesteady-uploads')
+mkdirSync(uploadRoot, { recursive: true })
+const upload = multer({ dest: uploadRoot, limits: { fileSize: 8 * 1024 * 1024 * 1024 } })
 
 const repoRoot = join(import.meta.dirname, '..', '..')
 
@@ -87,29 +91,52 @@ app.get('/api/visits/:id/summary', (req, res) => {
 
 // --------------------------------------------------------------------- imports
 
-app.post('/api/visits/:id/import', upload.single('manifest'), (req, res) => {
+/**
+ * Three upload shapes all work, per the build spec: a manifest on its own
+ * (manifest-only mode), a manifest plus per-zone media archives, or one combined
+ * archive. Files are sorted by what they are rather than by which form field
+ * they arrived in, so the operator does not have to get that right.
+ */
+app.post('/api/visits/:id/import', upload.any(), async (req, res) => {
   const visit = db.prepare('SELECT * FROM visits WHERE id = ?').get(req.params.id) as
     | { id: string; property_id: string }
     | undefined
-  if (!visit) return res.status(404).json({ error: 'No such visit.' })
+  const uploaded = (req.files as Express.Multer.File[] | undefined) ?? []
+  const cleanUp = () => {
+    for (const f of uploaded) rmSync(f.path, { force: true })
+  }
+
+  if (!visit) {
+    cleanUp()
+    return res.status(404).json({ error: 'No such visit.' })
+  }
+
+  const isZip = (f: Express.Multer.File) =>
+    f.originalname.toLowerCase().endsWith('.zip') || f.mimetype === 'application/zip'
+  const manifestFile = uploaded.find((f) => !isZip(f))
+  const mediaZips = uploaded.filter(isZip).map((f) => f.path)
 
   let raw: string
-  if (req.file) {
-    raw = req.file.buffer.toString('utf8')
+  if (manifestFile) {
+    raw = readFileSync(manifestFile.path, 'utf8')
   } else if (req.body?.useReferenceFixture) {
     // Dev shortcut: the reference export, one click. It is the increment's
     // primary acceptance test, so it should be trivially repeatable.
     raw = readFileSync(join(repoRoot, 'fixtures', 'reference', 'housesteady-019f9a33-manifest.json'), 'utf8')
+  } else if (req.body?.useSyntheticFixture) {
+    raw = readFileSync(join(repoRoot, 'fixtures', 'synthetic', 'manifest.json'), 'utf8')
   } else {
+    cleanUp()
     return res.status(400).json({ error: 'Attach a manifest.json file.' })
   }
 
   try {
-    const { importId, status } = runImport({
+    const { importId, status } = await runImport({
       db,
       propertyId: visit.property_id,
       visitId: visit.id,
       raw,
+      mediaZips,
     })
     res.status(201).json({ importId, status })
   } catch (e) {
@@ -120,6 +147,8 @@ app.post('/api/visits/:id/import', upload.single('manifest'), (req, res) => {
     }
     console.error(e)
     res.status(500).json({ error: (e as Error).message })
+  } finally {
+    cleanUp()
   }
 })
 
