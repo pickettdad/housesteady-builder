@@ -2,17 +2,20 @@ import { useEffect, useState } from 'react'
 import { ImportReportView } from './pages/ImportReport.js'
 import { Properties } from './pages/Properties.js'
 import { PropertyPage } from './pages/Property.js'
+import { PassView } from './pass/Pass.js'
 
 export type View =
   | { name: 'properties' }
   | { name: 'property'; id: string }
   | { name: 'report'; id: string }
+  | { name: 'pass'; id: string }
 
 const parseHash = (): View => {
   const h = window.location.hash.replace(/^#\/?/, '')
   const [what, id] = h.split('/')
   if (what === 'property' && id) return { name: 'property', id }
   if (what === 'report' && id) return { name: 'report', id }
+  if (what === 'pass' && id) return { name: 'pass', id }
   return { name: 'properties' }
 }
 
@@ -39,13 +42,14 @@ export function App() {
               HouseSteady
             </a>
           </h1>
-          <span className="sub">binder builder · increment 1 — import</span>
+          <span className="sub">binder builder · increment 2a — the fresh pass</span>
         </div>
       </header>
       <div className="shell">
         {view.name === 'properties' && <Properties />}
         {view.name === 'property' && <PropertyPage id={view.id} />}
         {view.name === 'report' && <ImportReportView id={view.id} />}
+        {view.name === 'pass' && <PassView visitId={view.id} />}
       </div>
     </>
   )
