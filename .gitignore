@@ -1,0 +1,9 @@
+# Runtime data — real house data lives here. Never committed. (CLAUDE.md §12)
+/data/
+
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+.env.*
