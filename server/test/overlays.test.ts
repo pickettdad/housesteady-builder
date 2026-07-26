@@ -263,6 +263,50 @@ describe('undo supersedes, and the trail reads honestly', () => {
     db.close()
   })
 
+  it('reads reconfirmed without the caller naming the undo', async () => {
+    // c, u, c on a real screen. The front end passes no supersedesId, so if the
+    // re-decision does not find the live undo by itself the trail reads
+    // "confirmed → unconfirmed → confirmed" and the retraction looks like it
+    // never happened. Found by pressing the keys, not by reading the code.
+    const { db, propertyId, visitId, pinId } = await importedVisit()
+    const first = writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
+    const undone = writeOverlay({
+      db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: first.id, supersedesId: first.id,
+    })
+    const again = writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
+
+    assert.equal(again.supersedesId, undone.id, 'the re-decision fills the slot the undo left open')
+    const state = stateFor(visitState(db, visitId), 'pin', pinId)!
+    assert.deepEqual(state.trail.map((t) => t.verb), ['confirmed', 'unconfirmed', 'reconfirmed'])
+    assert.equal(state.confirm!.id, again.id)
+    db.close()
+  })
+
+  it('takes a re-correction prior value from the field once the first was withdrawn', async () => {
+    const { db, propertyId, visitId, pinId } = await importedVisit()
+    const captured = db.prepare('SELECT type_kind, freeform_label FROM pins WHERE visit_id = ? AND pin_id = ?')
+      .get(visitId, pinId) as { type_kind: string; freeform_label: string }
+
+    const first = writeOverlay({
+      db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: pinId,
+      field: 'type', newValue: { kind: 'freeform', componentType: null, freeformLabel: 'Outlet' },
+    })
+    writeOverlay({
+      db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: first.id, supersedesId: first.id,
+    })
+    const second = writeOverlay({
+      db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: pinId,
+      field: 'type', newValue: { kind: 'component', componentType: 'junction-box', freeformLabel: null },
+    })
+
+    // Not null — the withdrawn correction is gone, so what it replaced is in
+    // force again, and claiming the field never typed one would be a lie.
+    assert.deepEqual(second.priorValue, {
+      kind: captured.type_kind, componentType: null, freeformLabel: captured.freeform_label,
+    })
+    db.close()
+  })
+
   it('refuses to undo the same decision twice', async () => {
     const { db, propertyId, visitId, pinId } = await importedVisit()
     const confirm = writeOverlay({

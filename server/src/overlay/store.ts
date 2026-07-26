@@ -161,8 +161,12 @@ export function writeOverlay(args: WriteOverlayArgs): Overlay {
     // live correction if there is one, otherwise what the field captured. That
     // makes a chain of corrections read continuously instead of every link
     // claiming the original as its "before".
-    const live = liveOverlay(db, visitId, targetKind, targetId, 'correct', field)
-    priorValue = live ? live.newValue : spec.read(db, visitId, targetId)
+    // If the slot's live occupant is an UNDO, the earlier correction has been
+    // withdrawn and the value in force is the field's own again — so the prior
+    // value comes from storage, not from the undo (whose newValue is null).
+    // Recording null as the "before" would claim the field never typed one.
+    const live = liveSlot(db, visitId, targetKind, targetId, 'correct', field)
+    priorValue = live?.kind === 'correct' ? live.newValue : spec.read(db, visitId, targetId)
     supersedesId = supersedesId ?? live?.id ?? null
   } else if (kind === 'flag') {
     if (!reason) {
@@ -171,7 +175,7 @@ export function writeOverlay(args: WriteOverlayArgs): Overlay {
       // it and will not know what caught someone's eye.
       throw new OverlayRefused('A flag needs a short reason.', 'overlay.flag-no-reason')
     }
-    supersedesId = supersedesId ?? liveOverlay(db, visitId, targetKind, targetId, 'flag', null)?.id ?? null
+    supersedesId = supersedesId ?? liveSlot(db, visitId, targetKind, targetId, 'flag', null)?.id ?? null
   } else if (kind === 'assign') {
     const v = args.newValue as { toKind?: string; toId?: string } | undefined
     if (!v?.toKind || !v?.toId) {
@@ -181,10 +185,10 @@ export function writeOverlay(args: WriteOverlayArgs): Overlay {
     if (destCheck && !destCheck(db, visitId, v.toId)) {
       throw new OverlayRefused(`This visit has no ${v.toKind} ${v.toId}.`, 'overlay.assign-unknown-destination')
     }
-    supersedesId = supersedesId ?? liveOverlay(db, visitId, targetKind, targetId, 'assign', null)?.id ?? null
+    supersedesId = supersedesId ?? liveSlot(db, visitId, targetKind, targetId, 'assign', null)?.id ?? null
   } else {
     // confirm, memory, and anything a later increment invents.
-    supersedesId = supersedesId ?? liveOverlay(db, visitId, targetKind, targetId, kind, field)?.id ?? null
+    supersedesId = supersedesId ?? liveSlot(db, visitId, targetKind, targetId, kind, field)?.id ?? null
   }
 
   if (supersedesId && isSuperseded(db, supersedesId)) {
@@ -278,8 +282,22 @@ export const readVisitOverlays = (db: Db, visitId: string): Overlay[] =>
 const isSuperseded = (db: Db, id: string): boolean =>
   exists(db, 'SELECT 1 FROM overlays WHERE supersedes_id = ?', id)
 
-/** The current live overlay of one kind (and field) on one entity, if any. */
-function liveOverlay(
+/**
+ * Whatever live overlay currently occupies one slot on an entity — where a
+ * "slot" is one kind on one field.
+ *
+ * The second half of the WHERE clause is the part that matters. A live `undo`
+ * that retracted a confirm is still sitting in the confirm slot: nothing has
+ * replaced the decision, it has only been taken back. So confirming again must
+ * supersede that undo rather than land beside it, and the trail then reads
+ * "confirmed → unconfirmed → reconfirmed" instead of "confirmed → unconfirmed →
+ * confirmed", which is the sentence spec §3 actually asks for.
+ *
+ * Getting this wrong is invisible in a unit test that passes supersedesId by
+ * hand and obvious the first time somebody presses `c`, `u`, `c` on a real
+ * screen — which is how it was found.
+ */
+function liveSlot(
   db: Db,
   visitId: string,
   targetKind: string,
@@ -290,12 +308,17 @@ function liveOverlay(
   const rows = db
     .prepare(
       `SELECT o.* FROM overlays o
-        WHERE o.visit_id = ? AND o.target_kind = ? AND o.target_id = ? AND o.kind = ?
-          AND (? IS NULL AND o.field IS NULL OR o.field = ?)
+        WHERE o.visit_id = ? AND o.target_kind = ? AND o.target_id = ?
+          AND (
+            (o.kind = ? AND o.field IS ?)
+            OR (o.kind = 'undo' AND EXISTS (
+                  SELECT 1 FROM overlays t
+                   WHERE t.id = o.supersedes_id AND t.kind = ? AND t.field IS ?))
+          )
           AND NOT EXISTS (SELECT 1 FROM overlays s WHERE s.supersedes_id = o.id)
         ORDER BY o.seq DESC LIMIT 1`,
     )
-    .all(visitId, targetKind, targetId, kind, field, field) as OverlayRow[]
+    .all(visitId, targetKind, targetId, kind, field, kind, field) as OverlayRow[]
   return rows[0] ? toOverlay(rows[0]) : undefined
 }
 
