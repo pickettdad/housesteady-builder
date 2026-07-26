@@ -88,6 +88,118 @@ describe('doctrine 1 — the manifest is immutable evidence', () => {
   })
 })
 
+describe('doctrine 1 — the overlay layer is the only way anything changes', () => {
+  /**
+   * Increment 2a §8's scans. These are the ones that stop being true quietly:
+   * the day someone adds `UPDATE pins SET type_kind = ?` because it is two lines
+   * shorter than an overlay, provenance stops being a property of storage and
+   * becomes a thing people have to remember, which is the same as not having it.
+   */
+  const CAPTURED_TABLES = [
+    'imports', 'session_meta', 'config_snapshots', 'zones', 'canvases', 'pins',
+    'anchors', 'media', 'notes', 'chat_threads', 'chat_messages', 'resolutions', 'events',
+  ]
+
+  it('gives the overlay layer no write path into a captured table', () => {
+    const overlaySrc = join(serverSrc, 'overlay')
+    const offenders: string[] = []
+    for (const file of sourceFiles(overlaySrc)) {
+      const code = codeOf(file)
+      for (const table of CAPTURED_TABLES) {
+        for (const verb of ['INSERT\\s+INTO', 'UPDATE', 'DELETE\\s+FROM']) {
+          if (new RegExp(`${verb}\\s+${table}\\b`, 'i').test(code)) {
+            offenders.push(`${verb} ${table} in ${file.replace(repoRoot, '')}`)
+          }
+        }
+      }
+    }
+    assert.deepEqual(offenders, [], 'the desk reads what the field captured and writes only overlays')
+  })
+
+  it('writes overlays from exactly one place', () => {
+    // One INSERT means one set of rules. Two means the second one forgets the
+    // prior value, or the supersession, or the forbidden-field gate.
+    const offenders = sourceFiles(serverSrc)
+      .filter((f) => /INSERT\s+INTO\s+overlays/i.test(codeOf(f)))
+      .map((f) => f.replace(repoRoot, ''))
+    assert.deepEqual(offenders, ['/server/src/overlay/store.ts'])
+  })
+
+  it('never UPDATEs or DELETEs an overlay either', () => {
+    // Undo is a superseding row. If this ever fails, the trail has stopped being
+    // able to read "assigned, unassigned, reassigned".
+    const offenders: string[] = []
+    for (const file of sourceFiles(serverSrc)) {
+      const code = codeOf(file)
+      if (/UPDATE\s+overlays\b/i.test(code)) offenders.push(`UPDATE in ${file.replace(repoRoot, '')}`)
+      if (/DELETE\s+FROM\s+overlays\b/i.test(code)) offenders.push(`DELETE in ${file.replace(repoRoot, '')}`)
+    }
+    assert.deepEqual(offenders, [], 'undo supersedes; it never deletes')
+  })
+
+  it('stores no derived state — current state is computed on read', () => {
+    // Spec §4: "Current state is computed on read, not maintained in a separate
+    // table". A table or column holding the answer is a second copy that can
+    // drift from the rows it summarises, and only one of them can be right.
+    const migrations = join(serverSrc, 'db', 'migrations')
+    const sql = readdirSync(migrations)
+      .filter((f) => f.endsWith('.sql'))
+      .map((f) => readFileSync(join(migrations, f), 'utf8'))
+      .join('\n')
+    for (const forbidden of ['overlay_state', 'current_state', 'entity_state', 'derived_state']) {
+      assert.ok(!new RegExp(`CREATE\\s+TABLE\\s+${forbidden}`, 'i').test(sql), `no ${forbidden} table`)
+    }
+    // And the resolver is pure: it cannot write even if someone wanted it to.
+    const model = codeOf(join(serverSrc, 'overlay', 'model.ts'))
+    assert.ok(!/\bdb\b/.test(model), 'the state resolver takes rows, not a database handle')
+  })
+})
+
+describe('doctrine — the concierge identifies, specialists assess', () => {
+  it('lets no overlay kind set a condition, grade or adequacy field', () => {
+    const fields = codeOf(join(serverSrc, 'overlay', 'fields.ts'))
+    // The whitelist is the mechanism: a correctable field must be declared, and
+    // the declared ones are all readings of what the field app captured.
+    const declared = [...fields.matchAll(/field:\s*'([^']+)'/g)].map((m) => m[1]!)
+    assert.ok(declared.length > 0, 'sanity: correctable fields were found')
+    for (const field of declared) {
+      for (const loaded of ['condition', 'grade', 'adequacy', 'rating', 'severity', 'risk', 'safety', 'score']) {
+        assert.ok(!field.toLowerCase().includes(loaded), `"${field}" is a judgement, not a reading`)
+      }
+    }
+  })
+
+  it('keeps "verify", "approve" and "certify" out of the verification path', () => {
+    /**
+     * Spec §2: the button reads "Matches the photo" — not "Verify", not
+     * "Approve", not "Confirm". "The button label is the claim." A signature
+     * means "I observed this, and this description matches what I saw", and the
+     * moment the button says Approve it starts meaning something the concierge
+     * cannot defend.
+     *
+     * Scanned on user-visible strings only — `sha_verified` and the import
+     * report's checksum wording are about files, not about houses.
+     */
+    const webSrc = join(repoRoot, 'web', 'src')
+    const offenders: string[] = []
+    for (const file of sourceFiles(webSrc).concat(sourceFiles(join(serverSrc, 'overlay')))) {
+      const code = codeOf(file)
+      for (const match of code.matchAll(/>([^<>{}]{3,80})</g)) {
+        const text = match[1] ?? ''
+        const t = text.trim().toLowerCase()
+        if (!t || !/[a-z]/.test(t)) continue
+        if (/\b(verify|verified|approve|approved|certify|certified)\b/.test(t)) {
+          // The import report legitimately verifies checksums — that is a claim
+          // about bytes, and it is the one place the word is honest.
+          if (/checksum|file|sha|byte/.test(t)) continue
+          offenders.push(`"${text.trim()}" in ${file.replace(repoRoot, '')}`)
+        }
+      }
+    }
+    assert.deepEqual(offenders, [], 'the button label is the claim')
+  })
+})
+
 describe('doctrine 3 — provenance travels', () => {
   it('keeps the source block on every kind of record that carries one', async () => {
     const db = freshDb()

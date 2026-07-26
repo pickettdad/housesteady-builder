@@ -1,0 +1,330 @@
+/**
+ * Writing and reading overlays.
+ *
+ * This module holds the only INSERT into `overlays` in the codebase, and it
+ * contains no UPDATE and no DELETE at all — not as a matter of style but because
+ * the doctrine scan in the test suite fails the build if one appears. A
+ * correction adds a layer; it never overwrites.
+ */
+
+import { newId, now, type Db } from '../db/index.js'
+import { findCorrectableField, forbiddenField } from './fields.js'
+import { entityKey, resolveState, toOverlay, type EntityState, type Overlay, type OverlayRow } from './model.js'
+
+/** A refusal the operator can act on, not a stack trace. */
+export class OverlayRefused extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
+    super(message)
+    this.name = 'OverlayRefused'
+  }
+}
+
+export interface WriteOverlayArgs {
+  db: Db
+  propertyId: string
+  visitId: string
+  kind: string
+  targetKind: string
+  targetId: string
+  field?: string | null
+  newValue?: unknown
+  reason?: string | null
+  /** Required for undo. Otherwise resolved automatically — see below. */
+  supersedesId?: string | null
+  actor?: string
+  actorContext?: string
+}
+
+const TARGET_EXISTS: Record<string, (db: Db, visitId: string, targetId: string) => boolean> = {
+  pin: (db, v, t) => exists(db, `SELECT 1 FROM pins WHERE visit_id = ? AND pin_id = ?`, v, t),
+  zone: (db, v, t) => exists(db, `SELECT 1 FROM zones WHERE visit_id = ? AND zone_id = ?`, v, t),
+  media: (db, v, t) => exists(db, `SELECT 1 FROM media WHERE visit_id = ? AND media_id = ?`, v, t),
+}
+
+const exists = (db: Db, sql: string, ...args: unknown[]): boolean => db.prepare(sql).get(...args) !== undefined
+
+/**
+ * Write one overlay.
+ *
+ * The supersession rule, which is the subtle part: an overlay replaces the
+ * latest LIVE overlay of the SAME KIND on the SAME FIELD of the same entity, and
+ * nothing else. Correcting a pin's type twice supersedes; confirming a pin that
+ * is already flagged does not, because "the label reads what the field says it
+ * reads" and "somebody should look at this again" are both true at once and
+ * collapsing them would lose a fact the pass exists to collect.
+ */
+export function writeOverlay(args: WriteOverlayArgs): Overlay {
+  const { db, propertyId, visitId } = args
+  const kind = String(args.kind ?? '').trim()
+  const targetKind = String(args.targetKind ?? '').trim()
+  const targetId = String(args.targetId ?? '').trim()
+  const field = args.field ? String(args.field).trim() : null
+  const reason = args.reason ? String(args.reason).trim() : null
+
+  if (!kind) throw new OverlayRefused('An overlay needs a kind.', 'overlay.no-kind')
+  if (!targetKind || !targetId) {
+    throw new OverlayRefused('An overlay needs something to point at.', 'overlay.no-target')
+  }
+
+  // Doctrine gate, before anything else touches the database.
+  if (field) {
+    const bad = forbiddenField(field)
+    if (bad) {
+      throw new OverlayRefused(
+        `An overlay cannot record "${field}". The concierge identifies and documents; licensed specialists ` +
+          `assess. A judgement about ${bad} belongs in a triggered flag recommending a specialist, not in a ` +
+          `field on the record.`,
+        'overlay.forbidden-field',
+      )
+    }
+  }
+
+  const visit = db.prepare('SELECT id, property_id FROM visits WHERE id = ?').get(visitId) as
+    | { id: string; property_id: string }
+    | undefined
+  if (!visit) throw new OverlayRefused('No such visit.', 'overlay.no-visit')
+  if (visit.property_id !== propertyId) {
+    throw new OverlayRefused('That visit belongs to a different property.', 'overlay.property-mismatch')
+  }
+
+  let priorValue: unknown = null
+  let supersedesId = args.supersedesId ?? null
+  let effectiveTargetKind = targetKind
+  let effectiveTargetId = targetId
+
+  // ------------------------------------------------------------------- undo
+  if (kind === 'undo') {
+    if (!supersedesId) {
+      throw new OverlayRefused('An undo has to say what it is undoing.', 'overlay.undo-no-target')
+    }
+    const target = readOne(db, supersedesId)
+    if (!target) throw new OverlayRefused('That decision is not in the record.', 'overlay.undo-unknown')
+    if (target.visitId !== visitId) {
+      throw new OverlayRefused('That decision belongs to a different visit.', 'overlay.undo-other-visit')
+    }
+    if (isSuperseded(db, supersedesId)) {
+      throw new OverlayRefused('That decision has already been taken back.', 'overlay.already-superseded')
+    }
+    // The undo points where its target pointed, so the entity's trail stays in
+    // one place instead of the retraction filing itself somewhere else.
+    effectiveTargetKind = target.targetKind
+    effectiveTargetId = target.targetId
+    return insert(db, {
+      propertyId,
+      visitId,
+      kind,
+      targetKind: effectiveTargetKind,
+      targetId: effectiveTargetId,
+      field: target.field,
+      priorValue: target.newValue,
+      newValue: null,
+      reason,
+      supersedesId,
+      actor: args.actor ?? 'concierge',
+      actorContext: args.actorContext ?? 'desk',
+    })
+  }
+
+  // --------------------------------------------------- the target must be real
+  const check = TARGET_EXISTS[targetKind]
+  if (check && !check(db, visitId, targetId)) {
+    throw new OverlayRefused(
+      `This visit has no ${targetKind} ${targetId}. An overlay pointing at nothing would be a decision about ` +
+        `nothing, and would never surface again.`,
+      'overlay.unknown-target',
+    )
+  }
+
+  // ---------------------------------------------------------------- per-kind
+  if (kind === 'correct') {
+    if (!field) throw new OverlayRefused('A correction has to say which value it changed.', 'overlay.no-field')
+    const spec = findCorrectableField(targetKind, field)
+    if (!spec) {
+      // A whitelist, not a blacklist. This is also what keeps the desk on the
+      // right side of the field line (spec §2): there is no correctable field
+      // for an anchor's coordinates or a measurement, so neither can be typed
+      // in at the desk however the request is phrased.
+      throw new OverlayRefused(
+        `"${field}" is not something the desk can correct on a ${targetKind}. Correcting a reading of evidence ` +
+          `already captured is desk work; adding new evidence or spatial data is field work.`,
+        'overlay.uncorrectable-field',
+      )
+    }
+    if (args.newValue === undefined) {
+      throw new OverlayRefused('A correction has to say what the value should be.', 'overlay.no-new-value')
+    }
+
+    // The value being replaced is whatever is effective RIGHT NOW: the latest
+    // live correction if there is one, otherwise what the field captured. That
+    // makes a chain of corrections read continuously instead of every link
+    // claiming the original as its "before".
+    const live = liveOverlay(db, visitId, targetKind, targetId, 'correct', field)
+    priorValue = live ? live.newValue : spec.read(db, visitId, targetId)
+    supersedesId = supersedesId ?? live?.id ?? null
+  } else if (kind === 'flag') {
+    if (!reason) {
+      // Spec §3: flag "carries a short reason". A flag with no reason is a
+      // sticky note with nothing written on it — the next person cannot act on
+      // it and will not know what caught someone's eye.
+      throw new OverlayRefused('A flag needs a short reason.', 'overlay.flag-no-reason')
+    }
+    supersedesId = supersedesId ?? liveOverlay(db, visitId, targetKind, targetId, 'flag', null)?.id ?? null
+  } else if (kind === 'assign') {
+    const v = args.newValue as { toKind?: string; toId?: string } | undefined
+    if (!v?.toKind || !v?.toId) {
+      throw new OverlayRefused('An assignment has to say what it is attaching to.', 'overlay.assign-no-destination')
+    }
+    const destCheck = TARGET_EXISTS[v.toKind]
+    if (destCheck && !destCheck(db, visitId, v.toId)) {
+      throw new OverlayRefused(`This visit has no ${v.toKind} ${v.toId}.`, 'overlay.assign-unknown-destination')
+    }
+    supersedesId = supersedesId ?? liveOverlay(db, visitId, targetKind, targetId, 'assign', null)?.id ?? null
+  } else {
+    // confirm, memory, and anything a later increment invents.
+    supersedesId = supersedesId ?? liveOverlay(db, visitId, targetKind, targetId, kind, field)?.id ?? null
+  }
+
+  if (supersedesId && isSuperseded(db, supersedesId)) {
+    throw new OverlayRefused('That decision has already been replaced.', 'overlay.already-superseded')
+  }
+
+  return insert(db, {
+    propertyId,
+    visitId,
+    kind,
+    targetKind,
+    targetId,
+    field,
+    priorValue,
+    newValue: args.newValue ?? null,
+    reason,
+    supersedesId,
+    actor: args.actor ?? 'concierge',
+    actorContext: args.actorContext ?? 'desk',
+  })
+}
+
+interface InsertArgs {
+  propertyId: string
+  visitId: string
+  kind: string
+  targetKind: string
+  targetId: string
+  field: string | null
+  priorValue: unknown
+  newValue: unknown
+  reason: string | null
+  supersedesId: string | null
+  actor: string
+  actorContext: string
+}
+
+const jsonOrNull = (v: unknown): string | null => (v === undefined || v === null ? null : JSON.stringify(v))
+
+function insert(db: Db, a: InsertArgs): Overlay {
+  const id = newId()
+  // seq and the row are assigned together so two acts inside one millisecond
+  // still come out in the order they were made.
+  const next = db.transaction((): void => {
+    const { seq } = db
+      .prepare('SELECT COALESCE(MAX(seq), 0) + 1 AS seq FROM overlays WHERE visit_id = ?')
+      .get(a.visitId) as { seq: number }
+    insertRow(db, id, seq, a)
+  })
+  next()
+  return readOne(db, id)!
+}
+
+function insertRow(db: Db, id: string, seq: number, a: InsertArgs): void {
+  db.prepare(
+    `INSERT INTO overlays
+       (id, property_id, visit_id, seq, kind, target_kind, target_id, field, prior_value, new_value,
+        reason, supersedes_id, actor, actor_context, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    a.propertyId,
+    a.visitId,
+    seq,
+    a.kind,
+    a.targetKind,
+    a.targetId,
+    a.field,
+    jsonOrNull(a.priorValue),
+    jsonOrNull(a.newValue),
+    a.reason,
+    a.supersedesId,
+    a.actor,
+    a.actorContext,
+    now(),
+  )
+}
+
+// -------------------------------------------------------------------- reading
+
+export function readOne(db: Db, id: string): Overlay | undefined {
+  const row = db.prepare('SELECT * FROM overlays WHERE id = ?').get(id) as OverlayRow | undefined
+  return row ? toOverlay(row) : undefined
+}
+
+export const readVisitOverlays = (db: Db, visitId: string): Overlay[] =>
+  (db.prepare('SELECT * FROM overlays WHERE visit_id = ? ORDER BY seq').all(visitId) as OverlayRow[]).map(
+    toOverlay,
+  )
+
+const isSuperseded = (db: Db, id: string): boolean =>
+  exists(db, 'SELECT 1 FROM overlays WHERE supersedes_id = ?', id)
+
+/** The current live overlay of one kind (and field) on one entity, if any. */
+function liveOverlay(
+  db: Db,
+  visitId: string,
+  targetKind: string,
+  targetId: string,
+  kind: string,
+  field: string | null,
+): Overlay | undefined {
+  const rows = db
+    .prepare(
+      `SELECT o.* FROM overlays o
+        WHERE o.visit_id = ? AND o.target_kind = ? AND o.target_id = ? AND o.kind = ?
+          AND (? IS NULL AND o.field IS NULL OR o.field = ?)
+          AND NOT EXISTS (SELECT 1 FROM overlays s WHERE s.supersedes_id = o.id)
+        ORDER BY o.seq DESC LIMIT 1`,
+    )
+    .all(visitId, targetKind, targetId, kind, field, field) as OverlayRow[]
+  return rows[0] ? toOverlay(rows[0]) : undefined
+}
+
+/** Every entity the desk has touched in this visit, with its current state. */
+export const visitState = (db: Db, visitId: string): Map<string, EntityState> =>
+  resolveState(readVisitOverlays(db, visitId))
+
+export const stateFor = (
+  states: Map<string, EntityState>,
+  targetKind: string,
+  targetId: string,
+): EntityState | undefined => states.get(entityKey(targetKind, targetId))
+
+/**
+ * The most recent live act in this visit — what the `u` keystroke takes back.
+ *
+ * Spec §3: "Undo must be one keystroke and instantly available — at this pace
+ * mis-taps are certain, and if undo is awkward people slow down to avoid needing
+ * it." So the keystroke needs no argument: it undoes the last thing done, which
+ * is what a person means by undo.
+ */
+export function latestLiveDecision(db: Db, visitId: string): Overlay | undefined {
+  const rows = db
+    .prepare(
+      `SELECT o.* FROM overlays o
+        WHERE o.visit_id = ? AND o.kind != 'undo'
+          AND NOT EXISTS (SELECT 1 FROM overlays s WHERE s.supersedes_id = o.id)
+        ORDER BY o.seq DESC LIMIT 1`,
+    )
+    .all(visitId) as OverlayRow[]
+  return rows[0] ? toOverlay(rows[0]) : undefined
+}

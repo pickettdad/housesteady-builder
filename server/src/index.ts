@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import { newId, now, openDb } from './db/index.js'
 import { buildReport } from './import/report.js'
 import { ImportRefused, runImport } from './import/runImport.js'
+import { resolveState } from './overlay/model.js'
+import { latestLiveDecision, OverlayRefused, readVisitOverlays, writeOverlay } from './overlay/store.js'
 
 const db = openDb()
 const app = express()
@@ -156,6 +158,103 @@ app.get('/api/imports/:id/report', (req, res) => {
   const report = buildReport(db, req.params.id)
   if (!report) return res.status(404).json({ error: 'No such import.' })
   res.json(report)
+})
+
+// -------------------------------------------------------------------- overlays
+//
+// Everything the desk says about what the field captured. Four acts plus recall
+// plus retraction, all one insert-only table — see migration 003.
+
+const visitOr404 = (
+  visitId: string,
+  res: express.Response,
+): { id: string; property_id: string } | undefined => {
+  const visit = db.prepare('SELECT id, property_id FROM visits WHERE id = ?').get(visitId) as
+    | { id: string; property_id: string }
+    | undefined
+  if (!visit) {
+    res.status(404).json({ error: 'No such visit.' })
+    return undefined
+  }
+  return visit
+}
+
+/**
+ * The whole overlay record for a visit: current state per entity, and the trail.
+ *
+ * Both come from the same rows. State is a filter over history rather than a
+ * second copy of it, so the two can never disagree — which is the reason there
+ * is no derived-state table to keep in step.
+ */
+app.get('/api/visits/:id/overlays', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+
+  const overlays = readVisitOverlays(db, visit.id)
+  const states = resolveState(overlays)
+  res.json({
+    overlays,
+    entities: [...states.values()],
+    latestLive: latestLiveDecision(db, visit.id) ?? null,
+  })
+})
+
+app.post('/api/visits/:id/overlays', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+
+  try {
+    const overlay = writeOverlay({
+      db,
+      propertyId: visit.property_id,
+      visitId: visit.id,
+      kind: req.body?.kind,
+      targetKind: req.body?.targetKind,
+      targetId: req.body?.targetId,
+      field: req.body?.field ?? null,
+      newValue: req.body?.newValue,
+      reason: req.body?.reason ?? null,
+      supersedesId: req.body?.supersedesId ?? null,
+      actor: req.body?.actor,
+    })
+    res.status(201).json(overlay)
+  } catch (e) {
+    if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
+    console.error(e)
+    res.status(500).json({ error: (e as Error).message })
+  }
+})
+
+/**
+ * Undo. With no body it takes back the most recent live act in the visit, which
+ * is what the `u` keystroke sends and what a person means by the word.
+ */
+app.post('/api/visits/:id/overlays/undo', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+
+  const targetId = req.body?.overlayId ?? latestLiveDecision(db, visit.id)?.id
+  if (!targetId) return res.status(404).json({ error: 'Nothing to undo.' })
+
+  try {
+    const overlay = writeOverlay({
+      db,
+      propertyId: visit.property_id,
+      visitId: visit.id,
+      kind: 'undo',
+      // Ignored — an undo adopts the target of the decision it retracts.
+      targetKind: 'overlay',
+      targetId,
+      supersedesId: targetId,
+      reason: req.body?.reason ?? null,
+      actor: req.body?.actor,
+    })
+    res.status(201).json(overlay)
+  } catch (e) {
+    if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
+    console.error(e)
+    res.status(500).json({ error: (e as Error).message })
+  }
 })
 
 const port = Number(process.env.PORT ?? 5174)
