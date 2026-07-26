@@ -5,8 +5,11 @@ import { api, fmtBytes, fmtTime, type ImportReport } from '../api.js'
 const STATUS_TEXT: Record<string, { title: string; detail: string }> = {
   ok: { title: 'Imported cleanly', detail: 'Every check passed. Nothing needs your attention.' },
   ok_with_warnings: {
+    // Never "complete" — media absence is itself one of the warnings, and a
+    // banner that calls an import complete while warning that its photos are
+    // missing is the exact overclaim this software exists not to make.
     title: 'Imported, with things to look at',
-    detail: 'The export is stored and complete. The notes below are what did not look ordinary.',
+    detail: 'The export is stored. The notes below are what did not look ordinary.',
   },
   failed: { title: 'Import failed', detail: 'Nothing was stored.' },
 }
@@ -46,10 +49,17 @@ export function ImportReportView({ id }: { id: string }) {
         import report
       </div>
 
+      {/*
+        The count in this banner must equal the number of warning entries shown
+        further down — nothing else. A headline number that does not match what
+        is visible below it erodes trust in every other number on the page.
+      */}
       <div className={`banner ${r.import.status}`}>
         <div className="status">{status.title}</div>
         <div className="detail">
-          {status.detail} {warnings.length > 0 && `${warnings.length} thing${warnings.length === 1 ? '' : 's'} noted.`}
+          {status.detail}{' '}
+          {warnings.length > 0 &&
+            `${warnings.length} thing${warnings.length === 1 ? '' : 's'} to look at, listed at the bottom.`}
         </div>
       </div>
 
@@ -68,8 +78,14 @@ export function ImportReportView({ id }: { id: string }) {
               <td>
                 <strong>{r.session.propertyLabel ?? '—'}</strong>
                 <div className="hint" style={{ marginTop: 2 }}>
-                  Free text typed in the field. You filed it under <strong>{r.property.label}</strong>
-                  {r.property.address ? ` (${r.property.address})` : ''}.
+                  {r.session.propertyLabel === r.property.label ? (
+                    <>Free text typed in the field — the same name you filed it under.</>
+                  ) : (
+                    <>
+                      Free text typed in the field. You filed it under <strong>{r.property.label}</strong>
+                      {r.property.address ? ` (${r.property.address})` : ''}.
+                    </>
+                  )}
                 </div>
               </td>
             </tr>
@@ -285,16 +301,53 @@ export function ImportReportView({ id }: { id: string }) {
         </table>
 
         <h4>File verification</h4>
-        <div className="row">
-          {r.counts.media.byFileStatus.map((s) => (
-            <span key={s.file_status} className={`pill ${s.file_status === 'present' ? 'ok' : 'warn'}`}>
-              {s.n} {s.file_status.replace('_', ' ')}
-            </span>
-          ))}
-        </div>
+        {/* All three states shown always, zeroes included. "0 failed" is a
+            different statement from an omitted row, and the difference matters. */}
+        <table style={{ maxWidth: 460 }}>
+          <tbody>
+            <tr>
+              <td>Checksum verified</td>
+              <td className="num">
+                <strong>{r.counts.media.verification.verified}</strong>
+              </td>
+              <td className="muted small">the file is here and matches the export</td>
+            </tr>
+            <tr>
+              <td>Checksum failed</td>
+              <td className="num">
+                {r.counts.media.verification.failed > 0 ? (
+                  <span className="pill error">{r.counts.media.verification.failed}</span>
+                ) : (
+                  <strong>0</strong>
+                )}
+              </td>
+              <td className="muted small">arrived corrupted — quarantined, not imported as evidence</td>
+            </tr>
+            <tr>
+              <td>Absent</td>
+              <td className="num">
+                {r.counts.media.verification.absent > 0 ? (
+                  <span className="pill warn">{r.counts.media.verification.absent}</span>
+                ) : (
+                  <strong>0</strong>
+                )}
+              </td>
+              <td className="muted small">listed in the export but not on this machine</td>
+            </tr>
+            {r.counts.media.verification.presentUnverified > 0 && (
+              <tr>
+                <td>Here but unchecked</td>
+                <td className="num">
+                  <span className="pill warn">{r.counts.media.verification.presentUnverified}</span>
+                </td>
+                <td className="muted small">file present, checksum not yet run</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
         <div className="hint">
-          Sizes come from what the export declares. Checksum verification runs when the media arrives with the
-          manifest.
+          Sizes are what the export declares, in decimal MB so they match the manifest's own byte count. Checksum
+          verification runs when the media arrives alongside the manifest.
         </div>
       </div>
 
@@ -311,7 +364,10 @@ export function ImportReportView({ id }: { id: string }) {
           <Stat
             n={r.checklist.findings.total}
             k="recorded findings"
-            note={`${r.checklist.findings.failedChecks} failed checks, ${r.checklist.findings.confirmedAbsences} confirmed absences`}
+            note={
+              `${r.checklist.findings.failedChecks} failed check${r.checklist.findings.failedChecks === 1 ? '' : 's'}, ` +
+              `${r.checklist.findings.confirmedAbsences} confirmed absence${r.checklist.findings.confirmedAbsences === 1 ? '' : 's'}`
+            }
           />
         </div>
         <div className="hint" style={{ marginBottom: 18 }}>
@@ -464,30 +520,86 @@ export function ImportReportView({ id }: { id: string }) {
         not yet recompute them — that is the audit engine's job, later.
       </div>
 
+      {/* ------------------------------------------------------- vocabulary */}
+      <h3>Words the builder does not know</h3>
+      {r.validation.unrecognizedTerms.length === 0 ? (
+        <p className="empty">
+          Every word in this export is one the builder recognises, from its own config or by name.
+        </p>
+      ) : (
+        <div className="card">
+          <p className="small" style={{ marginTop: 0 }}>
+            The field app is still adding vocabulary. Everything below was imported and stored exactly as it
+            arrived — this is the field app moving ahead of the builder, which is expected and not a fault.{' '}
+            {r.unrecognized.resolutions + r.unrecognized.events > 0 && (
+              <>
+                <strong>{r.unrecognized.resolutions}</strong> checklist item
+                {r.unrecognized.resolutions === 1 ? '' : 's'} and <strong>{r.unrecognized.events}</strong> event
+                {r.unrecognized.events === 1 ? '' : 's'} are marked unrecognised.
+              </>
+            )}
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Where</th>
+                <th>Word</th>
+                <th className="num">Times</th>
+                <th>Seen on</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.validation.unrecognizedTerms.map((t) => (
+                <tr key={`${t.field}-${t.value}`}>
+                  <td className="mono small">{t.field}</td>
+                  <td>
+                    <strong>{t.value}</strong>
+                  </td>
+                  <td className="num">{t.count}</td>
+                  <td className="muted small">
+                    {t.examples.join(', ')}
+                    {t.count > t.examples.length && ' …'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* ------------------------------------------------------------ checks */}
       <h3>What the builder checked</h3>
-      {warnings.length === 0 && (
+      {warnings.length === 0 ? (
         <p className="empty">Nothing unexpected. Every check that ran came back clean.</p>
-      )}
-      {warnings.length > 0 && (
-        <ul className="checks">
-          {warnings.map((c, i) => (
-            <li key={i} className={c.severity}>
-              <div>{c.message}</div>
-              <div className="code">{c.code}</div>
-            </li>
-          ))}
-        </ul>
+      ) : (
+        <>
+          <h4>
+            {warnings.length} thing{warnings.length === 1 ? '' : 's'} to look at
+          </h4>
+          <ul className="checks">
+            {warnings.map((c, i) => (
+              <li key={i} className={c.severity}>
+                <div>{c.message}</div>
+                <div className="code">{c.code}</div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
       {infos.length > 0 && (
-        <ul className="checks" style={{ marginTop: 10 }}>
-          {infos.map((c, i) => (
-            <li key={i} className="info">
-              <div className="muted">{c.message}</div>
-              <div className="code">{c.code}</div>
-            </li>
-          ))}
-        </ul>
+        <>
+          {/* Kept visually separate from warnings so the banner's count is never
+              contradicted by what appears to be an extra unexplained entry. */}
+          <h4>Also recorded — nothing needed</h4>
+          <ul className="checks">
+            {infos.map((c, i) => (
+              <li key={i} className="info">
+                <div className="muted">{c.message}</div>
+                <div className="code">{c.code}</div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
       <div className="card" style={{ marginTop: 14 }}>
         <h4 style={{ marginTop: 0 }}>Checks that ran on this import</h4>
@@ -495,8 +607,8 @@ export function ImportReportView({ id }: { id: string }) {
           {r.validation.checksRun.map((c) => <span key={c} className="pill ok">{c}</span>)}
         </div>
         <div className="hint">
-          Listed so it is clear what has been verified and what has not. More checks — cross-references, anchor
-          bounds, event sequence, unfamiliar vocabulary, pin-number collisions — land next.
+          Listed so it is clear what has been verified and what has not. Still to come: copying the media files
+          and verifying each one's checksum.
         </div>
       </div>
     </>

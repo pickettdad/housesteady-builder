@@ -11,6 +11,9 @@ export interface PersistInput {
   manifest: Manifest
   report: ValidationReport
   mediaMode: 'manifest_only' | 'with_media'
+  /** Array indexes the vocabulary pass found unfamiliar words in. */
+  unrecognizedResolutions?: Set<number>
+  unrecognizedEvents?: Set<number>
 }
 
 /**
@@ -20,7 +23,17 @@ export interface PersistInput {
  * wrapper rolls the whole thing back on throw.
  */
 export function persistImport(input: PersistInput): string {
-  const { db, propertyId, visitId, raw, manifest: m, report, mediaMode } = input
+  const {
+    db,
+    propertyId,
+    visitId,
+    raw,
+    manifest: m,
+    report,
+    mediaMode,
+    unrecognizedResolutions = new Set<number>(),
+    unrecognizedEvents = new Set<number>(),
+  } = input
   const importId = newId()
   const ts = now()
 
@@ -273,10 +286,13 @@ export function persistImport(input: PersistInput): string {
         is_recognized, feeds_gap_list, records_finding, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    for (const r of m.resolutions ?? []) {
+    ;(m.resolutions ?? []).forEach((r, index) => {
       const body = r.resolution ?? {}
       const reason = body.reasonId ? reasons.get(body.reasonId) : undefined
 
+      // An na reason the config does not declare has no flags, so it lands in
+      // neither stream. That is the honest outcome — it is flagged unrecognized
+      // and listed on the report rather than guessed into one column or the other.
       const feedsGapList = body.kind === 'na' && reason?.feedsGapList === true
       const recordsFinding =
         (body.kind === 'na' && reason?.recordsFinding === true) || body.result === 'fail'
@@ -297,12 +313,12 @@ export function persistImport(input: PersistInput): string {
         j(body.evidence ?? null), // nested inside resolution{} — easy to drop, must not be
         r.at ?? null,
         j(r.source ?? null),
-        1, // is_recognized — set by the vocabulary pass
+        unrecognizedResolutions.has(index) ? 0 : 1,
         feedsGapList ? 1 : 0,
         recordsFinding ? 1 : 0,
         ts,
       )
-    }
+    })
 
     // ---------------------------------------------------------------- events
     const insEvent = db.prepare(
@@ -310,7 +326,7 @@ export function persistImport(input: PersistInput): string {
         payload, is_recognized, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    for (const e of m.events ?? []) {
+    ;(m.events ?? []).forEach((e, index) => {
       insEvent.run(
         importId,
         (e.eventId as string) ?? null,
@@ -321,10 +337,10 @@ export function persistImport(input: PersistInput): string {
         (e.schemaVersion as number) ?? null,
         j(e.source ?? null),
         JSON.stringify(e), // the whole event, verbatim
-        1,
+        unrecognizedEvents.has(index) ? 0 : 1,
         ts,
       )
-    }
+    })
   })
 
   run()

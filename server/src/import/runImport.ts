@@ -2,9 +2,18 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Db } from '../db/index.js'
 import { dataRoot } from '../db/index.js'
+import {
+  checkAnchorBounds,
+  checkConfigHash,
+  checkEventSequence,
+  checkPinNumbers,
+  checkReferentialIntegrity,
+  checkResolutionReconciliation,
+} from './integrity.js'
 import { persistImport } from './persist.js'
 import { checkPropertyLabel } from './propertyMatch.js'
 import { checkStructure, checkTotals, finalize, type Check } from './validate.js'
+import { checkVocabulary } from './vocabulary.js'
 
 export class ImportRefused extends Error {
   constructor(
@@ -65,10 +74,34 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
   }
 
   const checks: Check[] = [...structureChecks]
-  const checksRun = ['structure', 'totals', 'property-label', 'media-presence']
+  const checksRun = [
+    'structure',
+    'totals',
+    'referential integrity',
+    'anchor bounds',
+    'event sequence',
+    'resolutions vs events',
+    'pin numbers',
+    'config hash',
+    'vocabulary',
+    'property label',
+    'media presence',
+  ]
 
   // ------------------------------------------------------------------ totals
   checks.push(...checkTotals(manifest))
+
+  // ------------------------------------------------- integrity and sequences
+  checks.push(...checkReferentialIntegrity(manifest))
+  checks.push(...checkAnchorBounds(manifest))
+  checks.push(...checkEventSequence(manifest))
+  checks.push(...checkResolutionReconciliation(manifest))
+  checks.push(...checkPinNumbers(db, propertyId, manifest))
+  checks.push(...checkConfigHash(db, propertyId, manifest))
+
+  // ------------------------------------------------------------- vocabulary
+  const vocabulary = checkVocabulary(manifest)
+  checks.push(...vocabulary.checks)
 
   // ----------------------------------------------------------- media absence
   // Manifest-only is a legitimate mode — it is how the reference export gets
@@ -163,7 +196,7 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
     }
   }
 
-  const report = finalize(checks, checksRun)
+  const report = finalize(checks, checksRun, vocabulary.terms)
 
   const importId = persistImport({
     db,
@@ -173,6 +206,8 @@ export function runImport(args: RunImportArgs): { importId: string; status: stri
     manifest,
     report,
     mediaMode,
+    unrecognizedResolutions: vocabulary.unrecognizedResolutions,
+    unrecognizedEvents: vocabulary.unrecognizedEvents,
   })
 
   // The verbatim file on disk beside where its media will live. Two copies on

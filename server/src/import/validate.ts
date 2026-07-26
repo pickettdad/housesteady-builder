@@ -20,11 +20,20 @@ export interface Check {
   detail?: unknown
 }
 
+export interface UnrecognizedTermSummary {
+  field: string
+  value: string
+  count: number
+  examples: string[]
+}
+
 export interface ValidationReport {
   status: 'ok' | 'ok_with_warnings' | 'failed'
   checks: Check[]
   /** Which check groups actually ran. Honesty about coverage, not decoration. */
   checksRun: string[]
+  /** Words this export used that the builder has not met. Never a failure. */
+  unrecognizedTerms: UnrecognizedTermSummary[]
   counts: { errors: number; warnings: number; infos: number }
 }
 
@@ -50,7 +59,11 @@ export function makeReport(): { checks: Check[]; add: (c: Check) => void } {
   return { checks, add: (c) => checks.push(c) }
 }
 
-export function finalize(checks: Check[], checksRun: string[]): ValidationReport {
+export function finalize(
+  checks: Check[],
+  checksRun: string[],
+  unrecognizedTerms: UnrecognizedTermSummary[] = [],
+): ValidationReport {
   const errors = checks.filter((c) => c.severity === 'error').length
   const warnings = checks.filter((c) => c.severity === 'warning').length
   const infos = checks.filter((c) => c.severity === 'info').length
@@ -58,6 +71,7 @@ export function finalize(checks: Check[], checksRun: string[]): ValidationReport
     status: errors > 0 ? 'failed' : warnings > 0 ? 'ok_with_warnings' : 'ok',
     checks,
     checksRun,
+    unrecognizedTerms,
     counts: { errors, warnings, infos },
   }
 }

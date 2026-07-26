@@ -18,7 +18,7 @@
 
 ## 1. Stack and repo
 
-Node 20+ · Express or Fastify (thin) · **better-sqlite3** · Vite + React + TypeScript · plain CSS, desktop width. `npm run dev` runs API and UI together. Layout per `CLAUDE.md` §10. `/data` gitignored.
+Node 20+ · Express or Fastify (thin) · **better-sqlite3** · Vite + React + TypeScript · plain CSS, desktop width. `npm run dev` runs API and UI together. Layout per `CLAUDE.md` §11. `/data` gitignored.
 
 Media stored at `data/properties/<propertyId>/visits/<visitId>/` — verbatim `manifest.json` plus the media tree at the export's own relative paths (`media/<zoneId>/pin-7/<mediaId>.jpg`, `media/<zoneId>/_canvas/…`, `media/<zoneId>/_zone/…`, `media/_misc/_inbox/…`).
 

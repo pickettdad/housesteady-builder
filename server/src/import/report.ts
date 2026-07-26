@@ -122,8 +122,21 @@ export function buildReport(db: Db, importId: string) {
      FROM media WHERE import_id = ? GROUP BY owner_kind ORDER BY count DESC`,
     importId,
   )
-  const fileStatus = many<{ file_status: string; n: number }>(
-    `SELECT file_status, COUNT(*) AS n FROM media WHERE import_id = ? GROUP BY file_status`,
+  // All four states, always, including the zeroes. A verification summary that
+  // silently omits "failed" reads as "nothing failed" whether or not the check
+  // has run — which is exactly the reassurance this software must not give.
+  const verification = one<{
+    verified: number
+    failed: number
+    absent: number
+    presentUnverified: number
+  }>(
+    `SELECT
+       SUM(CASE WHEN file_status = 'present' AND sha_verified = 1 THEN 1 ELSE 0 END) AS verified,
+       SUM(CASE WHEN file_status = 'failed_checksum'              THEN 1 ELSE 0 END) AS failed,
+       SUM(CASE WHEN file_status = 'absent'                       THEN 1 ELSE 0 END) AS absent,
+       SUM(CASE WHEN file_status = 'present' AND sha_verified = 0 THEN 1 ELSE 0 END) AS presentUnverified
+     FROM media WHERE import_id = ?`,
     importId,
   )
   const mediaTotals = one<{ n: number; bytes: number; verified: number }>(
@@ -253,8 +266,22 @@ export function buildReport(db: Db, importId: string) {
     status: 'ok',
     checks: [],
     checksRun: [],
+    unrecognizedTerms: [],
     counts: { errors: 0, warnings: 0, infos: 0 },
   })
+
+  // Counted from the rows themselves, not from the report, so the number always
+  // reflects what is actually stored.
+  const unrecognized = {
+    resolutions: one<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM resolutions WHERE import_id = ? AND is_recognized = 0`,
+      importId,
+    ).n,
+    events: one<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM events WHERE import_id = ? AND is_recognized = 0`,
+      importId,
+    ).n,
+  }
 
   return {
     import: {
@@ -303,7 +330,12 @@ export function buildReport(db: Db, importId: string) {
         verified: mediaTotals.verified,
         byKind,
         byOwner,
-        byFileStatus: fileStatus,
+        verification: {
+          verified: verification.verified ?? 0,
+          failed: verification.failed ?? 0,
+          absent: verification.absent ?? 0,
+          presentUnverified: verification.presentUnverified ?? 0,
+        },
       },
       notes: one<{ n: number }>(`SELECT COUNT(*) AS n FROM notes WHERE import_id = ?`, importId).n,
       chatThreads: one<{ n: number }>(`SELECT COUNT(*) AS n FROM chat_threads WHERE import_id = ?`, importId).n,
@@ -342,6 +374,7 @@ export function buildReport(db: Db, importId: string) {
       },
     },
     zones,
+    unrecognized,
     validation,
   }
 }
