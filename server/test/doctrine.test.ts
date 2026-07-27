@@ -373,10 +373,55 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
     db.close()
   })
 
+  /**
+   * Increment 2b §10. The Increment 1 tripwire here has served its purpose and
+   * is replaced by the two scans it was standing in for.
+   *
+   * Both are about the same thing: a model call's behaviour must be fully
+   * described by configuration that is versioned and hashed. A prompt in source
+   * and a model ID in source are the same bug — they make "why does this binder
+   * read differently" unanswerable, because the thing that changed was a code
+   * edit nobody recorded against the artifact.
+   */
   it('lets no model call use an inline prompt string', () => {
-    // No AI yet, so this is a tripwire for the increment that adds it.
-    const offenders = sourceFiles(serverSrc).filter((f) => /anthropic|openai|messages\.create/i.test(codeOf(f)))
-    assert.deepEqual(offenders, [], 'when this fires, the prompt belongs in /prompts as versioned config')
+    // Every file that talks to a model must get its wording from the library.
+    const offenders = sourceFiles(serverSrc).filter((f) => {
+      const code = codeOf(f)
+      if (!/messages\.create|@anthropic-ai\/sdk/i.test(code)) return false
+      return !/from '\.\/prompts\.js'|from '\.\.\/ai\/prompts\.js'/.test(code)
+    })
+    assert.deepEqual(offenders, [], 'a file that calls a model must load its prompt from /prompts, never carry one')
+  })
+
+  it('lets no model ID appear in source', () => {
+    // §5: pinned model IDs live in environment variables, and an upgrade is a
+    // deliberate config change with a golden-set run behind it. A literal here
+    // would make the upgrade invisible.
+    const offenders = sourceFiles(serverSrc).filter((f) =>
+      /['"`](claude|gpt|gemini|llama|mistral)-[a-z0-9][a-z0-9.-]*['"`]/i.test(codeOf(f)),
+    )
+    assert.deepEqual(offenders, [], 'model IDs are configuration — HOUSESTEADY_MODEL_FAST, not a string literal')
+  })
+
+  it('lets nothing ask sharp to keep metadata on an image bound for a model', () => {
+    // CLAUDE.md §14. The stripping is a library default, so the risk is not a
+    // missing line — it is a future line that turns it off. Interior photographs
+    // of a client's home can carry the coordinates of the home, and that is not
+    // something to send anywhere by accident.
+    const offenders = sourceFiles(join(serverSrc, 'ai')).filter((f) =>
+      /\.(withMetadata|keepMetadata|keepExif|keepXmp|keepIccProfile)\s*\(/.test(codeOf(f)),
+    )
+    assert.deepEqual(offenders, [], 'an image sent to a model carries pixels and nothing else')
+  })
+
+  it('lets no AI path write a condition, grade, or adequacy field', () => {
+    // CLAUDE.md §7 and §6 of the object model. The concierge identifies; a
+    // licensed specialist assesses. An AI task that fills in "condition: poor"
+    // would put an assessment in the record with nobody accountable for it.
+    const offenders = sourceFiles(join(serverSrc, 'ai')).filter((f) =>
+      /\b(condition|grade|adequacy|severity|rating)\s*[:=]/i.test(codeOf(f)),
+    )
+    assert.deepEqual(offenders, [], 'nothing in the AI layer may name a condition or grading field')
   })
 })
 
