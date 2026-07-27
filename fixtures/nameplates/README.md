@@ -79,16 +79,44 @@ listed in the `notes` array at the bottom of that file. The two that matter:
   none is; six have individual fields that genuinely cannot be read, which is a different
   and weaker claim than the one the spec asks the set to make.
 
-Until those are settled the golden set can be run, but a difference against it is not yet
-evidence of a regression — the harness enforces this rather than relying on anyone
-remembering it: with `approved: false`, a run cannot report itself clean even when
-nothing differs, and it says so in capitals.
+## Approval is per value, not per set
 
-**A third question has since been settled by the harness itself.** Three `capacity`
+Each entry carries an `approved` map holding a **copy of every value a human has
+ratified**. A value counts as ratified only while that copy still equals the value
+beside it — so editing a value lapses its approval automatically, and an approval can
+never drift onto something nobody looked at.
+
+This replaces a single set-wide flag, which was not really approval: forty values went
+in on one action, and one wrong entry rode in with thirty-nine right ones and became
+permanent truth. Per value is slower once and correct afterwards.
+
+**Nothing here is ratified yet.** All ninety values are proposed readings made by
+Claude. Unratified differences are reported by the harness but gate nothing.
+
+    npm run golden:approve                     # what is still unratified
+    npm run golden:approve -- IMG_0029         # ratify that image's values
+    npm run golden:approve -- IMG_0029 serial  # ratify one value
+    npm run golden:approve -- --revoke IMG_0029
+
+You look at the photograph and decide; the command copies the value across. Never
+hand-transcribe an approval — a mistyped one is a wrong value that has been blessed,
+which is the failure this whole design exists to prevent.
+
+**One question has since been settled by the harness itself.** Three `capacity`
 values here had been tidied — `4.8 gal` where the plate says `4.8 Gal`. The extraction
 prompt asks for a character-for-character copy, so the tidied version was wrong and has
 been corrected. Formatting differences are reported in their own column rather than
 passing or failing silently, because which side is wrong is a judgement.
+
+## The set grows from real failures
+
+Fifteen images is a start, not the set. Every plate the model gets wrong in production
+is a candidate: an acceptance a human had to edit is a photograph where the model read
+something the plate does not say, and `goldenCandidates()` finds them.
+
+Nothing is promoted automatically, and nothing should be. A candidate is a photograph
+worth looking at again — the approved reading that would make it an entry has to come
+from a person, not from the value they happened to type while doing something else.
 
 ## Running it
 

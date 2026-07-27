@@ -9,7 +9,8 @@
     "start": "tsx src/index.ts",
     "test": "node --test --import tsx test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "golden": "tsx src/ai/golden-run.ts"
+    "golden": "tsx src/ai/golden-run.ts",
+    "golden:approve": "tsx src/ai/golden-approve.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
