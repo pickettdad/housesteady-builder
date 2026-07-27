@@ -18,13 +18,24 @@
  * `Overlay.kind` is a plain string and unrecognized kinds are preserved,
  * displayed and counted like every other open vocabulary in this codebase.
  */
-export type KnownOverlayKind = 'confirm' | 'correct' | 'assign' | 'flag' | 'memory' | 'undo'
+export type KnownOverlayKind = 'confirm' | 'correct' | 'assign' | 'flag' | 'memory' | 'accept' | 'undo'
 
 /** Likewise open. v4 adds `concern`; 2b adds nothing but uses these. */
 export type KnownTargetKind = 'pin' | 'media' | 'zone' | 'resolution' | 'note' | 'inbox_ref'
 
 /** The four acts of the pass. `memory` records recall; `undo` retracts. */
-export const DECISION_KINDS = ['confirm', 'correct', 'assign', 'flag'] as const
+export const DECISION_KINDS = ['confirm', 'correct', 'assign', 'flag', 'accept'] as const
+
+/**
+ * Kinds that set the value of a named field.
+ *
+ * `correct` and `accept` compete for the same slot on purpose: both answer
+ * "what does this field say now", and a pin cannot have a corrected model and
+ * an accepted model at once without something having to choose between them at
+ * render time. Making them share the slot means the choice is made once, when
+ * the act is recorded, and the trail still says which kind of act it was.
+ */
+export const VALUE_KINDS = ['correct', 'accept'] as const
 
 export interface OverlayRow {
   id: string
@@ -41,6 +52,7 @@ export interface OverlayRow {
   supersedes_id: string | null
   actor: string
   actor_context: string
+  generation_id: string | null
   created_at: string
 }
 
@@ -60,6 +72,8 @@ export interface Overlay {
   supersedesId: string | null
   actor: string
   actorContext: string
+  /** Set on `accept` only: the proposal this act answered. */
+  generationId: string | null
   createdAt: string
 }
 
@@ -90,6 +104,7 @@ export const toOverlay = (r: OverlayRow): Overlay => ({
   supersedesId: r.supersedes_id,
   actor: r.actor,
   actorContext: r.actor_context,
+  generationId: r.generation_id ?? null,
   createdAt: r.created_at,
 })
 
@@ -112,6 +127,7 @@ const PAST: Record<string, string> = {
   assign: 'assigned',
   flag: 'flagged',
   memory: 'recorded',
+  accept: 'accepted',
 }
 
 const UNDONE: Record<string, string> = {
@@ -120,6 +136,7 @@ const UNDONE: Record<string, string> = {
   assign: 'unassigned',
   flag: 'unflagged',
   memory: 'recollection withdrawn',
+  accept: 'acceptance withdrawn',
 }
 
 const REDONE: Record<string, string> = {
@@ -128,6 +145,7 @@ const REDONE: Record<string, string> = {
   assign: 'reassigned',
   flag: 'reflagged',
   memory: 'recorded again',
+  accept: 'accepted again',
 }
 
 export interface TrailEntry {
@@ -177,8 +195,14 @@ export interface EntityState {
    * as "decided" in the pass — see spec §6.
    */
   decision: Overlay | null
-  /** Live `correct` overlays, keyed by the attribute they changed. */
-  corrections: Record<string, Overlay>
+  /**
+   * The live value of each named field, keyed by field.
+   *
+   * Holds `correct` and `accept` alike — read `.kind` to tell a value the
+   * concierge typed from one they accepted off a photograph. Calling this
+   * `corrections` would have been a small lie the moment acceptance existed.
+   */
+  values: Record<string, Overlay>
   /** Live overlays of each kind, if any. A confirm and a flag can coexist. */
   confirm: Overlay | null
   assign: Overlay | null
@@ -194,7 +218,7 @@ const emptyState = (targetKind: string, targetId: string): EntityState => ({
   targetKind,
   targetId,
   decision: null,
-  corrections: {},
+  values: {},
   confirm: null,
   assign: null,
   flag: null,
@@ -245,7 +269,8 @@ export function resolveState(overlays: Overlay[]): Map<string, EntityState> {
           state.confirm = o
           break
         case 'correct':
-          if (o.field !== null) state.corrections[o.field] = o
+        case 'accept':
+          if (o.field !== null) state.values[o.field] = o
           break
         case 'assign':
           state.assign = o

@@ -149,6 +149,7 @@ export interface Overlay {
   supersedesId: string | null
   actor: string
   actorContext: string
+  generationId: string | null
   createdAt: string
 }
 
@@ -162,7 +163,7 @@ export interface EntityState {
   targetKind: string
   targetId: string
   decision: Overlay | null
-  corrections: Record<string, Overlay>
+  values: Record<string, Overlay>
   confirm: Overlay | null
   assign: Overlay | null
   flag: Overlay | null
