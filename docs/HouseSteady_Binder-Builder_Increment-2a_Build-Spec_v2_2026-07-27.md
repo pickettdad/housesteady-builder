@@ -1,9 +1,5 @@
 # Binder Builder — Increment 2a Build Spec: The Fresh Pass
 
-> **Superseded by** `HouseSteady_Binder-Builder_Increment-2a_Build-Spec_v2_2026-07-27.md`.
-> Retained because it is the version PRs #5 and #6 were built against — it blocked anchor
-> placement at the desk, which v2 reverses. Read v2 for anything current.
-
 **Date:** 2026-07-26
 **Read first:** `CLAUDE.md` · `/docs/HouseSteady_Binder-Builder_Design_v1-1_Amendment_2026-07-26.md` · the Object/Concern Model.
 **Supersedes:** Design v1 §2, which described triage as a task-batched queue rail. That framing is replaced — see §1.
@@ -33,12 +29,25 @@ So this screen is **a fresh pass, not a queue**: zone by zone, in visit order, w
 
 | Allowed at the desk | Not allowed |
 |---|---|
-| Correct a pin type, label, nameplate text, serial | Create a pin |
-| Attach a loose photo to a pin | Place or move an anchor on a canvas |
-| Flag something for a closer look | Record a measurement |
-| Record what the concierge remembers | Change any captured value in place |
+| Correct a pin type, label, nameplate text, serial | Create a pin or any new entity *(deferred to v4 — see below)* |
+| Attach a loose photo to a pin | Record a measurement |
+| **Place or move an anchor on a canvas** *(see below)* | Change any captured value in place |
+| Flag something for a closer look | Create anything not bound to evidence in hand |
+| Record what the concierge remembers | |
 
-Unplaced pins are **reported, not placed.** The builder was not there. An unplaced pin becomes a carried item for the next visit (Increment 4's session plan).
+### Anchor placement at the desk (revised 2026-07-26)
+
+An earlier version of this spec blocked anchor placement outright on the grounds that the builder was not there. That reasoning holds for the *claim* but not for the *work*: the requirement is that desk placement must never be **indistinguishable** from field placement, not that it be prevented. Leaving a pin in the wrong room for a month because of a rule is the wrong trade.
+
+**Placing or moving an anchor is allowed, as an overlay, and it says so.** The manifest is untouched; the overlay records `placed at the desk, from recall`, with the prior position stored where one existed. Honesty label is **Observed** — the concierge did see the thing — with provenance carrying the desk context. Same treatment as the zone memory note.
+
+**It closes on the round trip.** A desk-placed or desk-moved anchor rides into the next visit's session plan flagged **confirm on site** (Increment 4). Once the concierge is standing in front of it, confirmation promotes it to field-observed. Better than either blocking the work or pretending it happened on the day.
+
+**The governing line is evidence versus recall, not desk versus field.** Anything the builder creates or positions must point at evidence already in hand — a photo, a note, a chat thread, a lab report. Placing an unanchored pin whose photo is on screen is grounded. Recording a shutoff the concierge merely remembers being behind the furnace is not, and must not become a record: it becomes a **carried item for the next visit**, pinned properly by someone standing there.
+
+**Entity creation stays deferred, for sequencing not doctrine.** Under manifest v4 the question stops being "add a pin" and becomes "is this an object or a concern?" — and the answers differ. A desk-created *object* is strange; the concierge did not see the thing. A desk-created *concern* is ordinary — a stain noticed in the photos, a lab result arriving. Building creation against v3's pin model means building it twice.
+
+Unplaced pins that the concierge cannot place from evidence remain **reported, not placed**, and carry forward.
 
 ## 3. Four acts, four overlay kinds
 
@@ -48,6 +57,7 @@ Never collapsed into one "verified" flag:
 - **correct** — a value was wrong; **the prior value is stored in the overlay** ("was freeform *receptacle*, corrected to component *junction-box* at the desk")
 - **assign** — a loose capture or inbox item attached to a pin or zone
 - **flag** — needs a closer look; carries a short reason
+- **place** — an anchor set or moved at the desk; stores prior position where one existed, and always carries `from recall` provenance
 
 **Undo is a superseding overlay, never a deletion.** The trail should honestly read *assigned, unassigned, reassigned*. Undo must be one keystroke and instantly available — at this pace mis-taps are certain, and if undo is awkward people slow down to avoid needing it.
 
@@ -55,7 +65,7 @@ Never collapsed into one "verified" flag:
 
 Increment 1 created `verifications` and `field_fixes` as separate empty tables, guessed before the model settled. **Replace with one `overlays` table**, because current state is *latest wins across all overlay kinds for an entity*, and that query is awkward across tables. The two earlier tables are empty; dropping them in 003 is Code's call.
 
-- `overlays` — id, property_id, visit_id, **kind** (confirm | correct | assign | flag | memory | undo), **target_kind** (pin | media | zone | resolution | note | inbox_ref), **target_id**, **field** (nullable — which attribute, for `correct`), **prior_value** (JSON, nullable), **new_value** (JSON, nullable), reason (nullable), **supersedes_id** (nullable — set by undo and by re-decisions), actor, actor_context (`desk`), created_at
+- `overlays` — id, property_id, visit_id, **kind** (confirm | correct | assign | flag | memory | place | undo), **target_kind** (pin | media | zone | resolution | note | inbox_ref), **target_id**, **field** (nullable — which attribute, for `correct`), **prior_value** (JSON, nullable), **new_value** (JSON, nullable), reason (nullable), **supersedes_id** (nullable — set by undo and by re-decisions), actor, actor_context (`desk`), created_at
 
 **Current state is computed on read**, not maintained in a separate table — hundreds of rows per visit, not millions. Add a source-scan doctrine test: **nothing outside the overlay layer may write a derived-state column.**
 
@@ -113,6 +123,8 @@ All AI (2b) · binder assembly · gap report · concern register (v4) · pin cre
 Behaviour: each of the four acts writes an overlay and never mutates a captured row · undo supersedes and the trail reads honestly · corrections retain prior values · current state resolves latest-wins across mixed kinds · canvas markers land at the right normalized coordinates · a zone with no canvas and a manifest-only import both degrade gracefully · the reference export walks end to end.
 
 Capture assurance: permission-denied disables record · a silent recording is detected and reported · a zero-length file cannot be left unacknowledged at completion · audio survives transcription.
+
+Placement: a desk-placed anchor is visually and structurally distinguishable from a field anchor everywhere it appears · prior position retained on a move · a placement with no evidence binding is refused.
 
 Doctrine scans: **no write path to a captured table from the overlay layer** · **no button, heading, or label in the verification path uses "verify", "approve", or "certify"** · **no overlay kind can set a condition, grade, or adequacy field** · nothing outside the overlay layer writes derived state.
 

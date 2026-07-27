@@ -182,6 +182,15 @@ export interface PassPin {
   anchors: { anchorId: string; canvasId: string | null; x: number | null; y: number | null }[]
   mediaIds: string[]
   notes: { noteId: string; text: string | null; at: string | null }[]
+  deskPlacement: {
+    overlayId: string
+    canvasId: string
+    x: number
+    y: number
+    evidence: { kind: string; id: string } | null
+    priorPosition: { canvasId?: string; x?: number; y?: number } | null
+    at: string
+  } | null
 }
 
 export interface PhotoTile {
@@ -236,6 +245,15 @@ export interface PassZone {
   decisions: DecisionItem[]
   roomPhotos: PhotoTile[]
   memory: EntityState | null
+  memoryAudio: {
+    id: string
+    durationMs: number | null
+    bytes: number | null
+    peakLevel: number | null
+    silent: boolean
+    acknowledgedAt: string | null
+    createdAt: string
+  }[]
   opened: boolean
   openedAt: string | null
   openCount: number
@@ -371,6 +389,23 @@ export const api = {
   /** Late thoughts about a house are normal and must not need a hack. */
   reopenPass: (visitId: string) =>
     req<unknown>(`/api/visits/${visitId}/pass/reopen`, { method: 'POST' }),
+
+  /**
+   * Placing or moving a pin on a canvas at the desk.
+   *
+   * Always carries the evidence it was read from — spec §2: the line is
+   * evidence versus recall, and the server refuses a placement without one.
+   */
+  place: (
+    visitId: string,
+    pinId: string,
+    value: { canvasId: string; x: number; y: number; evidence: { kind: string; id: string } },
+  ) =>
+    req<Overlay>(`/api/visits/${visitId}/overlays`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'place', targetKind: 'pin', targetId: pinId, newValue: value }),
+    }),
 
   /** With no argument this takes back the most recent act — the `u` keystroke. */
   undo: (visitId: string, overlayId?: string) =>

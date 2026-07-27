@@ -277,11 +277,50 @@ kbd {
 .rail-count { text-align: right; max-width: 92px; line-height: 1.2; }
 
 /* Room photos are attachable (spec §5.3), so a tile needs room to say so. */
-.tile-wrap { display: flex; flex-direction: column; gap: 3px; width: 104px; }
+.tile-wrap { display: flex; flex-direction: column; gap: 3px; width: 124px; }
 .tile-wrap > a { line-height: 0; }
 .tile-state {
   font-size: 10px; color: var(--ink-faint); display: flex; gap: 6px;
   align-items: baseline; text-align: left; background: none; border: 0; padding: 0; cursor: pointer;
+  line-height: 1.35;
 }
+/* The label is the long part; undo must not be pushed onto its own line. */
+.tile-state > span { flex: 1; min-width: 0; }
+.tile-state .link { flex: none; }
 button.tile-state:hover { color: var(--accent); }
 .tile-wrap .editor { width: 320px; position: relative; z-index: 1; }
+
+/* --------------------------------------------- part 3: memory + placement */
+
+/* A desk placement is visibly a different thing from a field anchor. */
+.marker.desk-placed {
+  border-style: dashed; border-color: var(--warn); color: var(--warn);
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--warn-bg);
+}
+.canvas.placing { cursor: crosshair; }
+.canvas.placing img { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.placing-hint { color: var(--accent); }
+.tray-pin { display: inline-flex; align-items: center; gap: 6px; }
+.desk-placed-tray { background: var(--warn-bg); }
+.chip.desk { border-style: dashed; border-color: var(--warn); }
+
+/* Capture assurance: a moving level, never a status dot. */
+.mic-check .detail { max-width: 62ch; }
+.meter {
+  display: inline-block; width: 120px; height: 10px; border-radius: 5px;
+  background: var(--line); overflow: hidden; vertical-align: middle;
+}
+.meter-fill { display: block; height: 100%; background: var(--accent); transition: width 60ms linear; }
+.error-text { color: var(--error); font-size: 13px; }
+
+.memory { margin-top: 8px; }
+.memory textarea { width: 100%; max-width: 620px; }
+.recording-result {
+  margin-top: 10px; padding: 10px 12px; border-radius: 3px;
+  background: var(--ok-bg); font-size: 13px; max-width: 620px;
+}
+.recording-result.silent { background: var(--error-bg); color: var(--error); }
+.recordings { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.recordings li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.recordings li.silent { padding: 6px 8px; background: var(--error-bg); border-radius: 3px; }
+.recordings audio { height: 32px; }

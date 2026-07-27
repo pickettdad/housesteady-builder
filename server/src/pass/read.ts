@@ -14,7 +14,7 @@
 import type { Db } from '../db/index.js'
 import { resolutionKey } from '../overlay/fields.js'
 import { entityKey, type EntityState } from '../overlay/model.js'
-import { visitState } from '../overlay/store.js'
+import { readVisitOverlays, visitState } from '../overlay/store.js'
 
 const parse = <T,>(s: unknown, fallback: T): T => {
   if (typeof s !== 'string') return fallback
@@ -130,6 +130,23 @@ export interface PassPin {
   anchors: { anchorId: string; canvasId: string | null; x: number | null; y: number | null }[]
   mediaIds: string[]
   notes: { noteId: string; text: string | null; at: string | null }[]
+  /**
+   * A live desk placement, if this pin was positioned at the desk.
+   *
+   * Kept separate from `anchors` rather than merged into it, which is the
+   * structural half of "a desk placement must never be indistinguishable from a
+   * field one" (spec §2, §8). Merging would make them the same shape and the
+   * distinction would then depend on every consumer remembering to check a flag.
+   */
+  deskPlacement: {
+    overlayId: string
+    canvasId: string
+    x: number
+    y: number
+    evidence: { kind: string; id: string } | null
+    priorPosition: { canvasId?: string; x?: number; y?: number } | null
+    at: string
+  } | null
 }
 
 export interface PassCanvas {
@@ -220,6 +237,16 @@ export interface PassZone {
   decisions: DecisionItem[]
   roomPhotos: PhotoTile[]
   memory: EntityState | null
+  /** Desk recordings for this room, with the assurance figures kept at capture. */
+  memoryAudio: {
+    id: string
+    durationMs: number | null
+    bytes: number | null
+    peakLevel: number | null
+    silent: boolean
+    acknowledgedAt: string | null
+    createdAt: string
+  }[]
   opened: boolean
   openedAt: string | null
   openCount: number
@@ -383,6 +410,39 @@ export function buildPass(db: Db, visitId: string): PassModel | null {
   const states = visitState(db, visitId)
   const order = zoneOrder(db, importId)
 
+  // Desk recordings, matched to their room through the memory overlay that
+  // introduced them — the file itself knows the visit, not the room.
+  const memoryAudioByZone = new Map<string, PassZone['memoryAudio']>()
+  {
+    const rows = db
+      .prepare(
+        `SELECT o.target_id AS zone_id, d.id, d.duration_ms, d.bytes, d.peak_level, d.silent,
+                d.acknowledged_at, d.created_at
+           FROM overlays o
+           JOIN desk_media d ON d.id = json_extract(o.new_value, '$.deskMediaId')
+          WHERE o.visit_id = ? AND o.kind = 'memory' AND o.field = 'audio'
+            AND NOT EXISTS (SELECT 1 FROM overlays s WHERE s.supersedes_id = o.id)
+          ORDER BY d.created_at`,
+      )
+      .all(visitId) as {
+      zone_id: string; id: string; duration_ms: number | null; bytes: number | null
+      peak_level: number | null; silent: number; acknowledged_at: string | null; created_at: string
+    }[]
+    for (const r of rows) {
+      const list = memoryAudioByZone.get(r.zone_id) ?? []
+      list.push({
+        id: r.id,
+        durationMs: r.duration_ms,
+        bytes: r.bytes,
+        peakLevel: r.peak_level,
+        silent: r.silent === 1,
+        acknowledgedAt: r.acknowledged_at,
+        createdAt: r.created_at,
+      })
+      memoryAudioByZone.set(r.zone_id, list)
+    }
+  }
+
   const opens = db
     .prepare(
       `SELECT zone_id, MIN(at) AS first_at, COUNT(*) AS n FROM pass_zone_opens
@@ -423,6 +483,27 @@ export function buildPass(db: Db, visitId: string): PassModel | null {
     notesByTarget.set(targetId, list)
   }
 
+  // Live `place` overlays, by pin. One query for the visit rather than one per
+  // pin — a baseline can carry a few hundred.
+  const placementByPin = new Map<string, PassPin['deskPlacement']>()
+  for (const o of readVisitOverlays(db, visitId)) {
+    if (o.kind !== 'place' || o.targetKind !== 'pin') continue
+    const state = states.get(entityKey('pin', o.targetId))
+    const live = state?.trail.find((t) => t.live && t.overlay.id === o.id)
+    if (!live) continue
+    const v = o.newValue as { canvasId?: string; x?: number; y?: number; evidence?: { kind: string; id: string } }
+    if (!v?.canvasId || typeof v.x !== 'number' || typeof v.y !== 'number') continue
+    placementByPin.set(o.targetId, {
+      overlayId: o.id,
+      canvasId: v.canvasId,
+      x: v.x,
+      y: v.y,
+      evidence: v.evidence ?? null,
+      priorPosition: (o.priorValue as { canvasId?: string; x?: number; y?: number } | null) ?? null,
+      at: o.createdAt,
+    })
+  }
+
   const toPin = (p: Record<string, unknown>): PassPin => ({
     pinId: p.pin_id as string,
     number: (p.number as number) ?? null,
@@ -434,6 +515,7 @@ export function buildPass(db: Db, visitId: string): PassModel | null {
     anchors: anchorsByPin.get(p.pin_id as string) ?? [],
     mediaIds: parse<string[]>(p.media_ids, []),
     notes: notesByTarget.get(p.pin_id as string) ?? [],
+    deskPlacement: placementByPin.get(p.pin_id as string) ?? null,
   })
 
   const pinsById = new Map(pinRows.map((p) => [p.pin_id as string, toPin(p)]))
@@ -498,12 +580,15 @@ export function buildPass(db: Db, visitId: string): PassModel | null {
         order: order.get(zoneId) ?? Number.MAX_SAFE_INTEGER,
         canvases,
         pins: livePins,
-        // Spec §5.1: reported, not placed. The builder was not there.
-        unplacedPins: livePins.filter((p) => p.anchors.length === 0),
+        // Pins with no position at all — neither a field anchor nor a desk
+        // placement. Spec §2 (revised): these are the ones that genuinely
+        // cannot be positioned from evidence and carry to the next visit.
+        unplacedPins: livePins.filter((p) => p.anchors.length === 0 && !p.deskPlacement),
         retiredPinCount: zonePins.length - livePins.length,
         decisions,
         roomPhotos,
         memory: states.get(entityKey('zone', zoneId)) ?? null,
+        memoryAudio: memoryAudioByZone.get(zoneId) ?? [],
         opened: Boolean(opened),
         openedAt: opened?.first_at ?? null,
         openCount: opened?.n ?? 0,

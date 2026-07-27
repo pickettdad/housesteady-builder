@@ -7,6 +7,7 @@
  */
 
 import { newId, now, type Db } from '../db/index.js'
+import { unacknowledgedSilent } from './memory.js'
 import { buildPass, type PassModel } from './read.js'
 
 export class PassRefused extends Error {
@@ -102,6 +103,34 @@ export function completePass(
 
   const model = buildPass(db, visitId)
   if (!model) throw new PassRefused('No such visit.', 'pass.no-visit')
+
+  // ------------------------------------------------------------ the backstop
+  //
+  // Spec §5: "the pass cannot be marked complete with a zero-length or silent
+  // recording sitting unacknowledged." This one is NOT forceable, and the
+  // difference from the decision gate below is worth being precise about.
+  //
+  // A lock is bad when routing around it is the only sensible response — that
+  // is what makes people invent decisions or leave passes open forever. This is
+  // not that: the exit is one click, either re-record it or say you know it is
+  // silent. And the whole point of capture assurance is that silence must never
+  // pass unnoticed, so a `force` that skipped it would delete the only thing
+  // standing between the concierge and an hour of recordings of nothing.
+  const silent = unacknowledgedSilent(db, visitId)
+  if (silent.length > 0) {
+    throw new PassRefused(
+      silent.length === 1
+        ? 'One memory recording came out silent or empty.'
+        : `${silent.length} memory recordings came out silent or empty.`,
+      'pass.silent-recording',
+      silent.map(
+        (m) =>
+          `${m.bytes === 0 || m.bytes === null ? 'An empty recording' : 'A silent recording'}` +
+          ` in ${m.zone_label ?? 'a room this pass cannot name'}` +
+          ` (${Math.round((m.duration_ms ?? 0) / 1000)}s). Record it again there, or keep it and say you know.`,
+      ),
+    )
+  }
 
   // Answers rather than refuses. The first call with work outstanding comes
   // back with what is outstanding, in words, so the screen can ask "5 decisions

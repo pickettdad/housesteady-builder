@@ -1,5 +1,9 @@
 # Binder Builder — Increment 1 Build Spec: Import (v3.1)
 
+> **Superseded by** `HouseSteady_Binder-Builder_Increment-1_Build-Spec_v3.4_2026-07-26.md`.
+> Retained as the version the earlier Increment 1 work was built against. Read v3.4 for
+> anything current.
+
 **Date:** 2026-07-25
 **Supersedes:** Increment-1 v1, v2, v3. (v3.1 adds §8 — the AI provenance table, created empty now to avoid a migration later.)
 **Supersedes note:** v1 and v2 Both were written against the contract *document*; this one is written against a **real v3 export** and the Observed Addendum that corrects the contract.
