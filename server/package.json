@@ -8,9 +8,11 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "test": "node --test --import tsx test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "golden": "tsx src/ai/golden-run.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "better-sqlite3": "^13.0.1",
     "express": "^4.21.2",
     "multer": "^2.0.2",

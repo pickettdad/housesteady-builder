@@ -33,6 +33,7 @@ export interface GenerationRow {
   prompt_id: string | null
   prompt_version: string | null
   prompt_hash: string | null
+  input_refs: string | null
   output: string | null
   abstained: number
   confidence: number | null

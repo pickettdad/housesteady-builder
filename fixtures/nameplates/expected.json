@@ -62,7 +62,7 @@
         "make": "Flexcon Industries (PRO FLEX 2)",
         "model": "HTX 30",
         "serial": "unknown",
-        "capacity": "4.8 gal / 18 L",
+        "capacity": "4.8 Gal / 18 L",
         "installDate": "unknown"
       },
       "fieldNotes": {
@@ -132,7 +132,7 @@
         "make": "A. O. Smith Enterprises Limited",
         "model": "G9-50SDE-30 250",
         "serial": "2439140768401",
-        "capacity": "48 gal / 182 L",
+        "capacity": "48 GAL / 182 LITRE",
         "installDate": "unknown"
       },
       "fieldNotes": {
@@ -149,7 +149,7 @@
         "make": "GSW Water Heating",
         "model": "JW80SDE145",
         "serial": "U1244 F703987",
-        "capacity": "284 L",
+        "capacity": "284 Litre",
         "installDate": "unknown"
       },
       "fieldNotes": {
@@ -288,6 +288,8 @@
     "1. IMG_0009 is my pick for 'the one that isn't a nameplate at all'. It is the only whole-unit shot with no data plate in frame. Confirm, or name the one you meant.",
     "",
     "2. You said 'a couple that are genuinely illegible'. On my reading, no image in this set is illegible end to end — but five have individual fields that genuinely cannot be read: the model on IMG_0029, IMG_0030 and IMG_0033, and the serial on IMG_0008, IMG_0020 and Untitled.jpg (those three plates carry no serial at all). If you intended a whole image to be unreadable, tell me which and I will look again — I would rather re-examine than record an expectation that flatters the reading.",
+    "",
+    "4. KNOWN GAP — the whole-image abstention path has no fixture yet. Two more photos are\n       coming (something genuinely blurred, and a plate in the dark at a steep angle). Until\n       they land, no entry in this set expects `abstains: true` on a photo that IS a nameplate,\n       so the state where extraction runs and returns nothing at all is exercised only by unit\n       tests with a stubbed model, never against a real image.",
     "",
     "3. Worth knowing how I read them: full size, on a strong model, with time. The fast tier that will actually run this in production sees them at lower resolution and will do worse. That asymmetry is the point of the file — expected.json records what the plate SAYS, so a weak reading fails visibly instead of quietly becoming the record."
   ]
