@@ -9,7 +9,10 @@
 
 import { newId, now, type Db } from '../db/index.js'
 import { findCorrectableField, forbiddenField } from './fields.js'
-import { entityKey, resolveState, toOverlay, type EntityState, type Overlay, type OverlayRow } from './model.js'
+import {
+  entityKey, resolveState, toOverlay, VALUE_KINDS,
+  type EntityState, type Overlay, type OverlayRow,
+} from './model.js'
 
 /** A refusal the operator can act on, not a stack trace. */
 export class OverlayRefused extends Error {
@@ -34,6 +37,8 @@ export interface WriteOverlayArgs {
   reason?: string | null
   /** Required for undo. Otherwise resolved automatically — see below. */
   supersedesId?: string | null
+  /** Required for accept: the proposal this act is answering. */
+  generationId?: string | null
   actor?: string
   actorContext?: string
 }
@@ -229,9 +234,74 @@ export function writeOverlay(args: WriteOverlayArgs): Overlay {
     // withdrawn and the value in force is the field's own again — so the prior
     // value comes from storage, not from the undo (whose newValue is null).
     // Recording null as the "before" would claim the field never typed one.
-    const live = liveSlot(db, visitId, targetKind, targetId, 'correct', field)
-    priorValue = live?.kind === 'correct' ? live.newValue : spec.read(db, visitId, targetId)
+    const live = liveSlot(db, visitId, targetKind, targetId, VALUE_KINDS, field)
+    priorValue = live && VALUE_KINDS.includes(live.kind as (typeof VALUE_KINDS)[number])
+      ? live.newValue
+      : spec.read(db, visitId, targetId)
     supersedesId = supersedesId ?? live?.id ?? null
+  } else if (kind === 'accept') {
+    // ------------------------------------------------- accepting a proposal
+    //
+    // Spec §2. An AI value is never the current value until a human accepts it,
+    // and this is the only act that makes one current. The two value columns
+    // carry a specific meaning here: prior is what the model proposed, new is
+    // what the human accepted. Identical means accepted as-is; different means
+    // edited, and that difference IS the accuracy record — "how often is the
+    // model right" becomes a query instead of a metric somebody maintains.
+    //
+    // Signing is not certification. CLAUDE.md §6: it means "I observed this,
+    // and this description matches what I saw". Accepting a serial is the same
+    // claim as confirming a label — which is why it is the same key on the
+    // screen and a decision kind here.
+    if (!field) throw new OverlayRefused('An acceptance has to say which value it sets.', 'overlay.no-field')
+    if (!args.generationId) {
+      throw new OverlayRefused(
+        'An acceptance has to say which proposal it is answering.',
+        'overlay.accept-no-generation',
+      )
+    }
+    if (args.newValue === undefined) {
+      throw new OverlayRefused('An acceptance has to say what the value is.', 'overlay.no-new-value')
+    }
+
+    // The same whitelist a correction uses. Acceptance sets the same value by a
+    // different route, so it must not become a way around the field line — the
+    // desk cannot type an anchor coordinate, and it cannot accept one either.
+    if (!findCorrectableField(targetKind, field)) {
+      throw new OverlayRefused(
+        `"${field}" is not something that can be set on a ${targetKind} from the desk.`,
+        'overlay.uncorrectable-field',
+      )
+    }
+
+    const gen = db
+      .prepare('SELECT id, visit_id, task, target_kind, target_id, output, abstained, human_decision FROM ai_generations WHERE id = ?')
+      .get(args.generationId) as
+      | { id: string; visit_id: string | null; task: string; target_kind: string | null
+          target_id: string | null; output: string | null; abstained: number; human_decision: string }
+      | undefined
+    if (!gen) throw new OverlayRefused('That proposal is not in the record.', 'overlay.accept-unknown-generation')
+    if (gen.visit_id !== visitId) {
+      throw new OverlayRefused('That proposal belongs to a different visit.', 'overlay.accept-other-visit')
+    }
+    if (gen.abstained === 1) {
+      // Abstention is a success, not a value. There is nothing to accept, and
+      // accepting one would manufacture a reading the model explicitly declined
+      // to make — the exact laundering doctrine 2 forbids.
+      throw new OverlayRefused(
+        'That proposal abstained — there is nothing to accept. Type the value yourself, or carry it to the next visit.',
+        'overlay.accept-abstained',
+      )
+    }
+    if (gen.human_decision !== 'pending') {
+      throw new OverlayRefused(
+        `That proposal was already ${gen.human_decision}.`,
+        'overlay.accept-already-decided',
+      )
+    }
+
+    priorValue = proposedValue(gen.output, field)
+    supersedesId = supersedesId ?? liveSlot(db, visitId, targetKind, targetId, VALUE_KINDS, field)?.id ?? null
   } else if (kind === 'flag') {
     if (!reason) {
       // Spec §3: flag "carries a short reason". A flag with no reason is a
@@ -342,6 +412,7 @@ export function writeOverlay(args: WriteOverlayArgs): Overlay {
     supersedesId,
     actor: args.actor ?? 'concierge',
     actorContext: args.actorContext ?? 'desk',
+    generationId: args.generationId ?? null,
   })
 }
 
@@ -358,9 +429,33 @@ interface InsertArgs {
   supersedesId: string | null
   actor: string
   actorContext: string
+  generationId?: string | null
 }
 
 const jsonOrNull = (v: unknown): string | null => (v === undefined || v === null ? null : JSON.stringify(v))
+
+/**
+ * What the model proposed for one field.
+ *
+ * Returns null when the output has no opinion about it — an extraction that
+ * read a model number and left the serial `unknown` proposed nothing for the
+ * serial, and recording `"unknown"` as the prior value would turn a declined
+ * reading into a wrong one in the accuracy figures.
+ */
+function proposedValue(output: string | null, field: string): unknown {
+  if (!output) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(output)
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null
+  const fields = (parsed as Record<string, unknown>).fields
+  const bag = (typeof fields === 'object' && fields !== null ? fields : parsed) as Record<string, unknown>
+  const v = bag[field]
+  return v === undefined || v === 'unknown' ? null : v
+}
 
 function insert(db: Db, a: InsertArgs): Overlay {
   const id = newId()
@@ -380,8 +475,8 @@ function insertRow(db: Db, id: string, seq: number, a: InsertArgs): void {
   db.prepare(
     `INSERT INTO overlays
        (id, property_id, visit_id, seq, kind, target_kind, target_id, field, prior_value, new_value,
-        reason, supersedes_id, actor, actor_context, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        reason, supersedes_id, actor, actor_context, generation_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     a.propertyId,
@@ -397,6 +492,7 @@ function insertRow(db: Db, id: string, seq: number, a: InsertArgs): void {
     a.supersedesId,
     a.actor,
     a.actorContext,
+    a.generationId ?? null,
     now(),
   )
 }
@@ -436,23 +532,29 @@ function liveSlot(
   visitId: string,
   targetKind: string,
   targetId: string,
-  kind: string,
+  kind: string | readonly string[],
   field: string | null,
 ): Overlay | undefined {
+  // A slot can be held by more than one kind. `correct` and `accept` share one,
+  // because both answer "what does this field say now" — see VALUE_KINDS. A
+  // correction must therefore supersede an earlier acceptance and vice versa,
+  // or the pin would carry two live answers with nothing to choose between them.
+  const kinds = typeof kind === 'string' ? [kind] : [...kind]
+  const marks = kinds.map(() => '?').join(', ')
   const rows = db
     .prepare(
       `SELECT o.* FROM overlays o
         WHERE o.visit_id = ? AND o.target_kind = ? AND o.target_id = ?
           AND (
-            (o.kind = ? AND o.field IS ?)
+            (o.kind IN (${marks}) AND o.field IS ?)
             OR (o.kind = 'undo' AND EXISTS (
                   SELECT 1 FROM overlays t
-                   WHERE t.id = o.supersedes_id AND t.kind = ? AND t.field IS ?))
+                   WHERE t.id = o.supersedes_id AND t.kind IN (${marks}) AND t.field IS ?))
           )
           AND NOT EXISTS (SELECT 1 FROM overlays s WHERE s.supersedes_id = o.id)
         ORDER BY o.seq DESC LIMIT 1`,
     )
-    .all(visitId, targetKind, targetId, kind, field, kind, field) as OverlayRow[]
+    .all(visitId, targetKind, targetId, ...kinds, field, ...kinds, field) as OverlayRow[]
   return rows[0] ? toOverlay(rows[0]) : undefined
 }
 

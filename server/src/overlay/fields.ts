@@ -130,7 +130,43 @@ const latestPin = (db: Db, visitId: string, pinId: string) =>
     | { type_kind: string | null; component_type: string | null; freeform_label: string | null }
     | undefined
 
+/**
+ * The nameplate fields, added in 2b exactly where 2a said they would arrive.
+ *
+ * `read` returns null for all of them, always, and that is not a stub. The v3
+ * export carries no structured nameplate data, so there is nothing the field
+ * captured for these to be a correction *of* — the overlay is the only place
+ * the value has ever existed. A chain of acts on one of these therefore reads
+ * from null, which is the truth: nobody had written it down before.
+ *
+ * These are transcription, not interpretation. §0.3: reading `1809A44721` off a
+ * plate is reading an image; deducing "manufactured week 9 of 2018" is
+ * inference, carries a different honesty label, and is not in this increment.
+ *
+ * NO CONDITION FIELD, and there never will be one here. `forbiddenField`
+ * refuses it, and the object model is explicit that component checklist answers
+ * across visits — pass, pass, pass, fail — tell a story a grade cannot, and one
+ * the concierge can actually defend.
+ */
+const nameplateField = (field: string, label: string): CorrectableField => ({
+  targetKind: 'pin',
+  field,
+  label,
+  // Never captured in the field, so there is nothing to read. Null is the
+  // honest prior value and makes the first acceptance read as setting it.
+  read: () => null,
+})
+
 export const CORRECTABLE_FIELDS: CorrectableField[] = [
+  nameplateField('make', 'make'),
+  nameplateField('model', 'model'),
+  nameplateField('serial', 'serial number'),
+  nameplateField('capacity', 'capacity'),
+  // Deliberately narrow wording. Plates print MANUFACTURE dates — 02/25,
+  // oct. 2012, 2024/06 — and filing one of those here as an install date is
+  // precisely the laundering doctrine 2 forbids. The label is what a reviewer
+  // sees in the trail, so it carries the caveat rather than relying on memory.
+  nameplateField('installDate', 'install date, only if printed on the plate'),
   {
     targetKind: 'pin',
     field: 'type',

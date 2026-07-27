@@ -157,8 +157,8 @@ describe('corrections retain prior values', () => {
     assert.deepEqual(second.priorValue, first.newValue, 'the second correction replaced the first, not the original')
 
     const state = stateFor(visitState(db, visitId), 'pin', pinId)!
-    assert.equal(Object.keys(state.corrections).length, 1, 'one live correction per field')
-    assert.equal(state.corrections.type!.id, second.id)
+    assert.equal(Object.keys(state.values).length, 1, 'one live correction per field')
+    assert.equal(state.values.type!.id, second.id)
     db.close()
   })
 
@@ -383,7 +383,8 @@ describe('current state — latest wins across mixed kinds', () => {
     const mk = (over: Partial<Overlay>): Overlay => ({
       id: 'x', propertyId: 'p', visitId: 'v', seq: 1, kind: 'confirm', targetKind: 'pin', targetId: 'pin-1',
       field: null, priorValue: null, newValue: null, reason: null, supersedesId: null,
-      actor: 'concierge', actorContext: 'desk', createdAt: '2026-07-26T10:00:00.000Z', ...over,
+      actor: 'concierge', actorContext: 'desk', generationId: null,
+      createdAt: '2026-07-26T10:00:00.000Z', ...over,
     })
 
     const a = mk({ id: 'a', seq: 1 })
@@ -399,7 +400,8 @@ describe('current state — latest wins across mixed kinds', () => {
     const o: Overlay = {
       id: 'a', propertyId: 'p', visitId: 'v', seq: 1, kind: 'transcribe', targetKind: 'zone', targetId: 'z1',
       field: null, priorValue: null, newValue: { text: 'from 2b' }, reason: null, supersedesId: null,
-      actor: 'concierge', actorContext: 'desk', createdAt: '2026-07-26T10:00:00.000Z',
+      actor: 'concierge', actorContext: 'desk', generationId: null,
+      createdAt: '2026-07-26T10:00:00.000Z',
     }
     const state = resolveState([o]).get(entityKey('zone', 'z1'))!
     assert.equal(state.unrecognized.length, 1, 'fail open on vocabulary — surface it, never swallow it')

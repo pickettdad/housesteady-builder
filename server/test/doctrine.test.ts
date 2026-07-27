@@ -403,6 +403,29 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
     assert.deepEqual(offenders, [], 'model IDs are configuration — HOUSESTEADY_MODEL_FAST, not a string literal')
   })
 
+  /**
+   * Increment 2b §2: "no path may render a generation as current state without
+   * a corresponding accept overlay."
+   *
+   * The behavioural half is in acceptance.test.ts — propose, and the pin is
+   * untouched. This is the structural half, and it is the one that survives a
+   * refactor: the way this doctrine breaks is not by someone deciding to render
+   * proposals, it is by a read path quietly joining `ai_generations` for
+   * convenience and a value appearing on screen that nobody signed.
+   */
+  it('lets only the acceptance path read ai_generations at all', () => {
+    const ALLOWED = [
+      join('ai', 'accept.ts'),      // owns the pending → accepted/edited/discarded transitions
+      join('ai', 'queue.ts'),       // writes the row, and sums cost off it
+      join('overlay', 'store.ts'),  // validates the proposal an accept overlay cites
+    ]
+    const offenders = sourceFiles(serverSrc)
+      .filter((f) => /\bai_generations\b/.test(codeOf(f)))
+      .filter((f) => !ALLOWED.some((a) => f.endsWith(a)))
+    assert.deepEqual(offenders, [],
+      'a read path touching ai_generations is how an unsigned value reaches the screen')
+  })
+
   it('lets nothing ask sharp to keep metadata on an image bound for a model', () => {
     // CLAUDE.md §14. The stripping is a library default, so the risk is not a
     // missing line — it is a future line that turns it off. Interior photographs
