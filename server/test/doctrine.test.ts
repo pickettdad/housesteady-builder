@@ -403,6 +403,17 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
     assert.deepEqual(offenders, [], 'model IDs are configuration — HOUSESTEADY_MODEL_FAST, not a string literal')
   })
 
+  it('lets nothing ask sharp to keep metadata on an image bound for a model', () => {
+    // CLAUDE.md §14. The stripping is a library default, so the risk is not a
+    // missing line — it is a future line that turns it off. Interior photographs
+    // of a client's home can carry the coordinates of the home, and that is not
+    // something to send anywhere by accident.
+    const offenders = sourceFiles(join(serverSrc, 'ai')).filter((f) =>
+      /\.(withMetadata|keepMetadata|keepExif|keepXmp|keepIccProfile)\s*\(/.test(codeOf(f)),
+    )
+    assert.deepEqual(offenders, [], 'an image sent to a model carries pixels and nothing else')
+  })
+
   it('lets no AI path write a condition, grade, or adequacy field', () => {
     // CLAUDE.md §7 and §6 of the object model. The concierge identifies; a
     // licensed specialist assesses. An AI task that fills in "condition: poor"

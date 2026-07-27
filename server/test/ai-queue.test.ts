@@ -330,6 +330,38 @@ describe('preparing a photograph for a model', () => {
     assert.equal(p.width, 1320, 'upscaling invents detail that was never photographed')
   })
 
+  /**
+   * CLAUDE.md §14. These are photographs taken inside somebody's house, and a
+   * phone writes far more into a JPEG than the picture: camera body, timestamps,
+   * exposure, an embedded thumbnail that is a second copy of the scene, and — on
+   * a phone with location services on — the coordinates of the house itself.
+   *
+   * None of that is needed to read a nameplate, and a home address is not a
+   * thing to send anywhere by accident. sharp drops all of it unless explicitly
+   * told to keep it, which makes this a test about a default that must never be
+   * changed rather than about code that exists — exactly the kind that stops a
+   * later refactor adding .withMetadata() and nobody noticing.
+   */
+  it('sends the pixels and nothing else — no EXIF, no GPS, no embedded thumbnail', async () => {
+    const sharp = (await import('sharp')).default
+    const source = await sharp(fixture('IMG_0004.jpeg')).metadata()
+    assert.ok((source.exif?.length ?? 0) > 1000, 'the fixture must actually carry metadata, or this proves nothing')
+
+    const prepared = await prepareImage(fixture('IMG_0004.jpeg'), 1568)
+    const sent = await sharp(prepared.data).metadata()
+
+    assert.equal(sent.exif, undefined, 'EXIF must not survive')
+    assert.equal(sent.xmp, undefined, 'XMP must not survive')
+    assert.equal(sent.iptc, undefined, 'IPTC must not survive')
+
+    // Belt and braces: the parsed view could miss a block sharp does not model,
+    // so scan the actual outgoing bytes for the markers that introduce one.
+    for (const marker of ['Exif\0\0', 'http://ns.adobe.com/xap', 'Photoshop 3.0']) {
+      assert.ok(!prepared.data.includes(Buffer.from(marker)),
+        `outgoing JPEG still contains a ${marker.trim()} block`)
+    }
+  })
+
   it('records the shrink in words, because it is a real reason a read can be poor', async () => {
     const { imageNote } = await import('../src/ai/image.js')
     const p = await prepareImage(fixture('IMG_0004.jpeg'), 1568)

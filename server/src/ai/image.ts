@@ -25,6 +25,23 @@
  * problem — which is the right place for them, because they are perception
  * problems rather than metadata problems, and a vision model handles rotated
  * text within an upright frame far better than it handles an upside-down world.
+ * The reference set has one of these: IMG_0033's plate is still sideways after
+ * its EXIF tag is correctly applied, because the plate is sideways on the pump.
+ *
+ * ROTATION RETRIES ARE FOR ABSTENTIONS ONLY (owner's decision, Increment 2b).
+ * Trying four orientations on every photo quadruples the bill for the whole
+ * visit to rescue the handful that need it. Retrying only where extraction
+ * abstained pays for the small subset that actually failed, which is a different
+ * order of cost. And if classification can report that the text runs sideways,
+ * that becomes one targeted retry rather than four blind ones. Implemented with
+ * the extraction task, not here — this module normalises, it does not decide.
+ *
+ * NOTHING BUT PIXELS LEAVES. A phone writes camera body, timestamps, exposure,
+ * an embedded thumbnail, and — with location services on — the coordinates of
+ * the house into every JPEG. sharp drops all of it unless told otherwise, so the
+ * stripping is a default rather than a line of code, which is precisely why it
+ * is pinned by a test and a doctrine scan: the danger is a future edit turning
+ * it back on, not a missing one today.
  *
  * DOWNSCALING IS THE OTHER HALF, AND IT COSTS LEGIBILITY. Every model has a
  * longest-edge limit and silently downscales anything larger. Silent is the
