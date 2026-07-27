@@ -29,32 +29,38 @@ A run where every field is filled is a **failing** run, not a good one.
   expected.json    approved outputs, one entry per image
 ```
 
-`expected.json` is the approved half of the golden set. It is **owner-approved data, not
-a guess** — each entry records what a correct reading of that image looks like, including
-the entries whose correct reading is "can't read it". The test harness compares against
-this file; a prompt change that alters any entry produces a reviewable diff and does not
-ship until the diff is reviewed.
+`expected.json` holds what a correct reading of each image looks like — including the
+entries whose correct reading is "can't read it". A prompt change that alters a ratified
+entry produces a reviewable diff and does not ship until the diff is reviewed.
 
 ### Shape of an entry
 
 ```json
 {
-  "file": "images/<name>.jpg",
-  "note": "what makes this one hard, in plain words",
-  "classification": "yes | no | unsure",
+  "file": "images/IMG_0029.jpeg",
+  "hard": "handwritten model, smudged; the ink has worn",
+  "classification": "yes",
+  "abstains": false,
   "fields": {
-    "make":        "Waterite"  | "unknown",
-    "model":       "WDBT PC1"  | "unknown",
-    "serial":      "153713"    | "unknown",
+    "make":        "Waterite Inc",
+    "model":       "unknown",
+    "serial":      "153713",
     "capacity":    "unknown",
     "installDate": "unknown"
   },
-  "abstains": true
+  "approved": {
+    "serial": "153713"
+  }
 }
 ```
 
 `"unknown"` is a **correct** value wherever the image does not legibly show the field.
 `abstains: true` means the whole image is expected to come back with nothing entered.
+
+`approved` holds a copy of each ratified value. In the entry above only the serial has
+been ratified; everything else is a proposed reading that gates nothing. If someone later
+edits `serial` to `153714`, the copy no longer matches and the ratification lapses on its
+own.
 
 ## Orientation — read this before feeding anything to a model
 
@@ -70,14 +76,15 @@ with the plate.
 
 ## Status
 
-All fifteen images are present. `expected.json` is written but **`approved: false`** — the
-readings are proposed, not ratified. Three questions are open for the owner and they are
-listed in the `notes` array at the bottom of that file. The two that matter:
+All fifteen images are present, and **none of the ninety values is ratified**. Two
+questions are open for the owner, recorded in the `notes` array at the bottom of the file:
 
 - which image is the intended "not a nameplate at all" (proposed: `IMG_0009`), and
 - whether any image was meant to be illegible *end to end*. On the reading recorded here
   none is; six have individual fields that genuinely cannot be read, which is a different
-  and weaker claim than the one the spec asks the set to make.
+  and weaker claim than the one the spec asks the set to make. The two hard photos that
+  would close this — something genuinely blurred, and a plate in the dark at a steep
+  angle — have not arrived yet.
 
 ## Approval is per value, not per set
 
