@@ -56,17 +56,31 @@ ship until the diff is reviewed.
 `"unknown"` is a **correct** value wherever the image does not legibly show the field.
 `abstains: true` means the whole image is expected to come back with nothing entered.
 
+## Orientation — read this before feeding anything to a model
+
+**Twelve of the fifteen are EXIF-rotated.** Orientation `6` on twelve, `3` on
+`IMG_0033`, absent on the other two. Photo viewers apply the tag, which is why they look
+upright on a phone; reading the raw bytes does not, which is why they arrive sideways.
+
+Anything that hands these to a model must normalise orientation first — `sharp().rotate()`
+with no argument applies the EXIF tag, which is already how `pass/thumbs.ts` does it. Skip
+it and a legibility test quietly becomes a test of reading upside-down text, and every
+abstention in `expected.json` becomes meaningless because the failure had nothing to do
+with the plate.
+
 ## Status
 
-**Images not yet present.** They were attached to the conversation three times and each
-time arrived as conversation content without landing on the filesystem, so there was
-nothing to copy. See the session notes — the fixture set is pending delivery by a route
-that produces actual files (committed through the GitHub web UI is simplest, since this
-directory is where they end up regardless).
+All fifteen images are present. `expected.json` is written but **`approved: false`** — the
+readings are proposed, not ratified. Three questions are open for the owner and they are
+listed in the `notes` array at the bottom of that file. The two that matter:
 
-Nothing here is generated, substituted, or synthesised in the meantime. A synthetic
-stand-in for an illegible plate would test the harness and prove nothing about the model,
-which is the one thing this directory exists to do.
+- which image is the intended "not a nameplate at all" (proposed: `IMG_0009`), and
+- whether any image was meant to be illegible *end to end*. On the reading recorded here
+  none is; six have individual fields that genuinely cannot be read, which is a different
+  and weaker claim than the one the spec asks the set to make.
+
+Until those are settled the golden set can be run, but a difference against it is not yet
+evidence of a regression.
 
 ## Privacy
 
