@@ -356,9 +356,6 @@ export function ZoneMemory({
     setText('')
   }, [zone.zoneId])
 
-  const existingText = zone.memory?.corrections ? null : null // text lives in its own overlay field
-  void existingText
-
   const record = async () => {
     setError(null)
     if (state.recording) {

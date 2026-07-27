@@ -48,6 +48,18 @@ export interface RunArgs {
   images: VisionInput[]
   /** JSON Schema the answer must satisfy. */
   schema: Record<string, unknown>
+  /**
+   * Per-call data: the candidate pins for this room, the config's component
+   * types for this import.
+   *
+   * Its own block, deliberately kept OUT of the prompt file. §3 says every
+   * generation records the prompt's hash, and that hash has to describe the
+   * WORDING — if the candidate list were templated into the text, the hash
+   * would change on every call and stop identifying anything. The wording is
+   * config and versioned; the data is per-call and recorded on the generation's
+   * `input_refs` instead, so a suggestion is still explicable months later.
+   */
+  facts?: string
   /** Injected in tests so nothing here needs a network to be exercised. */
   client?: Pick<Anthropic, 'messages'>
   maxTokens?: number
@@ -94,6 +106,8 @@ export async function runVisionTask<T>(args: RunArgs): Promise<TaskResult<T>> {
       }),
     ),
     { type: 'text', text: args.prompt.text },
+    // After the instruction, never woven into it. See `facts` above.
+    ...(args.facts ? [{ type: 'text' as const, text: args.facts }] : []),
   ]
 
   let response: Anthropic.Message

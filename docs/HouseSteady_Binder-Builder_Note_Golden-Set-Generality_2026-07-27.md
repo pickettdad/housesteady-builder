@@ -79,3 +79,39 @@ half that has nothing to do with nameplates is how a shared thing gets quietly f
 approvals go in the same `ratifications` log with the same `by`. One company artifact,
 one review role, one place to see drift — a second ratification format would fragment the
 set exactly as a second golden set would.
+
+---
+
+## What happened when routing landed (added the same day)
+
+Both recommendations were followed, and both held up.
+
+**The ratification machinery moved to `server/src/ai/ratification.ts`**, unchanged in
+behaviour. The one seam that needed inventing is `ratificationView(currentValue)`: the log
+knows an act carries a copy of the value approved, but not that a nameplate entry keeps
+its classification beside its fields while a routing entry holds a pin id. Each task
+supplies that one function and gets the other five unchanged. Routing's golden set shares
+the log, the authors, the lapse-on-edit rule, the never-delete rule, and the drift signal —
+a test pins that last one by contesting a routing entry through the same `contested()` the
+nameplate set uses.
+
+**The comparator was written fresh**, and the prediction was right — it could not have
+been shared. `compareField` has no way to express *offered the right pin, second*, which
+is neither right nor wrong, or *said nothing, correctly*, which is a success routing has
+and nameplate reading does not. Six verdicts, not the five sketched above: the sketch
+folded "suggested a pin when a different one was right" into "suggested where nothing was
+right", and they are different failures. `invented` is a suggestion where silence was
+correct; `misrouted` is a confident answer to a question that had a different answer. Both
+gate. `missed` and `stayed-silent` never do.
+
+**One thing the sketch did not anticipate.** A routing verdict depends on the confidence
+bar as well as on the model, because what the harness measures is what the concierge was
+*shown*. So a run records its bar the way it records its prompt version, and `offeredPins`
+is shared between the harness and the read path so the two can never apply it differently.
+
+**Still outstanding: the fixture set itself.** Ground truth here is "which pin is this
+photograph of", which needs a visit whose room photographs are on disk. The reference
+export is manifest-only — 28 zone-owned photos with no bytes behind them — so there is
+nothing to run against. The comparison logic is built and tested against plain data; the
+loader, the report and the approve command follow the first export that carries its media.
+Writing them now would be writing a harness for a set that cannot exist yet.

@@ -274,32 +274,7 @@ export function writeOverlay(args: WriteOverlayArgs): Overlay {
       )
     }
 
-    const gen = db
-      .prepare('SELECT id, visit_id, task, target_kind, target_id, output, abstained, human_decision FROM ai_generations WHERE id = ?')
-      .get(args.generationId) as
-      | { id: string; visit_id: string | null; task: string; target_kind: string | null
-          target_id: string | null; output: string | null; abstained: number; human_decision: string }
-      | undefined
-    if (!gen) throw new OverlayRefused('That proposal is not in the record.', 'overlay.accept-unknown-generation')
-    if (gen.visit_id !== visitId) {
-      throw new OverlayRefused('That proposal belongs to a different visit.', 'overlay.accept-other-visit')
-    }
-    if (gen.abstained === 1) {
-      // Abstention is a success, not a value. There is nothing to accept, and
-      // accepting one would manufacture a reading the model explicitly declined
-      // to make — the exact laundering doctrine 2 forbids.
-      throw new OverlayRefused(
-        'That proposal abstained — there is nothing to accept. Type the value yourself, or carry it to the next visit.',
-        'overlay.accept-abstained',
-      )
-    }
-    if (gen.human_decision !== 'pending') {
-      throw new OverlayRefused(
-        `That proposal was already ${gen.human_decision}.`,
-        'overlay.accept-already-decided',
-      )
-    }
-
+    const gen = openProposal(db, visitId, args.generationId)
     priorValue = proposedValue(gen.output, field)
     supersedesId = supersedesId ?? liveSlot(db, visitId, targetKind, targetId, VALUE_KINDS, field)?.id ?? null
   } else if (kind === 'flag') {
@@ -389,6 +364,20 @@ export function writeOverlay(args: WriteOverlayArgs): Overlay {
     if (destCheck && !destCheck(db, visitId, v.toId)) {
       throw new OverlayRefused(`This visit has no ${v.toKind} ${v.toId}.`, 'overlay.assign-unknown-destination')
     }
+    // An assignment that answers a routing suggestion carries the proposal it
+    // answered, and its prior value is what the model led with — the same two
+    // columns meaning the same two things they mean on an acceptance, so
+    // "picked the pin the model offered" and "picked a different one" is a
+    // query rather than a metric somebody maintains.
+    //
+    // Attaching a photo by hand still writes a plain assignment with no
+    // generation and a null prior. One state, many views: a photograph on pin 4
+    // is one fact whether a person dragged it there or agreed with a
+    // suggestion, and a second overlay kind for the second route would be a
+    // second record of the same thing.
+    if (args.generationId) {
+      priorValue = proposedValue(openProposal(db, visitId, args.generationId).output, null)
+    }
     supersedesId = supersedesId ?? liveSlot(db, visitId, targetKind, targetId, 'assign', null)?.id ?? null
   } else {
     // confirm, memory, and anything a later increment invents.
@@ -434,15 +423,63 @@ interface InsertArgs {
 
 const jsonOrNull = (v: unknown): string | null => (v === undefined || v === null ? null : JSON.stringify(v))
 
+interface OpenProposal {
+  id: string
+  visit_id: string | null
+  output: string | null
+}
+
 /**
- * What the model proposed for one field.
+ * The proposal an act cites, if it is one this act may answer.
  *
- * Returns null when the output has no opinion about it — an extraction that
- * read a model number and left the serial `unknown` proposed nothing for the
- * serial, and recording `"unknown"` as the prior value would turn a declined
- * reading into a wrong one in the accuracy figures.
+ * Shared by `accept` and by a routing `assign`, so the four refusals are the
+ * same four whichever route a proposal is answered by — a second copy of these
+ * checks is how one of them ends up missing an abstention guard.
  */
-function proposedValue(output: string | null, field: string): unknown {
+function openProposal(db: Db, visitId: string, generationId: string): OpenProposal {
+  const gen = db
+    .prepare('SELECT id, visit_id, output, abstained, human_decision FROM ai_generations WHERE id = ?')
+    .get(generationId) as
+    | (OpenProposal & { abstained: number; human_decision: string })
+    | undefined
+
+  if (!gen) throw new OverlayRefused('That proposal is not in the record.', 'overlay.accept-unknown-generation')
+  if (gen.visit_id !== visitId) {
+    throw new OverlayRefused('That proposal belongs to a different visit.', 'overlay.accept-other-visit')
+  }
+  if (gen.abstained === 1) {
+    // Abstention is a success, not a value. There is nothing to accept, and
+    // accepting one would manufacture a reading the model explicitly declined
+    // to make — the exact laundering doctrine 2 forbids. For routing the same
+    // rule reads: the model looked at every pin in the room and said this
+    // photograph is of none of them, so there is no suggestion to agree with.
+    throw new OverlayRefused(
+      'That proposal abstained — there is nothing to accept. Type the value yourself, or carry it to the next visit.',
+      'overlay.accept-abstained',
+    )
+  }
+  if (gen.human_decision !== 'pending') {
+    throw new OverlayRefused(`That proposal was already ${gen.human_decision}.`, 'overlay.accept-already-decided')
+  }
+  return gen
+}
+
+/**
+ * What the model proposed, for the act that answers it.
+ *
+ * Two cases, because there are two shapes of proposal and only two:
+ *
+ * - A NAMED FIELD — a serial, a pin's type. Read from `fields`, which is where
+ *   every fielded task puts its lead. Returns null when the output has no
+ *   opinion about it: an extraction that read a model number and left the serial
+ *   `unknown` proposed nothing for the serial, and recording `"unknown"` as the
+ *   prior value would turn a declined reading into a wrong one in the accuracy
+ *   figures.
+ * - NO FIELD — an assignment, which sets no named value. Read from `proposed`,
+ *   which routing fills with the lead candidate in the shape the overlay
+ *   records. One key, so the store never has to know what task produced a row.
+ */
+function proposedValue(output: string | null, field: string | null): unknown {
   if (!output) return null
   let parsed: unknown
   try {
@@ -451,9 +488,11 @@ function proposedValue(output: string | null, field: string): unknown {
     return null
   }
   if (typeof parsed !== 'object' || parsed === null) return null
-  const fields = (parsed as Record<string, unknown>).fields
-  const bag = (typeof fields === 'object' && fields !== null ? fields : parsed) as Record<string, unknown>
-  const v = bag[field]
+  const bag = parsed as Record<string, unknown>
+  if (field === null) return bag.proposed ?? null
+  const fields = bag.fields
+  const values = (typeof fields === 'object' && fields !== null ? fields : bag) as Record<string, unknown>
+  const v = values[field]
   return v === undefined || v === 'unknown' ? null : v
 }
 
