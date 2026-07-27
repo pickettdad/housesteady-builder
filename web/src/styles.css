@@ -277,11 +277,15 @@ kbd {
 .rail-count { text-align: right; max-width: 92px; line-height: 1.2; }
 
 /* Room photos are attachable (spec §5.3), so a tile needs room to say so. */
-.tile-wrap { display: flex; flex-direction: column; gap: 3px; width: 104px; }
+.tile-wrap { display: flex; flex-direction: column; gap: 3px; width: 124px; }
 .tile-wrap > a { line-height: 0; }
 .tile-state {
   font-size: 10px; color: var(--ink-faint); display: flex; gap: 6px;
   align-items: baseline; text-align: left; background: none; border: 0; padding: 0; cursor: pointer;
+  line-height: 1.35;
 }
+/* The label is the long part; undo must not be pushed onto its own line. */
+.tile-state > span { flex: 1; min-width: 0; }
+.tile-state .link { flex: none; }
 button.tile-state:hover { color: var(--accent); }
 .tile-wrap .editor { width: 320px; position: relative; z-index: 1; }

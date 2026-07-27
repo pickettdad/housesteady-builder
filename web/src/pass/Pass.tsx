@@ -354,11 +354,24 @@ export function PassView({ visitId }: { visitId: string }) {
                 />
               )}
 
+              {/*
+                The count has to move when a photo is attached. Saying "1 photo
+                belonging to the room itself" above a tile that reads "on pin 1"
+                is a small lie in the one place that must not tell them.
+              */}
               <h4>Room photos</h4>
               <p className="hint">
-                {zone.roomPhotos.length} photo{zone.roomPhotos.length === 1 ? '' : 's'} belonging to the room
-                itself. Leaving one attached to the room is a finished state — most room photos are context, and
-                nothing here asks you to file them.
+                {(() => {
+                  const attached = zone.roomPhotos.filter((p) => p.state?.assign).length
+                  const withRoom = zone.roomPhotos.length - attached
+                  return (
+                    <>
+                      {withRoom} still with the room
+                      {attached > 0 && `, ${attached} attached to a pin`}. Leaving one with the room is a
+                      finished state — most room photos are context, and nothing here asks you to file them.
+                    </>
+                  )
+                })()}
               </p>
               <div className="tiles grid">
                 {zone.roomPhotos.map((photo) => (
