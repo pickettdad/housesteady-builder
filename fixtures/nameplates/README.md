@@ -80,7 +80,24 @@ listed in the `notes` array at the bottom of that file. The two that matter:
   and weaker claim than the one the spec asks the set to make.
 
 Until those are settled the golden set can be run, but a difference against it is not yet
-evidence of a regression.
+evidence of a regression — the harness enforces this rather than relying on anyone
+remembering it: with `approved: false`, a run cannot report itself clean even when
+nothing differs, and it says so in capitals.
+
+**A third question has since been settled by the harness itself.** Three `capacity`
+values here had been tidied — `4.8 gal` where the plate says `4.8 Gal`. The extraction
+prompt asks for a character-for-character copy, so the tidied version was wrong and has
+been corrected. Formatting differences are reported in their own column rather than
+passing or failing silently, because which side is wrong is a judgement.
+
+## Running it
+
+    npm run golden --workspace @housesteady/server
+    npm run golden --workspace @housesteady/server -- --version v001
+
+Deliberately not part of `npm test`: the suite has to run with no API key and no network,
+so it exercises the comparison logic with a stubbed model and this command is the one
+that spends money.
 
 ## Privacy
 
