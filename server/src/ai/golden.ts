@@ -44,20 +44,55 @@ export interface ExpectedImage {
   abstains: boolean
   fields: Record<string, string>
   fieldNotes?: Record<string, string>
+  /**
+   * Ratification, per value — a COPY of the exact value a human approved.
+   *
+   * Not a boolean, and the difference is the whole point. A flag drifts off the
+   * thing it approved: ratify a serial, let someone edit that serial later, and
+   * the approval silently transfers to a value nobody ever looked at. Storing
+   * the approved value means approval lapses by itself the moment the value
+   * changes, the same way a prompt's hash stops matching when its text moves.
+   *
+   * Keys are field names plus `classification`. A key that is absent is simply
+   * not ratified, which is the honest default for everything until it is read.
+   */
+  approved?: Record<string, string>
 }
 
 export interface ExpectedSet {
   version: number
-  approved: boolean
   images: ExpectedImage[]
   notes?: string[]
 }
 
+/**
+ * Is this key ratified, and still ratified for the value it is attached to?
+ *
+ * Approval is per value, so approving forty at once is forty acts rather than
+ * one — a wrong entry can no longer ride in on the back of thirty-nine right
+ * ones and become permanent truth.
+ */
+export const isRatified = (entry: ExpectedImage, key: string): boolean => {
+  const approved = entry.approved?.[key]
+  if (approved === undefined) return false
+  const current = key === 'classification' ? entry.classification : entry.fields[key]
+  return approved === current
+}
+
 export function loadExpected(root = fixturesRoot): ExpectedSet {
   const raw = readFileSync(join(root, 'nameplates', 'expected.json'), 'utf8')
-  const parsed = JSON.parse(raw) as ExpectedSet & { $comment?: unknown }
+  const parsed = JSON.parse(raw) as ExpectedSet & { $comment?: unknown; approved?: unknown }
   if (!Array.isArray(parsed.images)) {
     throw new Error('expected.json has no images array — the golden set cannot run against nothing.')
+  }
+  if (typeof parsed.approved === 'boolean') {
+    // A single flag over the whole set is the thing this design removed. Refuse
+    // rather than quietly ignore it: a file still carrying one was written
+    // against the old rules and its approvals mean something different.
+    throw new Error(
+      'expected.json carries a set-wide `approved` flag. Approval is per value now — ' +
+        'each entry carries an `approved` map holding a copy of each ratified value.',
+    )
   }
   return parsed
 }
@@ -105,12 +140,13 @@ export interface FieldResult {
   expected: string
   actual: string
   verdict: FieldVerdict
+  /** Whether this value is ratified. Unratified differences never gate. */
+  ratified: boolean
 }
 
 export interface ImageResult {
   file: string
-  /** Approved vs produced classification, and whether they agree. */
-  classification: { expected: string; actual: string | null; match: boolean }
+  classification: { expected: string; actual: string | null; match: boolean; ratified: boolean }
   /** Whether extraction ran at all. Skipped is correct for a non-nameplate. */
   extracted: boolean
   abstention: { expected: boolean; actual: boolean | null; match: boolean }
@@ -120,7 +156,6 @@ export interface ImageResult {
 }
 
 export interface GoldenReport {
-  approved: boolean
   images: ImageResult[]
   /** Counted separately and never summed — see the note at the top. */
   totals: {
@@ -133,7 +168,11 @@ export interface GoldenReport {
     matched: number
     errors: number
   }
-  /** True only when nothing regressed AND the expectations are ratified. */
+  /** How much of the set is ratified, which is the honest measure of its authority. */
+  ratification: { ratified: number; total: number }
+  /** Regressions among RATIFIED values only. These are the ones that gate. */
+  regressions: number
+  /** True when no ratified value regressed. Says nothing about unratified ones. */
   clean: boolean
 }
 
@@ -158,6 +197,7 @@ export function compareImage(
     expected: entry.classification,
     actual: produced.classification ?? null,
     match: produced.classification === entry.classification,
+    ratified: isRatified(entry, 'classification'),
   }
 
   const abstention = {
@@ -176,13 +216,17 @@ export function compareImage(
         expected: entry.fields[field] ?? 'unknown',
         actual: produced.fields?.[field] ?? 'unknown',
         verdict: compareField(entry.fields[field], produced.fields?.[field]),
+        ratified: isRatified(entry, field),
       }))
     : []
 
   return { file: entry.file, classification, extracted: produced.extracted, abstention, fields, error: produced.error }
 }
 
-export function summarise(approved: boolean, images: ImageResult[]): GoldenReport {
+/** Verdicts that count against a run — when the value they are about is ratified. */
+const REGRESSION: FieldVerdict[] = ['invented', 'misread']
+
+export function summarise(images: ImageResult[]): GoldenReport {
   const all = images.flatMap((i) => i.fields)
   const count = (v: FieldVerdict): number => all.filter((f) => f.verdict === v).length
 
@@ -197,31 +241,43 @@ export function summarise(approved: boolean, images: ImageResult[]): GoldenRepor
     errors: images.filter((i) => i.error).length,
   }
 
-  // `formatting` is not counted against the run; it is a question for a person.
-  // `missed` is not either — declining to read is the behaviour being asked for,
-  // and penalising it here would push a future prompt edit toward guessing.
-  const regressed =
-    totals.invented > 0 ||
-    totals.misread > 0 ||
-    totals.classificationMismatches > 0 ||
-    !images.every((i) => i.abstention.match) ||
-    totals.errors > 0
+  // Every value the set has an opinion about, ratified or not. Classification
+  // counts as one, because it is a judgement a person makes about the image the
+  // same way a field value is.
+  const ratifiable = all.length + images.length
+  const ratified = all.filter((f) => f.ratified).length + images.filter((i) => i.classification.ratified).length
 
-  return { approved, images, totals, clean: approved && !regressed }
+  // Only ratified values gate. `formatting` never does — which side is wrong is
+  // a judgement. `missed` never does either: penalising a decline would push the
+  // next prompt edit toward guessing, which is the opposite of the point.
+  const regressions =
+    all.filter((f) => f.ratified && REGRESSION.includes(f.verdict)).length +
+    images.filter((i) => i.classification.ratified && !i.classification.match).length +
+    images.filter((i) => !i.abstention.match).length +
+    totals.errors
+
+  return {
+    images,
+    totals,
+    ratification: { ratified, total: ratifiable },
+    regressions,
+    clean: regressions === 0,
+  }
 }
 
 /**
  * The report as a person reads it.
  *
  * Written for the owner on a phone at midnight, not for a CI log: the
- * consequential line goes first, the unratified warning is impossible to miss,
- * and every difference names the file and the field.
+ * consequential line goes first, how much of the set actually has authority is
+ * impossible to miss, and every difference names the file and the field.
  */
 export function formatReport(report: GoldenReport): string {
   const lines: string[] = []
   const t = report.totals
+  const r = report.ratification
 
-  lines.push(`Golden set — ${t.images} images`)
+  lines.push(`Golden set — ${t.images} images, ${r.ratified} of ${r.total} values ratified`)
   lines.push('')
 
   if (t.invented > 0) {
@@ -239,18 +295,23 @@ export function formatReport(report: GoldenReport): string {
 
   for (const image of report.images) {
     const problems: string[] = []
+    const mark = (ratified: boolean): string => (ratified ? '' : '  (not ratified)')
     if (image.error) problems.push(`errored: ${image.error}`)
     if (!image.classification.match) {
-      problems.push(`classified ${image.classification.actual ?? 'nothing'}, approved as ${image.classification.expected}`)
+      problems.push(
+        `classified ${image.classification.actual ?? 'nothing'}, expected ${image.classification.expected}` +
+          mark(image.classification.ratified),
+      )
     }
     if (!image.abstention.match) {
-      problems.push(image.abstention.expected ? 'should have abstained and did not' : 'abstained where a reading was approved')
+      problems.push(image.abstention.expected ? 'should have abstained and did not' : 'abstained where a reading was expected')
     }
     for (const f of image.fields) {
-      if (f.verdict === 'invented') problems.push(`${f.field}: INVENTED "${f.actual}" — approved as unknown`)
-      else if (f.verdict === 'misread') problems.push(`${f.field}: read "${f.actual}", approved "${f.expected}"`)
-      else if (f.verdict === 'missed') problems.push(`${f.field}: not read, approved "${f.expected}"`)
-      else if (f.verdict === 'match-but-formatting') problems.push(`${f.field}: "${f.actual}" vs approved "${f.expected}"`)
+      const m = mark(f.ratified)
+      if (f.verdict === 'invented') problems.push(`${f.field}: INVENTED "${f.actual}" — expected unknown${m}`)
+      else if (f.verdict === 'misread') problems.push(`${f.field}: read "${f.actual}", expected "${f.expected}"${m}`)
+      else if (f.verdict === 'missed') problems.push(`${f.field}: not read, expected "${f.expected}"${m}`)
+      else if (f.verdict === 'match-but-formatting') problems.push(`${f.field}: "${f.actual}" vs expected "${f.expected}"${m}`)
     }
     if (problems.length > 0) {
       lines.push(`${image.file}`)
@@ -259,14 +320,18 @@ export function formatReport(report: GoldenReport): string {
   }
 
   lines.push('')
-  if (!report.approved) {
-    lines.push('NOT RATIFIED. expected.json is marked approved: false, so the readings above are')
-    lines.push('proposed rather than ground truth. Differences here are information, not regressions,')
-    lines.push('and this run cannot gate a prompt change until David has approved the set.')
+  if (r.ratified === 0) {
+    lines.push('NOTHING IS RATIFIED YET. Every expectation above is proposed, so this run is a')
+    lines.push('diagnostic and cannot gate a prompt change. Ratify values with:')
+    lines.push('')
+    lines.push('    npm run golden:approve -- <image> [field ...]')
   } else if (report.clean) {
-    lines.push('Clean against the approved set.')
+    lines.push(`Clean — no ratified value regressed (${r.ratified} of ${r.total} carry authority).`)
+    if (r.ratified < r.total) {
+      lines.push(`${r.total - r.ratified} values are still unratified and gate nothing.`)
+    }
   } else {
-    lines.push('Differences against the approved set. Review before shipping the prompt change.')
+    lines.push(`${report.regressions} regression(s) among ratified values. Review before shipping the prompt change.`)
   }
   return lines.join('\n')
 }

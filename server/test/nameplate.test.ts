@@ -19,7 +19,7 @@ import {
   type Classification, type Extraction, type TaskDeps,
 } from '../src/ai/tasks/nameplate.js'
 import {
-  compareField, compareImage, formatReport, loadExpected, summarise,
+  compareField, compareImage, formatReport, isRatified, loadExpected, summarise,
   type ExpectedImage,
 } from '../src/ai/golden.js'
 import { findGeneration } from '../src/ai/accept.js'
@@ -248,9 +248,11 @@ describe('the golden set compares against approved values only', () => {
     assert.equal(compareField('HTX 30', ' HTX  30 '), 'match')
   })
 
+  const fields = { make: 'Waterite Inc', model: 'unknown', serial: '153713', capacity: 'unknown', installDate: 'unknown' }
   const entry: ExpectedImage = {
-    file: 'images/IMG_0029.jpeg', classification: 'yes', abstains: false,
-    fields: { make: 'Waterite Inc', model: 'unknown', serial: '153713', capacity: 'unknown', installDate: 'unknown' },
+    file: 'images/IMG_0029.jpeg', classification: 'yes', abstains: false, fields,
+    // Ratified, so these tests are about regressions rather than about authority.
+    approved: { classification: 'yes', ...fields },
   }
 
   it('passes a run that read what was approved and declined the rest', () => {
@@ -258,7 +260,7 @@ describe('the golden set compares against approved values only', () => {
       classification: 'yes', extracted: true, abstained: false,
       fields: { make: 'Waterite Inc', model: 'unknown', serial: '153713', capacity: 'unknown', installDate: 'unknown' },
     })
-    const report = summarise(true, [result])
+    const report = summarise([result])
     assert.equal(report.totals.invented, 0)
     assert.equal(report.clean, true)
   })
@@ -268,7 +270,7 @@ describe('the golden set compares against approved values only', () => {
       classification: 'yes', extracted: true, abstained: false,
       fields: { make: 'Waterite Inc', model: 'WDBT PC1', serial: '153713', capacity: 'unknown', installDate: 'unknown' },
     })
-    const report = summarise(true, [result])
+    const report = summarise([result])
     assert.equal(report.totals.invented, 1)
     assert.equal(report.clean, false)
     assert.match(formatReport(report), /INVENTED/)
@@ -279,7 +281,7 @@ describe('the golden set compares against approved values only', () => {
       classification: 'yes', extracted: true, abstained: false,
       fields: { make: 'unknown', model: 'unknown', serial: '153713', capacity: 'unknown', installDate: 'unknown' },
     })
-    const report = summarise(true, [result])
+    const report = summarise([result])
     assert.equal(report.totals.missed, 1)
     assert.equal(report.clean, true,
       'penalising a decline would push the next prompt edit toward guessing')
@@ -290,25 +292,71 @@ describe('the golden set compares against approved values only', () => {
       file: 'images/IMG_0009.jpeg', classification: 'no', abstains: true,
       fields: { make: 'unknown', model: 'unknown', serial: 'unknown', capacity: 'unknown', installDate: 'unknown' },
     }
-    const report = summarise(true, [compareImage(nonPlate, { classification: 'no', extracted: false })])
+    const report = summarise([compareImage(nonPlate, { classification: 'no', extracted: false })])
     assert.equal(report.clean, true, '§11: not extracted at all is the correct outcome, not a missing record')
   })
 
-  // The rule the owner set: ground truth comes from a human, not from a model.
-  it('refuses to gate anything while the expectations are unratified', () => {
-    const perfect = compareImage(entry, {
-      classification: 'yes', extracted: true, abstained: false, fields: entry.fields,
+  // The rule the owner set: ground truth comes from a human, per value.
+  it('lets an unratified difference report itself without gating', () => {
+    const unratified: ExpectedImage = { ...entry, approved: {} }
+    const guessed = compareImage(unratified, {
+      classification: 'yes', extracted: true, abstained: false,
+      fields: { ...fields, model: 'WDBT PC1' },
     })
-    const report = summarise(false, [perfect])
-    assert.equal(report.clean, false, 'an unapproved set cannot certify a prompt change even when nothing differs')
-    assert.match(formatReport(report), /NOT RATIFIED/)
+    const report = summarise([guessed])
+    assert.equal(report.totals.invented, 1, 'it is still reported')
+    assert.equal(report.regressions, 0, 'but it cannot fail a run nobody has ratified')
+    assert.equal(report.clean, true)
+    assert.match(formatReport(report), /not ratified/)
   })
 
-  it('reads the real expected.json, which is not yet ratified', () => {
+  it('gates on a ratified value and not on its unratified neighbour', () => {
+    const half: ExpectedImage = { ...entry, approved: { serial: '153713' } }
+    const wrongOnBoth = compareImage(half, {
+      classification: 'yes', extracted: true, abstained: false,
+      fields: { ...fields, serial: '153714', model: 'WDBT PC1' },
+    })
+    const report = summarise([wrongOnBoth])
+    assert.equal(report.totals.misread + report.totals.invented, 2, 'both differences are reported')
+    assert.equal(report.regressions, 1, 'only the ratified one counts against the run')
+    assert.equal(report.clean, false)
+  })
+
+  it('lapses a ratification the moment the value it approved is edited', () => {
+    // The failure a boolean would have allowed: approve a serial, let someone
+    // change it later, and the approval silently transfers to a value nobody
+    // ever looked at.
+    const ratified: ExpectedImage = { ...entry, approved: { serial: '153713' } }
+    assert.equal(isRatified(ratified, 'serial'), true)
+
+    const edited: ExpectedImage = { ...ratified, fields: { ...fields, serial: '153714' } }
+    assert.equal(isRatified(edited, 'serial'), false,
+      'approval is a copy of the approved value, so it cannot drift onto a different one')
+  })
+
+  it('counts a value as ratifiable even when its approved reading is unknown', () => {
+    // The abstentions are the entries that matter most, and they are exactly the
+    // ones a lazy design would skip — there is no value to copy, so it would be
+    // tempting to treat unknown as needing no approval. It needs it most.
+    const abstaining: ExpectedImage = { ...entry, approved: { model: 'unknown' } }
+    assert.equal(isRatified(abstaining, 'model'), true)
+  })
+
+  it('reads the real expected.json, where nothing is ratified yet', () => {
     const expected = loadExpected()
     assert.equal(expected.images.length, 15)
-    assert.equal(expected.approved, false, 'the readings are proposed until David has approved them')
-    const nonPlate = expected.images.filter((i) => i.classification === 'no')
-    assert.equal(nonPlate.length, 1, 'exactly one photo in the set is not a nameplate')
+    for (const image of expected.images) {
+      assert.deepEqual(image.approved ?? {}, {},
+        `${image.file} claims a ratification David has not given`)
+    }
+    assert.equal(expected.images.filter((i) => i.classification === 'no').length, 1,
+      'exactly one photo in the set is not a nameplate')
+  })
+
+  it('refuses a set that still carries a single flag over everything', () => {
+    // A file written against the old rules means something different by
+    // "approved", so it is refused rather than quietly reinterpreted.
+    const root = join(import.meta.dirname, 'fixtures-legacy-golden')
+    assert.throws(() => loadExpected(root), /per value/)
   })
 })

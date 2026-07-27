@@ -7,7 +7,10 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import { newId, now, openDb, type Db } from '../src/db/index.js'
-import { acceptProposal, accuracy, discardProposal, findGeneration, pendingProposals, withdrawAcceptance } from '../src/ai/accept.js'
+import {
+  acceptProposal, accuracy, discardProposal, findGeneration, goldenCandidates,
+  pendingProposals, withdrawAcceptance,
+} from '../src/ai/accept.js'
 import { recordGeneration } from '../src/ai/queue.js'
 import { entityKey, resolveState } from '../src/overlay/model.js'
 import { OverlayRefused, readVisitOverlays, visitState, writeOverlay } from '../src/overlay/store.js'
@@ -314,5 +317,66 @@ describe('resolveState stays pure', () => {
     const state = resolveState([accepted]).get(entityKey('pin', 'pin-1'))!
     assert.equal(state.values.model!.newValue, 'A')
     assert.ok(state.decision, 'accepting is a decision — the human made the same claim as a confirm')
+  })
+})
+
+describe('the golden set grows from what the model got wrong', () => {
+  beforeEach(seed)
+
+  const proposeFor = (mediaId: string, fields: Record<string, unknown>) =>
+    recordGeneration({
+      db, propertyId: PROPERTY, visitId: VISIT, task: 'nameplate_extract',
+      targetKind: 'media', targetId: mediaId, model: 'a-fast-model',
+      promptId: 'nameplate_extract', promptVersion: 'v001', promptHash: 'h',
+      inputRefs: { mediaId }, output: { fields }, abstained: false,
+      inputTokens: 1200, outputTokens: 40,
+    })
+
+  it('surfaces an edited acceptance as a photograph worth adding to the set', () => {
+    const g = proposeFor('media-7', { serial: 'Q13734S09' })
+    acceptProposal({
+      db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
+      field: 'serial', targetKind: 'pin', targetId: PIN, value: 'Q13734509',
+    })
+
+    const [candidate] = goldenCandidates(db, VISIT)
+    assert.ok(candidate, 'a plate the model misread is exactly what the set is short of')
+    assert.equal(candidate.mediaId, 'media-7', 'the photograph is what joins the set, not the value')
+    assert.equal(candidate.proposed, 'Q13734S09')
+    assert.equal(candidate.accepted, 'Q13734509')
+    assert.equal(candidate.decision, 'edited')
+    assert.equal(candidate.promptVersion, 'v001', 'which prompt produced it is part of the evidence')
+  })
+
+  it('surfaces a discard too, and keeps the reason', () => {
+    const g = proposeFor('media-8', { model: 'DMF150' })
+    discardProposal(db, g, 'that is the brand badge, not the plate')
+
+    const [candidate] = goldenCandidates(db, VISIT)
+    assert.equal(candidate!.decision, 'discarded')
+    assert.equal(candidate!.note, 'that is the brand badge, not the plate')
+  })
+
+  it('leaves accepted-as-is readings alone', () => {
+    const g = proposeFor('media-9', { serial: 'Q13734509' })
+    acceptProposal({
+      db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
+      field: 'serial', targetKind: 'pin', targetId: PIN, value: 'Q13734509',
+    })
+    assert.deepEqual(goldenCandidates(db, VISIT), [],
+      'the set grows from failures; a correct reading teaches it nothing')
+  })
+
+  it('proposes candidates without promoting any', () => {
+    // Auto-promotion would let a value someone typed in a hurry become permanent
+    // ground truth — the exact failure per-value approval exists to prevent.
+    const g = proposeFor('media-10', { serial: 'wrong' })
+    acceptProposal({
+      db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
+      field: 'serial', targetKind: 'pin', targetId: PIN, value: 'right',
+    })
+    const candidate = goldenCandidates(db, VISIT)[0]!
+    assert.equal('approved' in candidate, false,
+      'a candidate carries no approval — that comes from a person looking at the image again')
   })
 })

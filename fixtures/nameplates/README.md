@@ -29,32 +29,38 @@ A run where every field is filled is a **failing** run, not a good one.
   expected.json    approved outputs, one entry per image
 ```
 
-`expected.json` is the approved half of the golden set. It is **owner-approved data, not
-a guess** — each entry records what a correct reading of that image looks like, including
-the entries whose correct reading is "can't read it". The test harness compares against
-this file; a prompt change that alters any entry produces a reviewable diff and does not
-ship until the diff is reviewed.
+`expected.json` holds what a correct reading of each image looks like — including the
+entries whose correct reading is "can't read it". A prompt change that alters a ratified
+entry produces a reviewable diff and does not ship until the diff is reviewed.
 
 ### Shape of an entry
 
 ```json
 {
-  "file": "images/<name>.jpg",
-  "note": "what makes this one hard, in plain words",
-  "classification": "yes | no | unsure",
+  "file": "images/IMG_0029.jpeg",
+  "hard": "handwritten model, smudged; the ink has worn",
+  "classification": "yes",
+  "abstains": false,
   "fields": {
-    "make":        "Waterite"  | "unknown",
-    "model":       "WDBT PC1"  | "unknown",
-    "serial":      "153713"    | "unknown",
+    "make":        "Waterite Inc",
+    "model":       "unknown",
+    "serial":      "153713",
     "capacity":    "unknown",
     "installDate": "unknown"
   },
-  "abstains": true
+  "approved": {
+    "serial": "153713"
+  }
 }
 ```
 
 `"unknown"` is a **correct** value wherever the image does not legibly show the field.
 `abstains: true` means the whole image is expected to come back with nothing entered.
+
+`approved` holds a copy of each ratified value. In the entry above only the serial has
+been ratified; everything else is a proposed reading that gates nothing. If someone later
+edits `serial` to `153714`, the copy no longer matches and the ratification lapses on its
+own.
 
 ## Orientation — read this before feeding anything to a model
 
@@ -70,25 +76,54 @@ with the plate.
 
 ## Status
 
-All fifteen images are present. `expected.json` is written but **`approved: false`** — the
-readings are proposed, not ratified. Three questions are open for the owner and they are
-listed in the `notes` array at the bottom of that file. The two that matter:
+All fifteen images are present, and **none of the ninety values is ratified**. Two
+questions are open for the owner, recorded in the `notes` array at the bottom of the file:
 
 - which image is the intended "not a nameplate at all" (proposed: `IMG_0009`), and
 - whether any image was meant to be illegible *end to end*. On the reading recorded here
   none is; six have individual fields that genuinely cannot be read, which is a different
-  and weaker claim than the one the spec asks the set to make.
+  and weaker claim than the one the spec asks the set to make. The two hard photos that
+  would close this — something genuinely blurred, and a plate in the dark at a steep
+  angle — have not arrived yet.
 
-Until those are settled the golden set can be run, but a difference against it is not yet
-evidence of a regression — the harness enforces this rather than relying on anyone
-remembering it: with `approved: false`, a run cannot report itself clean even when
-nothing differs, and it says so in capitals.
+## Approval is per value, not per set
 
-**A third question has since been settled by the harness itself.** Three `capacity`
+Each entry carries an `approved` map holding a **copy of every value a human has
+ratified**. A value counts as ratified only while that copy still equals the value
+beside it — so editing a value lapses its approval automatically, and an approval can
+never drift onto something nobody looked at.
+
+This replaces a single set-wide flag, which was not really approval: forty values went
+in on one action, and one wrong entry rode in with thirty-nine right ones and became
+permanent truth. Per value is slower once and correct afterwards.
+
+**Nothing here is ratified yet.** All ninety values are proposed readings made by
+Claude. Unratified differences are reported by the harness but gate nothing.
+
+    npm run golden:approve                     # what is still unratified
+    npm run golden:approve -- IMG_0029         # ratify that image's values
+    npm run golden:approve -- IMG_0029 serial  # ratify one value
+    npm run golden:approve -- --revoke IMG_0029
+
+You look at the photograph and decide; the command copies the value across. Never
+hand-transcribe an approval — a mistyped one is a wrong value that has been blessed,
+which is the failure this whole design exists to prevent.
+
+**One question has since been settled by the harness itself.** Three `capacity`
 values here had been tidied — `4.8 gal` where the plate says `4.8 Gal`. The extraction
 prompt asks for a character-for-character copy, so the tidied version was wrong and has
 been corrected. Formatting differences are reported in their own column rather than
 passing or failing silently, because which side is wrong is a judgement.
+
+## The set grows from real failures
+
+Fifteen images is a start, not the set. Every plate the model gets wrong in production
+is a candidate: an acceptance a human had to edit is a photograph where the model read
+something the plate does not say, and `goldenCandidates()` finds them.
+
+Nothing is promoted automatically, and nothing should be. A candidate is a photograph
+worth looking at again — the approved reading that would make it an entry has to come
+from a person, not from the value they happened to type while doing something else.
 
 ## Running it
 

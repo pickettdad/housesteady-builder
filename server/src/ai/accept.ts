@@ -216,6 +216,79 @@ export function pendingProposals(db: Db, visitId: string): Proposal[] {
   ).map(toProposal)
 }
 
+export interface GoldenCandidate {
+  generationId: string
+  task: string
+  /** The photograph the model was reading. This is what joins the golden set. */
+  mediaId: string | null
+  field: string | null
+  proposed: unknown
+  accepted: unknown
+  /** `edited` — the model was wrong. `discarded` — the whole reading was wrong. */
+  decision: string
+  note: string | null
+  promptId: string | null
+  promptVersion: string | null
+  model: string | null
+  at: string
+}
+
+/**
+ * Plates the model got wrong in production — the golden set's next entries.
+ *
+ * Fifteen images is a start, not the set. The set grows by absorbing the real
+ * failures, and this is the query that finds them: every acceptance a human had
+ * to edit is a photograph where the model read something the plate did not say,
+ * and every discard is one where the whole reading was wrong.
+ *
+ * Nothing here promotes anything automatically, and it must not. A candidate is
+ * a photograph worth a human looking at again; the approved reading that would
+ * make it a golden-set entry has to come from that person, not from the value
+ * they happened to type while doing something else. Auto-promotion would let a
+ * hurried correction become permanent ground truth, which is the failure the
+ * per-value approval design exists to prevent.
+ *
+ * The data costs nothing extra: it is already in `ai_generations` because §2
+ * chose to keep the proposal beside the acceptance.
+ */
+export function goldenCandidates(db: Db, visitId?: string): GoldenCandidate[] {
+  const where = visitId ? 'AND g.visit_id = ?' : ''
+  const params = visitId ? [visitId] : []
+  return (
+    db
+      .prepare(
+        `SELECT g.id, g.task, g.input_refs, g.output, g.human_decision, g.human_note,
+                g.prompt_id, g.prompt_version, g.model, g.human_decided_at, g.created_at,
+                o.field AS field, o.prior_value AS proposed, o.new_value AS accepted
+           FROM ai_generations g
+           LEFT JOIN overlays o ON o.generation_id = g.id
+                               AND NOT EXISTS (SELECT 1 FROM overlays s WHERE s.supersedes_id = o.id)
+          WHERE g.human_decision IN ('edited', 'discarded') ${where}
+          ORDER BY COALESCE(g.human_decided_at, g.created_at) DESC`,
+      )
+      .all(...params) as {
+      id: string; task: string; input_refs: string | null; output: string | null
+      human_decision: string; human_note: string | null; prompt_id: string | null
+      prompt_version: string | null; model: string | null
+      human_decided_at: string | null; created_at: string
+      field: string | null; proposed: string | null; accepted: string | null
+    }[]
+  ).map((r) => ({
+    generationId: r.id,
+    task: r.task,
+    mediaId: ((parse(r.input_refs) as { mediaId?: string } | null)?.mediaId) ?? null,
+    field: r.field,
+    proposed: parse(r.proposed),
+    accepted: parse(r.accepted),
+    decision: r.human_decision,
+    note: r.human_note,
+    promptId: r.prompt_id,
+    promptVersion: r.prompt_version,
+    model: r.model,
+    at: r.human_decided_at ?? r.created_at,
+  }))
+}
+
 export interface Accuracy {
   proposed: number
   acceptedAsIs: number

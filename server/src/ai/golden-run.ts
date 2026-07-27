@@ -85,12 +85,13 @@ async function main(): Promise<void> {
   }
 
   console.log('')
-  const report = summarise(expected.approved, results)
+  const report = summarise(results)
   console.log(formatReport(report))
 
-  // An unratified set never fails the run: the readings are proposed, and
-  // exiting non-zero would teach everyone to ignore the result.
-  process.exit(report.approved && !report.clean ? 1 : 0)
+  // Only a ratified value can fail the run. Unratified differences are
+  // information — exiting non-zero on them would teach everyone to ignore the
+  // result, which is worse than having no harness.
+  process.exit(report.clean ? 0 : 1)
 }
 
 main().catch((e) => {
