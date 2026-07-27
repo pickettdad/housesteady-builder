@@ -45,18 +45,32 @@ export interface ExpectedImage {
   fields: Record<string, string>
   fieldNotes?: Record<string, string>
   /**
-   * Ratification, per value — a COPY of the exact value a human approved.
+   * Ratification, per value.
    *
-   * Not a boolean, and the difference is the whole point. A flag drifts off the
-   * thing it approved: ratify a serial, let someone edit that serial later, and
-   * the approval silently transfers to a value nobody ever looked at. Storing
-   * the approved value means approval lapses by itself the moment the value
+   * Carries a COPY of the exact value approved, not a boolean. A flag drifts off
+   * the thing it approved: ratify a serial, let someone edit that serial later,
+   * and the approval silently transfers to a value nobody ever looked at.
+   * Storing the value means approval lapses by itself the moment the value
    * changes, the same way a prompt's hash stops matching when its text moves.
    *
-   * Keys are field names plus `classification`. A key that is absent is simply
-   * not ratified, which is the honest default for everything until it is read.
+   * It also carries WHO ratified it and when. Not for blame — for tracing. If a
+   * wrong value turns out to have been ratified, the question that matters next
+   * is which review it came through, so the others from that same sitting can be
+   * re-checked. That cannot be reconstructed afterwards, so it is recorded now
+   * while it costs nothing.
+   *
+   * Keys are field names plus `classification`. An absent key is simply not
+   * ratified, which is the honest default for everything until someone looks.
    */
-  approved?: Record<string, string>
+  approved?: Record<string, Ratification>
+}
+
+export interface Ratification {
+  /** The exact value ratified. Approval lapses if the value moves away from it. */
+  value: string
+  /** Who ratified it. A role as much as a person — see the note on the set. */
+  by: string
+  at: string
 }
 
 export interface ExpectedSet {
@@ -72,18 +86,37 @@ export interface ExpectedSet {
  * one — a wrong entry can no longer ride in on the back of thirty-nine right
  * ones and become permanent truth.
  */
+export const currentValue = (entry: ExpectedImage, key: string): string =>
+  key === 'classification' ? entry.classification : (entry.fields[key] ?? 'unknown')
+
 export const isRatified = (entry: ExpectedImage, key: string): boolean => {
   const approved = entry.approved?.[key]
   if (approved === undefined) return false
-  const current = key === 'classification' ? entry.classification : entry.fields[key]
-  return approved === current
+  return approved.value === currentValue(entry, key)
 }
+
+/** Who ratified this value, if anyone still has. */
+export const ratifiedBy = (entry: ExpectedImage, key: string): Ratification | undefined =>
+  isRatified(entry, key) ? entry.approved?.[key] : undefined
 
 export function loadExpected(root = fixturesRoot): ExpectedSet {
   const raw = readFileSync(join(root, 'nameplates', 'expected.json'), 'utf8')
   const parsed = JSON.parse(raw) as ExpectedSet & { $comment?: unknown; approved?: unknown }
   if (!Array.isArray(parsed.images)) {
     throw new Error('expected.json has no images array — the golden set cannot run against nothing.')
+  }
+  for (const image of parsed.images) {
+    for (const [key, value] of Object.entries(image.approved ?? {})) {
+      if (typeof value === 'string') {
+        // The earlier shape stored a bare value with no ratifier. Refuse rather
+        // than assume one — an approval whose author is unknown is exactly the
+        // approval you cannot trace when it turns out to be wrong.
+        throw new Error(
+          `${image.file}: approval for "${key}" has no ratifier. Approvals record who ratified ` +
+            'them; re-ratify with `npm run golden:approve`.',
+        )
+      }
+    }
   }
   if (typeof parsed.approved === 'boolean') {
     // A single flag over the whole set is the thing this design removed. Refuse
@@ -172,6 +205,19 @@ export interface GoldenReport {
   ratification: { ratified: number; total: number }
   /** Regressions among RATIFIED values only. These are the ones that gate. */
   regressions: number
+  /**
+   * Unratified values that produced a difference — the set's next work.
+   *
+   * "Until they have earned it" needs a trigger, and nothing earns ratification
+   * except someone looking. A value that has never moved is a value nobody needs
+   * to have looked at yet; a value that just moved is one somebody must look at
+   * now, because either the model changed its answer or the expectation was
+   * wrong and there is no third possibility.
+   *
+   * So the set completes itself through use, in the order the work surfaces,
+   * and nobody ever sits down to ratify ninety things at once.
+   */
+  pendingRatification: { file: string; key: string; expected: string; actual: string }[]
   /** True when no ratified value regressed. Says nothing about unratified ones. */
   clean: boolean
 }
@@ -256,14 +302,32 @@ export function summarise(images: ImageResult[]): GoldenReport {
     images.filter((i) => !i.abstention.match).length +
     totals.errors
 
+  const pendingRatification: GoldenReport['pendingRatification'] = []
+  for (const image of images) {
+    if (!image.classification.ratified && !image.classification.match) {
+      pendingRatification.push({
+        file: image.file, key: 'classification',
+        expected: image.classification.expected, actual: image.classification.actual ?? 'nothing',
+      })
+    }
+    for (const f of image.fields) {
+      if (f.ratified || f.verdict === 'match') continue
+      pendingRatification.push({ file: image.file, key: f.field, expected: f.expected, actual: f.actual })
+    }
+  }
+
   return {
     images,
     totals,
     ratification: { ratified, total: ratifiable },
     regressions,
+    pendingRatification,
     clean: regressions === 0,
   }
 }
+
+/** The image name as the approve command wants it — no path, no extension. */
+const shortName = (file: string): string => file.replace(/^.*\//, '').replace(/\.[^.]+$/, '')
 
 /**
  * The report as a person reads it.
@@ -320,11 +384,29 @@ export function formatReport(report: GoldenReport): string {
   }
 
   lines.push('')
+
+  // The diff is what summons a person to a value. Printed before the verdict,
+  // because it is the actionable half — the verdict is only news the first time.
+  if (report.pendingRatification.length > 0) {
+    lines.push(`RATIFY THESE ${report.pendingRatification.length} NOW — each one moved, so either the model`)
+    lines.push('changed its answer or the expectation was wrong. There is no third possibility,')
+    lines.push('and whichever it is, somebody has to look at the photograph.')
+    lines.push('')
+    for (const p of report.pendingRatification) {
+      lines.push(`    ${shortName(p.file)} ${p.key}`)
+      lines.push(`      expected "${p.expected}"   read "${p.actual}"`)
+      lines.push(
+        p.expected === p.actual
+          ? `      npm run golden:approve -- ${shortName(p.file)} ${p.key}`
+          : `      npm run golden:approve -- ${shortName(p.file)} ${p.key} --as "${p.actual}"   # if the model is right`,
+      )
+    }
+    lines.push('')
+  }
+
   if (r.ratified === 0) {
     lines.push('NOTHING IS RATIFIED YET. Every expectation above is proposed, so this run is a')
-    lines.push('diagnostic and cannot gate a prompt change. Ratify values with:')
-    lines.push('')
-    lines.push('    npm run golden:approve -- <image> [field ...]')
+    lines.push('diagnostic and cannot gate a prompt change.')
   } else if (report.clean) {
     lines.push(`Clean — no ratified value regressed (${r.ratified} of ${r.total} carry authority).`)
     if (r.ratified < r.total) {

@@ -19,7 +19,7 @@ import {
   type Classification, type Extraction, type TaskDeps,
 } from '../src/ai/tasks/nameplate.js'
 import {
-  compareField, compareImage, formatReport, isRatified, loadExpected, summarise,
+  compareField, compareImage, formatReport, isRatified, loadExpected, ratifiedBy, summarise,
   type ExpectedImage,
 } from '../src/ai/golden.js'
 import { findGeneration } from '../src/ai/accept.js'
@@ -85,6 +85,12 @@ function stub(answers: unknown[]): TaskDeps & { asked: RunArgs[] } {
 
 const CLASSIFY_YES: Classification = { isNameplate: 'yes', orientation: 'upright', reason: 'a ClimateMaster data plate' }
 const CLASSIFY_NO: Classification = { isNameplate: 'no', orientation: 'unknown', reason: 'a brand badge on a green cover' }
+
+/** A ratification, shaped as the approve tool writes it. */
+const ratified = (values: Record<string, string>) =>
+  Object.fromEntries(
+    Object.entries(values).map(([k, v]) => [k, { value: v, by: 'david', at: '2026-07-27T12:00:00.000Z' }]),
+  )
 
 const extraction = (fields: Partial<Extraction['fields']>, legible = true): Extraction => ({
   fields: {
@@ -252,7 +258,7 @@ describe('the golden set compares against approved values only', () => {
   const entry: ExpectedImage = {
     file: 'images/IMG_0029.jpeg', classification: 'yes', abstains: false, fields,
     // Ratified, so these tests are about regressions rather than about authority.
-    approved: { classification: 'yes', ...fields },
+    approved: ratified({ classification: 'yes', ...fields }),
   }
 
   it('passes a run that read what was approved and declined the rest', () => {
@@ -311,7 +317,7 @@ describe('the golden set compares against approved values only', () => {
   })
 
   it('gates on a ratified value and not on its unratified neighbour', () => {
-    const half: ExpectedImage = { ...entry, approved: { serial: '153713' } }
+    const half: ExpectedImage = { ...entry, approved: ratified({ serial: '153713' }) }
     const wrongOnBoth = compareImage(half, {
       classification: 'yes', extracted: true, abstained: false,
       fields: { ...fields, serial: '153714', model: 'WDBT PC1' },
@@ -326,10 +332,10 @@ describe('the golden set compares against approved values only', () => {
     // The failure a boolean would have allowed: approve a serial, let someone
     // change it later, and the approval silently transfers to a value nobody
     // ever looked at.
-    const ratified: ExpectedImage = { ...entry, approved: { serial: '153713' } }
-    assert.equal(isRatified(ratified, 'serial'), true)
+    const entryRatified: ExpectedImage = { ...entry, approved: ratified({ serial: '153713' }) }
+    assert.equal(isRatified(entryRatified, 'serial'), true)
 
-    const edited: ExpectedImage = { ...ratified, fields: { ...fields, serial: '153714' } }
+    const edited: ExpectedImage = { ...entryRatified, fields: { ...fields, serial: '153714' } }
     assert.equal(isRatified(edited, 'serial'), false,
       'approval is a copy of the approved value, so it cannot drift onto a different one')
   })
@@ -338,7 +344,7 @@ describe('the golden set compares against approved values only', () => {
     // The abstentions are the entries that matter most, and they are exactly the
     // ones a lazy design would skip — there is no value to copy, so it would be
     // tempting to treat unknown as needing no approval. It needs it most.
-    const abstaining: ExpectedImage = { ...entry, approved: { model: 'unknown' } }
+    const abstaining: ExpectedImage = { ...entry, approved: ratified({ model: 'unknown' }) }
     assert.equal(isRatified(abstaining, 'model'), true)
   })
 
@@ -351,6 +357,38 @@ describe('the golden set compares against approved values only', () => {
     }
     assert.equal(expected.images.filter((i) => i.classification === 'no').length, 1,
       'exactly one photo in the set is not a nameplate')
+  })
+
+  it('records who ratified a value, so a bad approval can be traced to its review', () => {
+    const e: ExpectedImage = { ...entry, approved: ratified({ serial: '153713' }) }
+    const who = ratifiedBy(e, 'serial')
+    assert.equal(who?.by, 'david')
+    assert.match(who!.at, /^\d{4}-/)
+    assert.equal(ratifiedBy(e, 'model'), undefined, 'an unratified value has no ratifier')
+  })
+
+  it('summons a person to every unratified value that moved, and only those', () => {
+    // "Until they have earned it" needs a trigger. A value that just produced a
+    // difference is one somebody must look at now — either the model changed its
+    // answer or the expectation was wrong, and there is no third possibility.
+    const unratified: ExpectedImage = { ...entry, approved: {} }
+    const report = summarise([
+      compareImage(unratified, {
+        classification: 'yes', extracted: true, abstained: false,
+        fields: { ...fields, model: 'WDBT PC1' },
+      }),
+    ])
+    assert.deepEqual(report.pendingRatification.map((p) => p.key), ['model'],
+      'an unchanged value needs nobody yet; the set completes itself through use')
+    const text = formatReport(report)
+    assert.match(text, /RATIFY THESE 1 NOW/)
+    assert.match(text, /golden:approve -- IMG_0029 model --as "WDBT PC1"/,
+      'a next step nobody can find is not a next step')
+  })
+
+  it('refuses an approval that has no ratifier, rather than assuming one', () => {
+    const root = join(import.meta.dirname, 'fixtures-authorless-golden')
+    assert.throws(() => loadExpected(root), /no ratifier/)
   })
 
   it('refuses a set that still carries a single flag over everything', () => {

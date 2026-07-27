@@ -49,7 +49,7 @@ entry produces a reviewable diff and does not ship until the diff is reviewed.
     "installDate": "unknown"
   },
   "approved": {
-    "serial": "153713"
+    "serial": { "value": "153713", "by": "david", "at": "2026-07-27T14:02:11.000Z" }
   }
 }
 ```
@@ -57,8 +57,8 @@ entry produces a reviewable diff and does not ship until the diff is reviewed.
 `"unknown"` is a **correct** value wherever the image does not legibly show the field.
 `abstains: true` means the whole image is expected to come back with nothing entered.
 
-`approved` holds a copy of each ratified value. In the entry above only the serial has
-been ratified; everything else is a proposed reading that gates nothing. If someone later
+`approved` holds a copy of each ratified value, with who ratified it. In the entry above
+only the serial has been ratified; everything else is a proposed reading that gates nothing. If someone later
 edits `serial` to `153714`, the copy no longer matches and the ratification lapses on its
 own.
 
@@ -86,6 +86,14 @@ questions are open for the owner, recorded in the `notes` array at the bottom of
   would close this — something genuinely blurred, and a plate in the dark at a steep
   angle — have not arrived yet.
 
+**Being precise about what that second gap is:** every abstention currently in the set is
+**field-level** — a model number unreadable on an otherwise readable plate. The
+**whole-image** path is the one with no fixture: classifier says nameplate, extraction
+returns nothing at all, and the screen says *"the plate is there but the lettering can't
+be made out."* That path is built and unit-tested with a stubbed model, but nothing
+exercises it against a real photograph. Those two images are the only thing that closes
+it.
+
 ## Approval is per value, not per set
 
 Each entry carries an `approved` map holding a **copy of every value a human has
@@ -97,12 +105,50 @@ This replaces a single set-wide flag, which was not really approval: forty value
 in on one action, and one wrong entry rode in with thirty-nine right ones and became
 permanent truth. Per value is slower once and correct afterwards.
 
+Each approval also records **who ratified it and when**. Not for blame — for tracing. If
+a wrong value is ever ratified, the question that matters next is which review it came
+through, so the rest of that sitting can be re-checked. That is not reconstructible
+afterwards, so it is recorded now. Ratifying without a ratifier is refused: set
+`HOUSESTEADY_RATIFIER` or pass `--by`.
+
 **Nothing here is ratified yet.** All ninety values are proposed readings made by
 Claude. Unratified differences are reported by the harness but gate nothing.
+
+### The set completes itself through use
+
+Nothing earns ratification except somebody looking at it, so left alone the unratified
+values would sit forever. The trigger is the diff: **any unratified value that produces a
+difference is summoned for ratification at that moment**, because either the model changed
+its answer or the expectation was wrong and there is no third possibility. The golden run
+prints those values with the command to ratify each one, so the set fills in the order the
+work actually surfaces rather than in one ninety-value sitting nobody schedules.
+
+`--as` exists for the same reason: at that moment the model may be the one that is right,
+and correcting the expectation then ratifying it is one decision, so it is one action.
+
+### Where to start
+
+Not all ninety. In priority order:
+
+1. **The abstentions** — the three unreadable models, the three plates with no serial, and
+   the `IMG_0009` classification. This is where a prompt change does the most damage:
+   abstention collapse turns declines into invented values, and invented values get
+   believed.
+2. **The serials.** A serial is the value most likely to regress by a single character and
+   the most consequential when it does — it feeds decoding, which feeds install dates,
+   which feeds the capital plan. A one-digit drift on an otherwise clean plate is exactly
+   the regression that would otherwise pass unnoticed.
+
+That is roughly twenty values. Everything else can wait for the diff that summons it.
+
+### The commands
+
+    export HOUSESTEADY_RATIFIER=david
 
     npm run golden:approve                     # what is still unratified
     npm run golden:approve -- IMG_0029         # ratify that image's values
     npm run golden:approve -- IMG_0029 serial  # ratify one value
+    npm run golden:approve -- IMG_0029 serial --as 153713   # correct, then ratify
     npm run golden:approve -- --revoke IMG_0029
 
 You look at the photograph and decide; the command copies the value across. Never
@@ -114,6 +160,20 @@ values here had been tidied — `4.8 gal` where the plate says `4.8 Gal`. The ex
 prompt asks for a character-for-character copy, so the tidied version was wrong and has
 been corrected. Formatting differences are reported in their own column rather than
 passing or failing silently, because which side is wrong is a judgement.
+
+## One set, not one per concierge
+
+**The golden set is a company artifact.** Concierges will run this against their own
+clients' equipment, so *proposing* is distributed — every visit can contribute a
+candidate — but *ratifying* is central. It is a role rather than a person: today David,
+later whoever holds that review function.
+
+The reason is the same one behind AI assist existing at all. At one concierge the binder
+sounds like one person; at five, without intervention, clients receive documents that read
+like different companies. A golden set that forked per operator would fragment accuracy
+the same way — each fork drifting toward what that operator happens to accept, with no
+single answer to "is the model getting better". Ratifications record who made them partly
+so that drift is visible before it becomes structural.
 
 ## The set grows from real failures
 
