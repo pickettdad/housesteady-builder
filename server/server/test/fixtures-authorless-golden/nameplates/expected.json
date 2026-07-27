@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "images": [
-    { "file": "images/x.jpeg", "classification": "yes", "abstains": false,
-      "fields": { "serial": "153713" }, "approved": { "serial": "153713" } }
-  ]
-}

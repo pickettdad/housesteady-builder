@@ -48,17 +48,19 @@ entry produces a reviewable diff and does not ship until the diff is reviewed.
     "capacity":    "unknown",
     "installDate": "unknown"
   },
-  "approved": {
-    "serial": { "value": "153713", "by": "david", "at": "2026-07-27T14:02:11.000Z" }
-  }
+  "ratifications": [
+    { "key": "serial", "act": "ratify", "value": "153713",
+      "by": "david", "at": "2026-07-27T14:02:11.000Z" }
+  ]
 }
 ```
 
 `"unknown"` is a **correct** value wherever the image does not legibly show the field.
 `abstains: true` means the whole image is expected to come back with nothing entered.
 
-`approved` holds a copy of each ratified value, with who ratified it. In the entry above
-only the serial has been ratified; everything else is a proposed reading that gates nothing. If someone later
+`ratifications` is an append-only log of every act on this entry — each carrying a copy of
+the value approved and who approved it. In the entry above only the serial has been
+ratified; everything else is a proposed reading that gates nothing. If someone later
 edits `serial` to `153714`, the copy no longer matches and the ratification lapses on its
 own.
 
@@ -94,18 +96,24 @@ be made out."* That path is built and unit-tested with a stubbed model, but noth
 exercises it against a real photograph. Those two images are the only thing that closes
 it.
 
-## Approval is per value, not per set
+## Ratification is an append-only log, per value
 
-Each entry carries an `approved` map holding a **copy of every value a human has
-ratified**. A value counts as ratified only while that copy still equals the value
-beside it — so editing a value lapses its approval automatically, and an approval can
-never drift onto something nobody looked at.
+Each entry carries a `ratifications` array — every act of ratifying or withdrawing one
+value, with a **copy of the value approved**. Whether a value counts as ratified is
+computed from the log: the latest act must be a ratify, and its copy must still equal the
+value beside it. So editing a value lapses its ratification automatically, and a
+ratification can never drift onto something nobody looked at.
+
+**Withdrawing appends; it never deletes.** The same doctrine that governs overlays: an
+undo is a superseding record. Every golden run between a ratification and its withdrawal
+validated against that value, and binders may have shipped on that basis — erasing the
+approval would erase the only evidence that a window of false confidence existed.
 
 This replaces a single set-wide flag, which was not really approval: forty values went
 in on one action, and one wrong entry rode in with thirty-nine right ones and became
 permanent truth. Per value is slower once and correct afterwards.
 
-Each approval also records **who ratified it and when**. Not for blame — for tracing. If
+Each act records **who made it and when**. Not for blame — for tracing. If
 a wrong value is ever ratified, the question that matters next is which review it came
 through, so the rest of that sitting can be re-checked. That is not reconstructible
 afterwards, so it is recorded now. Ratifying without a ratifier is refused: set

@@ -28,7 +28,10 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { currentValue, fixturesRoot, isRatified, loadExpected, ratifiedBy, type ExpectedImage } from './golden.js'
+import {
+  contested, currentValue, fixturesRoot, historyFor, isRatified, latestAct, loadExpected,
+  ratifiedBy, wasEverRatified, type ExpectedImage, type ExpectedSet,
+} from './golden.js'
 
 const FILE = join(fixturesRoot, 'nameplates', 'expected.json')
 
@@ -82,7 +85,38 @@ function listUnratified(): void {
   }
   if (byWhom.size > 0) {
     console.log('\nRatified by:')
-    for (const [who, n] of [...byWhom].sort((a, b) => b[1] - a[1])) console.log(`    ${String(n).padStart(4)}  ${who}`)
+    for (const [who, n] of [...byWhom].sort((a, b) => b[1] - a[1])) {
+      console.log(`    ${String(n).padStart(4)}  ${who}`)
+    }
+  }
+
+  // Several names above is a company artifact working. THIS is the drift signal:
+  // the same value ratified twice, to different answers, by different people.
+  const splits = contested(set)
+  if (splits.length > 0) {
+    console.log('\nCONTESTED — ratified more than once, to different answers:')
+    for (const c of splits) {
+      console.log(`    ${c.file}  ${c.key}`)
+      c.values.forEach((v, i) => console.log(`        "${v}"  (${c.by[i] ?? 'unknown'})`))
+    }
+    console.log('\n    One of them is wrong, or the plate is genuinely ambiguous and the entry')
+    console.log('    needs a note saying so. Either way it is a question for the review role,')
+    console.log('    not something to resolve by whoever ratifies last.')
+  }
+
+  // Values that were ratified and then taken back. Worth seeing: every golden
+  // run inside that window validated against them.
+  const withdrawn = set.images.flatMap((e) =>
+    keysOf(e)
+      .filter((k) => !isRatified(e, k) && wasEverRatified(e, k))
+      .map((k) => ({ file: e.file, key: k, act: latestAct(e, k) })),
+  )
+  if (withdrawn.length > 0) {
+    console.log('\nPreviously ratified, no longer:')
+    for (const w of withdrawn) {
+      const why = w.act?.act === 'revoke' ? (w.act.reason ?? 'withdrawn') : 'the value changed underneath it'
+      console.log(`    ${w.file}  ${w.key} — ${why}`)
+    }
   }
   if (outstanding > 0) {
     console.log('\nLook at the image, then ratify what you have checked:')
@@ -90,7 +124,11 @@ function listUnratified(): void {
   }
 }
 
-function apply(match: string, keys: string[], opts: { revoke: boolean; as?: string; by?: string }): void {
+function apply(
+  match: string,
+  keys: string[],
+  opts: { revoke: boolean; as?: string; by?: string; reason?: string },
+): void {
   const { revoke, as } = opts
   // Read and write the raw text through JSON so comments and ordering survive
   // as far as they can; the $comment array is data, not a code comment.
@@ -98,9 +136,10 @@ function apply(match: string, keys: string[], opts: { revoke: boolean; as?: stri
     console.error('--as sets one value, so name exactly one key.')
     process.exit(1)
   }
-  const who = revoke ? '' : ratifier(opts.by)
+  // A withdrawal is an act too, so it records its author like any other.
+  const who = ratifier(opts.by)
   const at = new Date().toISOString()
-  const raw = JSON.parse(readFileSync(FILE, 'utf8')) as { images: ExpectedImage[] }
+  const raw = JSON.parse(readFileSync(FILE, 'utf8')) as ExpectedSet
   const targets = raw.images.filter((e) => e.file.toLowerCase().includes(match.toLowerCase()))
   if (targets.length === 0) {
     console.error(`No image in the set matches "${match}".`)
@@ -108,7 +147,7 @@ function apply(match: string, keys: string[], opts: { revoke: boolean; as?: stri
   }
 
   for (const entry of targets) {
-    entry.approved ??= {}
+    entry.ratifications ??= []
     const chosen = keys.length > 0 ? keys : keysOf(entry)
     for (const key of chosen) {
       if (!keysOf(entry).includes(key)) {
@@ -116,8 +155,14 @@ function apply(match: string, keys: string[], opts: { revoke: boolean; as?: stri
         continue
       }
       if (revoke) {
-        delete entry.approved[key]
-        console.log(`  ${entry.file}  ${key} — ratification withdrawn`)
+        if (!isRatified(entry, key)) {
+          console.log(`  ${entry.file}  ${key} — was not ratified; nothing to withdraw`)
+          continue
+        }
+        // Appended, never deleted. The window in which this value stood is what
+        // somebody will need to chase if it turns out to have been wrong.
+        entry.ratifications.push({ key, act: 'revoke', by: who, at, reason: opts.reason })
+        console.log(`  ${entry.file}  ${key} — withdrawn (${who}); the ratification stays in the log`)
         continue
       }
       if (as !== undefined) {
@@ -125,10 +170,13 @@ function apply(match: string, keys: string[], opts: { revoke: boolean; as?: stri
         if (key === 'classification') entry.classification = as as ExpectedImage['classification']
         else entry.fields[key] = as
       }
-      // Copy the value, never a flag. This is what makes the approval lapse by
-      // itself if the value is edited afterwards.
-      entry.approved[key] = { value: valueOf(entry, key), by: who, at }
-      console.log(`  ${entry.file}  ${key} = ${valueOf(entry, key)}   (${who})`)
+      const value = valueOf(entry, key)
+      const prior = historyFor(entry, key).filter((r) => r.act === 'ratify').at(-1)
+      entry.ratifications.push({ key, act: 'ratify', value, by: who, at })
+      console.log(`  ${entry.file}  ${key} = ${value}   (${who})`)
+      if (prior && prior.value !== value && prior.by !== who) {
+        console.log(`      NOTE: ${prior.by} ratified this as "${prior.value}". Both acts are in the log.`)
+      }
     }
   }
 
@@ -143,14 +191,15 @@ const flag = (name: string): string | undefined => {
 }
 const as = flag('as')
 const by = flag('by')
+const reason = flag('reason')
 const revoke = argv.includes('--revoke')
 
 // Everything that is not a flag or a flag's value.
 const positional = argv.filter((a, i) => {
   if (a.startsWith('--')) return false
   const prev = argv[i - 1]
-  return !(prev === '--as' || prev === '--by')
+  return !(prev === '--as' || prev === '--by' || prev === '--reason')
 })
 
 if (positional.length === 0) listUnratified()
-else apply(positional[0]!, positional.slice(1), { revoke, as, by })
+else apply(positional[0]!, positional.slice(1), { revoke, as, by, reason })

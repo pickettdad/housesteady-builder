@@ -131,6 +131,11 @@ AI is not a convenience feature here. At one concierge the binder sounds like on
 - **Abstention is success.** Every extraction prompt asks explicitly for `unknown` over a plausible guess, and `abstained = 1` is a valid outcome, never an error. A wrong serial number is worse than a blank one: the blank gets chased, the wrong one gets believed.
 - **Tier deliberately.** Extraction, classification, transcription → cheap fast model, batched. Client-facing prose and synthesis → strong model. At 400–600 photos per baseline the difference is the whole operating cost.
 - **Every AI feature has a manual path.** The builder is fully usable with the API unreachable; assists queue and fill in later. Nothing blocks on a model call.
+- **Never summon a human to a blank space.** Every AI-to-human handoff carries the best read available, the evidence behind it, what specifically is uncertain, and — where there is genuine variance — ranked alternatives. **This does not conflict with abstention: the record abstains, the prompt does not.** The stored value stays `unknown`; the person is told *"the third and seventh characters are under glare; what I can make out is Q1373_5_9, and the barcode line below may repeat it."* Nothing false enters the data and nobody starts from zero.
+  Three guards, because a suggestion done badly is worse than none:
+  - **Evidence first, suggestion second — physically, in the layout.** A confident string beside a thumbnail changes the human's task from *what does this say* to *does that look right*, and the second is a far weaker act. Photo large, suggestion beside it.
+  - **"None of these" is always present and exactly as easy as the top option.** Otherwise acquiescence sets in and the model's framing quietly becomes the answer.
+  - **The suggestion is shown, never pre-filled.** A guess sitting in the input box makes acceptance the default and rejection work. That inverts the burden and is how a wrong value gets ratified.
 - **Never AI:** priorities, the reserve figure, what to tell a client about a safety risk, anything constituting advice.
 
 Full plan, including which task lands in which increment: `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1_2026-07-25.md`.
