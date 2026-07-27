@@ -133,6 +133,149 @@ export interface ImportReport {
   }
 }
 
+// ------------------------------------------------------------------ the pass
+
+export interface Overlay {
+  id: string
+  visitId: string
+  seq: number
+  kind: string
+  targetKind: string
+  targetId: string
+  field: string | null
+  priorValue: unknown
+  newValue: unknown
+  reason: string | null
+  supersedesId: string | null
+  actor: string
+  actorContext: string
+  createdAt: string
+}
+
+export interface TrailEntry {
+  overlay: Overlay
+  verb: string
+  live: boolean
+}
+
+export interface EntityState {
+  targetKind: string
+  targetId: string
+  decision: Overlay | null
+  corrections: Record<string, Overlay>
+  confirm: Overlay | null
+  assign: Overlay | null
+  flag: Overlay | null
+  memory: Overlay | null
+  unrecognized: Overlay[]
+  trail: TrailEntry[]
+}
+
+export interface PassPin {
+  pinId: string
+  number: number | null
+  typeKind: string | null
+  componentType: string | null
+  freeformLabel: string | null
+  flag: string | null
+  retiredAt: string | null
+  anchors: { anchorId: string; canvasId: string | null; x: number | null; y: number | null }[]
+  mediaIds: string[]
+  notes: { noteId: string; text: string | null; at: string | null }[]
+}
+
+export interface PhotoTile {
+  mediaId: string
+  kind: string | null
+  mime: string | null
+  bytes: number | null
+  capturedAt: string | null
+  durationMs: number | null
+  fileStatus: string
+  state: EntityState | null
+}
+
+export type DecisionReason = 'typeless-pin' | 'pin-flagged-issue' | 'failed-check' | 'na' | 'inbox-unassigned'
+
+export interface DecisionItem {
+  key: string
+  targetKind: string
+  targetId: string
+  reasons: DecisionReason[]
+  headline: string
+  pin?: PassPin
+  photo?: PhotoTile
+  resolution?: {
+    itemId: string
+    itemText: string | null
+    kind: string | null
+    via: string | null
+    result: string | null
+    note: string | null
+    reasonId: string | null
+    reasonLabel: string | null
+    evidence: Record<string, unknown> | null
+    scopeKind: string | null
+    scopePinNumber: number | null
+  }
+  decided: boolean
+  state: EntityState | null
+}
+
+export interface PassZone {
+  zoneId: string
+  type: string | null
+  label: string | null
+  level: string | null
+  closedAt: string | null
+  order: number
+  canvases: { canvasId: string; kind: string | null; mediaId: string | null; imageAvailable: boolean }[]
+  pins: PassPin[]
+  unplacedPins: PassPin[]
+  retiredPinCount: number
+  decisions: DecisionItem[]
+  roomPhotos: PhotoTile[]
+  memory: EntityState | null
+  opened: boolean
+  openedAt: string | null
+  openCount: number
+  decisionsRemaining: number
+}
+
+export interface NaReason {
+  id: string
+  label?: string
+  feedsGapList?: boolean
+  recordsFinding?: boolean
+}
+
+export interface PassModel {
+  visit: { id: string; kind: string; visitDate: string | null; propertyId: string }
+  property: { id: string; label: string }
+  import: { id: string; mediaMode: string; importedAt: string } | null
+  pass: {
+    id: string
+    mode: string
+    startedAt: string
+    completedAt: string | null
+    completedWithOutstanding?: string[] | null
+    history?: { type: string; at: string; outstanding: string[] | null; reason: string | null }[]
+  } | null
+  zones: PassZone[]
+  sessionItems: DecisionItem[]
+  vocabulary: { componentTypes: string[]; naReasons: NaReason[] }
+  progress: {
+    zonesTotal: number
+    zonesWalked: number
+    decisionsTotal: number
+    decisionsMade: number
+    decisionsRemaining: number
+    actsRecorded: number
+    complete: boolean
+    outstanding: string[]
+  }
+}
+
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   const body = await res.json().catch(() => ({}))
@@ -185,7 +328,69 @@ export const api = {
     }),
 
   getReport: (importId: string) => req<ImportReport>(`/api/imports/${importId}/report`),
+
+  // ------------------------------------------------------------------ pass
+  getPass: (visitId: string) => req<PassModel>(`/api/visits/${visitId}/pass`),
+
+  startPass: (visitId: string) =>
+    req<unknown>(`/api/visits/${visitId}/pass/start`, { method: 'POST' }),
+
+  openZone: (visitId: string, zoneId: string) =>
+    req<unknown>(`/api/visits/${visitId}/pass/zones/${zoneId}/open`, { method: 'POST' }),
+
+  /** force = the concierge was shown what is outstanding and said yes anyway. */
+  completePass: (visitId: string, force = false) =>
+    req<{ model: PassModel }>(`/api/visits/${visitId}/pass/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force }),
+    }),
+
+  /**
+   * One act. The four kinds are separate calls to the same endpoint rather than
+   * one "decide" call with a flag, because they are separate acts and the
+   * record keeps them separate.
+   */
+  writeOverlay: (
+    visitId: string,
+    body: {
+      kind: string
+      targetKind: string
+      targetId: string
+      field?: string | null
+      newValue?: unknown
+      reason?: string | null
+    },
+  ) =>
+    req<Overlay>(`/api/visits/${visitId}/overlays`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  /** Late thoughts about a house are normal and must not need a hack. */
+  reopenPass: (visitId: string) =>
+    req<unknown>(`/api/visits/${visitId}/pass/reopen`, { method: 'POST' }),
+
+  /** With no argument this takes back the most recent act — the `u` keystroke. */
+  undo: (visitId: string, overlayId?: string) =>
+    req<Overlay>(`/api/visits/${visitId}/overlays/undo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(overlayId ? { overlayId } : {}),
+    }),
 }
+
+/** Full-size original. Used for the lightbox, never for a grid. */
+export const mediaUrl = (visitId: string, mediaId: string): string =>
+  `/api/visits/${visitId}/media/${mediaId}`
+
+/**
+ * A thumbnail. Made on demand and cached — see server/src/pass/thumbs.ts for
+ * why. 400 for grid tiles, 1200 for the canvas.
+ */
+export const thumbUrl = (visitId: string, mediaId: string, w: 400 | 1200 = 400): string =>
+  `/api/visits/${visitId}/media/${mediaId}/thumb?w=${w}`
 
 /**
  * Decimal MB, not binary MiB, deliberately.

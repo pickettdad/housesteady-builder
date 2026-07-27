@@ -148,3 +148,140 @@ ul.checks .code { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.04
 .muted { color: var(--ink-soft); }
 .small { font-size: 13px; }
 .hint { font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5; }
+
+/* ------------------------------------------------------- increment 2a: the pass
+   The rail is the house in the order it was walked; the page is one room. */
+
+.pass-head { display: flex; gap: 24px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.pass-head h2 { margin-bottom: 4px; }
+
+.progress { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; padding: 12px 16px; }
+.progress .stat { display: flex; flex-direction: column; }
+.progress .stat strong { font-size: 18px; }
+.progress .stat span { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .04em; }
+.progress .keys { flex-basis: 100%; font-size: 11px; color: var(--ink-faint); }
+
+kbd {
+  font: 11px ui-monospace, monospace; background: var(--paper); border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; margin: 0 1px; color: var(--ink-soft);
+}
+
+.pass { display: grid; grid-template-columns: 250px 1fr; gap: 28px; align-items: start; margin-top: 20px; }
+@media (max-width: 860px) { .pass { grid-template-columns: 1fr; } }
+
+.rail { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 2px; }
+.rail-zone {
+  display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: center;
+  background: none; border: 0; border-left: 2px solid transparent; text-align: left;
+  padding: 8px 10px; cursor: pointer; color: var(--ink); width: 100%;
+}
+.rail-zone:hover { background: var(--paper); }
+.rail-zone.current { background: var(--card); border-left-color: var(--accent); }
+.rail-label { display: flex; flex-direction: column; line-height: 1.25; }
+.rail-label strong { font-weight: 600; font-size: 13px; }
+.rail-count { font-size: 11px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+/* Untouched, in progress, done — one dot, three states, no legend needed. */
+.pip { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--ink-faint); }
+.rail-zone.todo .pip { background: transparent; }
+.rail-zone.doing .pip { background: var(--warn); border-color: var(--warn); }
+.rail-zone.done .pip { background: var(--accent); border-color: var(--accent); }
+
+.zone-page h4 { margin-top: 28px; margin-bottom: 6px; }
+
+/* The canvas. Markers are positioned by percentage straight from the anchors. */
+.canvas-wrap { margin-top: 12px; }
+.canvas { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
+.canvas img { max-width: 100%; border: 1px solid var(--line); border-radius: 3px; }
+.marker {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+  background: var(--card); border: 2px solid var(--accent); color: var(--accent);
+  font: 600 12px/1 system-ui, sans-serif; display: grid; place-items: center; padding: 0;
+}
+.marker.issue { border-color: var(--error); color: var(--error); }
+.marker.monitor { border-color: var(--warn); color: var(--warn); }
+.marker.typeless { border-style: dashed; }
+.marker.desk-flagged { box-shadow: 0 0 0 3px var(--warn-bg); }
+.marker.selected { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.canvas-fallback { border: 1px dashed var(--line); border-radius: 3px; padding: 16px; margin-top: 12px; }
+.tray { margin-top: 16px; padding: 12px 14px; background: var(--paper); border-radius: 3px; }
+.tray h4 { margin: 0 0 4px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip {
+  background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+  padding: 4px 12px; font-size: 12px; cursor: pointer; color: var(--ink);
+}
+.chip.selected, .chip:hover { border-color: var(--accent); }
+
+/* One decision. */
+.decisions { display: flex; flex-direction: column; gap: 10px; }
+.decision {
+  border: 1px solid var(--line); border-left: 3px solid var(--line);
+  border-radius: 3px; padding: 12px 14px; background: var(--card);
+}
+.decision.selected { border-left-color: var(--accent); background: var(--paper); }
+.decision.decided { opacity: .62; }
+.decision-head { display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+.decision-headline { font-weight: 600; }
+.decision-why { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+.decision-detail { margin: 8px 0 0; color: var(--ink-soft); }
+.decision-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.tag {
+  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+  background: var(--paper); border: 1px solid var(--line); color: var(--ink-soft);
+}
+.tag.failed-check { background: var(--error-bg); border-color: var(--error-bg); color: var(--error); }
+.tag.pin-flagged-issue { background: var(--warn-bg); border-color: var(--warn-bg); color: var(--warn); }
+
+.evidence { display: flex; flex-wrap: wrap; gap: 4px 24px; margin: 10px 0 0; }
+.evidence div { display: flex; gap: 6px; font-size: 12px; }
+.evidence dt { color: var(--ink-faint); }
+.evidence dd { margin: 0; }
+.mono { font-family: ui-monospace, monospace; font-size: 11px; }
+.notes { margin: 8px 0 0; padding-left: 18px; color: var(--ink-soft); font-size: 13px; }
+
+.tiles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tiles.grid { gap: 8px; }
+.tiles img { width: 104px; height: 104px; object-fit: cover; border-radius: 3px; border: 1px solid var(--line); }
+.tile {
+  width: 104px; height: 104px; border-radius: 3px; border: 1px dashed var(--line);
+  display: grid; place-items: center; text-align: center; padding: 6px;
+  font-size: 10px; color: var(--ink-faint); text-decoration: none;
+}
+.tile.failed { border-color: var(--error); color: var(--error); background: var(--error-bg); }
+.tile.other { border-style: solid; color: var(--ink-soft); }
+
+.editor { margin-top: 12px; padding: 12px; background: var(--paper); border-radius: 3px; }
+.editor textarea, .editor input { width: 100%; }
+.editor .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* The trail: assigned, unassigned, reassigned. */
+.trail { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 11px; }
+.trail-step { color: var(--ink-faint); }
+.trail-step.live { color: var(--accent); font-weight: 600; }
+.trail-step + .trail-step::before { content: '→ '; color: var(--line); }
+.link { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; font-size: 11px; }
+
+/* A decided card collapses to one line so remaining work rises on its own. */
+.decision.collapsed {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 7px 14px; cursor: pointer; opacity: .72;
+}
+.decision.collapsed .decision-headline { font-weight: 500; font-size: 13px; }
+.decision.collapsed:hover { opacity: 1; }
+.trail.inline { margin-top: 0; flex: 1; }
+.rail-count { text-align: right; max-width: 92px; line-height: 1.2; }
+
+/* Room photos are attachable (spec §5.3), so a tile needs room to say so. */
+.tile-wrap { display: flex; flex-direction: column; gap: 3px; width: 104px; }
+.tile-wrap > a { line-height: 0; }
+.tile-state {
+  font-size: 10px; color: var(--ink-faint); display: flex; gap: 6px;
+  align-items: baseline; text-align: left; background: none; border: 0; padding: 0; cursor: pointer;
+}
+button.tile-state:hover { color: var(--accent); }
+.tile-wrap .editor { width: 320px; position: relative; z-index: 1; }

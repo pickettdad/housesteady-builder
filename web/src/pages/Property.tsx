@@ -123,6 +123,12 @@ export function PropertyPage({ id }: { id: string }) {
                       <button className="ghost" onClick={() => go({ name: 'report', id: v.latest_import_id! })}>
                         View report
                       </button>
+                      {/*
+                        The pass is the point of the import, so it is one click
+                        from here — and it wants doing within a day or two,
+                        while the house is still in mind.
+                      */}
+                      <button onClick={() => go({ name: 'pass', id: v.id })}>Walk the fresh pass</button>
                     </div>
                   ) : (
                     <div className="stack">

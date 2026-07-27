@@ -8,6 +8,17 @@ import { buildReport } from './import/report.js'
 import { ImportRefused, runImport } from './import/runImport.js'
 import { resolveState } from './overlay/model.js'
 import { latestLiveDecision, OverlayRefused, readVisitOverlays, writeOverlay } from './overlay/store.js'
+import { buildPass, orderedZoneIds } from './pass/read.js'
+import { completePass, openZone, PassRefused, reopenIfCompleted, reopenPass, startPass } from './pass/store.js'
+import {
+  findMedia,
+  isThumbWidth,
+  resolveOriginal,
+  THUMB_WIDTHS,
+  thumbnail,
+  warmZone,
+  type MediaResolution,
+} from './pass/thumbs.js'
 
 const db = openDb()
 const app = express()
@@ -217,6 +228,7 @@ app.post('/api/visits/:id/overlays', (req, res) => {
       supersedesId: req.body?.supersedesId ?? null,
       actor: req.body?.actor,
     })
+    reopenIfCompleted(db, visit.id)
     res.status(201).json(overlay)
   } catch (e) {
     if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
@@ -249,12 +261,111 @@ app.post('/api/visits/:id/overlays/undo', (req, res) => {
       reason: req.body?.reason ?? null,
       actor: req.body?.actor,
     })
+    reopenIfCompleted(db, visit.id)
     res.status(201).json(overlay)
   } catch (e) {
     if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
     console.error(e)
     res.status(500).json({ error: (e as Error).message })
   }
+})
+
+// ------------------------------------------------------------------ the pass
+//
+// The desk-side walk, zone by zone, in visit order. Spec §5.
+
+app.get('/api/visits/:id/pass', (req, res) => {
+  const model = buildPass(db, req.params.id)
+  if (!model) return res.status(404).json({ error: 'No such visit.' })
+  res.json(model)
+})
+
+app.post('/api/visits/:id/pass/start', (req, res) => {
+  try {
+    res.json(startPass(db, req.params.id))
+  } catch (e) {
+    if (e instanceof PassRefused) return res.status(422).json({ error: e.message, code: e.code })
+    throw e
+  }
+})
+
+app.post('/api/visits/:id/pass/zones/:zoneId/open', async (req, res) => {
+  try {
+    const pass = openZone(db, req.params.id, req.params.zoneId)
+    res.json(pass)
+
+    // Thumbnails start being made now, after the response has gone, and nothing
+    // waits on them — see the note at the top of thumbs.ts.
+    //
+    // This room AND the one after it. Warming only the current room means every
+    // room costs its own cold wait; warming the next one too means that wait is
+    // paid while somebody is still reading this room, so after room one it
+    // disappears. Sequential rather than parallel, because the room being looked
+    // at right now should finish first.
+    void (async () => {
+      const order = orderedZoneIds(db, req.params.id)
+      const next = order[order.indexOf(req.params.zoneId) + 1]
+      await warmZone(db, req.params.id, req.params.zoneId).catch(() => 0)
+      if (next) await warmZone(db, req.params.id, next).catch(() => 0)
+    })()
+  } catch (e) {
+    if (e instanceof PassRefused) return res.status(422).json({ error: e.message, code: e.code })
+    throw e
+  }
+})
+
+app.post('/api/visits/:id/pass/complete', (req, res) => {
+  try {
+    // force = the concierge was shown what is outstanding and said yes anyway.
+    res.json(completePass(db, req.params.id, { force: Boolean(req.body?.force) }))
+  } catch (e) {
+    if (e instanceof PassRefused) {
+      return res.status(422).json({ error: e.message, code: e.code, outstanding: e.outstanding })
+    }
+    throw e
+  }
+})
+
+app.post('/api/visits/:id/pass/reopen', (req, res) => {
+  try {
+    res.json(reopenPass(db, req.params.id))
+  } catch (e) {
+    if (e instanceof PassRefused) return res.status(422).json({ error: e.message, code: e.code })
+    throw e
+  }
+})
+
+// ------------------------------------------------------------------- media
+//
+// Files are served by media id, never by path. The path is storage location;
+// ownership and identity live in the row, and a URL built from a path would
+// break the moment the data directory moved.
+
+const sendResolution = (res: express.Response, r: MediaResolution) => {
+  if (r.ok) {
+    // The bytes for a given media id never change — the import refuses to
+    // overwrite one — so this can be cached hard.
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable')
+    res.setHeader('Content-Type', r.mime)
+    return res.sendFile(r.path)
+  }
+  // 404 with the reason in it, rather than a broken image. A quarantined file
+  // and a file that never arrived are different facts and the tile says which.
+  return res.status(404).json({ error: r.message, reason: r.reason })
+}
+
+app.get('/api/visits/:id/media/:mediaId', (req, res) => {
+  const media = findMedia(db, req.params.id, req.params.mediaId)
+  sendResolution(res, resolveOriginal(media))
+})
+
+app.get('/api/visits/:id/media/:mediaId/thumb', async (req, res) => {
+  const width = Number(req.query.w ?? 400)
+  if (!isThumbWidth(width)) {
+    return res.status(400).json({ error: `Thumbnails come in ${THUMB_WIDTHS.join(' and ')} pixels.` })
+  }
+  const media = findMedia(db, req.params.id, req.params.mediaId)
+  sendResolution(res, await thumbnail(media, width))
 })
 
 const port = Number(process.env.PORT ?? 5174)
