@@ -255,10 +255,12 @@ function Recording({
   visitId,
   audio,
   onAcknowledge,
+  onRerecord,
 }: {
   visitId: string
   audio: MemoryAudio
   onAcknowledge: (id: string) => void
+  onRerecord: () => void
 }) {
   const ref = useRef<HTMLAudioElement>(null)
 
@@ -281,21 +283,35 @@ function Recording({
   const unresolved = audio.silent && !audio.acknowledgedAt
   return (
     <li className={unresolved ? 'silent' : ''}>
-      <audio
-        ref={ref}
-        controls
-        preload="metadata"
-        src={`/api/visits/${visitId}/memory/${audio.id}/audio`}
-      />
-      <span className="hint" style={{ marginTop: 0 }}>
-        {(((audio.durationMs ?? 0) / 1000)).toFixed(1)}s · {audio.bytes} bytes · peak{' '}
-        {((audio.peakLevel ?? 0) * 100).toFixed(0)}%
-        {audio.silent && (audio.acknowledgedAt ? ' · silent, kept knowingly' : ' · silent, not yet acknowledged')}
-      </span>
+      <div className="recording-row">
+        <audio
+          ref={ref}
+          controls
+          preload="metadata"
+          src={`/api/visits/${visitId}/memory/${audio.id}/audio`}
+        />
+        {/*
+          Bytes and peak, once. Duration is deliberately NOT here: the player
+          shows it, and printing "2.6s" beside a player reading 0:02 is the same
+          fact twice in two slightly different forms, which makes a reader stop
+          and work out which one to believe.
+        */}
+        <span className="hint" style={{ marginTop: 0 }}>
+          {(audio.bytes ?? 0).toLocaleString()} bytes · peak {((audio.peakLevel ?? 0) * 100).toFixed(0)}%
+          {audio.silent && audio.acknowledgedAt && ' · silent, kept knowingly'}
+        </span>
+      </div>
+
       {unresolved && (
-        <button className="link" onClick={() => onAcknowledge(audio.id)}>
-          keep it anyway
-        </button>
+        <div className="recording-alarm">
+          <strong>This recording is silent.</strong> The microphone was probably muted.
+          <div className="row" style={{ marginTop: 6 }}>
+            <button onClick={onRerecord}>Record it again</button>
+            <button className="ghost" onClick={() => onAcknowledge(audio.id)}>
+              Keep it — I know it is silent
+            </button>
+          </div>
+        </div>
       )}
     </li>
   )
@@ -334,12 +350,10 @@ export function ZoneMemory({
   const { state, requestPermission, start, stop } = useRecorder()
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
-  const [justSaved, setJustSaved] = useState<MemoryAudio | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setText('')
-    setJustSaved(null)
   }, [zone.zoneId])
 
   const existingText = zone.memory?.corrections ? null : null // text lives in its own overlay field
@@ -357,9 +371,8 @@ export function ZoneMemory({
         fd.append('durationMs', String(durationMs))
         fd.append('peakLevel', String(peakLevel))
         const res = await fetch(`/api/visits/${visitId}/memory/audio`, { method: 'POST', body: fd })
-        const saved = (await res.json()) as MemoryAudio & { error?: string }
+        const saved = (await res.json()) as { error?: string }
         if (!res.ok) throw new Error(saved.error ?? 'The recording did not save.')
-        setJustSaved(saved)
         onSaved()
       } catch (e) {
         setError((e as Error).message)
@@ -393,7 +406,6 @@ export function ZoneMemory({
 
   const acknowledge = async (id: string) => {
     await fetch(`/api/visits/${visitId}/memory/${id}/acknowledge`, { method: 'POST' })
-    setJustSaved(null)
     onSaved()
   }
 
@@ -446,37 +458,21 @@ export function ZoneMemory({
       {error && <p className="error-text">{error}</p>}
 
       {/*
-        Duration, size and the peak level, at the moment of stopping. Near-zero
-        is obviously wrong, and it is obvious immediately rather than in a month.
+        There is no separate "saved" banner. The recording appears below the
+        moment it stops, carrying its own byte count, peak level and — from the
+        player — its duration, which is exactly what §5 asks to be shown on
+        stop. A banner repeating those figures was the same fact in two places,
+        the same shape as the duplicated field notes, and it made the silent
+        case say everything twice at the moment it most needed to be clear.
       */}
-      {justSaved && (
-        <div className={`recording-result${justSaved.silent ? ' silent' : ''}`}>
-          {justSaved.silent ? (
-            <>
-              <strong>That recording is silent.</strong> {Math.round((justSaved.durationMs ?? 0) / 1000)}s,{' '}
-              {justSaved.bytes} bytes, peak {((justSaved.peakLevel ?? 0) * 100).toFixed(0)}%. The microphone was
-              probably muted.
-              <div className="row" style={{ marginTop: 8 }}>
-                <button onClick={() => void record()}>Record it again</button>
-                <button className="ghost" onClick={() => void acknowledge(justSaved.id)}>
-                  Keep it — I know it is silent
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              Saved — {Math.round((justSaved.durationMs ?? 0) / 1000)}s, {justSaved.bytes} bytes, peak{' '}
-              {((justSaved.peakLevel ?? 0) * 100).toFixed(0)}%.
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Inline playback, immediately. Hearing it is the strongest check there is. */}
       {zone.memoryAudio.length > 0 && (
         <ul className="recordings">
           {zone.memoryAudio.map((a) => (
-            <Recording key={a.id} visitId={visitId} audio={a} onAcknowledge={(id) => void acknowledge(id)} />
+            <Recording
+              key={a.id} visitId={visitId} audio={a}
+              onAcknowledge={(id) => void acknowledge(id)}
+              onRerecord={() => void record()}
+            />
           ))}
         </ul>
       )}
