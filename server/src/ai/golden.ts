@@ -45,32 +45,46 @@ export interface ExpectedImage {
   fields: Record<string, string>
   fieldNotes?: Record<string, string>
   /**
-   * Ratification, per value.
+   * The ratification log for this image — every act, oldest first.
    *
-   * Carries a COPY of the exact value approved, not a boolean. A flag drifts off
-   * the thing it approved: ratify a serial, let someone edit that serial later,
-   * and the approval silently transfers to a value nobody ever looked at.
-   * Storing the value means approval lapses by itself the moment the value
-   * changes, the same way a prompt's hash stops matching when its text moves.
+   * A LOG, NOT A MAP OF CURRENT STATE. The same doctrine that governs overlays:
+   * an undo is a superseding record, never a deletion. If a wrong value is
+   * ratified and later revoked, you have to be able to see that it WAS ratified,
+   * because every golden run in between validated against it and binders may
+   * have shipped on that basis. Deleting the approval would erase the only
+   * evidence that a window of false confidence existed.
    *
-   * It also carries WHO ratified it and when. Not for blame — for tracing. If a
-   * wrong value turns out to have been ratified, the question that matters next
-   * is which review it came through, so the others from that same sitting can be
-   * re-checked. That cannot be reconstructed afterwards, so it is recorded now
-   * while it costs nothing.
-   *
-   * Keys are field names plus `classification`. An absent key is simply not
-   * ratified, which is the honest default for everything until someone looks.
+   * Current state is computed from the log on read — `isRatified` — for the same
+   * reason the overlay layer computes state on read: a stored answer is a second
+   * copy that can drift from the acts it summarises, and only one can be right.
    */
-  approved?: Record<string, Ratification>
+  ratifications?: RatificationAct[]
 }
 
-export interface Ratification {
-  /** The exact value ratified. Approval lapses if the value moves away from it. */
-  value: string
-  /** Who ratified it. A role as much as a person — see the note on the set. */
+/**
+ * One act of ratifying or revoking one value.
+ *
+ * `value` is a COPY of what was ratified, not a flag. A flag drifts off the
+ * thing it approved: ratify a serial, let someone edit that serial later, and
+ * the approval silently transfers to a value nobody looked at. Storing the value
+ * means ratification lapses by itself the moment the value moves, the same way a
+ * prompt's hash stops matching when its text does.
+ *
+ * `by` is required everywhere. Not for blame — for tracing. If a wrong value
+ * turns out to have been ratified, the question that matters next is which
+ * review it came through, so the rest of that sitting can be re-checked. That is
+ * not reconstructible afterwards.
+ */
+export interface RatificationAct {
+  /** A field name, or `classification`. */
+  key: string
+  act: 'ratify' | 'revoke'
+  /** Present on `ratify`. The exact value approved. */
+  value?: string
   by: string
   at: string
+  /** Why it was taken back. Worth having when the log is read years later. */
+  reason?: string
 }
 
 export interface ExpectedSet {
@@ -79,25 +93,71 @@ export interface ExpectedSet {
   notes?: string[]
 }
 
-/**
- * Is this key ratified, and still ratified for the value it is attached to?
- *
- * Approval is per value, so approving forty at once is forty acts rather than
- * one — a wrong entry can no longer ride in on the back of thirty-nine right
- * ones and become permanent truth.
- */
 export const currentValue = (entry: ExpectedImage, key: string): string =>
   key === 'classification' ? entry.classification : (entry.fields[key] ?? 'unknown')
 
-export const isRatified = (entry: ExpectedImage, key: string): boolean => {
-  const approved = entry.approved?.[key]
-  if (approved === undefined) return false
-  return approved.value === currentValue(entry, key)
+/** Every act touching one value, oldest first. */
+export const historyFor = (entry: ExpectedImage, key: string): RatificationAct[] =>
+  (entry.ratifications ?? []).filter((r) => r.key === key)
+
+/** The act in force for one value, if any. */
+export const latestAct = (entry: ExpectedImage, key: string): RatificationAct | undefined => {
+  const acts = historyFor(entry, key)
+  return acts[acts.length - 1]
 }
 
-/** Who ratified this value, if anyone still has. */
-export const ratifiedBy = (entry: ExpectedImage, key: string): Ratification | undefined =>
-  isRatified(entry, key) ? entry.approved?.[key] : undefined
+export const isRatified = (entry: ExpectedImage, key: string): boolean => {
+  const act = latestAct(entry, key)
+  return act?.act === 'ratify' && act.value === currentValue(entry, key)
+}
+
+/** Who ratified this value, if it still stands. */
+export const ratifiedBy = (entry: ExpectedImage, key: string): RatificationAct | undefined =>
+  isRatified(entry, key) ? latestAct(entry, key) : undefined
+
+/**
+ * Was this value ever ratified, even if it is not now?
+ *
+ * The question a bad value raises: did anything validate against this while it
+ * stood? A revoked ratification still had a window, and that window is what
+ * needs chasing.
+ */
+export const wasEverRatified = (entry: ExpectedImage, key: string): boolean =>
+  historyFor(entry, key).some((r) => r.act === 'ratify')
+
+export interface Contest {
+  file: string
+  key: string
+  /** Distinct values that have been ratified for this key, oldest first. */
+  values: string[]
+  /** Who ratified each. Two names here is the drift signal. */
+  by: string[]
+}
+
+/**
+ * Values that have been ratified more than once, to different answers.
+ *
+ * This is the drift signal, and a list of who-has-ratified-how-many is not it.
+ * Several reviewers agreeing is exactly what a company artifact looks like
+ * working. The thing to catch is two reviewers who looked at the same plate and
+ * wrote down different values — because that is a set quietly forking, and it
+ * fragments accuracy the way the binder voice would fragment without house
+ * style. It surfaces as a question for the review role rather than an error:
+ * one of them is wrong, or the plate is genuinely ambiguous and the entry needs
+ * a note saying so.
+ */
+export function contested(set: ExpectedSet): Contest[] {
+  const out: Contest[] = []
+  for (const entry of set.images) {
+    const keys = new Set((entry.ratifications ?? []).map((r) => r.key))
+    for (const key of keys) {
+      const ratifies = historyFor(entry, key).filter((r) => r.act === 'ratify')
+      const values = [...new Set(ratifies.map((r) => r.value ?? ''))]
+      if (values.length > 1) out.push({ file: entry.file, key, values, by: ratifies.map((r) => r.by) })
+    }
+  }
+  return out
+}
 
 export function loadExpected(root = fixturesRoot): ExpectedSet {
   const raw = readFileSync(join(root, 'nameplates', 'expected.json'), 'utf8')
@@ -105,15 +165,22 @@ export function loadExpected(root = fixturesRoot): ExpectedSet {
   if (!Array.isArray(parsed.images)) {
     throw new Error('expected.json has no images array — the golden set cannot run against nothing.')
   }
-  for (const image of parsed.images) {
-    for (const [key, value] of Object.entries(image.approved ?? {})) {
-      if (typeof value === 'string') {
-        // The earlier shape stored a bare value with no ratifier. Refuse rather
-        // than assume one — an approval whose author is unknown is exactly the
-        // approval you cannot trace when it turns out to be wrong.
+  for (const image of parsed.images as (ExpectedImage & { approved?: unknown })[]) {
+    if (image.approved && Object.keys(image.approved).length > 0) {
+      // The earlier shape kept only the approval in force, so a revocation
+      // erased the fact that anything had been approved. Refuse rather than
+      // migrate: a log reconstructed from current state has no history in it,
+      // which is the whole thing the log is for.
+      throw new Error(
+        `${image.file}: carries an \`approved\` map. Ratification is an append-only log now — ` +
+          're-ratify with `npm run golden:approve` so the acts are recorded.',
+      )
+    }
+    for (const act of image.ratifications ?? []) {
+      if (!act.by || act.by.trim() === '') {
         throw new Error(
-          `${image.file}: approval for "${key}" has no ratifier. Approvals record who ratified ` +
-            'them; re-ratify with `npm run golden:approve`.',
+          `${image.file}: a ratification of "${act.key}" has no author. An approval whose author ` +
+            'is unknown is exactly the approval you cannot trace when it turns out to be wrong.',
         )
       }
     }
@@ -392,14 +459,22 @@ export function formatReport(report: GoldenReport): string {
     lines.push('changed its answer or the expectation was wrong. There is no third possibility,')
     lines.push('and whichever it is, somebody has to look at the photograph.')
     lines.push('')
+    // CLAUDE.md §9, all three guards. The EVIDENCE is the two readings and they
+    // come first. BOTH options are offered and they are the same length to type,
+    // because an alternative that is more work than the top option is not really
+    // offered. And neither is applied for you — a command you have to run cannot
+    // become the default the way a pre-filled box can.
     for (const p of report.pendingRatification) {
       lines.push(`    ${shortName(p.file)} ${p.key}`)
-      lines.push(`      expected "${p.expected}"   read "${p.actual}"`)
-      lines.push(
-        p.expected === p.actual
-          ? `      npm run golden:approve -- ${shortName(p.file)} ${p.key}`
-          : `      npm run golden:approve -- ${shortName(p.file)} ${p.key} --as "${p.actual}"   # if the model is right`,
-      )
+      lines.push(`      the set says   "${p.expected}"`)
+      lines.push(`      the model read "${p.actual}"`)
+      if (p.expected === p.actual) {
+        lines.push(`      npm run golden:approve -- ${shortName(p.file)} ${p.key}`)
+      } else {
+        lines.push(`      keep the set's:  npm run golden:approve -- ${shortName(p.file)} ${p.key}`)
+        lines.push(`      take the model's: npm run golden:approve -- ${shortName(p.file)} ${p.key} --as "${p.actual}"`)
+        lines.push(`      neither:          open the photograph and use --as with what it says`)
+      }
     }
     lines.push('')
   }

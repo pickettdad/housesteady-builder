@@ -50,16 +50,50 @@ export const CLASSIFY_SCHEMA: Record<string, unknown> = {
   },
 }
 
+/**
+ * What the model could see on a field it declined to read.
+ *
+ * CLAUDE.md §9: never summon a human to a blank space. The record abstains; the
+ * prompt does not. Nothing in here is ever stored as a value — it exists so the
+ * person opening the photograph is told *"the third and seventh characters are
+ * under glare; what I can make out is Q1373_5_9, and the barcode line below may
+ * repeat it"* rather than being handed an empty box and a picture.
+ */
+const uncertainty = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['partial', 'obscured', 'lookElsewhere', 'alternatives'],
+  properties: {
+    /** Underscore per unreadable character. Empty when no characters resolved. */
+    partial: { type: 'string' },
+    /** What stopped the read, in one clause a person can act on. */
+    obscured: { type: 'string' },
+    /** Where else on the plate the same value might be readable. */
+    lookElsewhere: { type: 'string' },
+    /**
+     * Only where the variance is real and narrow — a 5-or-S ambiguity.
+     * A list of plausible strings is worse than no list: it makes a wrong
+     * answer look considered.
+     */
+    alternatives: { type: 'array', items: { type: 'string' } },
+  },
+}
+
 export const EXTRACT_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
-  required: ['fields', 'legible', 'notes'],
+  required: ['fields', 'uncertain', 'legible', 'notes'],
   properties: {
     fields: {
       type: 'object',
       additionalProperties: false,
       required: [...NAMEPLATE_FIELDS],
       properties: Object.fromEntries(NAMEPLATE_FIELDS.map((f) => [f, unknownable])),
+    },
+    uncertain: {
+      type: 'object',
+      additionalProperties: false,
+      properties: Object.fromEntries(NAMEPLATE_FIELDS.map((f) => [f, uncertainty])),
     },
     legible: { type: 'boolean' },
     notes: { type: 'string' },
@@ -72,8 +106,22 @@ export interface Classification {
   reason: string
 }
 
+export interface Uncertainty {
+  partial: string
+  obscured: string
+  lookElsewhere: string
+  alternatives: string[]
+}
+
 export interface Extraction {
   fields: Record<NameplateField, string>
+  /**
+   * Per field, what the model could see where it declined to read.
+   *
+   * Never a value and never stored as one. The screen shows it beside the
+   * photograph so the concierge starts from what is known rather than nothing.
+   */
+  uncertain?: Partial<Record<NameplateField, Uncertainty>>
   legible: boolean
   notes: string
 }
@@ -163,7 +211,30 @@ export async function runExtract(db: Db, job: AiJob, deps: TaskDeps): Promise<Ex
   const fields = Object.fromEntries(
     NAMEPLATE_FIELDS.map((f) => [f, isUnknown(output.fields?.[f]) ? 'unknown' : output.fields[f]!.trim()]),
   ) as Record<NameplateField, string>
-  const normalised: Extraction = { fields, legible: output.legible !== false, notes: output.notes ?? '' }
+  // The uncertainty travels; it never becomes a value. Kept only for fields that
+  // actually came back unknown — an uncertainty note beside a value that WAS read
+  // is noise, and worse, it invites a reader to prefer the note over the reading.
+  const uncertain: Partial<Record<NameplateField, Uncertainty>> = {}
+  for (const f of NAMEPLATE_FIELDS) {
+    const u = output.uncertain?.[f]
+    if (!u || fields[f] !== 'unknown') continue
+    const cleaned: Uncertainty = {
+      partial: (u.partial ?? '').trim(),
+      obscured: (u.obscured ?? '').trim(),
+      lookElsewhere: (u.lookElsewhere ?? '').trim(),
+      alternatives: (u.alternatives ?? []).map((a) => a.trim()).filter(Boolean),
+    }
+    if (cleaned.partial || cleaned.obscured || cleaned.lookElsewhere || cleaned.alternatives.length > 0) {
+      uncertain[f] = cleaned
+    }
+  }
+
+  const normalised: Extraction = {
+    fields,
+    uncertain: Object.keys(uncertain).length > 0 ? uncertain : undefined,
+    legible: output.legible !== false,
+    notes: output.notes ?? '',
+  }
 
   const generationId = recordGeneration({
     db, propertyId: job.property_id, visitId: job.visit_id, task: EXTRACT_TASK,

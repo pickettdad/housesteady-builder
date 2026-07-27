@@ -19,8 +19,8 @@ import {
   type Classification, type Extraction, type TaskDeps,
 } from '../src/ai/tasks/nameplate.js'
 import {
-  compareField, compareImage, formatReport, isRatified, loadExpected, ratifiedBy, summarise,
-  type ExpectedImage,
+  compareField, compareImage, contested, formatReport, isRatified, loadExpected, ratifiedBy,
+  summarise, wasEverRatified, type ExpectedImage, type RatificationAct,
 } from '../src/ai/golden.js'
 import { findGeneration } from '../src/ai/accept.js'
 
@@ -86,11 +86,11 @@ function stub(answers: unknown[]): TaskDeps & { asked: RunArgs[] } {
 const CLASSIFY_YES: Classification = { isNameplate: 'yes', orientation: 'upright', reason: 'a ClimateMaster data plate' }
 const CLASSIFY_NO: Classification = { isNameplate: 'no', orientation: 'unknown', reason: 'a brand badge on a green cover' }
 
-/** A ratification, shaped as the approve tool writes it. */
-const ratified = (values: Record<string, string>) =>
-  Object.fromEntries(
-    Object.entries(values).map(([k, v]) => [k, { value: v, by: 'david', at: '2026-07-27T12:00:00.000Z' }]),
-  )
+/** Ratification acts, shaped as the approve tool appends them. */
+const ratified = (values: Record<string, string>, by = 'david'): RatificationAct[] =>
+  Object.entries(values).map(([key, value]) => ({
+    key, act: 'ratify' as const, value, by, at: '2026-07-27T12:00:00.000Z',
+  }))
 
 const extraction = (fields: Partial<Extraction['fields']>, legible = true): Extraction => ({
   fields: {
@@ -205,6 +205,36 @@ describe('extraction records what it read, and what it declined to', () => {
     assert.equal(isAbstention(out), true, 'legible with nothing read is the same outcome by another route')
   })
 
+  // CLAUDE.md §9: never summon a human to a blank space. The record abstains;
+  // the prompt does not.
+  it('carries the partial read across without it ever becoming a value', async () => {
+    const { out } = await runOne({
+      ...extraction({}),
+      uncertain: {
+        serial: {
+          partial: 'Q1373_5_9', obscured: 'third and seventh characters under glare',
+          lookElsewhere: 'the barcode line below may repeat it',
+          alternatives: ['Q13734509', 'Q13734S09'],
+        },
+      },
+    })
+    assert.equal(out.fields.serial, 'unknown', 'nothing false enters the data')
+    assert.equal(out.uncertain?.serial?.partial, 'Q1373_5_9', 'and nobody starts from zero')
+    assert.equal(out.uncertain?.serial?.lookElsewhere, 'the barcode line below may repeat it')
+    assert.deepEqual(out.uncertain?.serial?.alternatives, ['Q13734509', 'Q13734S09'])
+  })
+
+  it('drops an uncertainty note for a field it actually read', async () => {
+    // A note beside a value that was read is noise, and worse: it invites a
+    // reader to prefer the note over the reading.
+    const { out } = await runOne({
+      ...extraction({ serial: 'Q13734509' }),
+      uncertain: { serial: { partial: 'Q1373_5_9', obscured: 'glare', lookElsewhere: '', alternatives: [] } },
+    })
+    assert.equal(out.fields.serial, 'Q13734509')
+    assert.equal(out.uncertain?.serial, undefined)
+  })
+
   it('is not an abstention when any single field was read', async () => {
     const { out } = await runOne(extraction({ serial: 'B10208434' }))
     assert.equal(isAbstention(out), false, 'a half-readable plate is a partial reading, not a refusal')
@@ -258,7 +288,7 @@ describe('the golden set compares against approved values only', () => {
   const entry: ExpectedImage = {
     file: 'images/IMG_0029.jpeg', classification: 'yes', abstains: false, fields,
     // Ratified, so these tests are about regressions rather than about authority.
-    approved: ratified({ classification: 'yes', ...fields }),
+    ratifications: ratified({ classification: 'yes', ...fields }),
   }
 
   it('passes a run that read what was approved and declined the rest', () => {
@@ -304,7 +334,7 @@ describe('the golden set compares against approved values only', () => {
 
   // The rule the owner set: ground truth comes from a human, per value.
   it('lets an unratified difference report itself without gating', () => {
-    const unratified: ExpectedImage = { ...entry, approved: {} }
+    const unratified: ExpectedImage = { ...entry, ratifications: [] }
     const guessed = compareImage(unratified, {
       classification: 'yes', extracted: true, abstained: false,
       fields: { ...fields, model: 'WDBT PC1' },
@@ -317,7 +347,7 @@ describe('the golden set compares against approved values only', () => {
   })
 
   it('gates on a ratified value and not on its unratified neighbour', () => {
-    const half: ExpectedImage = { ...entry, approved: ratified({ serial: '153713' }) }
+    const half: ExpectedImage = { ...entry, ratifications: ratified({ serial: '153713' }) }
     const wrongOnBoth = compareImage(half, {
       classification: 'yes', extracted: true, abstained: false,
       fields: { ...fields, serial: '153714', model: 'WDBT PC1' },
@@ -332,7 +362,7 @@ describe('the golden set compares against approved values only', () => {
     // The failure a boolean would have allowed: approve a serial, let someone
     // change it later, and the approval silently transfers to a value nobody
     // ever looked at.
-    const entryRatified: ExpectedImage = { ...entry, approved: ratified({ serial: '153713' }) }
+    const entryRatified: ExpectedImage = { ...entry, ratifications: ratified({ serial: '153713' }) }
     assert.equal(isRatified(entryRatified, 'serial'), true)
 
     const edited: ExpectedImage = { ...entryRatified, fields: { ...fields, serial: '153714' } }
@@ -344,7 +374,7 @@ describe('the golden set compares against approved values only', () => {
     // The abstentions are the entries that matter most, and they are exactly the
     // ones a lazy design would skip — there is no value to copy, so it would be
     // tempting to treat unknown as needing no approval. It needs it most.
-    const abstaining: ExpectedImage = { ...entry, approved: ratified({ model: 'unknown' }) }
+    const abstaining: ExpectedImage = { ...entry, ratifications: ratified({ model: 'unknown' }) }
     assert.equal(isRatified(abstaining, 'model'), true)
   })
 
@@ -352,7 +382,7 @@ describe('the golden set compares against approved values only', () => {
     const expected = loadExpected()
     assert.equal(expected.images.length, 15)
     for (const image of expected.images) {
-      assert.deepEqual(image.approved ?? {}, {},
+      assert.deepEqual(image.ratifications ?? [], [],
         `${image.file} claims a ratification David has not given`)
     }
     assert.equal(expected.images.filter((i) => i.classification === 'no').length, 1,
@@ -360,7 +390,7 @@ describe('the golden set compares against approved values only', () => {
   })
 
   it('records who ratified a value, so a bad approval can be traced to its review', () => {
-    const e: ExpectedImage = { ...entry, approved: ratified({ serial: '153713' }) }
+    const e: ExpectedImage = { ...entry, ratifications: ratified({ serial: '153713' }) }
     const who = ratifiedBy(e, 'serial')
     assert.equal(who?.by, 'david')
     assert.match(who!.at, /^\d{4}-/)
@@ -371,7 +401,7 @@ describe('the golden set compares against approved values only', () => {
     // "Until they have earned it" needs a trigger. A value that just produced a
     // difference is one somebody must look at now — either the model changed its
     // answer or the expectation was wrong, and there is no third possibility.
-    const unratified: ExpectedImage = { ...entry, approved: {} }
+    const unratified: ExpectedImage = { ...entry, ratifications: [] }
     const report = summarise([
       compareImage(unratified, {
         classification: 'yes', extracted: true, abstained: false,
@@ -386,9 +416,73 @@ describe('the golden set compares against approved values only', () => {
       'a next step nobody can find is not a next step')
   })
 
+  // CLAUDE.md §9. A suggestion done badly is worse than none.
+  it('offers keeping the expectation exactly as easily as taking the model answer', () => {
+    const unratified: ExpectedImage = { ...entry, ratifications: [] }
+    const text = formatReport(
+      summarise([
+        compareImage(unratified, {
+          classification: 'yes', extracted: true, abstained: false,
+          fields: { ...fields, model: 'WDBT PC1' },
+        }),
+      ]),
+    )
+    assert.match(text, /keep the set's:/, 'the alternative has to be present')
+    assert.match(text, /take the model's:/)
+    assert.match(text, /neither:/, '"none of these" is always an option')
+
+    // Evidence before suggestion, physically. The two readings must appear
+    // above the commands, or the task becomes "does that look right".
+    const evidence = text.indexOf('the model read')
+    const command = text.indexOf('golden:approve -- IMG_0029 model')
+    assert.ok(evidence > -1 && evidence < command,
+      'a confident string above the evidence turns reading into rubber-stamping')
+  })
+
+  it('keeps a withdrawn ratification in the log rather than deleting it', () => {
+    // Every golden run between ratifying and revoking validated against that
+    // value, and binders may have shipped on that basis. Removing the approval
+    // would erase the only evidence that a window of false confidence existed.
+    const e: ExpectedImage = {
+      ...entry,
+      ratifications: [
+        { key: 'serial', act: 'ratify', value: '153713', by: 'david', at: '2026-07-27T10:00:00.000Z' },
+        { key: 'serial', act: 'revoke', by: 'david', at: '2026-07-28T10:00:00.000Z', reason: 'misread the 7' },
+      ],
+    }
+    assert.equal(isRatified(e, 'serial'), false, 'it no longer stands')
+    assert.equal(wasEverRatified(e, 'serial'), true, 'but it did, and that window is what needs chasing')
+  })
+
+  it('surfaces a value two people ratified to different answers', () => {
+    // The drift signal. A list of who-has-ratified-how-many is not it: several
+    // reviewers agreeing is a company artifact working.
+    const split: ExpectedImage = {
+      ...entry,
+      ratifications: [
+        { key: 'model', act: 'ratify', value: 'WDBT PC1', by: 'david', at: '2026-07-27T10:00:00.000Z' },
+        { key: 'model', act: 'ratify', value: 'unknown', by: 'sam', at: '2026-08-02T10:00:00.000Z' },
+      ],
+    }
+    const [c] = contested({ version: 1, images: [split] })
+    assert.ok(c, 'two answers for one value is a set quietly forking')
+    assert.deepEqual(c.values, ['WDBT PC1', 'unknown'])
+    assert.deepEqual(c.by, ['david', 'sam'])
+
+    const agreed: ExpectedImage = {
+      ...entry,
+      ratifications: [
+        { key: 'model', act: 'ratify', value: 'unknown', by: 'david', at: '2026-07-27T10:00:00.000Z' },
+        { key: 'model', act: 'ratify', value: 'unknown', by: 'sam', at: '2026-08-02T10:00:00.000Z' },
+      ],
+    }
+    assert.deepEqual(contested({ version: 1, images: [agreed] }), [],
+      'two reviewers agreeing is not drift — it is the thing working')
+  })
+
   it('refuses an approval that has no ratifier, rather than assuming one', () => {
     const root = join(import.meta.dirname, 'fixtures-authorless-golden')
-    assert.throws(() => loadExpected(root), /no ratifier/)
+    assert.throws(() => loadExpected(root), /has no author/)
   })
 
   it('refuses a set that still carries a single flag over everything', () => {

@@ -2,6 +2,7 @@
   "version": 1,
   "images": [
     { "file": "images/x.jpeg", "classification": "yes", "abstains": false,
-      "fields": { "serial": "153713" }, "approved": { "serial": "153713" } }
+      "fields": { "serial": "153713" },
+      "ratifications": [ { "key": "serial", "act": "ratify", "value": "153713", "by": "", "at": "2026-07-27T10:00:00.000Z" } ] }
   ]
 }
