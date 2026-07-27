@@ -126,7 +126,8 @@ export function completePass(
       silent.map(
         (m) =>
           `${m.bytes === 0 || m.bytes === null ? 'An empty recording' : 'A silent recording'}` +
-          ` (${Math.round((m.duration_ms ?? 0) / 1000)}s). Record it again, or keep it and say you know.`,
+          ` in ${m.zone_label ?? 'a room this pass cannot name'}` +
+          ` (${Math.round((m.duration_ms ?? 0) / 1000)}s). Record it again there, or keep it and say you know.`,
       ),
     )
   }

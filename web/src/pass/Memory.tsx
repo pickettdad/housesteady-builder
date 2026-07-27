@@ -65,6 +65,26 @@ function useRecorder() {
 
   useEffect(() => release, [release])
 
+  // The mic check and each room's recorder are separate instances, so without
+  // this the state would read 'unknown' in every room even after permission had
+  // been granted once — which is exactly the ambiguity of showing Record and
+  // "Allow the microphone" side by side.
+  useEffect(() => {
+    const perms = navigator.permissions as
+      | { query?: (d: { name: string }) => Promise<{ state: string }> }
+      | undefined
+    if (!perms?.query) return
+    void perms
+      .query({ name: 'microphone' })
+      .then((status) => {
+        if (status.state === 'granted') setState((s) => (s.permission === 'unknown' ? { ...s, permission: 'granted' } : s))
+        else if (status.state === 'denied') setState((s) => ({ ...s, permission: 'denied' }))
+      })
+      // Firefox does not support querying `microphone`. Staying on 'unknown' is
+      // the honest answer there, and the Allow button is the way through.
+      .catch(() => {})
+  }, [])
+
   /** Ask once. Until this succeeds the record button stays disabled — never a
    *  button that pretends. */
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -213,6 +233,74 @@ export function MicCheck({ done, onDone }: { done: boolean; onDone: () => void }
   )
 }
 
+/**
+ * A stored recording, with a player that actually plays.
+ *
+ * MediaRecorder writes webm with no Duration in the Segment Info header, so a
+ * browser reports `Infinity` for it and the native controls show 0:00 / 0:00
+ * with a scrub bar that cannot be dragged. That matters more here than it
+ * usually would: playback is one of the six assurance steps and hearing the
+ * recording is the strongest verification available, so a player that renders
+ * but cannot seek has quietly removed the best check in the chain.
+ *
+ * Seeking past the end forces the browser to scan the file and work the
+ * duration out; the timeupdate handler puts the position back to zero. Ugly,
+ * and the standard fix for this specific bug.
+ *
+ * The figure printed beside it is OUR measurement, taken while recording. That
+ * one is authoritative regardless of what the container says, and it is what the
+ * backstop reads.
+ */
+function Recording({
+  visitId,
+  audio,
+  onAcknowledge,
+}: {
+  visitId: string
+  audio: MemoryAudio
+  onAcknowledge: (id: string) => void
+}) {
+  const ref = useRef<HTMLAudioElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const onMeta = () => {
+      if (el.duration !== Infinity && !Number.isNaN(el.duration)) return
+      const restore = () => {
+        el.removeEventListener('timeupdate', restore)
+        el.currentTime = 0
+      }
+      el.addEventListener('timeupdate', restore)
+      el.currentTime = 1e101
+    }
+    el.addEventListener('loadedmetadata', onMeta)
+    return () => el.removeEventListener('loadedmetadata', onMeta)
+  }, [audio.id])
+
+  const unresolved = audio.silent && !audio.acknowledgedAt
+  return (
+    <li className={unresolved ? 'silent' : ''}>
+      <audio
+        ref={ref}
+        controls
+        preload="metadata"
+        src={`/api/visits/${visitId}/memory/${audio.id}/audio`}
+      />
+      <span className="hint" style={{ marginTop: 0 }}>
+        {(((audio.durationMs ?? 0) / 1000)).toFixed(1)}s · {audio.bytes} bytes · peak{' '}
+        {((audio.peakLevel ?? 0) * 100).toFixed(0)}%
+        {audio.silent && (audio.acknowledgedAt ? ' · silent, kept knowingly' : ' · silent, not yet acknowledged')}
+      </span>
+      {unresolved && (
+        <button className="link" onClick={() => onAcknowledge(audio.id)}>
+          keep it anyway
+        </button>
+      )}
+    </li>
+  )
+}
+
 /** A moving bar, not a status dot. A flat line has to be visible at a glance. */
 function Meter({ level }: { level: number }) {
   return (
@@ -316,20 +404,41 @@ export function ZoneMemory({
 
   return (
     <div className="memory">
+      {/*
+        One control per state, never two. Record and "Allow the microphone"
+        showing together left it ambiguous whether the microphone was available,
+        and a Record button that is enabled without permission is a button that
+        pretends.
+      */}
       <div className="row">
-        <button onClick={() => void record()} disabled={state.permission === 'denied' || saving}>
-          {state.recording ? 'Stop' : 'Record'}
-        </button>
-        {state.recording && <Meter level={state.level} />}
-        {state.permission === 'unknown' && !state.recording && (
-          <button className="ghost" onClick={() => void requestPermission()}>
-            Allow the microphone
+        {state.permission === 'granted' ? (
+          <button onClick={() => void record()} disabled={saving}>
+            {state.recording ? 'Stop' : 'Record'}
           </button>
+        ) : (
+          <>
+            <button disabled title="The microphone has not been allowed yet">
+              Record
+            </button>
+            {state.permission === 'unknown' && (
+              <button className="ghost" onClick={() => void requestPermission()}>
+                Allow the microphone
+              </button>
+            )}
+          </>
         )}
+        {state.recording && <Meter level={state.level} />}
         <span className="hint" style={{ marginTop: 0 }}>
           Always optional. Nothing here is required to finish the pass.
         </span>
       </div>
+
+      {state.permission === 'denied' && (
+        <p className="error-text">
+          The microphone is not available, so recording is off. Typing what you remember works just as well —
+          the note is the point, not the format.
+        </p>
+      )}
 
       {/* Never a button that pretends: with permission denied, record is off
           and the screen says why rather than failing silently on click. */}
@@ -367,19 +476,7 @@ export function ZoneMemory({
       {zone.memoryAudio.length > 0 && (
         <ul className="recordings">
           {zone.memoryAudio.map((a) => (
-            <li key={a.id} className={a.silent && !a.acknowledgedAt ? 'silent' : ''}>
-              <audio controls preload="none" src={`/api/visits/${visitId}/memory/${a.id}/audio`} />
-              <span className="hint" style={{ marginTop: 0 }}>
-                {Math.round((a.durationMs ?? 0) / 1000)}s · {a.bytes} bytes · peak{' '}
-                {((a.peakLevel ?? 0) * 100).toFixed(0)}%
-                {a.silent && (a.acknowledgedAt ? ' · silent, kept knowingly' : ' · silent, not yet acknowledged')}
-              </span>
-              {a.silent && !a.acknowledgedAt && (
-                <button className="link" onClick={() => void acknowledge(a.id)}>
-                  keep it anyway
-                </button>
-              )}
-            </li>
+            <Recording key={a.id} visitId={visitId} audio={a} onAcknowledge={(id) => void acknowledge(id)} />
           ))}
         </ul>
       )}

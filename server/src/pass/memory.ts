@@ -127,15 +127,32 @@ export const deskMediaPath = (m: DeskMediaRow, root = dataRoot): string =>
  *
  * This is the backstop from §5: the failure it guards against is walking the
  * whole pass and discovering afterwards that the microphone was muted.
+ *
+ * The ROOM comes back with each one, joined through the memory overlay that
+ * introduced it. Without that the refusal says "a silent recording (3s)" and
+ * sends the concierge hunting through nine rooms for it — the same fault as a
+ * bare "not complete", and the same fix as naming the unopened rooms.
  */
-export const unacknowledgedSilent = (db: Db, visitId: string): DeskMediaRow[] =>
+export interface SilentRecording extends DeskMediaRow {
+  zone_id: string | null
+  zone_label: string | null
+}
+
+export const unacknowledgedSilent = (db: Db, visitId: string): SilentRecording[] =>
   db
     .prepare(
-      `SELECT * FROM desk_media
-        WHERE visit_id = ? AND acknowledged_at IS NULL AND (silent = 1 OR bytes IS NULL OR bytes = 0)
-        ORDER BY created_at`,
+      `SELECT d.*, o.target_id AS zone_id, z.label AS zone_label
+         FROM desk_media d
+         LEFT JOIN overlays o
+           ON o.visit_id = d.visit_id AND o.kind = 'memory' AND o.field = 'audio'
+          AND json_extract(o.new_value, '$.deskMediaId') = d.id
+         LEFT JOIN zones z ON z.zone_id = o.target_id AND z.visit_id = d.visit_id
+        WHERE d.visit_id = ? AND d.acknowledged_at IS NULL
+          AND (d.silent = 1 OR d.bytes IS NULL OR d.bytes = 0)
+        GROUP BY d.id
+        ORDER BY d.created_at`,
     )
-    .all(visitId) as DeskMediaRow[]
+    .all(visitId) as SilentRecording[]
 
 /**
  * "I know it is silent, keep it anyway."

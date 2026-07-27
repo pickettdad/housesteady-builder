@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import { runImport } from '../src/import/runImport.js'
@@ -12,7 +12,7 @@ import {
 } from '../src/pass/memory.js'
 import { buildPass } from '../src/pass/read.js'
 import { completePass, openZone, PassRefused, startPass } from '../src/pass/store.js'
-import { freshDb, makePropertyAndVisit, readReference, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir } from './helpers.js'
 
 /**
  * Anchor placement at the desk, and memory capture with its assurance.
@@ -216,6 +216,23 @@ describe('placing an anchor at the desk', () => {
   })
 })
 
+describe('the accidental-placement path', () => {
+  it('cannot place a pin without one being chosen first', () => {
+    // The canvas click handler returns immediately unless a pin has been
+    // selected from the tray, so a stray click on the photograph does nothing.
+    // Pinned here because it is a property of one early return, and an early
+    // return is easy to delete while refactoring.
+    const canvas = readFileSync(join(repoRoot, 'web', 'src', 'pass', 'Canvas.tsx'), 'utf8')
+    const handler = canvas.slice(canvas.indexOf('const clickToPlace'), canvas.indexOf('return (\n    <div className="canvas-wrap"'))
+    assert.match(handler, /if \(!placing\) return/, 'a canvas click with no pin chosen must do nothing')
+
+    // And `placing` is only ever set from the tray, never from the canvas.
+    const setters = [...canvas.matchAll(/setPlacing\(([^)]*)\)/g)].map((m) => m[1]!.trim())
+    const nonNull = setters.filter((v) => v !== 'null')
+    assert.deepEqual(nonNull, ['p'], 'exactly one place chooses a pin: the tray button')
+  })
+})
+
 describe('memory capture', () => {
   const record = (
     db: ReturnType<typeof freshDb>,
@@ -327,11 +344,19 @@ describe('the capture-assurance backstop', () => {
       mime: 'audio/webm', durationMs: 5000, peakLevel: 0.0005, dataDir,
     })
 
-    assert.throws(
-      () => completePass(db, visitId),
-      (e: PassRefused) => e.code === 'pass.silent-recording',
-      'the failure this guards against is finishing the hour and only then noticing',
-    )
+    try {
+      completePass(db, visitId)
+      assert.fail('should have refused')
+    } catch (e) {
+      assert.ok(e instanceof PassRefused)
+      assert.equal(e.code, 'pass.silent-recording')
+      // Named, not merely counted. Otherwise the button fails for a reason
+      // living somewhere else on the page and the concierge has to hunt.
+      assert.ok(
+        e.outstanding[0]!.includes(pass.zones[0]!.label!),
+        `"${e.outstanding[0]}" should name the room it is in`,
+      )
+    }
     db.close()
   })
 

@@ -1,5 +1,9 @@
 # Binder Builder — Increment 2a Build Spec: The Fresh Pass
 
+> **Superseded by** `HouseSteady_Binder-Builder_Increment-2a_Build-Spec_v2_2026-07-27.md`.
+> Retained because it is the version PRs #5 and #6 were built against — it blocked anchor
+> placement at the desk, which v2 reverses. Read v2 for anything current.
+
 **Date:** 2026-07-26
 **Read first:** `CLAUDE.md` · `/docs/HouseSteady_Binder-Builder_Design_v1-1_Amendment_2026-07-26.md` · the Object/Concern Model.
 **Supersedes:** Design v1 §2, which described triage as a task-batched queue rail. That framing is replaced — see §1.
