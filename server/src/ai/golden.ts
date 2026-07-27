@@ -15,11 +15,17 @@
  *    would be measuring agreement between two models, which is not accuracy and
  *    drifts in exactly the same direction as the thing it is meant to catch.
  *
- * 2. UNAPPROVED EXPECTATIONS DO NOT GATE ANYTHING. `expected.json` carries an
- *    `approved` flag. Until a human has ratified the readings, a difference
- *    against them is information, not a regression — reporting it as a failure
+ * 2. UNRATIFIED EXPECTATIONS DO NOT GATE ANYTHING. Every value carries its own
+ *    ratification log. Until a human has ratified a reading, a difference
+ *    against it is information, not a regression — reporting it as a failure
  *    would train everyone to ignore a red result, which is worse than having no
  *    harness at all.
+ *
+ * WHAT IS SHARED AND WHAT IS NOT. The ratification log is task-agnostic and
+ * lives in `ratification.ts`; routing's golden set uses the same log with the
+ * same authors. The comparison below is nameplate-shaped — `classification`,
+ * `fields`, `abstains` — and deliberately stays that way. A comparator
+ * abstracted against one task is an abstraction fitted to a sample of one.
  *
  * THE TWO FAILURE DIRECTIONS ARE NOT EQUAL, so they are never summed. Reading a
  * value the plate does not legibly show is the cardinal error: it gets believed
@@ -32,6 +38,18 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  assertLogIsSound,
+  contested as contestedIn,
+  ratificationView,
+  type Contest,
+  type RatificationAct,
+} from './ratification.js'
+
+// Re-exported so the approve command and the report keep one import for the
+// whole harness. The definitions live next door — see the note above.
+export { appendAct, historyFor, latestAct, wasEverRatified } from './ratification.js'
+export type { Contest, RatificationAct } from './ratification.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const fixturesRoot = process.env.HOUSESTEADY_FIXTURES ?? join(here, '..', '..', '..', 'fixtures')
@@ -61,103 +79,29 @@ export interface ExpectedImage {
   ratifications?: RatificationAct[]
 }
 
-/**
- * One act of ratifying or revoking one value.
- *
- * `value` is a COPY of what was ratified, not a flag. A flag drifts off the
- * thing it approved: ratify a serial, let someone edit that serial later, and
- * the approval silently transfers to a value nobody looked at. Storing the value
- * means ratification lapses by itself the moment the value moves, the same way a
- * prompt's hash stops matching when its text does.
- *
- * `by` is required everywhere. Not for blame — for tracing. If a wrong value
- * turns out to have been ratified, the question that matters next is which
- * review it came through, so the rest of that sitting can be re-checked. That is
- * not reconstructible afterwards.
- */
-export interface RatificationAct {
-  /** A field name, or `classification`. */
-  key: string
-  act: 'ratify' | 'revoke'
-  /** Present on `ratify`. The exact value approved. */
-  value?: string
-  by: string
-  at: string
-  /** Why it was taken back. Worth having when the log is read years later. */
-  reason?: string
-}
-
 export interface ExpectedSet {
   version: number
   images: ExpectedImage[]
   notes?: string[]
 }
 
+/**
+ * What a key says right now on a nameplate entry.
+ *
+ * The one task-shaped function the shared ratification machinery needs: it knows
+ * that a ratification carries a copy of the value it approved, but not that a
+ * nameplate entry keeps its classification beside its fields rather than in
+ * them. Everything else comes back unchanged from `ratificationView`.
+ */
 export const currentValue = (entry: ExpectedImage, key: string): string =>
   key === 'classification' ? entry.classification : (entry.fields[key] ?? 'unknown')
 
-/** Every act touching one value, oldest first. */
-export const historyFor = (entry: ExpectedImage, key: string): RatificationAct[] =>
-  (entry.ratifications ?? []).filter((r) => r.key === key)
+const ratification = ratificationView<ExpectedImage>(currentValue)
+export const isRatified = ratification.isRatified
+export const ratifiedBy = ratification.ratifiedBy
 
-/** The act in force for one value, if any. */
-export const latestAct = (entry: ExpectedImage, key: string): RatificationAct | undefined => {
-  const acts = historyFor(entry, key)
-  return acts[acts.length - 1]
-}
-
-export const isRatified = (entry: ExpectedImage, key: string): boolean => {
-  const act = latestAct(entry, key)
-  return act?.act === 'ratify' && act.value === currentValue(entry, key)
-}
-
-/** Who ratified this value, if it still stands. */
-export const ratifiedBy = (entry: ExpectedImage, key: string): RatificationAct | undefined =>
-  isRatified(entry, key) ? latestAct(entry, key) : undefined
-
-/**
- * Was this value ever ratified, even if it is not now?
- *
- * The question a bad value raises: did anything validate against this while it
- * stood? A revoked ratification still had a window, and that window is what
- * needs chasing.
- */
-export const wasEverRatified = (entry: ExpectedImage, key: string): boolean =>
-  historyFor(entry, key).some((r) => r.act === 'ratify')
-
-export interface Contest {
-  file: string
-  key: string
-  /** Distinct values that have been ratified for this key, oldest first. */
-  values: string[]
-  /** Who ratified each. Two names here is the drift signal. */
-  by: string[]
-}
-
-/**
- * Values that have been ratified more than once, to different answers.
- *
- * This is the drift signal, and a list of who-has-ratified-how-many is not it.
- * Several reviewers agreeing is exactly what a company artifact looks like
- * working. The thing to catch is two reviewers who looked at the same plate and
- * wrote down different values — because that is a set quietly forking, and it
- * fragments accuracy the way the binder voice would fragment without house
- * style. It surfaces as a question for the review role rather than an error:
- * one of them is wrong, or the plate is genuinely ambiguous and the entry needs
- * a note saying so.
- */
-export function contested(set: ExpectedSet): Contest[] {
-  const out: Contest[] = []
-  for (const entry of set.images) {
-    const keys = new Set((entry.ratifications ?? []).map((r) => r.key))
-    for (const key of keys) {
-      const ratifies = historyFor(entry, key).filter((r) => r.act === 'ratify')
-      const values = [...new Set(ratifies.map((r) => r.value ?? ''))]
-      if (values.length > 1) out.push({ file: entry.file, key, values, by: ratifies.map((r) => r.by) })
-    }
-  }
-  return out
-}
+/** The drift signal, across the whole set. See `ratification.ts` for what it means. */
+export const contested = (set: ExpectedSet): Contest[] => contestedIn(set.images)
 
 export function loadExpected(root = fixturesRoot): ExpectedSet {
   const raw = readFileSync(join(root, 'nameplates', 'expected.json'), 'utf8')
@@ -166,24 +110,7 @@ export function loadExpected(root = fixturesRoot): ExpectedSet {
     throw new Error('expected.json has no images array — the golden set cannot run against nothing.')
   }
   for (const image of parsed.images as (ExpectedImage & { approved?: unknown })[]) {
-    if (image.approved && Object.keys(image.approved).length > 0) {
-      // The earlier shape kept only the approval in force, so a revocation
-      // erased the fact that anything had been approved. Refuse rather than
-      // migrate: a log reconstructed from current state has no history in it,
-      // which is the whole thing the log is for.
-      throw new Error(
-        `${image.file}: carries an \`approved\` map. Ratification is an append-only log now — ` +
-          're-ratify with `npm run golden:approve` so the acts are recorded.',
-      )
-    }
-    for (const act of image.ratifications ?? []) {
-      if (!act.by || act.by.trim() === '') {
-        throw new Error(
-          `${image.file}: a ratification of "${act.key}" has no author. An approval whose author ` +
-            'is unknown is exactly the approval you cannot trace when it turns out to be wrong.',
-        )
-      }
-    }
+    assertLogIsSound(image)
   }
   if (typeof parsed.approved === 'boolean') {
     // A single flag over the whole set is the thing this design removed. Refuse

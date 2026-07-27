@@ -1,7 +1,21 @@
 # /prompts — versioned prompt config
 
-**No prompts yet.** Increment 1 contains no AI logic. This directory and the empty
-`ai_generations` table exist so the shape is settled before Increment 2 writes to it.
+Each task is a directory; each version is `vNNN.md` inside it. **Identity comes from the
+path** — the directory names the task, the filename names the version, and nothing is
+declared inside the file, so the two can never disagree. The hash is of the whole file's
+bytes, so even a whitespace edit produces a version the golden set has not been approved
+against.
+
+| Task | What it does | Tier |
+|---|---|---|
+| `nameplate_classify` | Is this photograph a data plate? Gates extraction. | fast |
+| `nameplate_extract` | Make · model · serial · capacity · install date, each independently `unknown`. | fast |
+| `photo_routing` | Does this room photograph belong to a pin in that room? Usually not. | fast |
+| `pin_type` | Which of the config's component types is this untyped pin? | fast |
+
+**Wording lives here; per-call data does not.** The candidate pins for a room and the
+component types for an import are sent as their own block beside the prompt, never
+templated into it — a hash that changed on every call would identify nothing.
 
 ## The rules, which are not negotiable
 
@@ -22,13 +36,23 @@ Artifacts produced by v1 must remain traceable to v1's exact text.
 **A golden set gates prompt changes.** Before a prompt change ships, it runs against a
 fixed collection of real inputs with approved outputs, and the differences are reviewed.
 Without this, a prompt edit silently changes the voice of every binder produced afterwards
-and nobody notices for months. This lands with Increment 4, before the first client-facing
-AI-drafted words.
+and nobody notices for months. Built in 2b, ahead of the plan, because it costs almost
+nothing to maintain and everything to retrofit: `/fixtures/nameplates` and
+`npm run golden`. Only ratified expectations gate; an unratified difference summons
+somebody to look at it.
 
-**Abstention is a success, not an error.** Every extraction prompt must ask, in plain
-words, for `unknown` rather than a plausible guess. `abstained = 1` is a valid outcome. A
-wrong serial number is worse than a blank one — the blank gets chased, the wrong one gets
-believed.
+**Abstention is a success, not an error.** Every prompt here must say, in plain words,
+that declining is a complete answer — `unknown` for a field, an empty candidate list for a
+ranked one. `abstained = 1` is a valid outcome. A wrong serial number is worse than a
+blank one, and a photograph filed against the wrong pin is worse than one left in the
+room: the blank gets chased, and the wrong one gets believed.
+
+**Declining is not the same as saying nothing.** CLAUDE.md §9 — never summon a human to a
+blank space. The record abstains; the prompt does not. Every one of these asks for what
+the model *could* see beside the value it would not commit to, and that evidence is shown
+next to the photograph rather than stored as a reading. The twin rule matters as much:
+uncertainty is reported only where uncertainty exists, or a hedge beside a confident value
+teaches people to distrust the confident ones.
 
 ## Why this discipline
 

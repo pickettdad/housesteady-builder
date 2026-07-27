@@ -93,9 +93,64 @@ export function acceptProposal(args: AcceptArgs): Acceptance {
     reason: 'read from the photo, accepted at the desk',
   })
 
-  // The store already resolved what was proposed, so compare against the row it
-  // wrote rather than re-deriving it. Two derivations of the same fact is one
-  // more place for them to disagree.
+  return settle(db, generationId, overlay)
+}
+
+export interface RouteAcceptArgs {
+  db: Db
+  propertyId: string
+  visitId: string
+  generationId: string
+  /** The loose photograph. */
+  mediaId: string
+  /** The pin the concierge chose — not necessarily the one that was offered. */
+  pinId: string
+  actor?: string
+}
+
+/**
+ * Attach a loose photograph to a pin, in answer to a routing suggestion.
+ *
+ * An ORDINARY ASSIGNMENT, not a new kind. A photograph on pin 4 is one fact
+ * whether somebody dragged it there or agreed with a suggestion, and it has to
+ * read as one state in the workbench, one pip in the table of contents and one
+ * row in the report. What the generation adds is provenance: which proposal was
+ * answered, and — through the overlay's two value columns — whether the pin
+ * chosen is the pin offered.
+ *
+ * Choosing a candidate further down the list lands here as `edited`, which is
+ * right: the model was not wrong, but it was not leading with the answer either,
+ * and the golden set's verdicts tell those two apart.
+ */
+export function acceptRoute(args: RouteAcceptArgs): Acceptance {
+  const overlay = writeOverlay({
+    db: args.db,
+    propertyId: args.propertyId,
+    visitId: args.visitId,
+    kind: 'assign',
+    targetKind: 'media',
+    targetId: args.mediaId,
+    newValue: { toKind: 'pin', toId: args.pinId },
+    generationId: args.generationId,
+    actor: args.actor ?? 'concierge',
+    actorContext: 'desk',
+    reason: 'suggested from the photo, attached at the desk',
+  })
+
+  return settle(args.db, args.generationId, overlay)
+}
+
+/**
+ * Record what the human did with a proposal.
+ *
+ * There is no separate "edit" act. Editing is accepting a different value, and
+ * modelling it as two things would mean the accuracy record depended on which
+ * button somebody happened to press rather than on whether the value changed.
+ * The diff decides, so it cannot be got wrong — and it is read off the row the
+ * store wrote rather than re-derived here, because two derivations of one fact
+ * is one more place for them to disagree.
+ */
+function settle(db: Db, generationId: string, overlay: Overlay): Acceptance {
   const asIs = JSON.stringify(overlay.priorValue ?? null) === JSON.stringify(overlay.newValue ?? null)
   const decision: 'accepted' | 'edited' = asIs ? 'accepted' : 'edited'
 
@@ -134,12 +189,18 @@ export function discardProposal(db: Db, generationId: string, note?: string): Ge
  * to stay true to what is actually the case.
  *
  * The trail keeps the history. Only the current-state field moves.
+ *
+ * The gate is "does this act answer a proposal", not "is this act an accept" —
+ * a routing suggestion is answered by an assignment, and withdrawing one has to
+ * put its generation back in front of a person exactly as withdrawing an
+ * acceptance does. An assignment made by hand carries no generation and is
+ * undone through the ordinary undo route.
  */
 export function withdrawAcceptance(db: Db, overlayId: string, reason?: string): Overlay {
   const target = readOne(db, overlayId)
   if (!target) throw new OverlayRefused('That acceptance is not in the record.', 'overlay.undo-unknown')
-  if (target.kind !== 'accept') {
-    throw new OverlayRefused('That is not an acceptance.', 'overlay.undo-not-accept')
+  if (!target.generationId) {
+    throw new OverlayRefused('That act did not answer a proposal.', 'overlay.undo-not-accept')
   }
 
   const undo = writeOverlay({
