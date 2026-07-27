@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { go } from '../App.js'
 import { api, type DecisionItem, type PassModel, type PassZone } from '../api.js'
-import { ZoneCanvas } from './Canvas.js'
+import { ZoneCanvas, type DeskPlacement } from './Canvas.js'
 import { DecisionRow, PhotoTileView, type ActHandlers } from './Decisions.js'
+import { MicCheck, ZoneMemory } from './Memory.js'
 
 /**
  * The fresh pass.
@@ -29,6 +30,9 @@ export function PassView({ visitId }: { visitId: string }) {
   const [cursor, setCursor] = useState(0)
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null)
   const [completion, setCompletion] = useState<string[] | null>(null)
+  const [completionCode, setCompletionCode] = useState<string | null>(null)
+  // Once per pass, before the first room — see MicCheck.
+  const [micChecked, setMicChecked] = useState(false)
   const openedZones = useRef<Set<string>>(new Set())
 
   const load = useCallback(
@@ -101,6 +105,16 @@ export function PassView({ visitId }: { visitId: string }) {
     }),
     [run, visitId],
   )
+
+  /** Desk placements for the current room, keyed by pin. */
+  const deskPlacements = useMemo(() => {
+    const out = new Map<string, DeskPlacement>()
+    for (const pin of zone?.pins ?? []) {
+      const d = pin.deskPlacement
+      if (d) out.set(pin.pinId, { pinId: pin.pinId, ...d })
+    }
+    return out
+  }, [zone])
 
   const nextZone = useCallback(() => {
     if (!model) return
@@ -177,8 +191,11 @@ export function PassView({ visitId }: { visitId: string }) {
         await load()
       } catch (e) {
         const outstanding = (e as unknown as { outstanding?: string[] }).outstanding
-        if (outstanding?.length) setCompletion(outstanding)
-        else setError((e as Error).message)
+        const code = (e as unknown as { code?: string }).code ?? null
+        if (outstanding?.length) {
+          setCompletion(outstanding)
+          setCompletionCode(code)
+        } else setError((e as Error).message)
       }
     })()
 
@@ -231,7 +248,31 @@ export function PassView({ visitId }: { visitId: string }) {
 
       {error && <div className="banner failed"><div className="detail">{error}</div></div>}
 
-      {completion && (
+      {/*
+        Two different refusals, deliberately handled differently.
+        A silent recording is NOT forceable — the exit is one click (re-record
+        or acknowledge), and forcing past it would delete the only thing
+        standing between the concierge and an hour of recordings of nothing.
+        Open decisions ARE forceable, because a lock people route around is
+        worse than a recorded decision.
+      */}
+      {completion && completionCode === 'pass.silent-recording' && (
+        <div className="banner failed">
+          <div className="status">A memory recording came out silent</div>
+          <ul>{completion.map((o) => <li key={o}>{o}</li>)}</ul>
+          <div className="detail">
+            Fix it in the room it belongs to — record again, or keep it and say you know. This one is not
+            skippable: it is the whole reason the microphone is checked at all.
+          </div>
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="ghost" onClick={() => { setCompletion(null); setCompletionCode(null) }}>
+              Go and fix it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {completion && completionCode !== 'pass.silent-recording' && (
         <div className="banner warn">
           <div className="status">{completion.join(' · ')} — complete anyway?</div>
           <div className="detail">
@@ -240,7 +281,9 @@ export function PassView({ visitId }: { visitId: string }) {
           </div>
           <div className="row" style={{ marginTop: 10 }}>
             <button onClick={() => complete(true)}>Complete anyway</button>
-            <button className="ghost" onClick={() => setCompletion(null)}>Keep working</button>
+            <button className="ghost" onClick={() => { setCompletion(null); setCompletionCode(null) }}>
+              Keep working
+            </button>
           </div>
         </div>
       )}
@@ -275,6 +318,8 @@ export function PassView({ visitId }: { visitId: string }) {
           ) : null}
         </div>
       )}
+
+      <MicCheck done={micChecked} onDone={() => setMicChecked(true)} />
 
       <div className="pass">
         <nav className="rail">
@@ -341,7 +386,12 @@ export function PassView({ visitId }: { visitId: string }) {
 
               <ZoneCanvas
                 visitId={visitId} zone={zone} deskFlaggedPinIds={deskFlaggedPinIds}
+                deskPlacements={deskPlacements}
                 selectedPinId={selectedPinId} onPick={setSelectedPinId}
+                onPlace={(pinId, canvasId, x, y, evidence) =>
+                  void run(() => api.place(visitId, pinId, { canvasId, x, y, evidence }))
+                }
+                onUndo={(overlayId) => void run(() => api.undo(visitId, overlayId))}
               />
 
               <h4>Needs a decision here</h4>
@@ -387,10 +437,7 @@ export function PassView({ visitId }: { visitId: string }) {
                 make it trustworthy. Saying so beats a silent gap.
               */}
               <h4>What do you remember about this room?</h4>
-              <p className="muted">
-                Memory capture, and the microphone checks that make it trustworthy, arrive in the next part of
-                this increment.
-              </p>
+              <ZoneMemory visitId={visitId} zone={zone} onSaved={load} />
             </>
           ) : null}
         </main>

@@ -8,6 +8,12 @@ import { buildReport } from './import/report.js'
 import { ImportRefused, runImport } from './import/runImport.js'
 import { resolveState } from './overlay/model.js'
 import { latestLiveDecision, OverlayRefused, readVisitOverlays, writeOverlay } from './overlay/store.js'
+import {
+  acknowledgeDeskMedia,
+  deskMediaPath,
+  findDeskMedia,
+  saveMemoryAudio,
+} from './pass/memory.js'
 import { buildPass, orderedZoneIds } from './pass/read.js'
 import { completePass, openZone, PassRefused, reopenIfCompleted, reopenPass, startPass } from './pass/store.js'
 import {
@@ -333,6 +339,103 @@ app.post('/api/visits/:id/pass/reopen', (req, res) => {
     if (e instanceof PassRefused) return res.status(422).json({ error: e.message, code: e.code })
     throw e
   }
+})
+
+// ------------------------------------------------------------------ memory
+//
+// What the concierge remembers about a room, recorded at the desk. Spec §4-5.
+// The audio is the evidence; transcription is 2b and never replaces it.
+
+app.post('/api/visits/:id/memory/audio', upload.single('audio'), (req, res) => {
+  const visit = visitOr404(String(req.params.id), res)
+  const file = req.file
+  if (!visit) {
+    if (file) rmSync(file.path, { force: true })
+    return
+  }
+  if (!file) return res.status(400).json({ error: 'No recording arrived.' })
+
+  const zoneId = String(req.body?.zoneId ?? '')
+  if (!zoneId) {
+    rmSync(file.path, { force: true })
+    return res.status(400).json({ error: 'A recording belongs to a room.' })
+  }
+
+  try {
+    const num = (v: unknown): number | null => {
+      const n = Number(v)
+      return Number.isFinite(n) ? n : null
+    }
+    const { media } = saveMemoryAudio({
+      db,
+      propertyId: visit.property_id,
+      visitId: visit.id,
+      zoneId,
+      tempPath: file.path,
+      mime: file.mimetype ?? null,
+      durationMs: num(req.body?.durationMs),
+      // Measured in the browser while recording. A muted microphone yields a
+      // file of the right length full of near-silence, so length alone cannot
+      // catch it — this number is what can.
+      peakLevel: num(req.body?.peakLevel),
+    })
+    reopenIfCompleted(db, visit.id)
+    res.status(201).json({
+      id: media.id,
+      durationMs: media.duration_ms,
+      bytes: media.bytes,
+      peakLevel: media.peak_level,
+      silent: media.silent === 1,
+    })
+  } catch (e) {
+    rmSync(file.path, { force: true })
+    console.error(e)
+    res.status(500).json({ error: (e as Error).message })
+  }
+})
+
+/** Typed recall, for when speaking aloud is not on. Same overlay, other field. */
+app.post('/api/visits/:id/memory/text', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+  const zoneId = String(req.body?.zoneId ?? '')
+  const text = String(req.body?.text ?? '').trim()
+  if (!zoneId || !text) return res.status(400).json({ error: 'A note needs a room and some words.' })
+
+  try {
+    const overlay = writeOverlay({
+      db, propertyId: visit.property_id, visitId: visit.id,
+      kind: 'memory', targetKind: 'zone', targetId: zoneId, field: 'text',
+      newValue: { text },
+      // The provenance, verbatim from spec §4. The honesty label stays
+      // Observed — the concierge did see the room; this says when it was
+      // written down, which is the honest distinction.
+      reason: 'human-entered, desk, from recall',
+    })
+    reopenIfCompleted(db, visit.id)
+    res.status(201).json(overlay)
+  } catch (e) {
+    if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
+    throw e
+  }
+})
+
+/** "I know it is silent, keep it." A recorded act, never an assumption. */
+app.post('/api/visits/:id/memory/:mediaId/acknowledge', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+  const media = findDeskMedia(db, req.params.mediaId)
+  if (!media || media.visit_id !== visit.id) return res.status(404).json({ error: 'No such recording.' })
+  res.json(acknowledgeDeskMedia(db, media.id))
+})
+
+app.get('/api/visits/:id/memory/:mediaId/audio', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+  const media = findDeskMedia(db, req.params.mediaId)
+  if (!media || media.visit_id !== visit.id) return res.status(404).json({ error: 'No such recording.' })
+  res.setHeader('Content-Type', media.mime ?? 'audio/webm')
+  res.sendFile(deskMediaPath(media))
 })
 
 // ------------------------------------------------------------------- media
