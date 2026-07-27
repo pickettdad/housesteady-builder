@@ -243,8 +243,15 @@ export function PassView({ visitId }: { visitId: string }) {
             today than it will be on Friday.
           </p>
         </div>
-        <Progress model={model} onComplete={() => complete(false)} onReopen={reopen} />
       </div>
+
+      {/*
+        Sticky, and a sibling of the page rather than a child of the header —
+        inside a flex row it had no containing block tall enough to move within,
+        so it simply scrolled away. On a fifteen-decision room that took the
+        counts and the complete button off screen for the whole zone.
+      */}
+      <Progress model={model} onComplete={() => complete(false)} onReopen={reopen} />
 
       {error && <div className="banner failed"><div className="detail">{error}</div></div>}
 
@@ -499,6 +506,26 @@ function Progress({
   onComplete: () => void
   onReopen: () => void
 }) {
+  /**
+   * Publish this card's height so the rail can clear it.
+   *
+   * A hardcoded clearance was wrong the first time — the card is taller than it
+   * looks, and taller again when the keyboard-hints line wraps on a narrow
+   * window. Measuring means the rail sits just below it at every width instead
+   * of sliding underneath at some of them.
+   */
+  const cardRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+    const publish = () =>
+      document.documentElement.style.setProperty('--progress-h', `${Math.ceil(el.getBoundingClientRect().height)}px`)
+    publish()
+    const ro = new ResizeObserver(publish)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const p = model.progress
   const started = model.pass?.startedAt
   const [now, setNow] = useState(() => Date.now())
@@ -509,7 +536,7 @@ function Progress({
   const minutes = started ? Math.max(0, Math.round((now - new Date(started).getTime()) / 60_000)) : 0
 
   return (
-    <div className="progress card">
+    <div className="progress card" ref={cardRef}>
       <div className="stat">
         <strong>{p.zonesWalked}/{p.zonesTotal}</strong>
         <span>rooms walked</span>
