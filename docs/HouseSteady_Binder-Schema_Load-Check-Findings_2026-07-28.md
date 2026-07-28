@@ -83,3 +83,33 @@ Harmless to evaluate and obviously remapping scars: two distinct original flags 
 This check compares the *data* against the *declared vocabulary*, and finding 1 is what it caught. It would **not** have caught the defect the field session found — three attribute ids corrupted identically in the ids and in every reference — because a uniform transformation leaves everything agreeing with everything. That still requires validating against the field master itself, which is why finding 1's first option is the better one: it puts the check where the authority is.
 
 **Status:** four findings, none of them builder work. Routed to the schema session. Increment 3 remains not started.
+
+---
+
+## Addendum — re-run against the corrected files (2026-07-28, later)
+
+Both findings landed. **Nothing used is undeclared** across either file: 17 `property.*`, 14 `house.*`, 2 `zone.*`, 2 `answer.*` in the schedule, 9 `pin.*` in the binder schema. **All eleven items are re-conditioned** — the v1.5.1 "no flag exists" note is gone from the file entirely. `vocabularyCrossCheckRule` now states a rule that can actually be executed.
+
+Three small things survive, none worth blocking on.
+
+**1 · B5 is three items, not two.** `house.leak-sensor` and `house.humidifier` were routed to the field session; `house.dehumidifier` is the same case and was not. It is used by `wk.dehumidifier` and — unlike the other two — carries **no `undeclaredType` note**, so nothing in the file records that it fires nowhere.
+
+| Item | Condition | Carries the note? |
+|---|---|---|
+| `pro.leak-sensors` | `house.leak-sensor` | yes |
+| `fa.humidifier-pad` | `house.humidifier` | yes |
+| **`wk.dehumidifier`** | **`house.dehumidifier`** | **no** |
+
+All three are owner-visible equipment a concierge could plausibly pin. Worth going to the field session together.
+
+**2 · Two conditions still carry a repeated operand.** `any(house.heat-pump, house.heat-pump)` on `sp.ac-service` and `su.cooling`, and `any(property.solar, property.solar)` on `tr.solar-inverter`. Remapping scars — two original flags each resolving to one target. Harmless to evaluate; worth collapsing so the next reader does not hunt for a difference between the operands.
+
+**3 · `property.municipal_sewer` is declared and never used.** Plausibly the deliberate complement of `property.septic`, kept for symmetry. Worth a note saying so, or removing.
+
+### How finding 1 was reached, and why it is a hint rather than a check
+
+`house.*` and `pin.*` names were compared against the component types declared in the **reference export's own config snapshot** — the only real config in this repo, and **two versions stale at 48 types**. That produces false positives, and it produced two: `house.septic-alarm` and `pin.septic-alarm` are absent from the stale list because `septic-alarm` was *added in v1.5* closing G5, which the binder schema's own note records. Both are correct today.
+
+So this cannot be a gate, and Increment 3's loader must not implement it as one against the material now in the repo. **The check the `vocabularyCrossCheckRule` describes — `house.*` and `pin.*` must name a declared component type — needs the v1.6.2 component list, and nothing in this repo carries it.** That is the same gap B3 names: a fresh export carrying the current config. Until it arrives, this check informs a conversation and cannot fail a build.
+
+**Status:** three follow-ups, all content. Still no builder work. Increment 3 remains not started.
