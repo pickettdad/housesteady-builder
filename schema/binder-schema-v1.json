@@ -1245,5 +1245,5 @@
    "pin.water-treatment"
   ]
  },
- "vocabularyCrossCheckRule": "Every trigger referenced must appear in `triggerVocabulary` under its own namespace, and `property.*` must match Checklist Master Table A exactly. `house.*` and `pin.*` must name a declared component type; `zone.*` a Table B attribute. **Validate against the master's declared vocabulary, not only internal consistency** \u2014 a transformation applied uniformly to ids and to every reference leaves everything agreeing with everything and everything wrong."
+ "vocabularyCrossCheckRule": "Every trigger referenced must appear in `triggerVocabulary` under its own namespace, and `property.*` must match Checklist Master Table A exactly. `house.*` and `pin.*` must name a declared component type; `zone.*` a Table B attribute. **Validate against the master's declared vocabulary, not only internal consistency** \u2014 a transformation applied uniformly to ids and to every reference leaves everything agreeing with everything and everything wrong. **Every trigger used must be declared; a declared flag need not be used. The component-type half is evaluated per import against that import's own config snapshot \u2014 never against a checked-in copy, which goes stale and produces false positives. Fail open on an unrecognised name.**"
 }

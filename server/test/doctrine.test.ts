@@ -672,3 +672,33 @@ describe('doctrine 14 — a committed fixture never carries a location', () => {
     )
   })
 })
+
+describe('doctrine — the checklist master is reference, never an input', () => {
+  /**
+   * `/docs/reference/` holds the field app's Checklist Master. It is here so a
+   * person authoring the schema can check a name against the authority, and so
+   * the cross-check in the findings note can be run by hand. **Nothing in the
+   * builder may parse it at runtime**, and the reason is the self-contained
+   * doctrine: every import carries its own config snapshot, so component-name
+   * validation happens per import against that import's snapshot and fails open.
+   *
+   * A checked-in master would be a second authority that goes stale between
+   * field releases and produces confident wrong answers — which is not
+   * hypothetical. Running that check by hand against a two-versions-stale
+   * config produced two false positives in one sitting, because `septic-alarm`
+   * was absent from the 48-type list only by being newer than it.
+   */
+  it('is not read by any code path', () => {
+    const offenders = sourceFiles(serverSrc)
+      .concat(sourceFiles(join(repoRoot, 'web', 'src')))
+      .filter((f) => /docs\/reference|Checklist-Master/i.test(codeOf(f)))
+      .map((f) => f.replace(repoRoot, ''))
+    assert.deepEqual(offenders, [],
+      'the master is authoring reference; the runtime authority is each import\'s own config snapshot')
+  })
+
+  it('is present, so the cross-check can be run by hand', () => {
+    const master = join(repoRoot, 'docs', 'reference', 'HouseSteady_Checklist-Master_v1-6-2.md')
+    assert.ok(statSync(master).isFile(), 'the authority the schema files are reconciled against')
+  })
+})
