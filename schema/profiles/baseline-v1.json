@@ -1,0 +1,59 @@
+{
+  "profileId": "baseline-v1",
+  "version": "1.0.0",
+  "date": "2026-07-27",
+  "appliesTo": "visit.kind = baseline",
+  "schemaVersion": "1.0.0",
+  "sourceDocument": "HouseSteady_Binder_Baseline-Profile-and-Effort-Map_v1_2026-07-27",
+  "note": "Which slots the audit reports a gap against. The vocabulary is the schema; this file is the promise. It changes for business reasons, not technical ones, and is versioned separately for that reason. Derived from Master Spec Appendix III's end-of-month-one package.",
+
+  "required": [
+    "s1.shutoff-map", "s1.response-procedures", "s1.emergency-contacts",
+    "s2.property-summary", "s2.top-items", "s2.tests-in-flight", "s2.services-due", "s2.missing-records", "s2.next-review",
+    "s4.profile",
+    "s5.index",
+    "s6.profile",
+    "s7.components",
+    "s10.findings", "s10.concerns",
+    "s11.warranties", "s11.lifespans",
+    "s12.alarms", "s12.egress", "s12.other",
+    "s13.tests",
+    "s15.default-schedule", "s15.custom-schedule", "s15.owner-pro-split", "s15.both-realities",
+    "s17.directory",
+    "s19.replacement-windows", "s19.reserve-figure"
+  ],
+
+  "presentWhenPopulated": [
+    "s3.calendar",
+    "s8.quirks",
+    "s9.consumables", "s9.finishes",
+    "s14.requirements",
+    "s16.procedures",
+    "s22.review"
+  ],
+
+  "outOfScope": [
+    "s4.site-plan",
+    "s4.regulatory-overlay",
+    "s18.projects",
+    "s20.readings",
+    "s21.programs",
+    "s23.package"
+  ],
+
+  "notes": {
+    "s4.site-plan": "Out of scope only because exterior and site zones are not yet capturable. Moves to required once the field app exercises them — this is a capability gap, not a scope decision.",
+    "s8.quirks": "kind = narrative. Can never be complete and never appears in a gap report regardless of profile.",
+    "s14.requirements": "Needs the policy declarations page. Present when the document arrives.",
+    "s19.replacement-windows": "Required, but depends on install dates. Serial decoding is therefore a dependency of a promised deliverable, not enrichment.",
+    "s18.projects": "Concerns later in their life. Arrives with the concern register (Increment 5, gated on manifest v4)."
+  },
+
+  "effortMap": {
+    "note": "Effort classes from the Baseline Profile & Effort Map. The hour figures are the mock run's output and belong to the owner; they are deliberately absent here.",
+    "classA_mechanical": ["s1", "s2", "s3", "s5", "s12", "s17"],
+    "classB_rulesGenerated": ["s11", "s13", "s15", "s19.replacement-windows"],
+    "classC_aiDraftsHumanSigns": ["s7.components", "s8", "s10", "s14"],
+    "classD_irreduciblyHuman": ["s2.top-items ordering", "s19.reserve-figure", "client conversation and handover"]
+  }
+}

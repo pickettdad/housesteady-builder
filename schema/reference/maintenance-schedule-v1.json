@@ -1,0 +1,2196 @@
+{
+ "schemaId": "maintenance-schedule",
+ "version": "1.2.0",
+ "date": "2026-07-27",
+ "sourceDocument": "HouseSteady_Home-Binder_Master-Spec_v1_2026-07-20 \u00a715",
+ "note": "The checklist library as data. Every item carries appliesWhen; there is no separate 'trigger adds' list \u2014 the custom property schedule is simply every item whose condition evaluates true. Evaluated by the SAME trigger evaluator the binder schema uses (Increment 3). Rules, not AI.",
+ "cadences": [
+  "weekly",
+  "monthly",
+  "quarterly",
+  "spring",
+  "summer",
+  "fall",
+  "winter",
+  "annual",
+  "multi-year",
+  "event"
+ ],
+ "audiences": {
+  "owner": "The realistic DIY list",
+  "pro": "The professional-grade standard"
+ },
+ "audienceRule": "defaultAudience here; the DIY/Pro split is set per household with the owner and stored as a per-property override, never edited in this file.",
+ "overrideRule": "Manufacturer instructions, specialist advice, insurer requirements, and actual condition override generic intervals. Overrides are per-property, carry a reason and a source, and never edit this file.",
+ "bothRealitiesRule": "The owner list and the professional list render together, clearly labelled. The gap between them speaks for itself (Master Spec design principle 7).",
+ "completionRecord": [
+  "date",
+  "who",
+  "evidence"
+ ],
+ "cautionRule": "A caution is the identification-never-assessment line living inside a checklist item. It renders with the item and is never dropped.",
+ "onFindingRule": "An item marked create-concern does not merely complete \u2014 a finding it produces is promoted to a tracked concern.",
+ "flagVocabularyRule": "This list is the SHARED property-flag vocabulary for both this file and binder-schema-v1.json. They are evaluated by one evaluator, so a flag used in either must be declared here. A cross-check on load enforces it.",
+ "propertyTriggers": [
+  {
+   "id": "property.municipal_water",
+   "label": "Municipal water"
+  },
+  {
+   "id": "property.well",
+   "label": "Private well"
+  },
+  {
+   "id": "property.municipal_sewer",
+   "label": "Municipal sewer"
+  },
+  {
+   "id": "property.septic",
+   "label": "Septic system"
+  },
+  {
+   "id": "property.gas",
+   "label": "Natural gas service"
+  },
+  {
+   "id": "property.propane",
+   "label": "Propane on property"
+  },
+  {
+   "id": "property.oil",
+   "label": "Oil on property"
+  },
+  {
+   "id": "property.wood_heat",
+   "label": "Wood-burning appliance"
+  },
+  {
+   "id": "property.pool",
+   "label": "Pool or hot tub"
+  },
+  {
+   "id": "property.generator",
+   "label": "Generator"
+  },
+  {
+   "id": "property.waterfront",
+   "label": "Waterfront/shoreline"
+  },
+  {
+   "id": "property.pre_1990",
+   "label": "Built before ~1990"
+  },
+  {
+   "id": "property.solar",
+   "label": "Solar/battery"
+  },
+  {
+   "id": "property.ev",
+   "label": "EV charging"
+  },
+  {
+   "id": "property.seasonal_vacancy",
+   "label": "Seasonal or periodically vacant"
+  },
+  {
+   "id": "property.secondary_suite",
+   "label": "Secondary suite / in-law / rental unit"
+  },
+  {
+   "id": "property.flat_roof",
+   "label": "Flat or low-slope roof section"
+  }
+ ],
+ "items": [
+  {
+   "id": "wk.senses",
+   "text": "Eyes-ears-nose pass \u2014 new stains, drips, odours, or equipment sounds",
+   "cadence": "weekly",
+   "audience": [
+    "owner"
+   ],
+   "category": "general",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wk.sump-alarms",
+   "text": "Sump and alarms status normal \u2014 glance and listen, especially during rain and thaw",
+   "cadence": "weekly",
+   "audience": [
+    "owner"
+   ],
+   "category": "water",
+   "appliesWhen": "house.sump-pump"
+  },
+  {
+   "id": "wk.softener-salt",
+   "text": "Water softener salt level",
+   "cadence": "weekly",
+   "audience": [
+    "owner"
+   ],
+   "category": "water",
+   "appliesWhen": "house.water-treatment"
+  },
+  {
+   "id": "wk.dehumidifier",
+   "text": "Dehumidifier draining in humid weather",
+   "cadence": "weekly",
+   "audience": [
+    "owner"
+   ],
+   "category": "hvac",
+   "appliesWhen": "house.dehumidifier"
+  },
+  {
+   "id": "wk.well-pressure",
+   "text": "Well pressure behaving; no rapid pump cycling",
+   "cadence": "weekly",
+   "audience": [
+    "owner"
+   ],
+   "category": "water",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "wk.drainage",
+   "text": "Exterior drainage during heavy rain \u2014 water moving away, not pooling",
+   "cadence": "weekly",
+   "audience": [
+    "owner"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wk.winter-clearances",
+   "text": "Furnace, HRV, dryer exhausts and gas meter clear of snow; heat-pump unit clear",
+   "cadence": "weekly",
+   "audience": [
+    "owner"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always",
+   "caution": "Blocked exhausts and intakes are a carbon-monoxide risk item, not a tidiness item."
+  },
+  {
+   "id": "wk.ice-hazards",
+   "text": "Dangerous icicles and ice dams noted; hazardous walkway ice addressed",
+   "cadence": "weekly",
+   "audience": [
+    "owner"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wk.storm-walk",
+   "text": "After any major wind, ice, hail, or heavy snow \u2014 ground-level walk-around of roof, trees, and property",
+   "cadence": "event",
+   "audience": [
+    "owner"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wk.drought-well",
+   "text": "Drought \u2014 well pressure, sediment, and recovery changes noted",
+   "cadence": "event",
+   "audience": [
+    "owner"
+   ],
+   "category": "water",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "wk.smoke-event",
+   "text": "Smoke event \u2014 windows closed, filtration running, PM2.5 glanced at",
+   "cadence": "event",
+   "audience": [
+    "owner"
+   ],
+   "category": "air",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "mo.alarms",
+   "text": "Test every smoke and CO alarm",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "mo.extinguishers",
+   "text": "Fire extinguisher gauges in the green",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "mo.furnace-filter",
+   "text": "Furnace filter checked \u2014 changed at 1\u20133 months depending on type",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "mo.under-sinks",
+   "text": "Look under every kitchen and bath cabinet",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "mo.wh-base",
+   "text": "Water heater base and fittings dry",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "mo.sump-test",
+   "text": "Sump test \u2014 pour a bucket, watch it run and shut off",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "house.sump-pump"
+  },
+  {
+   "id": "mo.gfci",
+   "text": "GFCI test buttons",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "mo.perimeter",
+   "text": "Walk the perimeter \u2014 downspouts attached and discharging away, no new pooling or foundation change",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "mo.unused-fixtures",
+   "text": "Run water in unused fixtures; flush unused toilets to keep trap seals live",
+   "cadence": "monthly",
+   "audience": [
+    "owner"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "mo.garage-reverse",
+   "text": "Garage door auto-reverse test",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "safety",
+   "appliesWhen": "house.garage-door"
+  },
+  {
+   "id": "mo.panel-glance",
+   "text": "Glance at the panel \u2014 no warmth, odour, or corrosion",
+   "cadence": "monthly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "always",
+   "caution": "Never remove panel covers. Visual only, from outside the enclosure."
+  },
+  {
+   "id": "mo.running-list",
+   "text": "Note anything new for the running list",
+   "cadence": "monthly",
+   "audience": [
+    "owner"
+   ],
+   "category": "admin",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.alarms-expiry",
+   "text": "Alarms tested with expiry check",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.exits-clear",
+   "text": "Exits and mechanical rooms unobstructed",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.emergency-lighting",
+   "text": "Emergency lighting and flashlights functional",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.escape-ladders",
+   "text": "Escape ladders accessible",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.fixtures",
+   "text": "Toilets, tubs, and shower surrounds inspected",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.supply-hoses",
+   "text": "Visible supply hoses inspected",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.wh-corrosion",
+   "text": "Water heater checked for leak, rust, and corrosion at fittings",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.pressure-tank",
+   "text": "Pressure tank and pump cycling checked",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "pro.treatment",
+   "text": "Treatment equipment \u2014 salt, filters, UV status, error codes",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "house.water-treatment"
+  },
+  {
+   "id": "pro.sump-backup",
+   "text": "Sump pit, pump, and backup exercised",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "house.sump-pump"
+  },
+  {
+   "id": "pro.sewage-alarm",
+   "text": "Sewage or septic pump alarm tested",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "any(property.septic, house.septic-alarm)"
+  },
+  {
+   "id": "pro.dry-traps",
+   "text": "Dry traps refilled",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.meter-data",
+   "text": "Water-meter or smart-leak data reviewed for unexplained use",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.moisture-pass",
+   "text": "Basement and crawlspace moisture pass",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.hrv",
+   "text": "HRV/ERV status and filters",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "house.hrv-erv"
+  },
+  {
+   "id": "pro.humid-equip",
+   "text": "Humidifier and dehumidifier checked",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.condensate",
+   "text": "Condensate flowing freely",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.registers",
+   "text": "Registers unblocked",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.noise",
+   "text": "Unusual mechanical noise noted",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.terminations",
+   "text": "Exterior intake and exhaust terminations clear",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always",
+   "caution": "Blocked terminations are a combustion-safety item."
+  },
+  {
+   "id": "pro.air-trends",
+   "text": "Temperature and RH trends reviewed \u2014 plus CO2 and PM2.5 where measured",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "air",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.generator-log",
+   "text": "Generator status and exercise log reviewed",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "property.generator"
+  },
+  {
+   "id": "pro.leak-sensors",
+   "text": "Leak sensors and smart alerts reviewed",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "pro.afci",
+   "text": "GFCI and AFCI tests",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.ext-lighting",
+   "text": "Exterior lighting checked",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.ext-cords",
+   "text": "Extension cords in permanent use flagged",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "always",
+   "onFinding": "create-concern"
+  },
+  {
+   "id": "pro.grading",
+   "text": "Grading and standing water checked",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.comparison-photos",
+   "text": "Foundation visual compared against comparison photographs",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always",
+   "caution": "Comparison positions are fixed camera points recorded on the site plan. Same position, same framing."
+  },
+  {
+   "id": "pro.windows-doors",
+   "text": "Windows, doors, locks, and caulking checked",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.roofline",
+   "text": "Roofline, shingles, and flashing viewed from the ground",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always",
+   "caution": "Ground or binocular observation only. Anything structural is referred out."
+  },
+  {
+   "id": "pro.decks",
+   "text": "Decks, steps, rails, and guards checked",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "house.deck"
+  },
+  {
+   "id": "pro.pest",
+   "text": "Pest entry evidence noted",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.retaining",
+   "text": "Retaining walls checked",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "house.retaining-wall"
+  },
+  {
+   "id": "pro.outbuildings",
+   "text": "Outbuildings quick pass",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "zone.outbuilding"
+  },
+  {
+   "id": "pro.trees",
+   "text": "Tree hazards glanced at",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "grounds",
+   "appliesWhen": "house.tree"
+  },
+  {
+   "id": "pro.photograph",
+   "text": "New concerns photographed",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "admin",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.close-tasks",
+   "text": "Completed tasks closed with evidence",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "admin",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.quotes",
+   "text": "Quotes and appointments updated",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "admin",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.next-90",
+   "text": "Next 90 days previewed",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "admin",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.capital-assumptions",
+   "text": "Capital-plan assumptions updated",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "admin",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "pro.monthly-report",
+   "text": "Monthly report issued",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "admin",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "qt.hrv-filters",
+   "text": "HRV/ERV filters cleaned; bath-fan performance checked by tissue test",
+   "cadence": "quarterly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "qt.range-hood",
+   "text": "Range-hood filter degreased",
+   "cadence": "quarterly",
+   "audience": [
+    "owner"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "qt.fridge-coils",
+   "text": "Fridge coils vacuumed",
+   "cadence": "quarterly",
+   "audience": [
+    "owner"
+   ],
+   "category": "appliances",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "qt.dryer-term",
+   "text": "Dryer exterior termination checked and lint path cleared",
+   "cadence": "quarterly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "appliances",
+   "appliesWhen": "always",
+   "caution": "Lint accumulation in the duct is a fire risk item."
+  },
+  {
+   "id": "qt.appliance-hoses",
+   "text": "Washer and dishwasher hoses and connections inspected",
+   "cadence": "quarterly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "appliances",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "qt.exercise-valves",
+   "text": "Shutoff valves designed to operate exercised gently",
+   "cadence": "quarterly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always",
+   "caution": "Crusty old gate valves are NOT forced. Note them for replacement instead, and know the curb-stop fallback.",
+   "onFinding": "create-concern"
+  },
+  {
+   "id": "qt.sump-full-test",
+   "text": "Sump full test including backup on battery; backup battery condition",
+   "cadence": "quarterly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "house.sump-pump"
+  },
+  {
+   "id": "qt.device-batteries",
+   "text": "Security, leak-detector, and specialty-device batteries reviewed",
+   "cadence": "quarterly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "qt.alarms-verified",
+   "text": "Freezer, sump, and temperature alarms verified",
+   "cadence": "quarterly",
+   "audience": [
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "qt.garage-hardware",
+   "text": "Garage-door hardware lubricated and reversal retested",
+   "cadence": "quarterly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "safety",
+   "appliesWhen": "house.garage-door"
+  },
+  {
+   "id": "qt.attic-lookin",
+   "text": "Attic or crawlspace look-in where safe access exists",
+   "cadence": "quarterly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always",
+   "caution": "Where safe access exists. No entry into unsafe spaces."
+  },
+  {
+   "id": "qt.pool-equip",
+   "text": "Pool, spa, and irrigation equipment checked in season",
+   "cadence": "quarterly",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "specialty",
+   "appliesWhen": "any(property.pool, house.irrigation-backflow)"
+  },
+  {
+   "id": "sp.melt-watch",
+   "text": "Foundation, basement, and sump watched through melt",
+   "cadence": "spring",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "sp.drainage-flow",
+   "text": "Grading, ditches, swales, and culverts flowing",
+   "cadence": "spring",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "sp.gutters",
+   "text": "Gutters and downspouts cleaned and tested",
+   "cadence": "spring",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "sp.roof-post-winter",
+   "text": "Roof, flashing, and chimney assessed after winter",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always",
+   "caution": "Ground or binocular assessment. A professional is engaged if anything is flagged."
+  },
+  {
+   "id": "sp.frost-heave",
+   "text": "Decks, stairs, and rails checked for frost heave and rot",
+   "cadence": "spring",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "house.deck"
+  },
+  {
+   "id": "sp.driveway",
+   "text": "Driveway and walkway frost damage noted",
+   "cadence": "spring",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "grounds",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "sp.taps-open",
+   "text": "Exterior taps opened and checked for winter splits",
+   "cadence": "spring",
+   "audience": [
+    "owner"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "sp.irrigation-recommission",
+   "text": "Irrigation recommissioned; backflow test where required",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "house.irrigation-backflow"
+  },
+  {
+   "id": "sp.ac-service",
+   "text": "AC or heat pump serviced before the season",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "any(house.heat-pump, house.heat-pump)"
+  },
+  {
+   "id": "sp.weep-holes",
+   "text": "Window weep holes cleared; screens in",
+   "cadence": "spring",
+   "audience": [
+    "owner"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "sp.caulking",
+   "text": "Exterior caulking and paint reviewed",
+   "cadence": "spring",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "sp.debris",
+   "text": "Winter debris cleared from drains",
+   "cadence": "spring",
+   "audience": [
+    "owner"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "sp.well-bacteria",
+   "text": "Bacteria sample taken in melt season",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "property.well",
+   "caution": "No shock chlorination and no plumbing work in the seven days before sampling \u2014 it invalidates the result."
+  },
+  {
+   "id": "sp.wellhead",
+   "text": "Wellhead inspected post-melt",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "sp.septic-bed",
+   "text": "Septic bed walked for wet or unusually green areas",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "property.septic"
+  },
+  {
+   "id": "sp.shoreline-photos",
+   "text": "Shoreline, dock, and erosion reference photographs taken",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "grounds",
+   "appliesWhen": "property.waterfront"
+  },
+  {
+   "id": "sp.tree-damage",
+   "text": "Trees inspected for winter damage",
+   "cadence": "spring",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "grounds",
+   "appliesWhen": "house.tree"
+  },
+  {
+   "id": "sp.flood-plan",
+   "text": "Flood plan and pump backups reviewed",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "any(house.sump-pump, property.waterfront)"
+  },
+  {
+   "id": "sp.humidity-control",
+   "text": "Basement humidity control resumed",
+   "cadence": "spring",
+   "audience": [
+    "owner"
+   ],
+   "category": "air",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "su.cooling",
+   "text": "Cooling and ventilation serviced or verified; coils kept clear",
+   "cadence": "summer",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "any(house.heat-pump, house.heat-pump)"
+  },
+  {
+   "id": "su.humidity",
+   "text": "Indoor humidity managed",
+   "cadence": "summer",
+   "audience": [
+    "owner"
+   ],
+   "category": "air",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "su.repairs",
+   "text": "Roof and exterior repairs executed in good weather",
+   "cadence": "summer",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "su.decks-siding",
+   "text": "Decks, siding, and trim maintained",
+   "cadence": "summer",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "su.irrigation-leaks",
+   "text": "Irrigation checked for leaks and overspray",
+   "cadence": "summer",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "house.irrigation-backflow"
+  },
+  {
+   "id": "su.storm-drainage",
+   "text": "Drainage observed during thunderstorms",
+   "cadence": "summer",
+   "audience": [
+    "owner"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "su.well-recovery",
+   "text": "Well recovery watched in dry spells",
+   "cadence": "summer",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "su.well-bacteria-2",
+   "text": "Second bacteria sample taken",
+   "cadence": "summer",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "su.smoke-supplies",
+   "text": "Wildfire-smoke supplies verified \u2014 spare filters, portable HEPA sized to the room, working monitor",
+   "cadence": "summer",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "air",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "su.pool-barriers",
+   "text": "Pool and spa barriers and equipment checked",
+   "cadence": "summer",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "specialty",
+   "appliesWhen": "property.pool"
+  },
+  {
+   "id": "su.pests",
+   "text": "Wasps, ants, and seasonal pests addressed",
+   "cadence": "summer",
+   "audience": [
+    "owner"
+   ],
+   "category": "grounds",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "su.shoreline",
+   "text": "Shoreline and retaining structures checked",
+   "cadence": "summer",
+   "audience": [
+    "pro"
+   ],
+   "category": "grounds",
+   "appliesWhen": "any(property.waterfront, house.retaining-wall)"
+  },
+  {
+   "id": "fa.heating-service",
+   "text": "Heating system professionally serviced before the season",
+   "cadence": "fall",
+   "audience": [
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always",
+   "caution": "Combustion equipment is serviced by certified trades only."
+  },
+  {
+   "id": "fa.humidifier-pad",
+   "text": "Humidifier pad changed",
+   "cadence": "fall",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "fa.chimney",
+   "text": "Fireplaces, stoves, and chimneys inspected and swept before first burn",
+   "cadence": "fall",
+   "audience": [
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "any(property.wood_heat, house.fireplace)",
+   "caution": "WETT-class inspection where the appliance burns wood."
+  },
+  {
+   "id": "fa.gutters-leaf",
+   "text": "Gutters cleaned after leaf drop",
+   "cadence": "fall",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "fa.roof-check",
+   "text": "Roof and flashing checked",
+   "cadence": "fall",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always",
+   "caution": "Ground observation. Structural questions are referred out."
+  },
+  {
+   "id": "fa.taps-off",
+   "text": "Exterior taps shut off and drained; hoses stored",
+   "cadence": "fall",
+   "audience": [
+    "owner"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "fa.irrigation-blowout",
+   "text": "Irrigation blown out",
+   "cadence": "fall",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "house.irrigation-backflow"
+  },
+  {
+   "id": "fa.plumbing-protect",
+   "text": "Vulnerable plumbing protected",
+   "cadence": "fall",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "fa.weatherstripping",
+   "text": "Weatherstripping checked",
+   "cadence": "fall",
+   "audience": [
+    "owner"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "fa.attic-look",
+   "text": "Attic insulation and air-leak look",
+   "cadence": "fall",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "fa.sump-generator-test",
+   "text": "Sump backup and generator load-tested before storm season; fuel supplies confirmed",
+   "cadence": "fall",
+   "audience": [
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "any(house.sump-pump, property.generator)"
+  },
+  {
+   "id": "fa.snow-arrangements",
+   "text": "Snow-removal arrangements confirmed, including roof-snow responsibility",
+   "cadence": "fall",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "admin",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "fa.well-bacteria-3",
+   "text": "Fall bacteria sample taken",
+   "cadence": "fall",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "fa.well-heated",
+   "text": "Well and treatment spaces confirmed heated",
+   "cadence": "fall",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "fa.radon-deploy",
+   "text": "Long-term radon test deployed at heating-season start, if due",
+   "cadence": "fall",
+   "audience": [
+    "pro"
+   ],
+   "category": "air",
+   "appliesWhen": "always",
+   "caution": "Result arrives in roughly three months. It renders as underway with its deployment record until it lands."
+  },
+  {
+   "id": "fa.mark-features",
+   "text": "Septic, well, and utility features marked before snow",
+   "cadence": "fall",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "grounds",
+   "appliesWhen": "any(property.septic, property.well)"
+  },
+  {
+   "id": "fa.pest-seal",
+   "text": "Pest entry points sealed",
+   "cadence": "fall",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "fa.fans-reversed",
+   "text": "Ceiling fans reversed",
+   "cadence": "fall",
+   "audience": [
+    "owner"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "fa.holiday-lighting",
+   "text": "Holiday-lighting plan confirmed \u2014 ground-safe or professional",
+   "cadence": "fall",
+   "audience": [
+    "owner"
+   ],
+   "category": "electrical",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wi.clearances",
+   "text": "Exterior vents, meters, and heat pump kept clear",
+   "cadence": "winter",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always",
+   "caution": "Carbon-monoxide risk item."
+  },
+  {
+   "id": "wi.ice-dams",
+   "text": "Ice dams and icicles watched; roof, deck, and carport loads noted after major snowfall",
+   "cadence": "winter",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always",
+   "caution": "Ground observation only. Structural questions are referred out."
+  },
+  {
+   "id": "wi.attic-frost",
+   "text": "Attic frost and condensation checked mid-winter",
+   "cadence": "winter",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wi.window-condensation",
+   "text": "Window condensation managed against RH",
+   "cadence": "winter",
+   "audience": [
+    "owner"
+   ],
+   "category": "air",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wi.cold-snap-plumbing",
+   "text": "Basement and unheated-space plumbing checked during cold snaps",
+   "cadence": "winter",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wi.sump-discharge",
+   "text": "Sump discharge confirmed not frozen ahead of thaw",
+   "cadence": "winter",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "house.sump-pump"
+  },
+  {
+   "id": "wi.fuel-levels",
+   "text": "Propane and oil levels checked",
+   "cadence": "winter",
+   "audience": [
+    "owner"
+   ],
+   "category": "hvac",
+   "appliesWhen": "any(property.propane, property.oil)"
+  },
+  {
+   "id": "wi.backup-ready",
+   "text": "Backup heat and generator ready",
+   "cadence": "winter",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "property.generator"
+  },
+  {
+   "id": "wi.tree-roof-post-storm",
+   "text": "Trees and roof examined from the ground after ice or heavy snow",
+   "cadence": "winter",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "grounds",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wi.vacant-temps",
+   "text": "Vacant rooms and outbuildings holding safe temperature",
+   "cadence": "winter",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "hvac",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wi.access",
+   "text": "Access kept safe for emergency vehicles and fuel delivery",
+   "cadence": "winter",
+   "audience": [
+    "owner"
+   ],
+   "category": "admin",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "wi.ice-dam-rule",
+   "text": "Recurring ice dams recorded as an attic air-sealing, insulation, and ventilation problem",
+   "cadence": "winter",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always",
+   "caution": "Raking is symptom management. The underlying fix goes on the project list.",
+   "onFinding": "create-concern"
+  },
+  {
+   "id": "tr.fin-leak-sensors",
+   "text": "Additional leak sensors verified in concealed areas",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "zone.finished",
+   "caution": "Finish conceals the early evidence a bare basement would show. Sensors substitute for what cannot be seen."
+  },
+  {
+   "id": "tr.fin-moisture",
+   "text": "Moisture readings taken behind finished basement walls where access allows",
+   "cadence": "quarterly",
+   "audience": [
+    "pro"
+   ],
+   "category": "water",
+   "appliesWhen": "zone.finished"
+  },
+  {
+   "id": "tr.flat-drains",
+   "text": "Roof drains and scuppers cleared",
+   "cadence": "quarterly",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "tr.flat-membrane",
+   "text": "Membrane condition checked at seams, flashings, and penetrations",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "envelope",
+   "appliesWhen": "always",
+   "caution": "Ground or safe-access observation. Anything beyond identification is referred to a roofer.",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "tr.radon-mitigation",
+   "text": "Radon mitigation system operating \u2014 manometer reading recorded and fan audible",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "air",
+   "appliesWhen": "always",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "tr.radon-post-mitigation",
+   "text": "Post-mitigation radon test placed",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "air",
+   "appliesWhen": "always",
+   "caution": "Confirms the system is still achieving what it was installed to achieve.",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "tr.ev-charger",
+   "text": "EV charging equipment checked \u2014 cable, connector, mounting, and dedicated circuit",
+   "cadence": "quarterly",
+   "audience": [
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "property.ev"
+  },
+  {
+   "id": "tr.solar-inverter",
+   "text": "Inverter status and panel service per manufacturer",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "any(property.solar, property.solar)"
+  },
+  {
+   "id": "tr.solar-visual",
+   "text": "Array and mounting visually checked from the ground",
+   "cadence": "spring",
+   "audience": [
+    "pro"
+   ],
+   "category": "electrical",
+   "appliesWhen": "property.solar",
+   "caution": "Ground observation only. No roof access."
+  },
+  {
+   "id": "tr.suite-alarms",
+   "text": "Interconnected alarm operation verified across both units",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "tr.suite-egress",
+   "text": "Secondary-suite egress confirmed unobstructed and openable",
+   "cadence": "monthly",
+   "audience": [
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "tr.suite-code",
+   "text": "Electrical and fire-separation items confirmed present",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "life-safety",
+   "appliesWhen": "always",
+   "caution": "Confirmed present, never assessed as compliant. Compliance is an inspector's determination.",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "tr.pre1990-flags",
+   "text": "Legacy-material risk flags reviewed before any disturbance work",
+   "cadence": "event",
+   "audience": [
+    "pro"
+   ],
+   "category": "admin",
+   "appliesWhen": "property.pre_1990",
+   "caution": "Asbestos, lead, legacy wiring, and sewer-lateral risk. Identification and referral only \u2014 never sampling or clearance."
+  },
+  {
+   "id": "tr.vacancy-procedures",
+   "text": "Departure, absence, and return procedures run",
+   "cadence": "event",
+   "audience": [
+    "owner",
+    "pro"
+   ],
+   "category": "admin",
+   "appliesWhen": "always",
+   "caution": "Full procedure lives in Master Spec \u00a716.",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "an.00",
+   "text": "Furnace, boiler, or heat-pump service by a certified technician",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always",
+   "caution": "Combustion equipment by certified trades only."
+  },
+  {
+   "id": "an.01",
+   "text": "Combustion and venting assessment",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "any(property.gas, property.propane, property.oil, property.wood_heat)"
+  },
+  {
+   "id": "an.02",
+   "text": "Chimney and fireplace inspection",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "any(property.wood_heat, house.fireplace)"
+  },
+  {
+   "id": "an.03",
+   "text": "Air conditioning service",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "house.heat-pump"
+  },
+  {
+   "id": "an.04",
+   "text": "HRV/ERV service",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "house.hrv-erv"
+  },
+  {
+   "id": "an.05",
+   "text": "Water heater \u2014 flush, TPR valve test, anode check",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always",
+   "caution": "Anode typically every 3\u20135 years."
+  },
+  {
+   "id": "an.06",
+   "text": "Water-treatment service and performance check",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "house.water-treatment"
+  },
+  {
+   "id": "an.07",
+   "text": "Dryer-duct cleaning",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always",
+   "caution": "Fire risk item."
+  },
+  {
+   "id": "an.08",
+   "text": "Roof and flashing inspection",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "an.09",
+   "text": "Gutter and drainage service",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always",
+   "caution": "Twice yearly \u2014 spring and after leaf fall."
+  },
+  {
+   "id": "an.10",
+   "text": "Plumbing review",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "an.11",
+   "text": "Sump and backup service",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "house.sump-pump"
+  },
+  {
+   "id": "an.12",
+   "text": "Backflow-device certification",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "house.irrigation-backflow"
+  },
+  {
+   "id": "an.13",
+   "text": "Generator annual service",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "property.generator"
+  },
+  {
+   "id": "an.14",
+   "text": "Pool or spa inspection",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "property.pool"
+  },
+  {
+   "id": "an.15",
+   "text": "Septic service per plan",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "property.septic"
+  },
+  {
+   "id": "an.16",
+   "text": "Arborist attendance where flagged",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "house.tree"
+  },
+  {
+   "id": "an.17",
+   "text": "Pest inspection where flagged",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "an.18",
+   "text": "Insurance renewal review",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "an.19",
+   "text": "Emergency-plan and escape-plan refresh",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "an.20",
+   "text": "Contents-inventory video",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "an.21",
+   "text": "Utility-consumption review",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "an.22",
+   "text": "Capital-plan and reserve update",
+   "cadence": "annual",
+   "audience": [
+    "pro"
+   ],
+   "category": "annual",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "my.00",
+   "text": "Full well chemistry",
+   "cadence": "multi-year",
+   "band": "2y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "my.01",
+   "text": "Well nitrate test",
+   "cadence": "multi-year",
+   "band": "1y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "property.well"
+  },
+  {
+   "id": "my.02",
+   "text": "Radon retest",
+   "cadence": "multi-year",
+   "band": "5y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "my.03",
+   "text": "Septic tank measured and pumped per findings",
+   "cadence": "multi-year",
+   "band": "per-findings",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "property.septic"
+  },
+  {
+   "id": "my.04",
+   "text": "Sewer camera on identified higher-risk laterals",
+   "cadence": "multi-year",
+   "band": "per-findings",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "always",
+   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+  },
+  {
+   "id": "my.05",
+   "text": "Water-heater anode replacement",
+   "cadence": "multi-year",
+   "band": "3-5y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "my.06",
+   "text": "Exterior staining or painting",
+   "cadence": "multi-year",
+   "band": "5-12y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "my.07",
+   "text": "Deck and fence preservation",
+   "cadence": "multi-year",
+   "band": "2-4y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "house.deck"
+  },
+  {
+   "id": "my.08",
+   "text": "Driveway sealing or repair",
+   "cadence": "multi-year",
+   "band": "2-5y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "my.09",
+   "text": "Mature-tree assessment",
+   "cadence": "multi-year",
+   "band": "2-5y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "house.tree"
+  },
+  {
+   "id": "my.10",
+   "text": "Electrical reassessment where legacy wiring remains",
+   "cadence": "multi-year",
+   "band": "per-findings",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "property.pre_1990"
+  },
+  {
+   "id": "my.11",
+   "text": "Foundation-crack comparison and drainage review",
+   "cadence": "multi-year",
+   "band": "annual-comparison",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "my.12",
+   "text": "Hose, sump-pump, backup-battery, and leak-detector replacement by age and condition",
+   "cadence": "multi-year",
+   "band": "per-lifespan",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "always",
+   "source": "reference:lifespans-v1"
+  },
+  {
+   "id": "my.13",
+   "text": "Caulking renewal",
+   "cadence": "multi-year",
+   "band": "5y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "always"
+  },
+  {
+   "id": "my.14",
+   "text": "Attic insulation top-up evaluation",
+   "cadence": "multi-year",
+   "band": "5y",
+   "audience": [
+    "pro"
+   ],
+   "category": "planning",
+   "appliesWhen": "always"
+  }
+ ],
+ "eventTriggeredInspections": [
+  {
+   "id": "ev.00",
+   "event": "major windstorm"
+  },
+  {
+   "id": "ev.01",
+   "event": "hail"
+  },
+  {
+   "id": "ev.02",
+   "event": "freezing rain"
+  },
+  {
+   "id": "ev.03",
+   "event": "unusually heavy snowfall"
+  },
+  {
+   "id": "ev.04",
+   "event": "flood warning"
+  },
+  {
+   "id": "ev.05",
+   "event": "any basement water"
+  },
+  {
+   "id": "ev.06",
+   "event": "any plumbing leak"
+  },
+  {
+   "id": "ev.07",
+   "event": "extended power outage"
+  },
+  {
+   "id": "ev.08",
+   "event": "furnace failure"
+  },
+  {
+   "id": "ev.09",
+   "event": "septic alarm"
+  },
+  {
+   "id": "ev.10",
+   "event": "well contamination result"
+  },
+  {
+   "id": "ev.11",
+   "event": "significant drought"
+  },
+  {
+   "id": "ev.12",
+   "event": "roof work"
+  },
+  {
+   "id": "ev.13",
+   "event": "foundation repair"
+  },
+  {
+   "id": "ev.14",
+   "event": "window replacement"
+  },
+  {
+   "id": "ev.15",
+   "event": "basement finishing"
+  },
+  {
+   "id": "ev.16",
+   "event": "HVAC or ventilation alteration"
+  },
+  {
+   "id": "ev.17",
+   "event": "occupancy change"
+  },
+  {
+   "id": "ev.18",
+   "event": "vacancy beginning or ending"
+  },
+  {
+   "id": "ev.19",
+   "event": "insurance claim"
+  },
+  {
+   "id": "ev.20",
+   "event": "any new unexplained odour, symptom, or noise"
+  }
+ ],
+ "triggerVocabularyRule": "RECONCILED against Checklist Master v1.6.2 \u00a73. Four namespaces. **Every equipment condition here is `house.*`** \u2014 a maintenance schedule asks whether the HOUSE has a sump, never whether this room does. `pin.*` is zone-scoped and is rejected by the field validator at session scope.",
+ "seasonalVacancyNote": "`property.seasonal_vacancy` and `property.secondary_suite` added to Table A in v1.6 as a direct result of this reconciliation \u2014 both were already asked on the intake form and had never been given a flag."
+}
