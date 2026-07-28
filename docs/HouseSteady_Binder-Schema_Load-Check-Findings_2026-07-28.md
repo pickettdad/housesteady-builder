@@ -113,3 +113,49 @@ All three are owner-visible equipment a concierge could plausibly pin. Worth goi
 So this cannot be a gate, and Increment 3's loader must not implement it as one against the material now in the repo. **The check the `vocabularyCrossCheckRule` describes — `house.*` and `pin.*` must name a declared component type — needs the v1.6.2 component list, and nothing in this repo carries it.** That is the same gap B3 names: a fresh export carrying the current config. Until it arrives, this check informs a conversation and cannot fail a build.
 
 **Status:** three follow-ups, all content. Still no builder work. Increment 3 remains not started.
+
+---
+
+## Second addendum — the check run against the master itself (2026-07-28, later still)
+
+The Checklist Master v1.6.2 is now in `/docs/reference/`, so **the half of `vocabularyCrossCheckRule` that was never executable can now be executed**: `property.*` matched against Table A, `zone.*` against Table B, `house.*`/`pin.*` against the component library. This is the authoritative form of the check rather than the hint the first addendum ran.
+
+### What passes, verified against the master rather than inferred
+
+| Check | Result |
+|---|---|
+| `property.*` matches Table A exactly | **17 = 17, both files, no difference in either direction** |
+| Component types | **58 declared in the master**, matching `componentVocabularyRule` |
+| Inheritance graph | **11 relations, identical** to `componentInheritance` in the binder schema, key for key |
+| `house.*`/`pin.*` naming a declared type | 20 of 23 — the three exceptions are B5, below |
+| Every trigger used is declared | yes, across 234 conditions |
+
+The direction clause landed: `property.municipal_sewer` mirrors Table A and is correctly unused, so it is no longer reported.
+
+### One new finding — `zone.outbuilding` is not a zone attribute
+
+`pro.outbuildings` carries `appliesWhen: zone.outbuilding`. Table B declares six attributes — `finished`, `sleeping`, `has_stairs`, `has_mechanicals`, `has_plumbing`, `exterior_wall` — and `outbuilding` is not among them. It is a **zone type**, one of the thirteen in §4's taxonomy.
+
+The master's own §3 defines the namespace as *"`zone.*` (Table B) — an attribute of this zone."* So this condition asks "is this zone of type outbuilding" through the namespace that means "does this zone have attribute X". The other two `zone.*` conditions are correct: `zone.finished` is a real Table B attribute and `tr.fin-leak-sensors` / `tr.fin-moisture` use it properly.
+
+It is the same defect class as B5 — a condition naming something its namespace does not contain — and it fires nowhere for the same reason. Three ways out, and the choice is the field session's: add the attribute to Table B, add a namespace for zone type, or re-express the condition. **Not the builder's to pick.**
+
+*A secondary question, raised rather than asserted:* all three `zone.*` conditions sit in a **house-scoped** file, whose own `triggerVocabularyRule` says every equipment condition here is `house.*` because "a maintenance schedule asks whether the HOUSE has a sump, never whether this room does." `zone.finished` is defensible — moisture readings are taken behind *a particular* finished wall. `zone.outbuilding` reads more like a house question. Worth a look when the namespace is settled.
+
+### `property.flat_roof` is now used, and still cannot fire
+
+The first addendum flagged it as declared-but-unused; `tr.flat-drains` and `tr.flat-membrane` now use it. But **Table A marks it "⚠ not yet asked at intake"** and the master's §9 item 6 records it as an open item: *"a flag no input can set is worse than an absent one."*
+
+So those two items moved from *firing on every house* to *firing on no house*. That is the better failure — an item that never appears is visible as absent, where one that always appears looks correct — but neither is the intent, and it stays dead until the intake form asks the question.
+
+### One repeated operand survives, in the other file
+
+`any(property.solar, property.solar)` at `s1.solar-battery-disconnect` in **`binder-schema-v1.json`**. The three in the maintenance schedule were collapsed; this one is in the binder schema and was missed.
+
+### A note on method, because this is twice now
+
+Two parses of the master gave confident wrong answers before this one: a regex for `` `property.x` `` found zero flags because Table A writes ids bare, and a line-range window spanning both tables reported `finished`, `has_stairs` and `sleeping` as missing property flags. Neither was reported as a finding — both were caught by the results being implausible and checked before saying anything.
+
+That is the same caution the first addendum recorded about the stale config, and it generalises: **a check against a document you have just started parsing is a hint until its parse is verified against something you can read yourself.** Here that meant opening the tables. The lesson for Increment 3's loader is narrower and firmer — it must parse `triggerVocabulary`, which is structured data with one declaration site, and it must not parse this markdown at all.
+
+**Status:** one new finding (`zone.outbuilding`), one carried (`property.flat_roof` cannot fire), one leftover operand. All content, all the field or schema session's. Increment 3 remains not started.
