@@ -379,14 +379,44 @@ describe('the golden set compares against approved values only', () => {
   })
 
   it('reads the real expected.json, where nothing is ratified yet', () => {
+    // Deliberately not a count. The set grows by absorbing real failures —
+    // `goldenCandidates` exists to find them — so an assertion that it holds
+    // exactly N entries fails on the day the design works, and the fix is
+    // always to edit the number, which makes it a test of nothing.
     const expected = loadExpected()
-    assert.equal(expected.images.length, 15)
+    assert.ok(expected.images.length >= 15, 'the set is present and has not shrunk')
     for (const image of expected.images) {
       assert.deepEqual(image.ratifications ?? [], [],
         `${image.file} claims a ratification David has not given`)
     }
     assert.equal(expected.images.filter((i) => i.classification === 'no').length, 1,
       'exactly one photo in the set is not a nameplate')
+  })
+
+  it('has a fixture for the whole-image abstention path', () => {
+    // The path that was built, unit-tested against a stub, and had never met a
+    // real photograph: the classifier says nameplate, extraction returns
+    // nothing, and the screen says the plate is there but cannot be read.
+    // Field-level abstention — a model number unreadable on an otherwise
+    // readable plate — is a weaker claim and the set had six of those.
+    // Two different things both look like `abstains: true`, and conflating them
+    // would let the set claim a fixture it does not have. A NON-NAMEPLATE
+    // abstains trivially — it is never extracted at all, which is §11's gate
+    // working. The case that matters is a photograph the classifier calls a
+    // plate and extraction still cannot read: `classification: yes` AND
+    // `abstains: true` together.
+    const wholeImage = loadExpected().images.filter((i) => i.abstains && i.classification === 'yes')
+    assert.ok(
+      wholeImage.length > 0,
+      'without one of these, every abstention in the set is either field-level or a non-nameplate, ' +
+        'and the whole-image path has only ever been exercised against a stub',
+    )
+    for (const i of wholeImage) {
+      assert.ok(
+        Object.values(i.fields).every((v) => v.toLowerCase() === 'unknown'),
+        `${i.file} abstains, so no field may carry a reading`,
+      )
+    }
   })
 
   it('records who ratified a value, so a bad approval can be traced to its review', () => {

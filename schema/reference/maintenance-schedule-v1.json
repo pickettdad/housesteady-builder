@@ -1,6 +1,6 @@
 {
  "schemaId": "maintenance-schedule",
- "version": "1.2.0",
+ "version": "1.3.0",
  "date": "2026-07-27",
  "sourceDocument": "HouseSteady_Home-Binder_Master-Spec_v1_2026-07-20 \u00a715",
  "note": "The checklist library as data. Every item carries appliesWhen; there is no separate 'trigger adds' list \u2014 the custom property schedule is simply every item whose condition evaluates true. Evaluated by the SAME trigger evaluator the binder schema uses (Increment 3). Rules, not AI.",
@@ -30,7 +30,6 @@
  ],
  "cautionRule": "A caution is the identification-never-assessment line living inside a checklist item. It renders with the item and is never dropped.",
  "onFindingRule": "An item marked create-concern does not merely complete \u2014 a finding it produces is promoted to a tracked concern.",
- "flagVocabularyRule": "This list is the SHARED property-flag vocabulary for both this file and binder-schema-v1.json. They are evaluated by one evaluator, so a flag used in either must be declared here. A cross-check on load enforces it.",
  "propertyTriggers": [
   {
    "id": "property.municipal_water",
@@ -573,8 +572,8 @@
     "pro"
    ],
    "category": "water",
-   "appliesWhen": "always",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "house.leak-sensor",
+   "undeclaredType": "No component type exists for this in Checklist Master v1.6.2. Fires nowhere until the field app declares one. Routed as B5."
   },
   {
    "id": "pro.afci",
@@ -1234,8 +1233,8 @@
     "pro"
    ],
    "category": "hvac",
-   "appliesWhen": "always",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "house.humidifier",
+   "undeclaredType": "No component type exists for this in Checklist Master v1.6.2. Fires nowhere until the field app declares one. Routed as B5."
   },
   {
    "id": "fa.chimney",
@@ -1576,8 +1575,7 @@
     "pro"
    ],
    "category": "envelope",
-   "appliesWhen": "always",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "property.flat_roof"
   },
   {
    "id": "tr.flat-membrane",
@@ -1587,9 +1585,8 @@
     "pro"
    ],
    "category": "envelope",
-   "appliesWhen": "always",
-   "caution": "Ground or safe-access observation. Anything beyond identification is referred to a roofer.",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "property.flat_roof",
+   "caution": "Ground or safe-access observation. Anything beyond identification is referred to a roofer."
   },
   {
    "id": "tr.radon-mitigation",
@@ -1599,8 +1596,9 @@
     "pro"
    ],
    "category": "air",
-   "appliesWhen": "always",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "answer.radon.result = elevated",
+   "evaluatedBy": "builder",
+   "answerNote": "answer.* conditions are evaluated by the binder builder, never by the field app, and emitted as carried items in the session plan. The field config cannot see a lab result or a document."
   },
   {
    "id": "tr.radon-post-mitigation",
@@ -1610,9 +1608,10 @@
     "pro"
    ],
    "category": "air",
-   "appliesWhen": "always",
+   "appliesWhen": "answer.radon.result = elevated",
    "caution": "Confirms the system is still achieving what it was installed to achieve.",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "evaluatedBy": "builder",
+   "answerNote": "answer.* conditions are evaluated by the binder builder, never by the field app, and emitted as carried items in the session plan. The field config cannot see a lab result or a document."
   },
   {
    "id": "tr.ev-charger",
@@ -1653,8 +1652,7 @@
     "pro"
    ],
    "category": "life-safety",
-   "appliesWhen": "always",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "property.secondary_suite"
   },
   {
    "id": "tr.suite-egress",
@@ -1664,8 +1662,7 @@
     "pro"
    ],
    "category": "life-safety",
-   "appliesWhen": "always",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "property.secondary_suite"
   },
   {
    "id": "tr.suite-code",
@@ -1675,9 +1672,8 @@
     "pro"
    ],
    "category": "life-safety",
-   "appliesWhen": "always",
-   "caution": "Confirmed present, never assessed as compliant. Compliance is an inspector's determination.",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "property.secondary_suite",
+   "caution": "Confirmed present, never assessed as compliant. Compliance is an inspector's determination."
   },
   {
    "id": "tr.pre1990-flags",
@@ -1699,9 +1695,8 @@
     "pro"
    ],
    "category": "admin",
-   "appliesWhen": "always",
-   "caution": "Full procedure lives in Master Spec \u00a716.",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "property.seasonal_vacancy",
+   "caution": "Full procedure lives in Master Spec \u00a716."
   },
   {
    "id": "an.00",
@@ -1990,8 +1985,9 @@
     "pro"
    ],
    "category": "planning",
-   "appliesWhen": "always",
-   "unconditional_note": "Condition removed 2026-07-27: no flag exists in Checklist Master v1.5.1 Table A. Applies universally until the field app declares one."
+   "appliesWhen": "answer.utl.drain-material-id in (clay, orangeburg)",
+   "evaluatedBy": "builder",
+   "answerNote": "answer.* conditions are evaluated by the binder builder, never by the field app, and emitted as carried items in the session plan. The field config cannot see a lab result or a document."
   },
   {
    "id": "my.05",
@@ -2192,5 +2188,52 @@
   }
  ],
  "triggerVocabularyRule": "RECONCILED against Checklist Master v1.6.2 \u00a73. Four namespaces. **Every equipment condition here is `house.*`** \u2014 a maintenance schedule asks whether the HOUSE has a sump, never whether this room does. `pin.*` is zone-scoped and is rejected by the field validator at session scope.",
- "seasonalVacancyNote": "`property.seasonal_vacancy` and `property.secondary_suite` added to Table A in v1.6 as a direct result of this reconciliation \u2014 both were already asked on the intake form and had never been given a flag."
+ "seasonalVacancyNote": "`property.seasonal_vacancy` and `property.secondary_suite` added to Table A in v1.6 as a direct result of this reconciliation \u2014 both were already asked on the intake form and had never been given a flag.",
+ "triggerVocabulary": {
+  "property": [
+   "property.municipal_water",
+   "property.well",
+   "property.municipal_sewer",
+   "property.septic",
+   "property.gas",
+   "property.propane",
+   "property.oil",
+   "property.wood_heat",
+   "property.pool",
+   "property.generator",
+   "property.waterfront",
+   "property.pre_1990",
+   "property.solar",
+   "property.ev",
+   "property.seasonal_vacancy",
+   "property.secondary_suite",
+   "property.flat_roof"
+  ],
+  "house": [
+   "house.deck",
+   "house.dehumidifier",
+   "house.fireplace",
+   "house.garage-door",
+   "house.heat-pump",
+   "house.hrv-erv",
+   "house.humidifier",
+   "house.irrigation-backflow",
+   "house.leak-sensor",
+   "house.retaining-wall",
+   "house.septic-alarm",
+   "house.sump-pump",
+   "house.tree",
+   "house.water-treatment"
+  ],
+  "zone": [
+   "zone.finished",
+   "zone.outbuilding"
+  ],
+  "answer": [
+   "answer.radon.result",
+   "answer.utl.drain-material-id"
+  ],
+  "pin": []
+ },
+ "vocabularyCrossCheckRule": "REWRITTEN 2026-07-27 \u2014 the previous `flagVocabularyRule` could not pass as written. It asserted that every flag must be declared in `propertyTriggers`, which holds only the 17 `property.*` ids, while these files legitimately use four namespaces. **That is the same defect class the field session named \u2014 prose asserting what the tables do not say \u2014 occurring in our own file.** The check is now: every trigger referenced by an item must appear in `triggerVocabulary` under its own namespace. `property.*` is authoritative from Checklist Master Table A. `house.*` and `pin.*` must name a declared component type. `zone.*` must name a Table B attribute. `answer.*` is the builder's and references a checklist item id plus an operator."
 }

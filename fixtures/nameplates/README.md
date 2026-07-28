@@ -78,23 +78,49 @@ with the plate.
 
 ## Status
 
-All fifteen images are present, and **none of the ninety values is ratified**. Two
-questions are open for the owner, recorded in the `notes` array at the bottom of the file:
+**Seventeen images, 102 values, none of them ratified.** One question stays open for the
+owner — which image is the intended "not a nameplate at all" (proposed: `IMG_0009`).
 
-- which image is the intended "not a nameplate at all" (proposed: `IMG_0009`), and
-- whether any image was meant to be illegible *end to end*. On the reading recorded here
-  none is; six have individual fields that genuinely cannot be read, which is a different
-  and weaker claim than the one the spec asks the set to make. The two hard photos that
-  would close this — something genuinely blurred, and a plate in the dark at a steep
-  angle — have not arrived yet.
+### The whole-image abstention gap, closed 2026-07-28
 
-**Being precise about what that second gap is:** every abstention currently in the set is
-**field-level** — a model number unreadable on an otherwise readable plate. The
-**whole-image** path is the one with no fixture: classifier says nameplate, extraction
-returns nothing at all, and the screen says *"the plate is there but the lettering can't
-be made out."* That path is built and unit-tested with a stubbed model, but nothing
-exercises it against a real photograph. Those two images are the only thing that closes
-it.
+Every abstention in the first fifteen was **field-level**: a model number unreadable on an
+otherwise readable plate. The **whole-image** path had no fixture at all — classifier says
+nameplate, extraction returns nothing, and the screen says *"the plate is there but the
+lettering can't be made out."* It was built, unit-tested against a stubbed model, and had
+never met a real photograph.
+
+The two photographs that closed it turned out to be **different cases**, which is more
+useful than two of the same:
+
+| | What it is | Why it matters |
+|---|---|---|
+| `20260727_223947.jpg` | Motion-blurred end to end. Plainly a printed label — two barcodes, a certification mark — and not one character resolves at any magnification. | The whole-image abstention proper. `classification: yes`, `abstains: true`. |
+| `20260727_223836.jpg` | Dark, at a steep angle, and legible **in part**. The support line reads; the model code is visibly present, begins `43S5`, ends `G-CA`, and the characters between do not resolve. | The more valuable of the two. A plate you can plainly see whose identifying values you cannot read is where invention is most tempting and most damaging. |
+
+A test asserts the set holds at least one of the first kind, and that it is
+`classification: yes` rather than a non-nameplate — because a non-nameplate abstains
+trivially by never being extracted, and counting that as coverage would let the set claim
+a fixture it does not have.
+
+**These two readings are the shakiest in the file.** Both needed enhancement before
+anything could be read at all — the fixture is the untouched original, but the reading is
+not. Two calls want the owner's eye: whether `TCL` counts as the make when it appears
+inside a bilingual support line rather than as a brand field, and whether a television
+service label belongs in a house-equipment set. It is a fine legibility fixture either
+way; that is a separate question from whether it is representative.
+
+### Privacy — changed by these two
+
+The first fifteen carried **no GPS block at all**. Both new ones carry one, **zeroed** —
+longitude 0°0′0″E, no latitude, which is what a phone writes with location services off.
+Nothing real is committed.
+
+But the block being present means the next photograph taken with location **on** will
+carry coordinates, and a committed fixture with real coordinates publishes the address of
+the house it was taken in — in git history, where deleting the file does not remove it.
+A doctrine test now walks every committed fixture photograph and refuses one. Transmission
+was already safe and separately tested: `prepareImage` strips everything before an image
+reaches a model.
 
 ## Ratification is an append-only log, per value
 

@@ -23,6 +23,21 @@
  * concierge to ignore the feature." So there is a confidence bar, and below it
  * nothing is shown at all.
  *
+ * THIS TASK CARRIES A CONDITION NO OTHER 2b TASK DOES, and it is not technical.
+ * `/docs/HouseSteady_Binder-Builder_AI-Processing-Decision_2026-07-27.md` §2.3:
+ * routing sends **interior photographs of a client's home**, which is a
+ * different claim than a furnace label, and it is authorized only once §3's
+ * client disclosure is in place. Nameplate reading and pin-type suggestion are
+ * authorized outright because their inputs are equipment plates.
+ *
+ * Nothing here enforces that, deliberately — it is a business gate on real
+ * client work, and today this runs on the owner's own house. It is written here
+ * so the condition is visible to whoever wires this to a real visit, rather
+ * than living only in a document nobody reads at that moment. That decision
+ * record is still awaiting ratification, and its §2.5 — establishing the API
+ * account's retention and training terms in writing — cannot be deferred past
+ * the first real client import.
+ *
  * THE BAR IS APPLIED WHEN THE SUGGESTION IS READ, NOT WHEN IT IS MADE. Every
  * candidate the model offers is stored, including the weak ones. Re-running a
  * visit costs real money and a bar chosen before anyone has seen a real

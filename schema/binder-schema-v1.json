@@ -1204,5 +1204,46 @@
   "boiler-zone-valve",
   "appliance-freezer",
   "iron-filter"
- ]
+ ],
+ "triggerVocabulary": {
+  "property": [
+   "property.ev",
+   "property.flat_roof",
+   "property.gas",
+   "property.generator",
+   "property.municipal_sewer",
+   "property.municipal_water",
+   "property.oil",
+   "property.pool",
+   "property.pre_1990",
+   "property.propane",
+   "property.seasonal_vacancy",
+   "property.secondary_suite",
+   "property.septic",
+   "property.solar",
+   "property.waterfront",
+   "property.well",
+   "property.wood_heat"
+  ],
+  "house": [],
+  "zone": [
+   "zone.has_mechanicals"
+  ],
+  "answer": [
+   "answer.fc.width",
+   "answer.utl.drain-material-id"
+  ],
+  "pin": [
+   "pin.boiler",
+   "pin.fireplace",
+   "pin.furnace",
+   "pin.heat-pump",
+   "pin.hrv-erv",
+   "pin.irrigation-backflow",
+   "pin.septic-alarm",
+   "pin.sump-pump",
+   "pin.water-treatment"
+  ]
+ },
+ "vocabularyCrossCheckRule": "Every trigger referenced must appear in `triggerVocabulary` under its own namespace, and `property.*` must match Checklist Master Table A exactly. `house.*` and `pin.*` must name a declared component type; `zone.*` a Table B attribute. **Validate against the master's declared vocabulary, not only internal consistency** \u2014 a transformation applied uniformly to ids and to every reference leaves everything agreeing with everything and everything wrong."
 }
