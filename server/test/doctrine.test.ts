@@ -582,3 +582,93 @@ describe('doctrine — nothing stored is tied to this machine', () => {
     assert.match(dbModule, /process\.env\.HOUSESTEADY_DATA/, 'the location is configurable, not baked in')
   })
 })
+
+describe('doctrine 14 — a committed fixture never carries a location', () => {
+  /**
+   * CLAUDE.md §14. `/data` is gitignored and holds real houses; `/fixtures` is
+   * committed and holds the owner's own equipment. That distinction only holds
+   * while a committed photograph carries no coordinates — a fixture with real
+   * GPS in it publishes the address of the house it was taken in, permanently
+   * and in the git history, where deleting the file does not remove it.
+   *
+   * This was theoretical until 2026-07-28. The first fifteen nameplate
+   * photographs carried no GPS block at all; the two that closed the
+   * whole-image abstention path carry one, zeroed — longitude 0°0'0"E, no
+   * latitude, which is what a phone writes with location services off. Zeroed
+   * today and real the first time somebody photographs a plate with location on.
+   *
+   * Transmission is already safe and separately tested: `prepareImage` strips
+   * everything before an image reaches a model. This is the other half — what
+   * is safe to *keep*.
+   */
+  const rational = (buf: Buffer, off: number, le: boolean): number => {
+    const num = le ? buf.readUInt32LE(off) : buf.readUInt32BE(off)
+    const den = le ? buf.readUInt32LE(off + 4) : buf.readUInt32BE(off + 4)
+    return den === 0 ? 0 : num / den
+  }
+
+  /** Latitude and longitude out of an EXIF block, or null where there are none. */
+  const coordinates = (exif: Buffer): { lat: number; lon: number } | null => {
+    // sharp hands back the TIFF block with an "Exif\0\0" header in front of it.
+    const start = exif.subarray(0, 6).toString('latin1') === 'Exif\0\0' ? 6 : 0
+    const tiff = exif.subarray(start)
+    if (tiff.length < 8) return null
+    const le = tiff.subarray(0, 2).toString('latin1') === 'II'
+    const u16 = (o: number) => (le ? tiff.readUInt16LE(o) : tiff.readUInt16BE(o))
+    const u32 = (o: number) => (le ? tiff.readUInt32LE(o) : tiff.readUInt32BE(o))
+
+    const walk = (ifd: number, want: number): number | undefined => {
+      if (ifd + 2 > tiff.length) return undefined
+      const n = u16(ifd)
+      for (let i = 0; i < n; i++) {
+        const e = ifd + 2 + i * 12
+        if (e + 12 > tiff.length) return undefined
+        if (u16(e) === want) return u32(e + 8)
+      }
+      return undefined
+    }
+
+    const gpsIfd = walk(u32(4), 0x8825)
+    if (gpsIfd === undefined || gpsIfd + 2 > tiff.length) return null
+
+    // Degrees, minutes, seconds — three rationals, twenty-four bytes.
+    const dms = (tag: number): number => {
+      const at = walk(gpsIfd, tag)
+      if (at === undefined || at + 24 > tiff.length) return 0
+      return rational(tiff, at, le) + rational(tiff, at + 8, le) / 60 + rational(tiff, at + 16, le) / 3600
+    }
+    return { lat: dms(2), lon: dms(4) }
+  }
+
+  it('carries no real coordinates in any committed fixture photograph', async () => {
+    const sharp = (await import('sharp')).default
+    const roots = [join(repoRoot, 'fixtures')]
+    const photos: string[] = []
+    const walk = (d: string) => {
+      for (const entry of readdirSync(d)) {
+        const full = join(d, entry)
+        if (statSync(full).isDirectory()) walk(full)
+        else if (/\.(jpe?g|png|heic|webp)$/i.test(entry)) photos.push(full)
+      }
+    }
+    for (const r of roots) walk(r)
+    assert.ok(photos.length > 15, 'sanity: the fixture photographs were found')
+
+    const located: string[] = []
+    for (const file of photos) {
+      const { exif } = await sharp(file).metadata()
+      if (!exif) continue
+      const c = coordinates(exif)
+      // Zero is what a phone writes with location services off. A real
+      // coordinate anywhere on earth is non-zero in at least one axis.
+      if (c && (Math.abs(c.lat) > 0.0001 || Math.abs(c.lon) > 0.0001)) {
+        located.push(`${file.replace(repoRoot, '')} (${c.lat.toFixed(4)}, ${c.lon.toFixed(4)})`)
+      }
+    }
+    assert.deepEqual(
+      located, [],
+      'a committed photograph carrying coordinates publishes the address of the house it was taken in, ' +
+        'and git history keeps it after the file is deleted. Strip it before committing, or leave it in /data.',
+    )
+  })
+})

@@ -57,7 +57,7 @@ Decide on the AI binding assist once that number exists from a real visit. **Fre
 
 - **A binding target matches a component type OR any of its descendants.** Build the type graph from the config snapshot's inheritance declarations and walk it. Nothing new is needed from outside — the snapshot already carries the definitions.
 - **The graph lives in the shared evaluator**, beside the trigger logic. Both answer *does this thing satisfy that expectation*, and both must move together when the field vocabulary changes.
-- **Confirm the inheritance declaration's actual shape against a current config before building.** This section is written from the field session's description, not from a config read.
+- **Confirmed 2026-07-27 against Checklist Master v1.6.2.** Declared as `` ### `child` — inherits `parent` ``; the child's rendered list is the parent's items followed by its own; ids stay globally unique. 11 relations. The graph is in `binder-schema-v1.json` under `componentInheritance`.
 
 **Aliases are field-app-only and the builder must never bind to one.** v1.5 added a component-alias table — 56 search synonyms that resolve to a canonical type. They **never appear in the manifest and never carry items.** They exist so a concierge typing "air conditioner" finds `heat-pump`. **If an alias ever reaches a binding rule, that is a bug**, not a fallback.
 
@@ -65,7 +65,43 @@ Decide on the AI binding assist once that number exists from a real visit. **Fre
 
 v1.4 and v1.5 added **14 `.unit` whole-object photo items** — `fur.unit`, `wh.unit`, `sp.unit` and others. The schema's §7 requirement that every component record carry a unit photo is **already a field checklist item.**
 
-**Bind to those items rather than checking the photo independently.** Same as `wm.wide` for §1's locating photo, and same as `naReasons.feedsGapList` for the gap list. **This is the third instance of the same lesson: before building a check, look for whether the config already declares it.** Where a component type has no `.unit` item, that is a field-config gap and gets reported as one — never something for the builder to police.
+**23 `.unit` items exist as of v1.5.1.** **Bind to them rather than checking the photo independently.** Same as `wm.wide` for §1's locating photo, and same as `naReasons.feedsGapList` for the gap list. **This is the third instance of the same lesson: before building a check, look for whether the config already declares it.** Where a component type has no `.unit` item, that is a field-config gap and gets reported as one — never something for the builder to police.
+
+
+## 1d. Retired item ids are a discontinuity, not a gap (added 2026-07-27)
+
+Checklist Master §2 (v1.4.1): *an item that **moves** keeps its id; an item that is **redefined** retires, and the replacement takes a new id. A retired id is never reissued.* The master's stated reason is the builder's problem exactly — *"a resolution recorded against a retired id becoming attached to a differently-meaning item is false continuity, and a stale test result silently vouching for something nobody checked is worse than an honest orphan."*
+
+**So an unrecognized item id must not be treated as merely unknown.** It may be retired, which means the question changed, which means **the cross-visit series for that item ends there rather than continuing.**
+
+- Report it as a **discontinuity**, distinct from both a gap and unrecognized vocabulary.
+- **Never carry a prior visit's answer forward across a retirement**, and never show the series as unbroken.
+- Fail open as always — import it, count it, display it — but do not silently join it to anything.
+
+
+## 1e. Two evaluator requirements from v1.6.2 (added 2026-07-27)
+
+**1e.1 · Compose the list gate with the item trigger.** A list heading may carry `— gated on <ref>`, conditioning every item in it. Where an item *also* has a trigger cell, the effective condition is **`allOf(list gate, item trigger)`** — the cell's own `|` remains `anyOf` internally. `mechanical-base` is gated on `zone.has_mechanicals`, and its Fuel items additionally carry `property.gas|propane`. **Evaluate the gate alone and every fuel item fires in every zone of every house.**
+
+**1e.2 · Four trigger namespaces, and `pin` is not a weaker `house`.**
+- `property.*` — Table A, **17 flags** as of v1.6, declared at intake before the visit
+- `zone.*` — Table B, an attribute of this zone
+- `pin.*` — a pin of this type **in this zone**. Zone-scoped strictly; the field validator rejects it at session scope
+- `house.*` — a pin of this type **anywhere in this visit**
+
+**Neither is a superset of the other.** The zone form silently under-fires a house question; the house form over-fires a zone one. Every maintenance-schedule condition is `house.*`. **`house.*` also changes during a visit** as pins are created — stable at manifest time, which is all the builder sees, but worth knowing when reading an event log.
+
+## 1f. `answer.*` conditions are the builder's, permanently (added 2026-07-27)
+
+The field master places conditions on a *recorded value* deliberately outside its config: **the field app can never evaluate half the inputs.** A radon result arrives three months later; a permit date comes from a document.
+
+**So the builder owns the whole class.** It holds every answer — field, lab, document — evaluates the condition, and emits the resulting item as a **carried item in the session plan**. No new field machinery, and it uses the round trip that already exists for exactly this.
+
+Form: `answer.<itemId> <op> <value>`. Two live cases: `answer.utl.drain-material-id in (clay, orangeburg)` drives Master Spec §13's sewer-camera trigger, and `answer.fc.width > 5` escalates a crack under §10's specificity rule.
+
+**The consequence to hold onto: the master's `choice` option values are now this repo's condition vocabulary.** Renaming or removing an option is a **breaking change here**, not a content edit. Recorded in master §9.
+
+This also delivers what the Master Spec calls *"customized, never blind"* — the schedule is re-derived every visit rather than fixed at intake, so a crack that was 1.5 mm and is now 4 mm changes what the next visit carries.
 
 ## 2. Completeness, per slot kind
 
@@ -113,7 +149,7 @@ The gap report render · any editing · **any AI, deliberately (§1a)** · sessi
 
 Behaviour: the reference visit audits without error and its gap list is inspectable · a `narrative` slot never appears in the gap list under any profile · a `derived` slot never reports independently · a house on municipal water is never asked for a well cap · an unknown flag id fails open and is reported as uncertain · an explicit `unknown` completes a `fixed` slot while a blank does not · a shutoff with only a close-up fails · a watch-schedule concern without a measurement, cadence, or escalation trigger fails · the same visit audited twice with the same schema and profile produces identical results.
 
-Binding: a sub-type satisfies its parent's expectation (a `water-softener` pin satisfies a `water-treatment` expectation) · an alias never binds · a `.unit` item satisfies the unit-photo requirement rather than a separate photo check · an item whose canonical component type is present binds without inference · unmatched evidence is listed individually, never only counted · a slot with no candidate is distinguished from one whose candidate failed a requirement.
+Binding: a list gate composes with an item trigger as `allOf` · a `house.*` condition is not satisfied by a `pin.*` evaluation or vice versa · a sub-type satisfies its parent's expectation (a `water-softener` pin satisfies a `water-treatment` expectation) · an alias never binds · a `.unit` item satisfies the unit-photo requirement rather than a separate photo check · a retired item id reports as a discontinuity and never joins across visits · an item whose canonical component type is present binds without inference · unmatched evidence is listed individually, never only counted · a slot with no candidate is distinguished from one whose candidate failed a requirement.
 
 Cross-check on load: **every slot in the schema is classified by the profile.** Unclassified is a loud error, not a default. *(Both shipped files currently pass: 41 slots, 41 classified.)*
 
@@ -125,6 +161,8 @@ Doctrine scans: no hardcoded section, slot, or trigger id anywhere outside the s
 
 ---
 
-**Blocked on:** re-reconciliation of `binder-schema-v1.json` against the v1.5.1 config (73 types, 427 items). The 48-type reconciliation of 2026-07-27 is two versions stale. **A fresh export is the preferred vehicle** — it would also exercise the `measure` path and an exterior zone, both still untested.
+**Reconciliation done 2026-07-27** against Checklist Master v1.5.1 — see the Reconciliation report. Both schema files rewritten: §1 binds to the field's own item ids, the trigger vocabulary is corrected to three namespaces, the inheritance graph is in place.
+
+**Still wanted, not blocking:** a fresh export carrying this config — the only way to exercise the `measure` path and an exterior zone, neither of which any export has done.
 
 **Status:** ready for Claude Code once 2b lands and the re-reconciliation is done. Increment 4 (carried items — gap report and session plan v0) reads this output.

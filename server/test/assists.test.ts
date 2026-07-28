@@ -95,14 +95,19 @@ function addPin(p: PinSpec): void {
   )
 }
 
-function addMedia(mediaId: string, owner: { pin?: string; zone?: string; status?: string }): void {
+function addMedia(
+  mediaId: string,
+  owner: { pin?: string; zone?: string; inbox?: boolean; groupKey?: string; status?: string },
+): void {
+  const kind = owner.inbox ? 'inbox' : owner.pin ? 'pin' : 'zone'
   db.prepare(
     `INSERT INTO media (media_id, import_id, property_id, visit_id, kind, owner_kind, owner_pin_id,
-                        owner_zone_id, file, file_status, created_at)
-     VALUES (?, ?, ?, ?, 'photo', ?, ?, ?, ?, ?, ?)`,
+                        owner_zone_id, group_key, file, file_status, created_at)
+     VALUES (?, ?, ?, ?, 'photo', ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
-    mediaId, importId, PROPERTY, VISIT, owner.pin ? 'pin' : 'zone',
-    owner.pin ?? null, owner.zone ?? null, `${mediaId}.jpg`, owner.status ?? 'present', now(),
+    mediaId, importId, PROPERTY, VISIT, kind,
+    owner.pin ?? null, owner.inbox ? null : (owner.zone ?? null), owner.groupKey ?? null,
+    `${mediaId}.jpg`, owner.status ?? 'present', now(),
   )
 }
 
@@ -129,9 +134,32 @@ function stub(answers: unknown[]): RoutingDeps & PinTypeDeps & { asked: RunArgs[
   }
 }
 
+/**
+ * Claim one specific job, leaving the rest of the queue as it was.
+ *
+ * `claimNext` takes no argument by design — a worker takes whatever is next —
+ * so finding a particular job means claiming past the others. Those have to go
+ * back: a job claimed and abandoned sits `running` with a live lease, and the
+ * next claim in the same test cannot see it until the lease expires.
+ *
+ * That is what made this suite flaky. Two jobs enqueued in the same millisecond
+ * tie on `created_at` and fall back to a random uuid, so which one this loop met
+ * first varied run to run — and any test claiming two jobs from one visit failed
+ * about half the time. The attempt count is rolled back too, or a job would
+ * carry attempts it never made.
+ */
 const claim = (task: string, targetId: string) => {
+  const passedOver: string[] = []
   let job = claimNext(db, VISIT)
-  while (job && !(job.task === task && job.target_id === targetId)) job = claimNext(db, VISIT)
+  while (job && !(job.task === task && job.target_id === targetId)) {
+    passedOver.push(job.id)
+    job = claimNext(db, VISIT)
+  }
+  for (const id of passedOver) {
+    db.prepare(
+      `UPDATE ai_jobs SET status = 'queued', leased_at = NULL, attempts = attempts - 1 WHERE id = ?`,
+    ).run(id)
+  }
   assert.ok(job, `expected a queued ${task} job for ${targetId}`)
   return job
 }
@@ -209,6 +237,62 @@ describe('routing — what counts as a loose photo', () => {
 
     assert.deepEqual(loosePhotos(db, VISIT).map((p) => p.mediaId), ['room-a', 'room-b'])
     assert.equal(queuePhotoRouting(db, PROPERTY, VISIT), 2)
+  })
+
+  it('takes an inbox photo whose grouping key names a real room', () => {
+    // The needier case, and the owner's call to include it. A room photo is
+    // already filed somewhere true; an inbox photo is filed nowhere at all.
+    addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
+    addMedia('room-a', { zone: 'zone-1' })
+    addMedia('inbox-a', { inbox: true, groupKey: 'zone-1' })
+
+    assert.deepEqual(loosePhotos(db, VISIT), [
+      { mediaId: 'inbox-a', zoneId: 'zone-1', origin: 'inbox' },
+      { mediaId: 'room-a', zoneId: 'zone-1', origin: 'room' },
+    ])
+  })
+
+  it('leaves an inbox photo whose grouping key names nothing', () => {
+    // The reference export's single inbox photo carries no key at all. A room
+    // guessed from a photograph would be the builder deciding which room
+    // somebody stood in, which is a fabrication with a plausible face on it.
+    addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
+    addMedia('inbox-none', { inbox: true })
+    addMedia('inbox-bogus', { inbox: true, groupKey: 'a-room-that-does-not-exist' })
+
+    assert.deepEqual(loosePhotos(db, VISIT), [])
+  })
+
+  it('skips a queued inbox photo whose room stopped resolving, saying which', async () => {
+    addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
+    addMedia('inbox-a', { inbox: true, groupKey: 'zone-1' })
+    queuePhotoRouting(db, PROPERTY, VISIT)
+    // The zone goes away — a re-import that dropped it. The job is already queued.
+    db.prepare('DELETE FROM zones WHERE zone_id = ?').run('zone-1')
+
+    const deps = stub([])
+    const job = claim(ROUTING_TASK, 'inbox-a')
+    assert.equal(await runRoute(db, job, deps), null)
+    assert.equal(deps.asked.length, 0)
+    const row = db.prepare('SELECT last_error FROM ai_jobs WHERE id = ?').get(job.id) as { last_error: string }
+    assert.match(row.last_error, /in the inbox with no grouping key naming a room/)
+  })
+
+  it('tells the model when the room is a guess rather than a fact', async () => {
+    addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
+    addMedia('room-a', { zone: 'zone-1' })
+    addMedia('inbox-a', { inbox: true, groupKey: 'zone-1' })
+    queuePhotoRouting(db, PROPERTY, VISIT)
+
+    const answer = route([{ pin: 1, confidence: 'certain', why: 'the only water heater' }])
+    const roomDeps = stub([answer])
+    await runRoute(db, claim(ROUTING_TASK, 'room-a'), roomDeps)
+    assert.doesNotMatch(roomDeps.asked[0]!.facts!, /may be wrong/)
+
+    const inboxDeps = stub([answer])
+    await runRoute(db, claim(ROUTING_TASK, 'inbox-a'), inboxDeps)
+    assert.match(inboxDeps.asked[0]!.facts!, /not filed against a room at all/)
+    assert.match(inboxDeps.asked[0]!.facts!, /may be wrong/)
   })
 
   it('offers live pins as candidates and never retired ones', () => {
@@ -419,6 +503,7 @@ describe('the batch a person is actually shown', () => {
   const stored = (confidence: string, pinId = 'pin-1'): StoredRouting => ({
     candidates: [{ pinId, number: 1, label: 'water-heater', confidence: confidence as 'certain', why: 'because' }],
     shows: 'a tank',
+    origin: 'room',
     proposed: { toKind: 'pin', toId: pinId },
   })
 
@@ -460,10 +545,48 @@ describe('the batch a person is actually shown', () => {
         { pinId: 'pin-2', number: 2, label: 'boiler', confidence: 'possible', why: 'also a tank' },
       ],
       shows: 'a tank',
+      origin: 'room',
       proposed: { toKind: 'pin', toId: 'pin-1' },
     }
     const batch = routingBatch([{ generationId: 'g', task: ROUTING_TASK, targetId: 'a', output: two }], 'certain')
     assert.equal(batch.suggestions[0]!.candidates.length, 2)
+  })
+
+  it('always offers an answer that is not a pin, and a second one for the inbox', () => {
+    // CLAUDE.md §9's second guard, and the condition the owner put on extending
+    // to the inbox. For a room photo the room is a fact and the only non-answer
+    // is "not one of these pins". For an inbox photo the room came from a
+    // grouping key that can be wrong, so "not this room at all" is a separate
+    // and equally real answer — and without it the only way to say so would be
+    // the option that blames the pins, filing a true statement about the wrong
+    // thing.
+    const inbox: StoredRouting = { ...stored('certain'), origin: 'inbox' }
+    const batch = routingBatch(
+      [
+        { generationId: 'g1', task: ROUTING_TASK, targetId: 'a', output: stored('certain') },
+        { generationId: 'g2', task: ROUTING_TASK, targetId: 'b', output: inbox },
+      ],
+      'certain',
+    )
+    assert.deepEqual(batch.suggestions[0]!.dismissals, ['none-of-these'])
+    assert.deepEqual(batch.suggestions[1]!.dismissals, ['none-of-these', 'belongs-elsewhere'])
+    for (const s of batch.suggestions) {
+      assert.ok(s.dismissals.includes('none-of-these'), 'never absent, on any suggestion')
+    }
+  })
+
+  it('carries where the photo came from, so the two land on different desks', () => {
+    // Agreeing about a room photo moves it from the room to a pin; agreeing
+    // about an inbox photo files something that was filed nowhere. Different
+    // acts, and the screen needs to be able to tell them apart from the data.
+    const batch = routingBatch(
+      [
+        { generationId: 'g1', task: ROUTING_TASK, targetId: 'a', output: stored('certain') },
+        { generationId: 'g2', task: ROUTING_TASK, targetId: 'b', output: { ...stored('certain'), origin: 'inbox' } },
+      ],
+      'certain',
+    )
+    assert.deepEqual(batch.suggestions.map((s) => s.origin), ['room', 'inbox'])
   })
 
   it('refuses a bar it does not recognise', () => {

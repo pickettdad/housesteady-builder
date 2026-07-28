@@ -1,41 +1,41 @@
 {
   "$comment": [
-    "The approved half of the golden set. Increment 2b \u00a73, \u00a78.",
+    "The approved half of the golden set. Increment 2b §3, §8.",
     "",
     "RATIFICATION IS AN APPEND-ONLY LOG, PER VALUE. Each entry carries a",
     "`ratifications` array: every act of ratifying or withdrawing one value, with a",
     "COPY of the value approved and who approved it. Whether a value counts as",
-    "ratified is computed from the log \u2014 the latest act must be a ratify AND its",
+    "ratified is computed from the log — the latest act must be a ratify AND its",
     "copy must still equal the value beside it, so editing the value lapses the",
     "ratification by itself and an approval can never drift onto something nobody",
     "looked at.",
     "",
     "Withdrawing appends; it never deletes. Every golden run between a ratification",
     "and its withdrawal validated against that value, and binders may have shipped on",
-    "that basis \u2014 erasing the approval would erase the only evidence that a window of",
+    "that basis — erasing the approval would erase the only evidence that a window of",
     "false confidence existed.",
     "",
     "Approving forty values is forty acts rather than one: a wrong entry cannot ride",
     "in on the back of thirty-nine right ones and become permanent truth.",
     "",
-    "Every log below is empty. Nothing here has been ratified \u2014 these readings were",
+    "Every log below is empty. Nothing here has been ratified — these readings were",
     "made by Claude and carry no authority until David has looked at the image and",
     "run `npm run golden:approve`.",
     "",
     "A field reads `unknown` when the image does not legibly show it. `unknown` is a",
-    "CORRECT value, not a missing one \u2014 a run that fills every field is a failing run.",
+    "CORRECT value, not a missing one — a run that fills every field is a failing run.",
     "",
     "installDate is `unknown` on all fifteen. Several plates print a MANUFACTURE date",
     "(02/25, oct. 2012, 2024/06); none prints an install date. Reporting a manufacture",
-    "date as an install date is the exact laundering CLAUDE.md \u00a74 forbids, so it is a",
+    "date as an install date is the exact laundering CLAUDE.md §4 forbids, so it is a",
     "deliberate trap and every entry must resist it."
   ],
   "version": 1,
   "images": [
     {
       "file": "images/IMG_0004.jpeg",
-      "subject": "ClimateMaster geothermal heat pump \u2014 main data plate",
-      "hard": "dark etched plate, heavy glare and scratching on the surrounding metal, EXIF-rotated 90\u00b0",
+      "subject": "ClimateMaster geothermal heat pump — main data plate",
+      "hard": "dark etched plate, heavy glare and scratching on the surrounding metal, EXIF-rotated 90°",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -52,7 +52,7 @@
     },
     {
       "file": "images/IMG_0005.jpeg",
-      "subject": "Same heat pump, wide shot \u2014 three labels plus a DANGER placard and a warranty sticker",
+      "subject": "Same heat pump, wide shot — three labels plus a DANGER placard and a warranty sticker",
       "hard": "multiple labels competing in one frame; the left-hand plate is cut off by the frame edge; two of the labels are not nameplates at all",
       "classification": "yes",
       "abstains": false,
@@ -64,14 +64,14 @@
         "installDate": "unknown"
       },
       "fieldNotes": {
-        "model": "Legible in full on the right-hand heater-table plate. The left-hand plate shows only '...049BGC01ARKS' \u2014 truncated by the frame edge. Reading the complete value from the intact label is correct; reconstructing it from the truncated one is not."
+        "model": "Legible in full on the right-hand heater-table plate. The left-hand plate shows only '...049BGC01ARKS' — truncated by the frame edge. Reading the complete value from the intact label is correct; reconstructing it from the truncated one is not."
       },
       "ratifications": []
     },
     {
       "file": "images/IMG_0008.jpeg",
       "subject": "PRO FLEX 2 hydronic expansion tank",
-      "hard": "EXIF-rotated 90\u00b0; label wraps around a curved tank so the text is distorted at both edges",
+      "hard": "EXIF-rotated 90°; label wraps around a curved tank so the text is distorted at both edges",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -82,14 +82,14 @@
         "installDate": "unknown"
       },
       "fieldNotes": {
-        "serial": "GENUINE ABSTENTION. This label carries no serial field at all. The correct answer is unknown \u2014 there is nothing to read.",
+        "serial": "GENUINE ABSTENTION. This label carries no serial field at all. The correct answer is unknown — there is nothing to read.",
         "installDate": "'02/25' appears in the bottom corner. That is a manufacture date code, not an install date."
       },
       "ratifications": []
     },
     {
       "file": "images/IMG_0009.jpeg",
-      "subject": "Axiom DMF150 digital mini feeder \u2014 whole unit, in place",
+      "subject": "Axiom DMF150 digital mini feeder — whole unit, in place",
       "hard": "THE NON-NAMEPLATE. Carries a large brand badge and a model badge, which is exactly what makes it a trap: it looks label-rich without being a data plate.",
       "classification": "no",
       "abstains": true,
@@ -101,14 +101,14 @@
         "installDate": "unknown"
       },
       "fieldNotes": {
-        "_all": "Classification must gate this out before extraction runs. A brand badge on a housing is product identity, not a nameplate \u2014 no serial, no ratings, no data-plate structure. If extraction runs anyway and returns make='Axiom' model='DMF150', the classifier has failed even though the strings are technically on the unit."
+        "_all": "Classification must gate this out before extraction runs. A brand badge on a housing is product identity, not a nameplate — no serial, no ratings, no data-plate structure. If extraction runs anyway and returns make='Axiom' model='DMF150', the classifier has failed even though the strings are technically on the unit."
       },
       "ratifications": []
     },
     {
       "file": "images/IMG_0010.jpeg",
       "subject": "Same feeder, serial sticker on the side of the housing",
-      "hard": "very small text in a mostly empty frame; EXIF-rotated 90\u00b0; the brand word is out of frame",
+      "hard": "very small text in a mostly empty frame; EXIF-rotated 90°; the brand word is out of frame",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -119,25 +119,25 @@
         "installDate": "unknown"
       },
       "fieldNotes": {
-        "make": "GENUINE ABSTENTION. Only the edge of the green Axiom oval is in frame; the word AXIOM is not legible here. Knowing the brand from the previous photo, or from the logo shape, is inference \u2014 not reading this image."
+        "make": "GENUINE ABSTENTION. Only the edge of the green Axiom oval is in frame; the word AXIOM is not legible here. Knowing the brand from the previous photo, or from the logo shape, is inference — not reading this image."
       },
       "ratifications": []
     },
     {
       "file": "images/IMG_0013.jpeg",
-      "subject": "v\u00e4nEE 100H heat recovery ventilator",
-      "hard": "EXIF-rotated 90\u00b0; a hard shadow falls across the lower third of the label",
+      "subject": "vänEE 100H heat recovery ventilator",
+      "hard": "EXIF-rotated 90°; a hard shadow falls across the lower third of the label",
       "classification": "yes",
       "abstains": false,
       "fields": {
-        "make": "v\u00e4nEE",
+        "make": "vänEE",
         "model": "1601706",
         "serial": "JR32121020220",
         "capacity": "unknown",
         "installDate": "unknown"
       },
       "fieldNotes": {
-        "model": "The label prints 'v\u00e4nEE 100H' as the product name and 'Model Number / No de Mod\u00e8le: 1601706' as the model field. 1601706 is what the model field says.",
+        "model": "The label prints 'vänEE 100H' as the product name and 'Model Number / No de Modèle: 1601706' as the model field. 1601706 is what the model field says.",
         "installDate": "'oct. 2012' is printed. Manufacture date, not install date."
       },
       "ratifications": []
@@ -145,7 +145,7 @@
     {
       "file": "images/IMG_0017.jpeg",
       "subject": "A.O. Smith electric water heater",
-      "hard": "the serial and model at the top of the label are deliberately scribbled over \u2014 but both are reprinted intact along the bottom edge",
+      "hard": "the serial and model at the top of the label are deliberately scribbled over — but both are reprinted intact along the bottom edge",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -156,14 +156,14 @@
         "installDate": "unknown"
       },
       "fieldNotes": {
-        "serial": "The top field reads '2439140768' and then disappears under a black scribble. The bottom barcode line reads '2439140768401' in full. Reading the intact copy is correct. Completing the obscured one from its visible prefix would NOT be \u2014 it happens to agree here, which is exactly why this case is worth having."
+        "serial": "The top field reads '2439140768' and then disappears under a black scribble. The bottom barcode line reads '2439140768401' in full. Reading the intact copy is correct. Completing the obscured one from its visible prefix would NOT be — it happens to agree here, which is exactly why this case is worth having."
       },
       "ratifications": []
     },
     {
       "file": "images/IMG_0018.jpeg",
       "subject": "GSW electric water heater",
-      "hard": "EXIF-rotated 90\u00b0; shot at an angle so the label is keystoned; a second partial label sits at the frame edge",
+      "hard": "EXIF-rotated 90°; shot at an angle so the label is keystoned; a second partial label sits at the frame edge",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -181,7 +181,7 @@
     {
       "file": "images/IMG_0020.jpeg",
       "subject": "Burcam captive-air pressure tank",
-      "hard": "EXIF-rotated 90\u00b0; washed out by direct flare across a glossy label; the smallest text in the set",
+      "hard": "EXIF-rotated 90°; washed out by direct flare across a glossy label; the smallest text in the set",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -192,7 +192,7 @@
         "installDate": "unknown"
       },
       "fieldNotes": {
-        "serial": "GENUINE ABSTENTION. The label has a Series field and a Model field and a Production Date \u2014 no serial number.",
+        "serial": "GENUINE ABSTENTION. The label has a Series field and a Model field and a Production Date — no serial number.",
         "installDate": "'2024 / 06' is the production date."
       },
       "ratifications": []
@@ -200,7 +200,7 @@
     {
       "file": "images/IMG_0021.jpeg",
       "subject": "Stenner 45MHP2 chemical metering pump",
-      "hard": "EXIF-rotated 90\u00b0; the label occupies a small part of a frame dominated by the pump body",
+      "hard": "EXIF-rotated 90°; the label occupies a small part of a frame dominated by the pump body",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -218,7 +218,7 @@
     {
       "file": "images/IMG_0027.jpeg",
       "subject": "Waterite filter control valve",
-      "hard": "EXIF-rotated 90\u00b0; the model is HANDWRITTEN in ballpoint on a printed blank",
+      "hard": "EXIF-rotated 90°; the model is HANDWRITTEN in ballpoint on a printed blank",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -236,7 +236,7 @@
     {
       "file": "images/IMG_0029.jpeg",
       "subject": "Waterite softener control valve",
-      "hard": "EXIF-rotated 90\u00b0; handwritten model, smudged; the label is scuffed and the ink has worn",
+      "hard": "EXIF-rotated 90°; handwritten model, smudged; the label is scuffed and the ink has worn",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -247,14 +247,14 @@
         "installDate": "unknown"
       },
       "fieldNotes": {
-        "model": "GENUINE ABSTENTION \u2014 the important one in this set. The handwriting reads as something like 'WDBT' over 'PC1', but the first token is genuinely ambiguous between several letter shapes and the ink is worn. A confident 'WDBT PC1' here is a guess wearing a transcription's clothes. Unknown is the correct answer; the concierge types it in or carries it to the next visit."
+        "model": "GENUINE ABSTENTION — the important one in this set. The handwriting reads as something like 'WDBT' over 'PC1', but the first token is genuinely ambiguous between several letter shapes and the ink is worn. A confident 'WDBT PC1' here is a guess wearing a transcription's clothes. Unknown is the correct answer; the concierge types it in or carries it to the next visit."
       },
       "ratifications": []
     },
     {
       "file": "images/IMG_0030.jpeg",
       "subject": "Same valve as IMG_0029, second attempt from further back",
-      "hard": "EXIF-rotated 90\u00b0; flatter light, so the handwriting is WORSE here than in IMG_0029 despite being the same label",
+      "hard": "EXIF-rotated 90°; flatter light, so the handwriting is WORSE here than in IMG_0029 despite being the same label",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -265,7 +265,7 @@
         "installDate": "unknown"
       },
       "fieldNotes": {
-        "model": "GENUINE ABSTENTION. Two photos of one plate, neither of which yields the model \u2014 the pair proves the abstention is a property of the label, not of one unlucky shot. Both must abstain independently; neither may borrow the other's reading.",
+        "model": "GENUINE ABSTENTION. Two photos of one plate, neither of which yields the model — the pair proves the abstention is a property of the label, not of one unlucky shot. Both must abstain independently; neither may borrow the other's reading.",
         "serial": "Printed, not handwritten, and legible in both frames. A plate can be half-readable, and the honest output says which half."
       },
       "ratifications": []
@@ -273,7 +273,7 @@
     {
       "file": "images/IMG_0033.jpeg",
       "subject": "Liberty Pumps Pro380 sewage pump",
-      "hard": "the darkest image in the set, EXIF-rotated 180\u00b0, and a deep shadow swallows the top of the data plate including the start of the model number",
+      "hard": "the darkest image in the set, EXIF-rotated 180°, and a deep shadow swallows the top of the data plate including the start of the model number",
       "classification": "yes",
       "abstains": false,
       "fields": {
@@ -307,19 +307,67 @@
         "model": "'TYPE: UP26-99F' is the model designation."
       },
       "ratifications": []
+    },
+    {
+      "file": "images/20260727_223836.jpg",
+      "subject": "TCL television service label",
+      "hard": "photographed in the dark at a steep angle. The label is plainly a label; the identifying values on it are the part that cannot be read.",
+      "classification": "yes",
+      "abstains": false,
+      "fields": {
+        "make": "TCL",
+        "model": "unknown",
+        "serial": "unknown",
+        "capacity": "unknown",
+        "installDate": "unknown"
+      },
+      "fieldNotes": {
+        "make": "TCL is printed in the bilingual support line — 'TAC de Centre d'Assistance TCL' — rather than as a standalone brand field. Read from context, so it is the reading here most worth a second opinion.",
+        "model": "GENUINE ABSTENTION, and the valuable kind. A model-shaped code is visibly present and begins 43S5, ending G-CA, with one or two characters in between that do not resolve at any magnification. Enlarging further produces sensor noise, not letters. A confident answer here would be invented.",
+        "serial": "GENUINE ABSTENTION. Something sits to the right of the model code and may be a serial. Not one character of it resolves.",
+        "capacity": "A television service label carries no capacity.",
+        "installDate": "Not printed."
+      },
+      "ratifications": []
+    },
+    {
+      "file": "images/20260727_223947.jpg",
+      "subject": "unidentified equipment label, two barcodes and a certification mark",
+      "hard": "motion-blurred end to end. THIS IS THE WHOLE-IMAGE ABSTENTION FIXTURE the set has been missing: the photograph plainly shows a printed label, and not one character on it resolves.",
+      "classification": "yes",
+      "abstains": true,
+      "fields": {
+        "make": "unknown",
+        "model": "unknown",
+        "serial": "unknown",
+        "capacity": "unknown",
+        "installDate": "unknown"
+      },
+      "fieldNotes": {
+        "make": "GENUINE ABSTENTION. Large text sits across the top of the label where a brand normally goes. It resolves to shapes, not letters.",
+        "model": "GENUINE ABSTENTION. Two barcodes and their human-readable lines are visible as bar patterns; no digits resolve.",
+        "serial": "GENUINE ABSTENTION.",
+        "capacity": "GENUINE ABSTENTION.",
+        "installDate": "GENUINE ABSTENTION."
+      },
+      "ratifications": []
     }
   ],
   "notes": [
-    "TWELVE OF FIFTEEN ARE EXIF-ROTATED. Orientation=6 on twelve, Orientation=3 on IMG_0033, none on the other two. Photo viewers apply the tag; reading the raw bytes does not. Anything that feeds these to a model must normalise orientation first or every plate arrives sideways \u2014 which turns a legibility test into an accidental test of reading upside-down text.",
+    "TWELVE OF THE FIRST FIFTEEN ARE EXIF-ROTATED. Orientation=6 on twelve, Orientation=3 on IMG_0033, none on the other two. The two added 2026-07-28 are Orientation=1 and need no rotation. Photo viewers apply the tag; reading the raw bytes does not. Anything that feeds these to a model must normalise orientation first or every plate arrives sideways — which turns a legibility test into an accidental test of reading upside-down text.",
     "",
-    "FOR DAVID \u2014 three things to confirm before this file is treated as ground truth:",
+    "FOR DAVID — three things to confirm before this file is treated as ground truth:",
     "",
     "1. IMG_0009 is my pick for 'the one that isn't a nameplate at all'. It is the only whole-unit shot with no data plate in frame. Confirm, or name the one you meant.",
     "",
-    "2. You said 'a couple that are genuinely illegible'. On my reading, no image in this set is illegible end to end \u2014 but five have individual fields that genuinely cannot be read: the model on IMG_0029, IMG_0030 and IMG_0033, and the serial on IMG_0008, IMG_0020 and Untitled.jpg (those three plates carry no serial at all). If you intended a whole image to be unreadable, tell me which and I will look again \u2014 I would rather re-examine than record an expectation that flatters the reading.",
+    "2. You said 'a couple that are genuinely illegible'. Of the first fifteen, none is illegible end to end — five have individual fields that genuinely cannot be read: the model on IMG_0029, IMG_0030 and IMG_0033, and the serial on IMG_0008, IMG_0020 and Untitled.jpg (those three plates carry no serial at all). THE TWO ADDED 2026-07-28 ARE THE ONES YOU MEANT, and they are not the same case as each other — see note 4.",
     "",
-    "4. KNOWN GAP \u2014 the whole-image abstention path has no fixture yet. Two more photos are\n       coming (something genuinely blurred, and a plate in the dark at a steep angle). Until\n       they land, no entry in this set expects `abstains: true` on a photo that IS a nameplate,\n       so the state where extraction runs and returns nothing at all is exercised only by unit\n       tests with a stubbed model, never against a real image.",
+    "4. GAP CLOSED 2026-07-28 — and the two photographs turned out to be different cases, which is better than two of the same.\n\n       20260727_223947.jpg is the WHOLE-IMAGE ABSTENTION the set never had: motion-blurred end to end, plainly a printed label with two barcodes and a certification mark, and not one character resolves at any magnification. Classifier says nameplate, extraction returns nothing, and the screen says the plate is there but the lettering cannot be made out. That path was built and unit-tested against a stub and had never met a real photograph.\n\n       20260727_223836.jpg is the more valuable of the two and a different shape: dark, at a steep angle, and legible in PART. The support line reads and the brand can be inferred from it; the model code is visibly present, begins 43S5, ends G-CA, and the characters between it do not resolve. That is the configuration where invention is most tempting and most damaging — a plate you can plainly see, whose identifying values you cannot read.",
     "",
-    "3. Worth knowing how I read them: full size, on a strong model, with time. The fast tier that will actually run this in production sees them at lower resolution and will do worse. That asymmetry is the point of the file \u2014 expected.json records what the plate SAYS, so a weak reading fails visibly instead of quietly becoming the record."
+    "3. Worth knowing how I read them: full size, on a strong model, with time. The fast tier that will actually run this in production sees them at lower resolution and will do worse. That asymmetry is the point of the file — expected.json records what the plate SAYS, so a weak reading fails visibly instead of quietly becoming the record.",
+    "",
+    "5. FOR DAVID, ON THE TWO NEW ONES SPECIFICALLY. These readings are mine and they are the shakiest in the file, because I had to enhance both to read anything at all — the fixture is the untouched original, but my reading is not. Two calls worth your eye: whether 'TCL' counts as the make when it appears inside the support line rather than as a brand field, and whether a television service label belongs in a house-equipment set at all. It is a fine legibility fixture either way; that is a separate question from whether it is representative.",
+    "",
+    "6. PRIVACY, CHANGED BY THESE TWO. The first fifteen carried no GPS block at all. Both new ones do — zeroed (longitude 0°0'0\"E, no latitude), which is what a phone writes with location services off. Nothing real is committed. But the block being present at all means the next photograph taken with location on WILL carry coordinates, and a committed fixture with real coordinates publishes the address of the house it was taken in, in git history, where deleting the file does not remove it. A doctrine test now refuses one."
   ]
 }

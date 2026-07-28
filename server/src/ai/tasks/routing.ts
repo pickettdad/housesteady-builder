@@ -23,6 +23,21 @@
  * concierge to ignore the feature." So there is a confidence bar, and below it
  * nothing is shown at all.
  *
+ * THIS TASK CARRIES A CONDITION NO OTHER 2b TASK DOES, and it is not technical.
+ * `/docs/HouseSteady_Binder-Builder_AI-Processing-Decision_2026-07-27.md` §2.3:
+ * routing sends **interior photographs of a client's home**, which is a
+ * different claim than a furnace label, and it is authorized only once §3's
+ * client disclosure is in place. Nameplate reading and pin-type suggestion are
+ * authorized outright because their inputs are equipment plates.
+ *
+ * Nothing here enforces that, deliberately — it is a business gate on real
+ * client work, and today this runs on the owner's own house. It is written here
+ * so the condition is visible to whoever wires this to a real visit, rather
+ * than living only in a document nobody reads at that moment. That decision
+ * record is still awaiting ratification, and its §2.5 — establishing the API
+ * account's retention and training terms in writing — cannot be deferred past
+ * the first real client import.
+ *
  * THE BAR IS APPLIED WHEN THE SUGGESTION IS READ, NOT WHEN IT IS MADE. Every
  * candidate the model offers is stored, including the weak ones. Re-running a
  * visit costs real money and a bar chosen before anyone has seen a real
@@ -104,6 +119,8 @@ export interface StoredRouting {
   candidates: { pinId: string; number: number | null; label: string; confidence: Confidence; why: string }[]
   shows: string
   unsure?: string
+  /** Whether the room was a fact or a guess. Decides what answers the desk gets. */
+  origin: PhotoOrigin
   /**
    * The lead candidate in the shape an `assign` overlay records.
    *
@@ -160,23 +177,57 @@ export function pinLabel(p: CandidatePin): string {
 }
 
 /**
- * Zone-owned photographs — the input set.
+ * Where a loose photograph's room came from.
  *
- * Inbox photos are NOT here. They are loose in a stronger sense, being attached
- * to nothing at all, but they carry no owning zone and so have no candidate set
- * to rank; the pass already surfaces the ones whose group key names a room. Worth
- * a decision from the owner rather than a quiet extension of this task.
+ * `room` — the export says it belongs to this zone. A fact.
+ * `inbox` — it belongs to nothing at all, and the room below is inferred from
+ *   its grouping key. A hypothesis, and one that can be wrong.
+ *
+ * The distinction is carried, never flattened, because the two are different
+ * acts at the desk and because the second needs an answer the first does not:
+ * *this is not even the right room*.
  */
-export function loosePhotos(db: Db, visitId: string): { mediaId: string; zoneId: string }[] {
+export type PhotoOrigin = 'room' | 'inbox'
+
+export interface LoosePhoto {
+  mediaId: string
+  zoneId: string
+  origin: PhotoOrigin
+}
+
+/**
+ * Photographs with a room but no pin — the input set.
+ *
+ * Two sources. Zone-owned photographs are the bulk: 28 of 37 in the reference
+ * export, correctly filed to a room and merely not to anything in it.
+ *
+ * Inbox photographs are the smaller and needier case, and the owner's call to
+ * include them was right: a room photo is already filed somewhere true, while an
+ * inbox photo is filed nowhere at all. Where its grouping key names a real zone,
+ * that zone's pins are the candidate list. Where it does not — the reference
+ * export's single inbox photo carries no key — there is no candidate set and the
+ * job skips saying so, because a room guessed from nothing is a fabrication with
+ * a plausible face on it.
+ */
+export function loosePhotos(db: Db, visitId: string): LoosePhoto[] {
   return db
     .prepare(
-      `SELECT m.media_id AS mediaId, m.owner_zone_id AS zoneId
+      `SELECT m.media_id AS mediaId,
+              CASE WHEN m.owner_kind = 'zone' THEN m.owner_zone_id ELSE m.group_key END AS zoneId,
+              CASE WHEN m.owner_kind = 'zone' THEN 'room' ELSE 'inbox' END AS origin
          FROM media m
         WHERE m.import_id = (SELECT id FROM imports WHERE visit_id = ? ORDER BY imported_at DESC LIMIT 1)
-          AND m.owner_kind = 'zone' AND m.owner_zone_id IS NOT NULL AND m.kind = 'photo'
+          AND m.kind = 'photo'
+          AND (
+            (m.owner_kind = 'zone'  AND m.owner_zone_id IS NOT NULL)
+            -- The grouping key must name a zone this import actually has. A key
+            -- that names nothing is not a weaker room, it is no room.
+            OR (m.owner_kind = 'inbox' AND m.group_key IS NOT NULL AND EXISTS (
+                  SELECT 1 FROM zones z WHERE z.import_id = m.import_id AND z.zone_id = m.group_key))
+          )
         ORDER BY m.media_id`,
     )
-    .all(visitId) as { mediaId: string; zoneId: string }[]
+    .all(visitId) as LoosePhoto[]
 }
 
 /**
@@ -220,7 +271,15 @@ export function candidatePins(db: Db, visitId: string, zoneId: string): Candidat
 }
 
 /** The candidate list as the model is shown it — data, never wording. */
-export function candidateFacts(pins: CandidatePin[]): string {
+export function candidateFacts(pins: CandidatePin[], origin: PhotoOrigin = 'room'): string {
+  // Provenance of the room itself, which is a fact about this call rather than
+  // an instruction, so it belongs here and not in the prompt file. For an inbox
+  // photograph the room is a guess, and the model has to be able to say so.
+  const provenance =
+    origin === 'inbox'
+      ? 'This photograph was not filed against a room at all. It sat in the inbox carrying a ' +
+        'grouping key, and that key names the room below — which may be wrong.\n\n'
+      : ''
   const lines = pins.map((p, i) => {
     const bits = [`${i + 1}. ${pinLabel(p)}`]
     if (p.number !== null) bits.push(`(the concierge calls this pin ${p.number})`)
@@ -232,7 +291,7 @@ export function candidateFacts(pins: CandidatePin[]): string {
     for (const n of p.notes) bits.push(`\n     note: ${n}`)
     return bits.join(' ')
   })
-  return `The pins in this room, in the order you must refer to them:\n\n${lines.join('\n')}`
+  return `${provenance}The pins in this room, in the order you must refer to them:\n\n${lines.join('\n')}`
 }
 
 /** Queue one routing job per loose photo. */
@@ -254,8 +313,21 @@ export function queuePhotoRouting(db: Db, propertyId: string, visitId: string): 
  */
 export async function runRoute(db: Db, job: AiJob, deps: RoutingDeps): Promise<StoredRouting | null> {
   const photo = photoRow(db, job.visit_id, job.target_id)
-  if (!photo?.zoneId) {
-    skipJob(db, job.id, 'this photo is not owned by a room, so there are no pins to rank')
+  if (!photo) {
+    skipJob(db, job.id, 'this photo is attached to a pin or a canvas, so it is not loose')
+    return null
+  }
+  if (!photo.zoneId) {
+    // An inbox photo whose grouping key names nothing, or names a room this
+    // import does not have. There is no candidate set, and inventing one from
+    // the photograph would be the builder deciding which room somebody stood in.
+    skipJob(
+      db,
+      job.id,
+      photo.origin === 'inbox'
+        ? 'this photo is in the inbox with no grouping key naming a room in this visit, so there are no pins to rank'
+        : 'this photo is not owned by a room, so there are no pins to rank',
+    )
     return null
   }
   if (photo.fileStatus !== 'present') {
@@ -279,7 +351,7 @@ export async function runRoute(db: Db, job: AiJob, deps: RoutingDeps): Promise<S
   const model = deps.model ?? requireModel('fast')
   const prompt = currentPrompt(deps.prompts, ROUTING_TASK)
   const image = await prepareImage(deps.resolvePath(db, job.visit_id, job.target_id), model.maxImageEdge)
-  const facts = candidateFacts(pins)
+  const facts = candidateFacts(pins, photo.origin)
   const run = deps.run ?? runVisionTask
 
   const { output, inputTokens, outputTokens } = await run<Routing>({
@@ -287,7 +359,7 @@ export async function runRoute(db: Db, job: AiJob, deps: RoutingDeps): Promise<S
     images: [{ data: image.data, mediaType: image.mediaType }],
   })
 
-  const stored = normalise(output, pins)
+  const stored = normalise(output, pins, photo.origin)
 
   const generationId = recordGeneration({
     db, propertyId: job.property_id, visitId: job.visit_id, task: ROUTING_TASK,
@@ -296,7 +368,10 @@ export async function runRoute(db: Db, job: AiJob, deps: RoutingDeps): Promise<S
     // The candidate list is part of what produced the answer, so it is part of
     // the provenance. Without it "why did it say pin 4" is unanswerable once the
     // next visit renumbers everything.
-    inputRefs: { mediaId: job.target_id, zoneId: photo.zoneId, image: imageNote(image), candidates: facts },
+    inputRefs: {
+      mediaId: job.target_id, zoneId: photo.zoneId, origin: photo.origin,
+      image: imageNote(image), candidates: facts,
+    },
     output: stored,
     // Nothing was offered at all: the model looked at the room's pins and none
     // of them is what this photograph is of. A complete answer, and there is
@@ -314,7 +389,7 @@ export async function runRoute(db: Db, job: AiJob, deps: RoutingDeps): Promise<S
  * Exported for the tests, which is worth it: this is where a model's answer
  * stops being a list of numbers and becomes claims about somebody's house.
  */
-export function normalise(output: Routing, pins: CandidatePin[]): StoredRouting {
+export function normalise(output: Routing, pins: CandidatePin[], origin: PhotoOrigin = 'room'): StoredRouting {
   const candidates: StoredRouting['candidates'] = []
   const outOfRange: number[] = []
 
@@ -339,6 +414,7 @@ export function normalise(output: Routing, pins: CandidatePin[]): StoredRouting 
   const lead = candidates[0]
   return {
     candidates,
+    origin,
     shows: (output.shows ?? '').trim(),
     // Only where uncertainty exists. A hedge printed beside a candidate the
     // model called `certain` teaches people to weigh the hedge against the
@@ -353,6 +429,31 @@ export function normalise(output: Routing, pins: CandidatePin[]): StoredRouting 
 export const speaks = (stored: StoredRouting, bar: Confidence = routingBar()): boolean =>
   stored.candidates.length > 0 && clears(stored.candidates[0]!.confidence, bar)
 
+/**
+ * An answer that is not a pin.
+ *
+ * CLAUDE.md §9's second guard: *"none of these" is always present and exactly as
+ * easy as the top option*, or acquiescence sets in and the model's framing
+ * quietly becomes the answer.
+ *
+ * Extending routing to the inbox splits that option in two, because the question
+ * splits in two. For a room photograph the room is a fact and the only
+ * non-answer is *not one of these pins*. For an inbox photograph the room is a
+ * guess made from a grouping key, so *not this room at all* is a separate and
+ * equally real answer — and if it were missing, the only way to express it would
+ * be the one that says the pins are wrong, which files a true statement about
+ * the wrong thing.
+ *
+ * Carried as data rather than left to the screen to infer from `origin`. The
+ * guard has to survive the extension, and a guard that depends on a renderer
+ * remembering a rule is a guard that will be forgotten the first time somebody
+ * builds a second view.
+ */
+export type Dismissal = 'none-of-these' | 'belongs-elsewhere'
+
+export const dismissalsFor = (origin: PhotoOrigin): Dismissal[] =>
+  origin === 'inbox' ? ['none-of-these', 'belongs-elsewhere'] : ['none-of-these']
+
 export interface RoutingSuggestion {
   generationId: string
   mediaId: string
@@ -360,6 +461,17 @@ export interface RoutingSuggestion {
   candidates: StoredRouting['candidates']
   shows: string
   unsure?: string
+  /**
+   * Where this photograph came from — and therefore which desk it belongs on.
+   *
+   * The owner's condition, and it is a real distinction rather than a label:
+   * agreeing to a suggestion about a room photograph moves it from the room to a
+   * pin, while agreeing about an inbox photograph files something that was
+   * filed nowhere. Different acts, different flows.
+   */
+  origin: PhotoOrigin
+  /** Every answer that is not a pin. Never empty. */
+  dismissals: Dismissal[]
 }
 
 export interface RoutingBatch {
@@ -408,12 +520,15 @@ export function routingBatch(
       batch.belowBar++
       continue
     }
+    const origin: PhotoOrigin = stored.origin === 'inbox' ? 'inbox' : 'room'
     batch.suggestions.push({
       generationId: p.generationId,
       mediaId: p.targetId ?? '',
       candidates: stored.candidates,
       shows: stored.shows,
       unsure: stored.unsure,
+      origin,
+      dismissals: dismissalsFor(origin),
     })
   }
   return batch
@@ -423,12 +538,18 @@ function photoRow(
   db: Db,
   visitId: string,
   mediaId: string,
-): { zoneId: string | null; fileStatus: string } | undefined {
+): { zoneId: string | null; origin: PhotoOrigin; fileStatus: string } | undefined {
   return db
     .prepare(
-      `SELECT m.owner_zone_id AS zoneId, m.file_status AS fileStatus FROM media m
+      `SELECT CASE WHEN m.owner_kind = 'zone' THEN m.owner_zone_id
+                   WHEN EXISTS (SELECT 1 FROM zones z
+                                 WHERE z.import_id = m.import_id AND z.zone_id = m.group_key)
+                   THEN m.group_key END                                    AS zoneId,
+              CASE WHEN m.owner_kind = 'zone' THEN 'room' ELSE 'inbox' END AS origin,
+              m.file_status                                                AS fileStatus
+         FROM media m
         WHERE m.import_id = (SELECT id FROM imports WHERE visit_id = ? ORDER BY imported_at DESC LIMIT 1)
-          AND m.media_id = ? AND m.owner_kind = 'zone'`,
+          AND m.media_id = ? AND m.owner_kind IN ('zone', 'inbox')`,
     )
-    .get(visitId, mediaId) as { zoneId: string | null; fileStatus: string } | undefined
+    .get(visitId, mediaId) as { zoneId: string | null; origin: PhotoOrigin; fileStatus: string } | undefined
 }
