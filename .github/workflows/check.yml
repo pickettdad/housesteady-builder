@@ -1,0 +1,57 @@
+# Typecheck and tests, on every pull request and every push to main.
+#
+# There was no CI until now, and two things got through because of it: the web
+# workspace stopped typechecking four increments ago, and 38 MB of duplicated
+# fixture photos sat in the tree for six. Both were found by accident. A doctrine
+# suite that only runs when somebody remembers is not doing its job — most of
+# these tests exist to catch a rule quietly stopping being true, which is exactly
+# the failure nobody goes looking for.
+#
+# WHAT IS DELIBERATELY NOT HERE: `npm run golden`. It calls a real model, costs
+# real money per run, and needs an API key. §10 requires the whole suite to run
+# with no key and no network, and this workflow is what proves that stays true —
+# if a test ever starts needing one, this goes red.
+
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push supersedes an in-flight run on the same branch. Nobody needs the
+# result of a commit that has already been replaced.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the engines field. better-sqlite3 and sharp are native, so
+          # the version is not incidental.
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Both workspaces. The web one is the half that broke unnoticed.
+      - run: npm run typecheck
+
+      - run: npm test
+        env:
+          # Named explicitly rather than merely absent, so the guarantee is
+          # visible in the log: this suite runs with no key configured.
+          ANTHROPIC_API_KEY: ''
+
+      # The golden set gates prompt changes, and it can only do that for values a
+      # human has ratified. Zero ratified is a set that gates nothing, and a
+      # number nobody is shown stays at zero. Printed on every run rather than
+      # failing the build — ratifying is a review sitting, not a merge blocker.
+      - name: Golden-set ratification standing
+        run: npm run golden:standing --workspace @housesteady/server
