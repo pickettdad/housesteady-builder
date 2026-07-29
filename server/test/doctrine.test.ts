@@ -532,6 +532,50 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
   })
 
   /**
+   * Increment 3 §0.3 — *"honesty labels are assigned at ingest from the source,
+   * never at render. A label can never be upgraded by a later step."*
+   *
+   * The audit engine reads state and reports what is short. If it ever assigns
+   * a label, it is deciding an origin for a value it did not witness — which is
+   * how an inference becomes an observation without anyone choosing to launder
+   * one. The mapping is in the schema; nothing here may write one.
+   */
+  it('never lets the audit engine assign an honesty label', () => {
+    const LABELS = /\b(observed|measured|documented|reported-by-homeowner|inferred|not-inspected|not-accessible)\b/
+    const offenders: string[] = []
+    for (const file of sourceFiles(join(serverSrc, 'audit'))) {
+      const code = codeOf(file)
+      // Reading a label off the schema is fine; writing one is not. An
+      // assignment is what this looks for.
+      for (const m of code.matchAll(/(?:label|honestyLabel|defaultLabel)\s*[:=]\s*'([a-z-]+)'/g)) {
+        if (LABELS.test(m[1]!)) offenders.push(`${file.replace(repoRoot, '')}: assigns '${m[1]}'`)
+      }
+    }
+    assert.deepEqual(offenders, [], 'the schema declares the label; the audit reports state')
+  })
+
+  /**
+   * §0.4 and §0.5 are non-negotiables, and both are enforced by ORDERING inside
+   * `assessSlot` — the narrative branch returns before applicability or the
+   * profile can reach it, and the derived branch before any emptiness can be
+   * reported. That ordering is the mechanism, so this asserts the mechanism is
+   * still in that order rather than only that today's behaviour is right.
+   */
+  it('keeps the narrative guard ahead of the profile in assessSlot', () => {
+    const code = codeOf(join(serverSrc, 'audit', 'completeness.ts'))
+    const narrative = code.indexOf("slot.kind === 'narrative'")
+    const profile = code.indexOf("classification === 'out-of-scope'")
+    const derived = code.indexOf("slot.kind === 'derived'")
+    const empty = code.indexOf("state: 'empty'")
+
+    assert.ok(narrative > 0 && profile > 0 && derived > 0 && empty > 0, 'all four branches are present')
+    assert.ok(narrative < profile,
+      '§0.4: a narrative slot never gaps REGARDLESS OF PROFILE, so the profile must not be consulted first')
+    assert.ok(derived < empty,
+      '§0.5: a derived slot never reports independently, so it must return before any emptiness is reachable')
+  })
+
+  /**
    * Increment 3 §1: *"Build it as a standalone module with no knowledge of
    * binders or schedules, or it gets built twice and the two drift."*
    *
@@ -582,10 +626,18 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
       'no-candidate', 'candidate-short', 'broken-binding', 'not-applicable', 'no-slot-wants-this-type',
       // profile classifications and slot kinds — src/audit/schema.ts
       'out-of-scope', 'present-when-populated', 'record-set',
+      // slot and item states — src/audit/completeness.ts
+      'n-a-narrative', 'not-applicable', 'confirmed-absent', 'not-found',
     ])
 
     const offenders: string[] = []
     for (const file of sourceFiles(join(serverSrc, 'audit'))) {
+      // `sources.ts` is the seam between the schema's source vocabulary and
+      // this repo's tables, and a mapping has to name both sides. It is
+      // exempted BY NAME and alone — the failure worth preventing is that
+      // knowledge being scattered across the engine, which is exactly what
+      // pulling it into one file fixed.
+      if (file.endsWith(join('audit', 'sources.ts'))) continue
       for (const m of codeOf(file).matchAll(/'([a-z]+[.-][a-z][a-z0-9-]*)'/g)) {
         const value = m[1]!
         const head = value.split(/[.-]/)[0]!
