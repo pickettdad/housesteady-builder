@@ -60,10 +60,72 @@ export interface AcceptArgs {
 }
 
 export interface Acceptance {
+  /** Every act written — one per field accepted. */
+  overlays: Overlay[]
+  /** The first act. Callers accepting one field read this. */
   overlay: Overlay
+  /** `accepted` only when EVERY field went in exactly as proposed. */
   decision: 'accepted' | 'edited'
+  /** What the model proposed for `overlay`'s field, and what went in. */
   proposed: unknown
   accepted: unknown
+}
+
+export interface ReadingArgs {
+  db: Db
+  propertyId: string
+  visitId: string
+  generationId: string
+  targetKind: string
+  targetId: string
+  /** field → value. Only the fields being accepted; the rest stay unwritten. */
+  values: Record<string, unknown>
+  actor?: string
+}
+
+/**
+ * Accept a whole reading — every field off one plate, in one act.
+ *
+ * ONE PHOTOGRAPH, ONE SIGNATURE. A nameplate generation proposes up to five
+ * fields, and the claim a concierge is making is not five separate ones: it is
+ * CLAUDE.md §6's sentence — *I looked at this plate and this description matches
+ * what I saw*. Splitting it into five buttons would ask for that signature five
+ * times and get a weaker one each time.
+ *
+ * It is also what the storage requires. A generation's `human_decision` is one
+ * value, so the first single-field acceptance would settle the row and the
+ * second would be refused as already decided. Writing every field while the
+ * proposal is still open and settling once at the end is the only shape that
+ * is both honest and possible.
+ *
+ * A field the concierge left alone is simply not in `values` — no overlay, no
+ * claim. Doctrine 4: an explicit unknown is information.
+ */
+export function acceptReading(args: ReadingArgs): Acceptance {
+  const fields = Object.keys(args.values)
+  if (fields.length === 0) {
+    throw new OverlayRefused('There is nothing here to accept.', 'overlay.accept-no-fields')
+  }
+
+  const overlays = fields.map((field) =>
+    writeOverlay({
+      db: args.db,
+      propertyId: args.propertyId,
+      visitId: args.visitId,
+      kind: 'accept',
+      targetKind: args.targetKind,
+      targetId: args.targetId,
+      field,
+      newValue: args.values[field],
+      generationId: args.generationId,
+      actor: args.actor ?? 'concierge',
+      actorContext: 'desk',
+      // Provenance in plain words, for the quiet line under an accepted value.
+      reason: 'read from the photo, accepted at the desk',
+    }),
+  )
+
+  return settle(args.db, args.generationId, overlays)
 }
 
 /**
@@ -75,25 +137,16 @@ export interface Acceptance {
  * The diff decides, so it cannot be got wrong.
  */
 export function acceptProposal(args: AcceptArgs): Acceptance {
-  const { db, generationId } = args
-
-  const overlay = writeOverlay({
-    db,
+  return acceptReading({
+    db: args.db,
     propertyId: args.propertyId,
     visitId: args.visitId,
-    kind: 'accept',
+    generationId: args.generationId,
     targetKind: args.targetKind,
     targetId: args.targetId,
-    field: args.field,
-    newValue: args.value,
-    generationId,
-    actor: args.actor ?? 'concierge',
-    actorContext: 'desk',
-    // Provenance in plain words, for the quiet line under an accepted value.
-    reason: 'read from the photo, accepted at the desk',
+    values: { [args.field]: args.value },
+    actor: args.actor,
   })
-
-  return settle(db, generationId, overlay)
 }
 
 export interface RouteAcceptArgs {
@@ -137,7 +190,7 @@ export function acceptRoute(args: RouteAcceptArgs): Acceptance {
     reason: 'suggested from the photo, attached at the desk',
   })
 
-  return settle(args.db, args.generationId, overlay)
+  return settle(args.db, args.generationId, [overlay])
 }
 
 /**
@@ -146,18 +199,26 @@ export function acceptRoute(args: RouteAcceptArgs): Acceptance {
  * There is no separate "edit" act. Editing is accepting a different value, and
  * modelling it as two things would mean the accuracy record depended on which
  * button somebody happened to press rather than on whether the value changed.
- * The diff decides, so it cannot be got wrong — and it is read off the row the
+ * The diff decides, so it cannot be got wrong — and it is read off the rows the
  * store wrote rather than re-derived here, because two derivations of one fact
  * is one more place for them to disagree.
+ *
+ * Across several fields the rule is unanimity: `accepted` means every field went
+ * in exactly as proposed. One corrected character in a serial makes the whole
+ * reading an edit, which is the answer that keeps the accuracy record useful —
+ * "the model got this plate right" has to mean the plate, not four fifths of it.
  */
-function settle(db: Db, generationId: string, overlay: Overlay): Acceptance {
-  const asIs = JSON.stringify(overlay.priorValue ?? null) === JSON.stringify(overlay.newValue ?? null)
+function settle(db: Db, generationId: string, overlays: Overlay[]): Acceptance {
+  const asIs = overlays.every(
+    (o) => JSON.stringify(o.priorValue ?? null) === JSON.stringify(o.newValue ?? null),
+  )
   const decision: 'accepted' | 'edited' = asIs ? 'accepted' : 'edited'
 
   db.prepare('UPDATE ai_generations SET human_decision = ?, human_decided_at = ? WHERE id = ?')
     .run(decision, now(), generationId)
 
-  return { overlay, decision, proposed: overlay.priorValue, accepted: overlay.newValue }
+  const first = overlays[0]!
+  return { overlays, overlay: first, decision, proposed: first.priorValue, accepted: first.newValue }
 }
 
 /**
@@ -275,6 +336,58 @@ export function pendingProposals(db: Db, visitId: string): Proposal[] {
       .prepare(`SELECT * FROM ai_generations WHERE visit_id = ? AND human_decision = 'pending' ORDER BY created_at, id`)
       .all(visitId) as GenerationRow[]
   ).map(toProposal)
+}
+
+/**
+ * Which model and which prompt produced a generation.
+ *
+ * Provenance ONLY. There is no output field here on purpose: this is what the
+ * screen joins onto an *accepted* value to answer "where did this come from",
+ * and giving it the model's text as well would make it a second route by which
+ * an unsigned reading could reach a render — the exact thing the doctrine scan
+ * on this table exists to prevent.
+ */
+export interface Provenance {
+  task: string
+  model: string | null
+  promptId: string | null
+  promptVersion: string | null
+  decision: string
+  abstained: boolean
+  createdAt: string
+}
+
+/**
+ * Provenance for every generation in a visit, keyed by id.
+ *
+ * §7: "model and prompt version are visible on inspection — not shouted, but
+ * never hidden." One query for the visit rather than one per accepted value; a
+ * baseline carries a few hundred and the pass screen redraws on every act.
+ */
+export function generationProvenance(db: Db, visitId: string): Record<string, Provenance> {
+  const rows = db
+    .prepare(
+      `SELECT id, task, model, prompt_id, prompt_version, human_decision, abstained, created_at
+         FROM ai_generations WHERE visit_id = ?`,
+    )
+    .all(visitId) as {
+    id: string; task: string; model: string | null; prompt_id: string | null
+    prompt_version: string | null; human_decision: string; abstained: number; created_at: string
+  }[]
+
+  const out: Record<string, Provenance> = {}
+  for (const r of rows) {
+    out[r.id] = {
+      task: r.task,
+      model: r.model,
+      promptId: r.prompt_id,
+      promptVersion: r.prompt_version,
+      decision: r.human_decision,
+      abstained: r.abstained === 1,
+      createdAt: r.created_at,
+    }
+  }
+  return out
 }
 
 export interface GoldenCandidate {

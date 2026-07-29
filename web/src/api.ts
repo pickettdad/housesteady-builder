@@ -192,6 +192,8 @@ export interface PassPin {
     priorPosition: { canvasId?: string; x?: number; y?: number } | null
     at: string
   } | null
+  /** The desk's acts on this pin, including values accepted off a photograph. */
+  state: EntityState | null
 }
 
 export interface PhotoTile {
@@ -293,6 +295,126 @@ export interface PassModel {
     complete: boolean
     outstanding: string[]
   }
+}
+
+// ---------------------------------------------------------------- the assists
+//
+// Increment 2b §7. Deliberately a SEPARATE payload from the pass model, and the
+// split is doctrine rather than tidiness: accepted values are state and live in
+// `PassModel` with every other act, while a proposal is a thing a model said
+// that nobody has signed. Keeping them in different objects is what makes "no
+// path renders a generation as current state" hard to break by accident.
+
+export interface Provenance {
+  task: string
+  model: string | null
+  promptId: string | null
+  promptVersion: string | null
+  decision: string
+  abstained: boolean
+  createdAt: string
+}
+
+/** What could be seen, where the model declined to read. Never a value. */
+export interface Uncertainty {
+  partial: string
+  obscured: string
+  lookElsewhere: string
+  alternatives: string[]
+}
+
+export type NameplateField = 'make' | 'model' | 'serial' | 'capacity' | 'installDate'
+
+export interface ProposedField {
+  field: NameplateField
+  value: string | null
+  uncertain?: Uncertainty
+}
+
+export interface Classification {
+  isNameplate: 'yes' | 'no' | 'unsure'
+  orientation: 'upright' | 'rotated' | 'unknown'
+  reason: string
+}
+
+export interface NameplateProposal {
+  generationId: string
+  mediaId: string
+  pinId: string | null
+  fields: ProposedField[]
+  abstained: boolean
+  legible: boolean
+  notes: string
+  classifiedAs: Classification | null
+  provenance: Provenance | null
+}
+
+export interface NotRead {
+  mediaId: string
+  pinId: string | null
+  classifiedAs: Classification
+}
+
+export type Confidence = 'certain' | 'likely' | 'possible'
+
+export interface TypeProposal {
+  generationId: string
+  pinId: string
+  candidates: { type: string; confidence: Confidence; why: string }[]
+  shows: string
+  unsure?: string
+  offList?: string[]
+  alreadyAnswered: boolean
+  provenance: Provenance | null
+}
+
+export type Dismissal = 'none-of-these' | 'belongs-elsewhere'
+
+export interface RoutingSuggestion {
+  generationId: string
+  mediaId: string
+  candidates: { pinId: string; number: number | null; label: string; confidence: Confidence; why: string }[]
+  shows: string
+  unsure?: string
+  origin: 'room' | 'inbox'
+  dismissals: Dismissal[]
+}
+
+export interface RoutingBatch {
+  bar: Confidence
+  suggestions: RoutingSuggestion[]
+  belowBar: number
+  silent: number
+}
+
+export interface AssistModel {
+  nameplates: NameplateProposal[]
+  notRead: NotRead[]
+  types: TypeProposal[]
+  routing: RoutingBatch
+  provenance: Record<string, Provenance>
+  queue: {
+    queued: number
+    running: number
+    done: number
+    failed: number
+    skipped: number
+    failures: { task: string; targetKind: string; targetId: string; error: string | null }[]
+    /** Why work was correctly not done, grouped and counted. Never silent. */
+    skips: { task: string; reason: string; n: number }[]
+  }
+  spend: {
+    inputTokens: number
+    outputTokens: number
+    dollars: number
+    generations: number
+    cap: number
+    capReached: boolean
+    /** False when no rates are configured — the screen must then say unknown. */
+    ratesKnown: boolean
+  }
+  running: boolean
+  blocked: string | null
 }
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
@@ -414,6 +536,54 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(overlayId ? { overlayId } : {}),
+    }),
+
+  // --------------------------------------------------------------- assists
+  getAssists: (visitId: string) => req<AssistModel>(`/api/visits/${visitId}/assists`),
+
+  /** Queues whatever is owed and starts a drain. Returns without waiting. */
+  runAssists: (visitId: string, retryFailed = false) =>
+    req<{ queued: { total: number }; requeued: number }>(`/api/visits/${visitId}/assists/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ retryFailed }),
+    }),
+
+  /**
+   * Accept a whole plate in one act.
+   *
+   * Every field at once because that is the claim being made — I looked at this
+   * plate and this description matches what I saw. A field the concierge left
+   * alone is simply absent from `values`, and nothing is written for it.
+   */
+  acceptReading: (visitId: string, generationId: string, values: Record<string, string>) =>
+    req<{ decision: string }>(`/api/visits/${visitId}/assists/${generationId}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values }),
+    }),
+
+  acceptType: (visitId: string, generationId: string, value: unknown) =>
+    req<{ decision: string }>(`/api/visits/${visitId}/assists/${generationId}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
+    }),
+
+  /** Answering a routing suggestion. The act is an ordinary attachment. */
+  acceptRoute: (visitId: string, generationId: string, pinId: string) =>
+    req<{ decision: string }>(`/api/visits/${visitId}/assists/${generationId}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinId }),
+    }),
+
+  /** Recorded, never deleted — the discards are the evidence about a prompt. */
+  discardProposal: (visitId: string, generationId: string, note?: string) =>
+    req<unknown>(`/api/visits/${visitId}/assists/${generationId}/discard`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
     }),
 }
 

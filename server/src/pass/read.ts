@@ -147,6 +147,15 @@ export interface PassPin {
     priorPosition: { canvasId?: string; x?: number; y?: number } | null
     at: string
   } | null
+  /**
+   * The desk's acts on this pin, including values accepted off a photograph.
+   *
+   * Every pin carries it, not only the ones that need deciding. A nameplate
+   * reading lands on a pin that is typed, placed and otherwise finished — it
+   * would never appear in `decisions` — and an accepted value has to read as
+   * yours wherever the pin is shown. Increment 2b §7.
+   */
+  state: EntityState | null
 }
 
 export interface PassCanvas {
@@ -516,6 +525,7 @@ export function buildPass(db: Db, visitId: string): PassModel | null {
     mediaIds: parse<string[]>(p.media_ids, []),
     notes: notesByTarget.get(p.pin_id as string) ?? [],
     deskPlacement: placementByPin.get(p.pin_id as string) ?? null,
+    state: states.get(entityKey('pin', p.pin_id as string)) ?? null,
   })
 
   const pinsById = new Map(pinRows.map((p) => [p.pin_id as string, toPin(p)]))

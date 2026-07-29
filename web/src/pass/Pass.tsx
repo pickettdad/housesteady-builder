@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { go } from '../App.js'
-import { api, type DecisionItem, type PassModel, type PassZone } from '../api.js'
+import { api, type AssistModel, type DecisionItem, type PassModel, type PassZone } from '../api.js'
+import {
+  AcceptedValues, AssistStrip, NameplateCard, NotReadList, RouteCard, RoutingBatchView, TypeCard,
+  type AssistActs,
+} from './Assist.js'
 import { ZoneCanvas, type DeskPlacement } from './Canvas.js'
-import { DecisionRow, PhotoTileView, type ActHandlers } from './Decisions.js'
+import { DecisionRow, PhotoTileView, pinLabel, type ActHandlers } from './Decisions.js'
 import { MicCheck, ZoneMemory } from './Memory.js'
 
 /**
@@ -25,6 +29,7 @@ const SESSION = '__session__'
 
 export function PassView({ visitId }: { visitId: string }) {
   const [model, setModel] = useState<PassModel | null>(null)
+  const [assists, setAssists] = useState<AssistModel | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [zoneId, setZoneId] = useState<string | null>(null)
   const [cursor, setCursor] = useState(0)
@@ -36,13 +41,37 @@ export function PassView({ visitId }: { visitId: string }) {
   const openedZones = useRef<Set<string>>(new Set())
 
   const load = useCallback(
-    () => api.getPass(visitId).then(setModel).catch((e) => setError((e as Error).message)),
+    () =>
+      Promise.all([
+        api.getPass(visitId).then(setModel),
+        // Deliberately does not fail the pass. §0.4 — everything here works
+        // with the assists absent, so an assist read that errors leaves the
+        // walk untouched rather than taking the screen down with it.
+        api.getAssists(visitId).then(setAssists).catch(() => setAssists(null)),
+      ])
+        .then(() => undefined)
+        .catch((e) => setError((e as Error).message)),
     [visitId],
   )
 
   useEffect(() => {
     void api.startPass(visitId).then(load).catch((e) => setError((e as Error).message))
   }, [visitId, load])
+
+  /**
+   * Poll only while there is something in flight.
+   *
+   * The worker fills proposals in behind the concierge, so a card can land in a
+   * room they are already standing in. Polling stops the moment the queue is
+   * empty — a timer that runs all afternoon against a finished queue is a cost
+   * with no reader.
+   */
+  useEffect(() => {
+    const waiting = (assists?.queue.queued ?? 0) + (assists?.queue.running ?? 0)
+    if (waiting === 0 && !assists?.running) return
+    const t = setTimeout(() => void api.getAssists(visitId).then(setAssists).catch(() => {}), 3000)
+    return () => clearTimeout(t)
+  }, [assists, visitId])
 
   // Land on the first room that still has work, so reopening the screen picks
   // up where the afternoon left off rather than at the top every time.
@@ -106,6 +135,38 @@ export function PassView({ visitId }: { visitId: string }) {
     [run, visitId],
   )
 
+  /**
+   * The assist acts.
+   *
+   * Every one of them reloads BOTH models. An acceptance is an overlay, so it
+   * changes the pass; it also settles a generation, so it changes the assists.
+   * Reloading one would leave a card on screen for a proposal that has already
+   * been answered, which is the kind of small lie this screen exists not to
+   * tell.
+   */
+  const assistActs: AssistActs = useMemo(
+    () => ({
+      acceptReading: (generationId, values) =>
+        void run(() => api.acceptReading(visitId, generationId, values)),
+      acceptType: (generationId, value) => void run(() => api.acceptType(visitId, generationId, value)),
+      acceptRoute: (generationId, pinId) => void run(() => api.acceptRoute(visitId, generationId, pinId)),
+      discard: (generationId, note) => void run(() => api.discardProposal(visitId, generationId, note)),
+      correct: (targetKind, targetId, field, value) =>
+        void run(() => api.writeOverlay(visitId, { kind: 'correct', targetKind, targetId, field, newValue: value })),
+      flag: (targetKind, targetId, reason) =>
+        void run(() => api.writeOverlay(visitId, { kind: 'flag', targetKind, targetId, reason })),
+    }),
+    [run, visitId],
+  )
+
+  const runAssists = (retryFailed = false) =>
+    void run(async () => {
+      await api.runAssists(visitId, retryFailed)
+      // One immediate read so the strip says "running" rather than sitting on
+      // a stale "nothing has run yet" until the first poll comes round.
+      await api.getAssists(visitId).then(setAssists).catch(() => {})
+    })
+
   /** Desk placements for the current room, keyed by pin. */
   const deskPlacements = useMemo(() => {
     const out = new Map<string, DeskPlacement>()
@@ -133,6 +194,10 @@ export function PassView({ visitId }: { visitId: string }) {
       const el = e.target as HTMLElement | null
       // Never steal a keystroke from someone typing a flag reason.
       if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
+      // A focused proposal card owns c/e/x for itself. §7 keeps proposals out
+      // of the j/k walk deliberately — they are not required decisions — so
+      // the two keymaps have to not collide rather than take turns.
+      if (el?.closest('.proposal')) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
       const item = items[cursor]
@@ -231,6 +296,22 @@ export function PassView({ visitId }: { visitId: string }) {
     (zone?.decisions ?? []).filter((d) => d.state?.flag && d.pin).map((d) => d.pin!.pinId),
   )
 
+  // The assists, narrowed to the room being stood in. Membership is by pin or
+  // by photograph rather than by anything the assist model carries — a
+  // suggestion knows what it is about, and the pass knows where that lives.
+  const pinIdsHere = new Set((zone?.pins ?? []).map((p) => p.pinId))
+  const roomPhotoIds = new Set((zone?.roomPhotos ?? []).map((p) => p.mediaId))
+  const nameplatesHere = (assists?.nameplates ?? []).filter((n) => n.pinId && pinIdsHere.has(n.pinId))
+  const notReadHere = (assists?.notRead ?? []).filter((n) => n.pinId && pinIdsHere.has(n.pinId))
+  const routesHere = (assists?.routing.suggestions ?? []).filter(
+    (s) => s.origin === 'room' && roomPhotoIds.has(s.mediaId),
+  )
+  // Pins in this room carrying a value somebody has signed. A pin with a
+  // pending reading is not here — it is a proposal, and proposals are not state.
+  const acceptedPins = (zone?.pins ?? []).filter((p) =>
+    Object.keys(p.state?.values ?? {}).some((f) => f !== 'type'),
+  )
+
   return (
     <>
       <Crumbs model={model} />
@@ -252,6 +333,13 @@ export function PassView({ visitId }: { visitId: string }) {
         counts and the complete button off screen for the whole zone.
       */}
       <Progress model={model} onComplete={() => complete(false)} onReopen={reopen} />
+
+      {/*
+        Under the progress card and deliberately outside it. §7: AI proposals do
+        not count as required decisions and never block completion, so they must
+        not appear among the figures that decide whether the pass is done.
+      */}
+      <AssistStrip assists={assists} onRun={() => runAssists(false)} onRetry={() => runAssists(true)} />
 
       {error && <div className="banner failed"><div className="detail">{error}</div></div>}
 
@@ -408,7 +496,63 @@ export function PassView({ visitId }: { visitId: string }) {
                 <Decisions
                   visitId={visitId} zone={zone} items={zone.decisions} cursor={cursor}
                   vocabulary={model.vocabulary} acts={acts} onSelect={setCursor}
+                  assistFor={(item) => {
+                    // A suggested type sits in the row that already asks what
+                    // this pin is. An inbox photograph's suggested pin sits in
+                    // the row that already asks where it goes — the owner's
+                    // condition: the inbox decision flow, not the photo grid,
+                    // because filing something filed nowhere is a different act
+                    // from moving a room photo onto a pin.
+                    if (item.targetKind === 'pin') {
+                      const t = assists?.types.find((x) => x.pinId === item.targetId)
+                      return t ? (
+                        <TypeCard
+                          visitId={visitId} proposal={t} mediaIds={item.pin?.mediaIds ?? []} acts={assistActs}
+                        />
+                      ) : null
+                    }
+                    if (item.targetKind === 'media') {
+                      const s = assists?.routing.suggestions.find(
+                        (x) => x.mediaId === item.targetId && x.origin === 'inbox',
+                      )
+                      return s ? <RouteCard visitId={visitId} suggestion={s} acts={assistActs} /> : null
+                    }
+                    return null
+                  }}
                 />
+              )}
+
+              {/*
+                Nameplate readings belong to the room, not to the decision list:
+                a plate lands on a pin that is typed, placed and otherwise
+                finished, which would never appear above. §7 — proposals are
+                never required decisions, so they sit outside the count.
+              */}
+              {nameplatesHere.length + acceptedPins.length + notReadHere.length > 0 && (
+                <>
+                  <h4>Read from the photographs</h4>
+                  {nameplatesHere.map((n) => (
+                    <NameplateCard
+                      key={n.generationId} visitId={visitId} proposal={n} acts={assistActs}
+                      pinLabel={
+                        zone.pins.find((p) => p.pinId === n.pinId)
+                          ? pinLabel(zone.pins.find((p) => p.pinId === n.pinId)!)
+                          : 'this pin'
+                      }
+                    />
+                  ))}
+                  {acceptedPins.map((p) => (
+                    <div className="accepted-pin" key={p.pinId}>
+                      <div className="decision-headline">{pinLabel(p)}</div>
+                      <AcceptedValues
+                        state={p.state}
+                        provenance={assists?.provenance ?? {}}
+                        onUndo={(id) => void run(() => api.undo(visitId, id))}
+                      />
+                    </div>
+                  ))}
+                  <NotReadList visitId={visitId} rows={notReadHere} />
+                </>
               )}
 
               {/*
@@ -417,6 +561,12 @@ export function PassView({ visitId }: { visitId: string }) {
                 is a small lie in the one place that must not tell them.
               */}
               <h4>Room photos</h4>
+              {/*
+                Room-origin routing sits with the room photographs, because that
+                is what it is about. Inbox-origin routing does NOT — it is in the
+                decision list above, where the photograph already is.
+              */}
+              <RoutingBatchView visitId={visitId} suggestions={routesHere} acts={assistActs} />
               <p className="hint">
                 {(() => {
                   const attached = zone.roomPhotos.filter((p) => p.state?.assign).length
@@ -459,7 +609,7 @@ const zoneStatus = (z: PassZone): string => {
 }
 
 function Decisions({
-  visitId, zone, items, cursor, vocabulary, acts, onSelect,
+  visitId, zone, items, cursor, vocabulary, acts, onSelect, assistFor,
 }: {
   visitId: string
   zone: PassZone | null
@@ -468,6 +618,7 @@ function Decisions({
   vocabulary: PassModel['vocabulary']
   acts: ActHandlers
   onSelect: (i: number) => void
+  assistFor?: (item: DecisionItem) => React.ReactNode
 }) {
   return (
     <div className="decisions">
@@ -475,6 +626,7 @@ function Decisions({
         <DecisionRow
           key={item.key} visitId={visitId} zone={zone} item={item} selected={i === cursor}
           vocabulary={vocabulary} acts={acts} onSelect={() => onSelect(i)}
+          assist={assistFor?.(item)}
         />
       ))}
     </div>

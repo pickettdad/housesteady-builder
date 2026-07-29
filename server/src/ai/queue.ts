@@ -245,9 +245,20 @@ export interface QueueProgress {
   skipped: number
   /** Failed jobs with the file they were about, so a failure is chaseable. */
   failures: { task: string; targetKind: string; targetId: string; error: string | null }[]
+  /**
+   * Why work was correctly not done, grouped and counted.
+   *
+   * Doctrine 6, and it is not a nicety. On the reference export 32 of 34 jobs
+   * skip — 28 photographs are not on this machine, three are not nameplates,
+   * one pin had nothing captured to read. A screen that says "32 needed
+   * nothing" and stops has dropped 32 reasons, and the difference between
+   * "there was nothing to do" and "the media never arrived" is the whole
+   * difference between a working import and a broken one.
+   */
+  skips: { task: string; reason: string; n: number }[]
 }
 
-/** Queued / running / done / failed, with failures naming their target (§4). */
+/** Queued / running / done / failed, with failures and skips both explained. */
 export function queueProgress(db: Db, visitId: string): QueueProgress {
   const counts = db
     .prepare('SELECT status, COUNT(*) AS n FROM ai_jobs WHERE visit_id = ? GROUP BY status')
@@ -264,7 +275,23 @@ export function queueProgress(db: Db, visitId: string): QueueProgress {
       .all(visitId) as { task: string; target_kind: string; target_id: string; last_error: string | null }[]
   ).map((f) => ({ task: f.task, targetKind: f.target_kind, targetId: f.target_id, error: f.last_error }))
 
-  return { queued: by('queued'), running: by('running'), done: by('done'), failed: by('failed'), skipped: by('skipped'), failures }
+  // Grouped rather than listed one by one: twenty-eight rows all saying the
+  // same sentence is noise, and "28 × the photograph is not on this machine" is
+  // the fact somebody needs.
+  const skips = (
+    db
+      .prepare(
+        `SELECT task, last_error AS reason, COUNT(*) AS n FROM ai_jobs
+          WHERE visit_id = ? AND status = 'skipped'
+          GROUP BY task, last_error ORDER BY n DESC`,
+      )
+      .all(visitId) as { task: string; reason: string | null; n: number }[]
+  ).map((s) => ({ task: s.task, reason: s.reason ?? 'no reason recorded', n: s.n }))
+
+  return {
+    queued: by('queued'), running: by('running'), done: by('done'),
+    failed: by('failed'), skipped: by('skipped'), failures, skips,
+  }
 }
 
 /**

@@ -55,6 +55,7 @@ export function DecisionRow({
   vocabulary,
   acts,
   onSelect,
+  assist,
 }: {
   visitId: string
   zone: PassZone | null
@@ -63,6 +64,15 @@ export function DecisionRow({
   vocabulary: { componentTypes: string[]; naReasons: NaReason[] }
   acts: ActHandlers
   onSelect: () => void
+  /**
+   * A proposal about this same thing, rendered after the evidence.
+   *
+   * Increment 2b §7 puts the assists in the fresh pass rather than on a screen
+   * of their own, and this is the seam: a typeless pin's suggested type and a
+   * loose photograph's suggested pin belong in the row that already asks about
+   * that pin or that photograph, under the evidence and above the acts.
+   */
+  assist?: React.ReactNode
 }) {
   const [editing, setEditing] = useState<null | 'correct' | 'assign' | 'flag'>(null)
   const [reopened, setReopened] = useState(false)
@@ -161,6 +171,8 @@ export function DecisionRow({
           <PhotoTileView visitId={visitId} photo={item.photo} />
         </div>
       )}
+
+      {assist}
 
       {editing === 'correct' && (
         <CorrectEditor
