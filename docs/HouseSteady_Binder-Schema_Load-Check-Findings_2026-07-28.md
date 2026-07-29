@@ -207,3 +207,47 @@ None reached a report. Each was caught by the number being implausible against s
 **The generalisable form: an unbounded slice of a structured document is the single most productive source of false findings here.** Every one of the four came from a boundary that was assumed rather than located. For Increment 3's loader the conclusion is unchanged and now better evidenced — parse `triggerVocabulary`, which is structured with one declaration site, and never parse this markdown at runtime.
 
 **Status:** one open question (61 vs 62), two carried findings, §1g.2 passing. Increment 3 remains not started.
+
+---
+
+## Fourth addendum — everything closed, and one refinement (2026-07-28, final)
+
+Re-run against binder-schema (61 types recorded) and maintenance-schedule v1.4.1.
+
+| Check | Result |
+|---|---|
+| Every trigger used is declared | **PASS** |
+| `property.*` matches Table A | **PASS** — 17 = 17 |
+| `zone.*` names a Table B attribute | **PASS** — `zone.finished` only, now that `zone.outbuilding` is gone |
+| Repeated operands | **PASS** — the last one collapsed |
+| §1g.2 · bindings to a retired id | **PASS** — 42 bound ids, none in Table F |
+| §1g.2 · bindings to an unknown id | **PASS** |
+| Counting rule reproduces | **PASS** — 61 typed headings, 9 stubs, exactly as the new `countingNote` states |
+
+Both carried items are closed and the count question is settled. The counting rule now written into `countingNote` reproduces independently, which is the point of writing it down.
+
+### The refinement: a component type has three states, not two
+
+The one check that reports a failure is `house.outbuilding`, and it is **not a defect** — it is my check being too coarse.
+
+`outbuilding` is in the master's **Stubs** line: an id reserved with no checklist items. It is *declared*, so fail-open would not flag it; it carries no items, so nothing can satisfy it; and whether a concierge can pin a component of a stub type at all is unknown from here.
+
+| State | Declared? | Carries items? | What the loader should say |
+|---|---|---|---|
+| **typed** | yes | yes | resolves normally |
+| **stub** | yes | **no** | declared, but nothing can satisfy it — say so distinctly |
+| **undeclared** | no | — | unrecognised, fail open, report |
+
+Across both files, 24 `house.*`/`pin.*` names: **23 typed, 1 stub, 0 undeclared.** The stub is `house.outbuilding`, whose substance is already F9 — and this is a second, independent reason the same item may fire nowhere, on top of the zone-versus-pin question F9 asks.
+
+**For Increment 3:** the fail-open rule as written has two branches and needs three. A stub passing silently as "declared" is the quiet case — it looks resolved and is not.
+
+### Method, closing the loop
+
+Five parse errors across this document in one session, every one from a boundary assumed rather than located: an unbounded Table A regex, a line-window spanning Tables A and B, a Table F slice running to end-of-file (16 retired ids instead of 8), the `pnl.service` false broken-binding that came from it, and section 7 unbounded past `## 8`.
+
+None reached a report. The rule that caught all five is worth stating once: **locate every boundary; never assume one.** And the reason it worked is that each wrong number was checkable against something already known — 17 flags, 8 lineage rows, 409 items. The corollary now recorded for §1g.2's implementation: **a check must name the evidence behind its verdict**, so an implausible result is visible as implausible rather than as a defect.
+
+Filed separately as `/docs/HouseSteady_Binder-Builder_Note_Verification-Discipline_2026-07-28.md`, because it is not a schema finding — it is how to run any check in this repo.
+
+**Status:** all findings closed. Increment 3 remains not started.
