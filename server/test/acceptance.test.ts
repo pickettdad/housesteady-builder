@@ -13,6 +13,7 @@ import {
   pendingProposals, withdrawAcceptance,
 } from '../src/ai/accept.js'
 import { recordGeneration } from '../src/ai/queue.js'
+import { createOperator } from '../src/operators/registry.js'
 import { entityKey, resolveState } from '../src/overlay/model.js'
 import { OverlayRefused, readVisitOverlays, visitState, writeOverlay } from '../src/overlay/store.js'
 
@@ -134,7 +135,7 @@ describe('the diff is the accuracy record', () => {
 
     acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: a, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
     acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: b, field: 'make', targetKind: 'pin', targetId: PIN, value: 'B-corrected' })
-    discardProposal(db, c, 'that is the sticker, not the plate')
+    discardProposal(db, c, { actorId: TEST_OPERATOR, note: 'that is the sticker, not the plate' })
 
     assert.deepEqual(accuracy(db, VISIT, 'nameplate_extract'), {
       proposed: 4, acceptedAsIs: 1, edited: 1, discarded: 1, abstained: 1, pending: 1,
@@ -148,15 +149,76 @@ describe('declining a proposal', () => {
   // §10: "discards are retained".
   it('keeps the discard as evidence rather than deleting it', () => {
     const g = propose({ model: 'nonsense' })
-    discardProposal(db, g, 'read the warning placard, not the plate')
+    discardProposal(db, g, { actorId: TEST_OPERATOR, note: 'read the warning placard, not the plate' })
 
     const gen = findGeneration(db, g)
     assert.ok(gen, 'a discarded proposal is still in the record')
     assert.equal(gen.human_decision, 'discarded')
     assert.equal(gen.human_note, 'read the warning placard, not the plate',
       'a model repeating the same wrong thing is a prompt problem, and this is the evidence')
-    assert.equal(readVisitOverlays(db, VISIT).length, 0,
+    // The overlay targets the PROPOSAL, never the pin. Nothing about the house
+    // changed — that reasoning still holds — but the act being recorded is
+    // about the proposal, and `discarded` feeds the what-the-model-got-wrong
+    // query, so it has to name a person.
+    const overlays = readVisitOverlays(db, VISIT)
+    assert.equal(overlays.length, 1, 'the decision is recorded')
+    assert.equal(overlays[0]?.kind, 'discard')
+    assert.equal(overlays[0]?.targetKind, 'generation')
+    assert.equal(overlays[0]?.targetId, g, 'on the proposal it declines')
+    assert.equal(overlays[0]?.actorId, TEST_OPERATOR, 'and says who declined it')
+
+    // The original point, asserted directly rather than by counting: the pin's
+    // own trail is untouched.
+    const state = resolveState(overlays)
+    assert.equal(state.get(`pin:${PIN}`), undefined,
       'nothing about the house changed, so nothing lands on the pin trail')
+  })
+
+  /**
+   * The whole reason this act names a person.
+   *
+   * **The same discard count has opposite fixes.** One reviewer discarding half
+   * of everything is a training problem; everyone discarding the same kind of
+   * reading is a prompt problem. Indistinguishable without knowing who, and not
+   * reconstructible afterwards.
+   */
+  it('makes who discarded a proposal answerable', () => {
+    const sam = createOperator(db, { displayName: 'Sam Carter', shortCode: 'sc' })
+    const mine = propose({ model: 'nonsense' })
+    const theirs = propose({ model: 'also nonsense' })
+    discardProposal(db, mine, { actorId: TEST_OPERATOR })
+    discardProposal(db, theirs, { actorId: sam.id })
+
+    const who = (generationId: string) =>
+      (db.prepare(
+        `SELECT o.actor_id FROM overlays o WHERE o.generation_id = ? AND o.kind = 'discard'`,
+      ).get(generationId) as { actor_id: string } | undefined)?.actor_id
+
+    assert.equal(who(mine), TEST_OPERATOR)
+    assert.equal(who(theirs), sam.id)
+    assert.notEqual(who(mine), who(theirs), 'two reviewers, told apart')
+  })
+
+  /**
+   * §9's abstention rule cuts the other way here. An abstention cannot be
+   * ACCEPTED — there is nothing to accept — but dismissing one from the queue is
+   * ordinary work, and the discard path must not inherit the acceptance guard.
+   */
+  it('lets an abstention be dismissed even though it cannot be accepted', () => {
+    const g = propose({}, { abstained: true })
+    const gen = discardProposal(db, g, { actorId: TEST_OPERATOR, note: 'nothing legible here' })
+    assert.equal(gen.human_decision, 'discarded')
+  })
+
+  /** No confirmation step: friction on discarding would nudge people to accept. */
+  it('takes a discard back through undo, reopening the proposal', () => {
+    const g = propose({ model: 'nonsense' })
+    discardProposal(db, g, { actorId: TEST_OPERATOR })
+    const overlay = readVisitOverlays(db, VISIT).find((o) => o.kind === 'discard')!
+
+    withdrawAcceptance(db, overlay.id, { actorId: TEST_OPERATOR })
+    assert.equal(findGeneration(db, g)?.human_decision, 'pending',
+      'the proposal is in front of a person again')
   })
 
   it('refuses to accept an abstention, because there is nothing to accept', () => {
@@ -177,7 +239,7 @@ describe('declining a proposal', () => {
     const g = propose({ model: 'A' })
     acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
     assert.throws(
-      () => discardProposal(db, g),
+      () => discardProposal(db, g, { actorId: TEST_OPERATOR }),
       (e: OverlayRefused) => e.code === 'overlay.accept-already-decided',
     )
   })
@@ -244,7 +306,7 @@ describe('taking an acceptance back', () => {
     const { overlay } = acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
     withdrawAcceptance(db, overlay.id, { actorId: TEST_OPERATOR })
     assert.equal(pendingProposals(db, VISIT).length, 1)
-    discardProposal(db, g, 'on reflection that is the wrong plate')
+    discardProposal(db, g, { actorId: TEST_OPERATOR, note: 'on reflection that is the wrong plate' })
     assert.equal(findGeneration(db, g)!.human_decision, 'discarded')
   })
 })
@@ -313,7 +375,8 @@ describe('resolveState stays pure', () => {
     const base = {
       propertyId: 'p', visitId: 'v', targetKind: 'pin', targetId: 'pin-1',
       priorValue: null, reason: null, supersedesId: null,
-      actor: 'concierge', actorContext: 'desk', createdAt: '2026-07-27T10:00:00.000Z',
+      actor: 'concierge', actorContext: 'desk', actorId: TEST_OPERATOR,
+      createdAt: '2026-07-27T10:00:00.000Z',
     }
     const accepted = { ...base, id: 'a', seq: 1, kind: 'accept', field: 'model', newValue: 'A', generationId: 'g1' }
     const state = resolveState([accepted]).get(entityKey('pin', 'pin-1'))!
@@ -352,7 +415,7 @@ describe('the golden set grows from what the model got wrong', () => {
 
   it('surfaces a discard too, and keeps the reason', () => {
     const g = proposeFor('media-8', { model: 'DMF150' })
-    discardProposal(db, g, 'that is the brand badge, not the plate')
+    discardProposal(db, g, { actorId: TEST_OPERATOR, note: 'that is the brand badge, not the plate' })
 
     const [candidate] = goldenCandidates(db, VISIT)
     assert.equal(candidate!.decision, 'discarded')

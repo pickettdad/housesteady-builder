@@ -52,6 +52,7 @@ export interface OverlayRow {
   supersedes_id: string | null
   actor: string
   actor_context: string
+  actor_id: string | null
   generation_id: string | null
   created_at: string
 }
@@ -70,8 +71,17 @@ export interface Overlay {
   newValue: unknown
   reason: string | null
   supersedesId: string | null
+  /** The ROLE this act was performed in. Only ever 'concierge' so far. */
   actor: string
   actorContext: string
+  /**
+   * WHICH OPERATOR did it — Increment 2c.
+   *
+   * Surfaced here as well as stored, because an attribution nothing can read is
+   * only half of one: "who discarded this proposal" has to be answerable from
+   * the record, not just present in it.
+   */
+  actorId: string | null
   /** Set on `accept` only: the proposal this act answered. */
   generationId: string | null
   createdAt: string
@@ -104,6 +114,7 @@ export const toOverlay = (r: OverlayRow): Overlay => ({
   supersedesId: r.supersedes_id,
   actor: r.actor,
   actorContext: r.actor_context,
+  actorId: r.actor_id ?? null,
   generationId: r.generation_id ?? null,
   createdAt: r.created_at,
 })

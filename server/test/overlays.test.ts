@@ -383,7 +383,7 @@ describe('current state — latest wins across mixed kinds', () => {
     const mk = (over: Partial<Overlay>): Overlay => ({
       id: 'x', propertyId: 'p', visitId: 'v', seq: 1, kind: 'confirm', targetKind: 'pin', targetId: 'pin-1',
       field: null, priorValue: null, newValue: null, reason: null, supersedesId: null,
-      actor: 'concierge', actorContext: 'desk', generationId: null,
+      actor: 'concierge', actorContext: 'desk', actorId: TEST_OPERATOR, generationId: null,
       createdAt: '2026-07-26T10:00:00.000Z', ...over,
     })
 
@@ -400,7 +400,7 @@ describe('current state — latest wins across mixed kinds', () => {
     const o: Overlay = {
       id: 'a', propertyId: 'p', visitId: 'v', seq: 1, kind: 'transcribe', targetKind: 'zone', targetId: 'z1',
       field: null, priorValue: null, newValue: { text: 'from 2b' }, reason: null, supersedesId: null,
-      actor: 'concierge', actorContext: 'desk', generationId: null,
+      actor: 'concierge', actorContext: 'desk', actorId: TEST_OPERATOR, generationId: null,
       createdAt: '2026-07-26T10:00:00.000Z',
     }
     const state = resolveState([o]).get(entityKey('zone', 'z1'))!
