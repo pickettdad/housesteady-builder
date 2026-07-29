@@ -295,10 +295,10 @@ export function candidateFacts(pins: CandidatePin[], origin: PhotoOrigin = 'room
 }
 
 /** Queue one routing job per loose photo. */
-export function queuePhotoRouting(db: Db, propertyId: string, visitId: string): number {
+export function queuePhotoRouting(db: Db, propertyId: string, visitId: string, actorId: string): number {
   const photos = loosePhotos(db, visitId)
   for (const p of photos) {
-    enqueue({ db, propertyId, visitId, task: ROUTING_TASK, targetKind: 'media', targetId: p.mediaId })
+    enqueue({ db, propertyId, visitId, task: ROUTING_TASK, targetKind: 'media', targetId: p.mediaId, actorId })
   }
   return photos.length
 }
@@ -362,7 +362,10 @@ export async function runRoute(db: Db, job: AiJob, deps: RoutingDeps): Promise<S
   const stored = normalise(output, pins, photo.origin)
 
   const generationId = recordGeneration({
-    db, propertyId: job.property_id, visitId: job.visit_id, task: ROUTING_TASK,
+    db, propertyId: job.property_id, visitId: job.visit_id,
+    // Whoever triggered the run owns the generation. The model is recorded
+    // separately; conflating them would make a proposal read as a human act.
+    actorId: job.actor_id, task: ROUTING_TASK,
     targetKind: job.target_kind, targetId: job.target_id, model: model.id,
     promptId: prompt.id, promptVersion: prompt.version, promptHash: prompt.hash,
     // The candidate list is part of what produced the answer, so it is part of

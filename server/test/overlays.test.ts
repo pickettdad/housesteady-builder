@@ -12,7 +12,7 @@ import {
   writeOverlay,
 } from '../src/overlay/store.js'
 import { runImport } from '../src/import/runImport.js'
-import { freshDb, makePropertyAndVisit, readReference, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * The overlay layer — the desk's half of the record.
@@ -33,7 +33,7 @@ async function importedVisit(): Promise<{
 }> {
   const db = freshDb()
   const ids = makePropertyAndVisit(db)
-  await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+  await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
 
   const zone = db.prepare('SELECT zone_id FROM zones WHERE visit_id = ? LIMIT 1').get(ids.visitId) as {
     zone_id: string
@@ -68,18 +68,18 @@ describe('the four acts', () => {
       db.prepare('SELECT media_id FROM media WHERE visit_id = ? LIMIT 1').get(visitId) as { media_id: string }
     ).media_id
 
-    const confirm = writeOverlay({
+    const confirm = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId,
     })
-    const correct = writeOverlay({
+    const correct = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: typelessPinId,
       field: 'type', newValue: { kind: 'component', componentType: 'junction-box', freeformLabel: null },
     })
-    const assign = writeOverlay({
+    const assign = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'assign', targetKind: 'media', targetId: mediaId,
       newValue: { toKind: 'pin', toId: pinId },
     })
-    const flag = writeOverlay({
+    const flag = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'flag', targetKind: 'zone', targetId: zoneId,
       reason: 'Second photo of the ceiling is out of focus.',
     })
@@ -102,7 +102,7 @@ describe('the four acts', () => {
   it('refuses a flag with no reason', async () => {
     const { db, propertyId, visitId, pinId } = await importedVisit()
     assert.throws(
-      () => writeOverlay({ db, propertyId, visitId, kind: 'flag', targetKind: 'pin', targetId: pinId }),
+      () => writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'flag', targetKind: 'pin', targetId: pinId }),
       (e: OverlayRefused) => e.code === 'overlay.flag-no-reason',
     )
     db.close()
@@ -112,7 +112,7 @@ describe('the four acts', () => {
     const { db, propertyId, visitId } = await importedVisit()
     assert.throws(
       () =>
-        writeOverlay({
+        writeOverlay({ actorId: TEST_OPERATOR,
           db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: 'not-a-pin',
         }),
       (e: OverlayRefused) => e.code === 'overlay.unknown-target',
@@ -127,7 +127,7 @@ describe('corrections retain prior values', () => {
     const captured = db.prepare('SELECT type_kind, freeform_label FROM pins WHERE visit_id = ? AND pin_id = ?')
       .get(visitId, pinId) as { type_kind: string; freeform_label: string }
 
-    const o = writeOverlay({
+    const o = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: pinId,
       field: 'type', newValue: { kind: 'component', componentType: 'junction-box', freeformLabel: null },
     })
@@ -144,11 +144,11 @@ describe('corrections retain prior values', () => {
 
   it('chains, so each correction names the value it actually replaced', async () => {
     const { db, propertyId, visitId, pinId } = await importedVisit()
-    const first = writeOverlay({
+    const first = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: pinId,
       field: 'type', newValue: { kind: 'freeform', componentType: null, freeformLabel: 'Outlet' },
     })
-    const second = writeOverlay({
+    const second = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: pinId,
       field: 'type', newValue: { kind: 'component', componentType: 'junction-box', freeformLabel: null },
     })
@@ -164,7 +164,7 @@ describe('corrections retain prior values', () => {
 
   it('records a typeless pin being typed as a correction from nothing', async () => {
     const { db, propertyId, visitId, typelessPinId } = await importedVisit()
-    const o = writeOverlay({
+    const o = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: typelessPinId,
       field: 'type', newValue: { kind: 'component', componentType: 'smoke-alarm', freeformLabel: null },
     })
@@ -185,7 +185,7 @@ describe('corrections retain prior values', () => {
       item_id: string; reason_id: string
     }
 
-    const o = writeOverlay({
+    const o = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'correct', targetKind: 'resolution',
       targetId: resolutionKey(na), field: 'reasonId', newValue: 'no-access',
     })
@@ -202,15 +202,15 @@ describe('undo supersedes, and the trail reads honestly', () => {
       db.prepare('SELECT media_id FROM media WHERE visit_id = ? LIMIT 1').get(visitId) as { media_id: string }
     ).media_id
 
-    const assigned = writeOverlay({
+    const assigned = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'assign', targetKind: 'media', targetId: mediaId,
       newValue: { toKind: 'pin', toId: pinId },
     })
-    const undone = writeOverlay({
+    const undone = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: assigned.id,
       supersedesId: assigned.id,
     })
-    const reassigned = writeOverlay({
+    const reassigned = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'assign', targetKind: 'media', targetId: mediaId,
       newValue: { toKind: 'zone', toId: (db.prepare('SELECT zone_id FROM zones WHERE visit_id = ? LIMIT 1')
         .get(visitId) as { zone_id: string }).zone_id },
@@ -230,10 +230,10 @@ describe('undo supersedes, and the trail reads honestly', () => {
 
   it('never deletes — the undone row is still there', async () => {
     const { db, propertyId, visitId, pinId } = await importedVisit()
-    const confirm = writeOverlay({
+    const confirm = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId,
     })
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: confirm.id,
       supersedesId: confirm.id,
     })
@@ -247,13 +247,13 @@ describe('undo supersedes, and the trail reads honestly', () => {
 
   it('undoes the most recent act when nothing is named — the one keystroke', async () => {
     const { db, propertyId, visitId, pinId, zoneId } = await importedVisit()
-    writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
-    const flag = writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
+    const flag = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'flag', targetKind: 'zone', targetId: zoneId, reason: 'Blurry',
     })
 
     assert.equal(latestLiveDecision(db, visitId)!.id, flag.id)
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: flag.id, supersedesId: flag.id,
     })
 
@@ -269,11 +269,11 @@ describe('undo supersedes, and the trail reads honestly', () => {
     // "confirmed → unconfirmed → confirmed" and the retraction looks like it
     // never happened. Found by pressing the keys, not by reading the code.
     const { db, propertyId, visitId, pinId } = await importedVisit()
-    const first = writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
-    const undone = writeOverlay({
+    const first = writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
+    const undone = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: first.id, supersedesId: first.id,
     })
-    const again = writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
+    const again = writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
 
     assert.equal(again.supersedesId, undone.id, 'the re-decision fills the slot the undo left open')
     const state = stateFor(visitState(db, visitId), 'pin', pinId)!
@@ -287,14 +287,14 @@ describe('undo supersedes, and the trail reads honestly', () => {
     const captured = db.prepare('SELECT type_kind, freeform_label FROM pins WHERE visit_id = ? AND pin_id = ?')
       .get(visitId, pinId) as { type_kind: string; freeform_label: string }
 
-    const first = writeOverlay({
+    const first = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: pinId,
       field: 'type', newValue: { kind: 'freeform', componentType: null, freeformLabel: 'Outlet' },
     })
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: first.id, supersedesId: first.id,
     })
-    const second = writeOverlay({
+    const second = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: pinId,
       field: 'type', newValue: { kind: 'component', componentType: 'junction-box', freeformLabel: null },
     })
@@ -309,16 +309,16 @@ describe('undo supersedes, and the trail reads honestly', () => {
 
   it('refuses to undo the same decision twice', async () => {
     const { db, propertyId, visitId, pinId } = await importedVisit()
-    const confirm = writeOverlay({
+    const confirm = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId,
     })
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: confirm.id,
       supersedesId: confirm.id,
     })
     assert.throws(
       () =>
-        writeOverlay({
+        writeOverlay({ actorId: TEST_OPERATOR,
           db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: confirm.id,
           supersedesId: confirm.id,
         }),
@@ -330,10 +330,10 @@ describe('undo supersedes, and the trail reads honestly', () => {
 
   it('files the undo against the entity, not against the overlay it retracts', async () => {
     const { db, propertyId, visitId, pinId } = await importedVisit()
-    const confirm = writeOverlay({
+    const confirm = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId,
     })
-    const undo = writeOverlay({
+    const undo = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: confirm.id,
       supersedesId: confirm.id,
     })
@@ -348,8 +348,8 @@ describe('undo supersedes, and the trail reads honestly', () => {
 describe('current state — latest wins across mixed kinds', () => {
   it('keeps a confirmation and a flag standing together', async () => {
     const { db, propertyId, visitId, pinId } = await importedVisit()
-    writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
-    const flag = writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: 'pin', targetId: pinId })
+    const flag = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'flag', targetKind: 'pin', targetId: pinId,
       reason: 'Worth a second look on the next visit.',
     })
@@ -365,10 +365,10 @@ describe('current state — latest wins across mixed kinds', () => {
 
   it('replaces only within one kind and field', async () => {
     const { db, propertyId, visitId, pinId } = await importedVisit()
-    const first = writeOverlay({
+    const first = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'flag', targetKind: 'pin', targetId: pinId, reason: 'Blurry',
     })
-    const second = writeOverlay({
+    const second = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'flag', targetKind: 'pin', targetId: pinId, reason: 'Wrong room',
     })
     assert.equal(second.supersedesId, first.id)
@@ -416,7 +416,7 @@ describe('no overlay may record a judgement', () => {
     for (const field of ['condition', 'Condition', 'condition_note', 'overallGrade', 'safety_rating', 'severity']) {
       assert.throws(
         () =>
-          writeOverlay({
+          writeOverlay({ actorId: TEST_OPERATOR,
             db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: pinId,
             field, newValue: 'poor',
           }),
@@ -434,7 +434,7 @@ describe('no overlay may record a judgement', () => {
     for (const field of ['x', 'y', 'anchor', 'measurement', 'pressurePsi']) {
       assert.throws(
         () =>
-          writeOverlay({
+          writeOverlay({ actorId: TEST_OPERATOR,
             db, propertyId, visitId, kind: 'correct', targetKind: 'pin', targetId: pinId,
             field, newValue: 0.5,
           }),
@@ -447,7 +447,7 @@ describe('no overlay may record a judgement', () => {
 
 describe('the overlay table itself', () => {
   it('carries no column that could hold a derived or client-facing state', () => {
-    const db = openDb(':memory:')
+    const db = freshDb()
     const columns = (db.prepare('SELECT name FROM pragma_table_info(?)').all('overlays') as { name: string }[])
       .map((c) => c.name)
 
@@ -461,7 +461,7 @@ describe('the overlay table itself', () => {
   })
 
   it('replaces the two tables Increment 1 guessed at', () => {
-    const db = openDb(':memory:')
+    const db = freshDb()
     const tables = (
       db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]
     ).map((t) => t.name)

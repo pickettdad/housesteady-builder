@@ -1,3 +1,4 @@
+import { TEST_OPERATOR, freshDb } from './helpers.js'
 /**
  * The queue and the prompt library.
  *
@@ -33,15 +34,16 @@ const PROPERTY = 'prop-1'
 const VISIT = 'visit-1'
 
 function seed(): void {
-  db = openDb(':memory:')
-  db.prepare(`INSERT INTO properties (id, label, created_at) VALUES (?, 'A house', ?)`).run(PROPERTY, now())
+  db = freshDb()
+  db.prepare(`INSERT INTO properties (id, label, created_at, actor_id) VALUES (?, 'A house', ?, ?)`)
+    .run(PROPERTY, now(), TEST_OPERATOR)
   db.prepare(
-    `INSERT INTO visits (id, property_id, kind, created_at) VALUES (?, ?, 'baseline', ?)`,
-  ).run(VISIT, PROPERTY, now())
+    `INSERT INTO visits (id, property_id, kind, created_at, actor_id) VALUES (?, ?, 'baseline', ?, ?)`,
+  ).run(VISIT, PROPERTY, now(), TEST_OPERATOR)
 }
 
 const job = (task: string, targetId: string) =>
-  enqueue({ db, propertyId: PROPERTY, visitId: VISIT, task, targetKind: 'media', targetId })
+  enqueue({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, task, targetKind: 'media', targetId })
 
 describe('the job queue', () => {
   beforeEach(seed)
@@ -156,7 +158,7 @@ describe('the spend cap', () => {
   beforeEach(seed)
 
   const generation = (inputTokens: number, outputTokens: number) =>
-    recordGeneration({
+    recordGeneration({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, task: 'nameplate_extract',
       targetKind: 'media', targetId: newId(), model: 'a-model',
       promptId: 'nameplate_extract', promptVersion: 'v001', promptHash: 'abc',

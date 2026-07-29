@@ -39,6 +39,8 @@ export interface AiJob {
   generation_id: string | null
   created_at: string
   updated_at: string
+  /** Who triggered this run. Every generation it produces inherits it. */
+  actor_id: string
 }
 
 export interface EnqueueArgs {
@@ -48,6 +50,15 @@ export interface EnqueueArgs {
   task: string
   targetKind: string
   targetId: string
+  /**
+   * Who TRIGGERED the run — never the model.
+   *
+   * The model is already recorded in its own column on the generation, and
+   * conflating the two would make an AI proposal read as a human act. Doctrine
+   * 5 is that AI drafts and a human writes; this column is part of how that
+   * stays legible in the record.
+   */
+  actorId: string
 }
 
 /**
@@ -59,14 +70,14 @@ export interface EnqueueArgs {
  * comes back. `requeueFailed` is the deliberate opt-in for that.
  */
 export function enqueue(args: EnqueueArgs): AiJob {
-  const { db, propertyId, visitId, task, targetKind, targetId } = args
+  const { db, propertyId, visitId, task, targetKind, targetId, actorId } = args
   const at = now()
   db.prepare(
     `INSERT INTO ai_jobs (id, property_id, visit_id, task, target_kind, target_id,
-                          status, attempts, run_after, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'queued', 0, NULL, ?, ?)
+                          status, attempts, run_after, actor_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'queued', 0, NULL, ?, ?, ?)
      ON CONFLICT (visit_id, task, target_kind, target_id) DO NOTHING`,
-  ).run(newId(), propertyId, visitId, task, targetKind, targetId, at, at)
+  ).run(newId(), propertyId, visitId, task, targetKind, targetId, actorId, at, at)
 
   return db
     .prepare('SELECT * FROM ai_jobs WHERE visit_id = ? AND task = ? AND target_kind = ? AND target_id = ?')
@@ -321,6 +332,8 @@ export interface RecordGenerationArgs {
   inputTokens: number
   outputTokens: number
   tier?: Tier
+  /** Who triggered the run. A human, never the model — see EnqueueArgs. */
+  actorId: string
 }
 
 export function recordGeneration(args: RecordGenerationArgs): string {
@@ -333,15 +346,15 @@ export function recordGeneration(args: RecordGenerationArgs): string {
       `INSERT INTO ai_generations
          (id, property_id, visit_id, import_id, task, target_kind, target_id, model,
           prompt_id, prompt_version, prompt_hash, input_refs, output, abstained, confidence,
-          input_tokens, output_tokens, cost_estimate, human_decision, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+          input_tokens, output_tokens, cost_estimate, human_decision, actor_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
     )
     .run(
       id, args.propertyId, args.visitId, args.importId ?? null, args.task, args.targetKind, args.targetId,
       args.model, args.promptId, args.promptVersion, args.promptHash,
       JSON.stringify(args.inputRefs ?? null), JSON.stringify(args.output ?? null),
       args.abstained ? 1 : 0, args.confidence ?? null,
-      args.inputTokens, args.outputTokens, cost, now(),
+      args.inputTokens, args.outputTokens, cost, args.actorId, now(),
     )
   return id
 }

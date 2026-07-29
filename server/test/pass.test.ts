@@ -11,7 +11,7 @@ import {
   reopenIfCompleted, reopenPass, startPass,
 } from '../src/pass/store.js'
 import { cachePath, findMedia, resolveOriginal, thumbnail, warmZone } from '../src/pass/thumbs.js'
-import { freshDb, makePropertyAndVisit, readReference, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * The fresh pass — spec §5, §6, §8.
@@ -31,7 +31,7 @@ async function walkReference(mutate?: (m: Record<string, any>) => void) {
     mutate(parsed)
     raw = JSON.stringify(parsed)
   }
-  const { importId } = await runImport({ db, ...ids, raw, dataDir })
+  const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw, dataDir })
   return { db, dataDir, importId, ...ids }
 }
 
@@ -42,7 +42,7 @@ async function walkSynthetic() {
   const fixtureDir = scratchDir()
   const { manifestPath, zipPaths } = await writeFixture(fixtureDir)
   const ids = makePropertyAndVisit(db, { label: '12 Riverside Lane', address: '12 Riverside Lane' })
-  await runImport({ db, ...ids, raw: readFileSync(manifestPath, 'utf8'), dataDir, mediaZips: zipPaths })
+  await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readFileSync(manifestPath, 'utf8'), dataDir, mediaZips: zipPaths })
   return { db, dataDir, ...ids }
 }
 
@@ -74,7 +74,7 @@ describe('the reference export walks end to end', () => {
     for (const d of [...pass.zones.flatMap((z) => z.decisions), ...pass.sessionItems]) {
       assert.ok(d.targetKind && d.targetId, `${d.headline} is addressable`)
       // And the whole point: deciding it is one call, and it sticks.
-      writeOverlay({
+      writeOverlay({ actorId: TEST_OPERATOR,
         db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId,
       })
     }
@@ -238,7 +238,7 @@ describe('room photos', () => {
 
     assert.equal(photo.state, null, 'nothing is attached before anyone attaches it')
 
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'assign', targetKind: 'media', targetId: photo.mediaId,
       newValue: { toKind: 'pin', toId: pin.pinId },
     })
@@ -265,12 +265,12 @@ describe('room photos', () => {
     }
 
     // And the pass can finish with every one of them still unassigned.
-    startPass(db, visitId)
-    for (const z of pass.zones) openZone(db, visitId, z.zoneId)
+    startPass(db, visitId, TEST_OPERATOR)
+    for (const z of pass.zones) openZone(db, visitId, z.zoneId, TEST_OPERATOR)
     for (const d of [...pass.zones.flatMap((z) => z.decisions), ...pass.sessionItems]) {
-      writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
+      writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
     }
-    const { model } = completePass(db, visitId)
+    const { model } = completePass(db, visitId, { actorId: TEST_OPERATOR })
     assert.ok(model.pass!.completedAt)
     db.close()
   })
@@ -279,9 +279,9 @@ describe('room photos', () => {
 describe('completion means what §6 says and nothing more', () => {
   it('answers with what is open rather than just refusing', async () => {
     const { db, visitId } = await walkReference()
-    startPass(db, visitId)
+    startPass(db, visitId, TEST_OPERATOR)
     try {
-      completePass(db, visitId)
+      completePass(db, visitId, { actorId: TEST_OPERATOR })
       assert.fail('should have come back with the outstanding list')
     } catch (e) {
       assert.ok(e instanceof PassRefused)
@@ -301,9 +301,9 @@ describe('completion means what §6 says and nothing more', () => {
     // gate, or leave every pass permanently open. Once most passes are
     // permanently open, "complete" has stopped meaning anything.
     const { db, visitId } = await walkReference()
-    startPass(db, visitId)
+    startPass(db, visitId, TEST_OPERATOR)
 
-    const { pass, model } = completePass(db, visitId, { force: true })
+    const { pass, model } = completePass(db, visitId, { force: true , actorId: TEST_OPERATOR })
     assert.ok(pass.completed_at, 'the concierge is the accountable human')
 
     const recorded = JSON.parse(pass.completed_with_outstanding!) as string[]
@@ -316,12 +316,12 @@ describe('completion means what §6 says and nothing more', () => {
   it('leaves the outstanding note null when it finishes cleanly', async () => {
     const { db, propertyId, visitId } = await walkReference()
     const pass = buildPass(db, visitId)!
-    startPass(db, visitId)
-    for (const z of pass.zones) openZone(db, visitId, z.zoneId)
+    startPass(db, visitId, TEST_OPERATOR)
+    for (const z of pass.zones) openZone(db, visitId, z.zoneId, TEST_OPERATOR)
     for (const d of [...pass.zones.flatMap((z) => z.decisions), ...pass.sessionItems]) {
-      writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
+      writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
     }
-    const { pass: row } = completePass(db, visitId)
+    const { pass: row } = completePass(db, visitId, { actorId: TEST_OPERATOR })
     assert.equal(row.completed_with_outstanding, null, 'nothing was closed over, so nothing is claimed')
     db.close()
   })
@@ -332,13 +332,13 @@ describe('completion means what §6 says and nothing more', () => {
     // decision instead would be the dead control this screen avoids everywhere
     // else, so the completion is withdrawn and the reason recorded.
     const { db, propertyId, visitId } = await walkReference()
-    startPass(db, visitId)
-    completePass(db, visitId, { force: true })
+    startPass(db, visitId, TEST_OPERATOR)
+    completePass(db, visitId, { force: true , actorId: TEST_OPERATOR })
     assert.ok(findPass(db, visitId)!.completed_at)
 
     const item = buildPass(db, visitId)!.zones.flatMap((z) => z.decisions)[0]!
-    writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: item.targetKind, targetId: item.targetId })
-    reopenIfCompleted(db, visitId)
+    writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: item.targetKind, targetId: item.targetId })
+    reopenIfCompleted(db, visitId, TEST_OPERATOR)
 
     const after = findPass(db, visitId)!
     assert.equal(after.completed_at, null, 'the completion is withdrawn rather than left to go stale')
@@ -356,18 +356,18 @@ describe('completion means what §6 says and nothing more', () => {
     // closed over anything — so the history holds its own copy, and closing
     // twice over different amounts of work leaves two different true records.
     const { db, propertyId, visitId } = await walkReference()
-    startPass(db, visitId)
-    completePass(db, visitId, { force: true })
+    startPass(db, visitId, TEST_OPERATOR)
+    completePass(db, visitId, { force: true , actorId: TEST_OPERATOR })
     const first = passHistory(db, findPass(db, visitId)!.id)[0]!
     const firstCount = first.outstanding!.join(' ')
 
     // Decide something, which reopens it, then decide more and close again.
     const items = buildPass(db, visitId)!.zones.flatMap((z) => z.decisions)
     for (const d of items.slice(0, 2)) {
-      writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
-      reopenIfCompleted(db, visitId)
+      writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
+      reopenIfCompleted(db, visitId, TEST_OPERATOR)
     }
-    completePass(db, visitId, { force: true })
+    completePass(db, visitId, { force: true , actorId: TEST_OPERATOR })
 
     const history = passHistory(db, findPass(db, visitId)!.id)
     assert.deepEqual(history.map((h) => h.type), ['completed', 'reopened', 'completed'])
@@ -378,9 +378,9 @@ describe('completion means what §6 says and nothing more', () => {
 
   it('clears the outstanding note when the pass is reopened', async () => {
     const { db, visitId } = await walkReference()
-    startPass(db, visitId)
-    completePass(db, visitId, { force: true })
-    const reopened = reopenPass(db, visitId)
+    startPass(db, visitId, TEST_OPERATOR)
+    completePass(db, visitId, { force: true , actorId: TEST_OPERATOR })
+    const reopened = reopenPass(db, visitId, TEST_OPERATOR)
     // Leaving it behind would describe a state that is no longer true.
     assert.equal(reopened.completed_at, null)
     assert.equal(reopened.completed_with_outstanding, null)
@@ -390,15 +390,15 @@ describe('completion means what §6 says and nothing more', () => {
   it('requires every zone to have been opened', async () => {
     const { db, propertyId, visitId } = await walkReference()
     const pass = buildPass(db, visitId)!
-    startPass(db, visitId)
-    openZone(db, visitId, pass.zones[0]!.zoneId)
+    startPass(db, visitId, TEST_OPERATOR)
+    openZone(db, visitId, pass.zones[0]!.zoneId, TEST_OPERATOR)
     for (const d of [...pass.zones.flatMap((z) => z.decisions), ...pass.sessionItems]) {
-      writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
+      writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
     }
-    assert.throws(() => completePass(db, visitId), (e: PassRefused) => e.code === 'pass.outstanding')
+    assert.throws(() => completePass(db, visitId, { actorId: TEST_OPERATOR }), (e: PassRefused) => e.code === 'pass.outstanding')
 
-    openZone(db, visitId, pass.zones[1]!.zoneId)
-    assert.ok(completePass(db, visitId).pass.completed_at)
+    openZone(db, visitId, pass.zones[1]!.zoneId, TEST_OPERATOR)
+    assert.ok(completePass(db, visitId, { actorId: TEST_OPERATOR }).pass.completed_at)
     db.close()
   })
 
@@ -414,9 +414,9 @@ describe('completion means what §6 says and nothing more', () => {
   it('counts a zone opened twice as one zone walked', async () => {
     const { db, visitId } = await walkReference()
     const pass = buildPass(db, visitId)!
-    startPass(db, visitId)
-    openZone(db, visitId, pass.zones[0]!.zoneId)
-    openZone(db, visitId, pass.zones[0]!.zoneId)
+    startPass(db, visitId, TEST_OPERATOR)
+    openZone(db, visitId, pass.zones[0]!.zoneId, TEST_OPERATOR)
+    openZone(db, visitId, pass.zones[0]!.zoneId, TEST_OPERATOR)
 
     const after = buildPass(db, visitId)!
     assert.equal(after.progress.zonesWalked, 1)
@@ -426,8 +426,8 @@ describe('completion means what §6 says and nothing more', () => {
 
   it('does not reset the sitting when the screen is reopened', async () => {
     const { db, visitId } = await walkReference()
-    const first = startPass(db, visitId)
-    const second = startPass(db, visitId)
+    const first = startPass(db, visitId, TEST_OPERATOR)
+    const second = startPass(db, visitId, TEST_OPERATOR)
     assert.equal(first.id, second.id)
     assert.equal(first.started_at, second.started_at, 'time in pass would otherwise mean nothing')
     db.close()
@@ -539,7 +539,7 @@ describe('thumbnails', () => {
     writeFileSync(join(fixtureDir, manifest.media[0].file), 'not the bytes the export promised')
 
     const ids = makePropertyAndVisit(db, { label: '12 Riverside Lane', address: '12 Riverside Lane' })
-    await runImport({
+    await runImport({ actorId: TEST_OPERATOR,
       db, ...ids, raw: readFileSync(manifestPath, 'utf8'), dataDir, mediaDir: fixtureDir,
     })
 

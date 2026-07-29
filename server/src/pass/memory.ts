@@ -50,6 +50,8 @@ export interface SaveMemoryAudioArgs {
   zoneId: string
   /** Where multer put the upload. Moved into the visit directory from here. */
   tempPath: string
+  /** Whose voice this is. Required — Increment 2c. */
+  actorId: string
   mime: string | null
   durationMs: number | null
   /**
@@ -90,9 +92,12 @@ export function saveMemoryAudio(args: SaveMemoryAudioArgs): { media: DeskMediaRo
   db.prepare(
     `INSERT INTO desk_media
        (id, property_id, visit_id, kind, origin, file, mime, bytes, sha256, duration_ms,
-        peak_level, silent, acknowledged_at, created_at)
-     VALUES (?, ?, ?, 'audio', 'desk', ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
-  ).run(id, propertyId, visitId, relative, args.mime, bytes, sha256, args.durationMs, peak, silent, now())
+        peak_level, silent, acknowledged_at, actor_id, created_at)
+     VALUES (?, ?, ?, 'audio', 'desk', ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+    // The sharpest case in the whole increment: this is a recording of
+    // somebody's voice, and until now nothing recorded whose.
+  ).run(id, propertyId, visitId, relative, args.mime, bytes, sha256, args.durationMs, peak, silent,
+        args.actorId, now())
 
   // The overlay is what makes it part of the record. `field` separates text
   // from audio so a typed note and a spoken one can both stand for the same
@@ -106,6 +111,7 @@ export function saveMemoryAudio(args: SaveMemoryAudioArgs): { media: DeskMediaRo
     targetKind: 'zone',
     targetId: zoneId,
     field: 'audio',
+    actorId: args.actorId,
     newValue: { deskMediaId: id, durationMs: args.durationMs, bytes, peakLevel: peak, silent: silent === 1 },
     reason: 'human-entered, desk, from recall',
   })

@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 import type { Db } from '../src/db/index.js'
 import { buildReport, type ImportReport } from '../src/import/report.js'
 import { runImport } from '../src/import/runImport.js'
-import { addVisit, freshDb, makePropertyAndVisit, readReference, scratchDir } from './helpers.js'
+import { addVisit, freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * The broken variants.
@@ -20,7 +20,7 @@ async function importMutated(mutate: (m: Manifest) => void): Promise<{ report: I
   const ids = makePropertyAndVisit(db)
   const parsed = JSON.parse(readReference()) as Manifest
   mutate(parsed)
-  const { importId } = await runImport({ db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
+  const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
   return { report: buildReport(db, importId)!, db }
 }
 
@@ -200,7 +200,7 @@ describe('pin numbers are a session-scoped display label', () => {
     const db = freshDb()
     const dataDir = scratchDir()
     const ids = makePropertyAndVisit(db)
-    await runImport({ db, ...ids, raw: readReference(), dataDir })
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir })
 
     const parsed = JSON.parse(readReference()) as Manifest
     parsed.session.sessionId = 'second-visit-session'
@@ -210,7 +210,7 @@ describe('pin numbers are a session-scoped display label', () => {
       p.pinId = `visit-two-pin-${i}`
     })
     const visitTwo = addVisit(db, ids.propertyId, 'monthly')
-    const { importId } = await runImport({
+    const { importId } = await runImport({ actorId: TEST_OPERATOR,
       db,
       propertyId: ids.propertyId,
       visitId: visitTwo,
@@ -241,13 +241,13 @@ describe('pin identity across visits — the uuid, not the number', () => {
     const db = freshDb()
     const dataDir = scratchDir()
     const ids = makePropertyAndVisit(db)
-    await runImport({ db, ...ids, raw: readReference(), dataDir })
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir })
 
     const parsed = JSON.parse(readReference()) as Manifest
     parsed.session.sessionId = 'second-visit-session'
     mutateSecond(parsed)
     const visitTwo = addVisit(db, ids.propertyId, 'monthly')
-    const { importId } = await runImport({
+    const { importId } = await runImport({ actorId: TEST_OPERATOR,
       db,
       propertyId: ids.propertyId,
       visitId: visitTwo,
@@ -388,14 +388,14 @@ describe('config hash across visits', () => {
     const db = freshDb()
     const dataDir = scratchDir()
     const ids = makePropertyAndVisit(db)
-    await runImport({ db, ...ids, raw: readReference(), dataDir })
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir })
 
     const parsed = JSON.parse(readReference()) as Manifest
     parsed.session.sessionId = 'second-visit-session'
     parsed.config.hash = 'a-different-hash'
     parsed.config.version = '1.3.0'
     const visitTwo = addVisit(db, ids.propertyId, 'monthly')
-    const { importId } = await runImport({
+    const { importId } = await runImport({ actorId: TEST_OPERATOR,
       db,
       propertyId: ids.propertyId,
       visitId: visitTwo,

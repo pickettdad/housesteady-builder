@@ -44,6 +44,8 @@ export interface RunImportArgs {
   mediaDir?: string
   /** Overrides where the verbatim copy is written. Tests use a scratch directory. */
   dataDir?: string
+  /** Which operator ran the import. Required — Increment 2c. */
+  actorId: string
 }
 
 /** Decimal MB, matching the manifest's own byte figures and the report screen. */
@@ -60,7 +62,7 @@ const mb = (bytes: number): string => `${(bytes / 1_000_000).toFixed(0)} MB`
  * below this line knows which manifest version arrived.
  */
 export async function runImport(args: RunImportArgs): Promise<{ importId: string; status: string }> {
-  const { db, propertyId, visitId, raw, mediaZips = [], mediaDir, dataDir = dataRoot } = args
+  const { db, propertyId, visitId, raw, mediaZips = [], mediaDir, dataDir = dataRoot, actorId } = args
 
   const property = db.prepare('SELECT * FROM properties WHERE id = ?').get(propertyId) as
     | { id: string; label: string; address: string | null }
@@ -284,6 +286,7 @@ export async function runImport(args: RunImportArgs): Promise<{ importId: string
     unrecognizedResolutions: vocabulary.unrecognizedResolutions,
     unrecognizedEvents: vocabulary.unrecognizedEvents,
     placement,
+    actorId,
   })
 
   // The verbatim file on disk beside where its media will live. Two copies on

@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 import type { Db } from '../src/db/index.js'
 import { buildReport, type ImportReport } from '../src/import/report.js'
 import { runImport } from '../src/import/runImport.js'
-import { freshDb, makePropertyAndVisit, readReference, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * Fail open on vocabulary.
@@ -23,7 +23,7 @@ async function importMutated(mutate: (m: Manifest) => void): Promise<{ report: I
   const ids = makePropertyAndVisit(db)
   const parsed = JSON.parse(readReference()) as Manifest
   mutate(parsed)
-  const { importId } = await runImport({ db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
+  const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
   return { report: buildReport(db, importId)!, db }
 }
 

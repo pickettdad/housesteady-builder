@@ -1,3 +1,4 @@
+import { TEST_OPERATOR, freshDb } from './helpers.js'
 /**
  * Acceptance — how a proposal becomes a value, and what it must never do.
  *
@@ -21,16 +22,17 @@ const VISIT = 'visit-1'
 const PIN = 'pin-1'
 
 function seed(): void {
-  db = openDb(':memory:')
-  db.prepare(`INSERT INTO properties (id, label, created_at) VALUES (?, 'A house', ?)`).run(PROPERTY, now())
-  db.prepare(`INSERT INTO visits (id, property_id, kind, created_at) VALUES (?, ?, 'baseline', ?)`)
-    .run(VISIT, PROPERTY, now())
+  db = freshDb()
+  db.prepare(`INSERT INTO properties (id, label, created_at, actor_id) VALUES (?, 'A house', ?, ?)`)
+    .run(PROPERTY, now(), TEST_OPERATOR)
+  db.prepare(`INSERT INTO visits (id, property_id, kind, created_at, actor_id) VALUES (?, ?, 'baseline', ?, ?)`)
+    .run(VISIT, PROPERTY, now(), TEST_OPERATOR)
   const importId = newId()
   db.prepare(
     `INSERT INTO imports (id, visit_id, property_id, imported_at, media_mode, raw_manifest,
-                          validation_report, status, created_at)
-     VALUES (?, ?, ?, ?, 'manifest_only', '{}', '{}', 'ok', ?)`,
-  ).run(importId, VISIT, PROPERTY, now(), now())
+                          validation_report, status, created_at, actor_id)
+     VALUES (?, ?, ?, ?, 'manifest_only', '{}', '{}', 'ok', ?, ?)`,
+  ).run(importId, VISIT, PROPERTY, now(), now(), TEST_OPERATOR)
   db.prepare(
     `INSERT INTO zones (zone_id, import_id, property_id, visit_id, label, created_at)
      VALUES ('zone-1', ?, ?, ?, 'Utility room', ?)`,
@@ -42,7 +44,7 @@ function seed(): void {
 }
 
 const propose = (fields: Record<string, unknown>, opts: { abstained?: boolean } = {}): string =>
-  recordGeneration({
+  recordGeneration({ actorId: TEST_OPERATOR,
     db, propertyId: PROPERTY, visitId: VISIT, task: 'nameplate_extract',
     targetKind: 'pin', targetId: PIN, model: 'a-fast-model',
     promptId: 'nameplate_extract', promptVersion: 'v001', promptHash: 'deadbeef',
@@ -70,7 +72,7 @@ describe('a proposal is not a value', () => {
     const g = propose({ model: 'TTV049BGC01ARKS' })
     assert.equal(liveValue('model'), undefined)
 
-    acceptProposal({
+    acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
       field: 'model', targetKind: 'pin', targetId: PIN, value: 'TTV049BGC01ARKS',
     })
@@ -83,7 +85,7 @@ describe('the diff is the accuracy record', () => {
 
   it('stores what was proposed beside what was accepted, unchanged', () => {
     const g = propose({ serial: 'Q13734509' })
-    const result = acceptProposal({
+    const result = acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
       field: 'serial', targetKind: 'pin', targetId: PIN, value: 'Q13734509',
     })
@@ -98,7 +100,7 @@ describe('the diff is the accuracy record', () => {
   // §10: "edited acceptance stores both proposed and accepted values".
   it('keeps the wrong reading when the human corrects it', () => {
     const g = propose({ serial: 'Q13734S09' }) // model misread 5 as S
-    const result = acceptProposal({
+    const result = acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
       field: 'serial', targetKind: 'pin', targetId: PIN, value: 'Q13734509',
     })
@@ -116,7 +118,7 @@ describe('the diff is the accuracy record', () => {
     // nothing for the serial. Recording the literal string would turn a
     // declined reading into a wrong one in the accuracy figures.
     const g = propose({ model: 'HTX 30', serial: 'unknown' })
-    const result = acceptProposal({
+    const result = acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
       field: 'serial', targetKind: 'pin', targetId: PIN, value: '155543',
     })
@@ -130,8 +132,8 @@ describe('the diff is the accuracy record', () => {
     const c = propose({ model: 'C' })
     propose({}, { abstained: true })
 
-    acceptProposal({ db, propertyId: PROPERTY, visitId: VISIT, generationId: a, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
-    acceptProposal({ db, propertyId: PROPERTY, visitId: VISIT, generationId: b, field: 'make', targetKind: 'pin', targetId: PIN, value: 'B-corrected' })
+    acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: a, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
+    acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: b, field: 'make', targetKind: 'pin', targetId: PIN, value: 'B-corrected' })
     discardProposal(db, c, 'that is the sticker, not the plate')
 
     assert.deepEqual(accuracy(db, VISIT, 'nameplate_extract'), {
@@ -160,7 +162,7 @@ describe('declining a proposal', () => {
   it('refuses to accept an abstention, because there is nothing to accept', () => {
     const g = propose({}, { abstained: true })
     assert.throws(
-      () => acceptProposal({
+      () => acceptProposal({ actorId: TEST_OPERATOR,
         db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
         field: 'serial', targetKind: 'pin', targetId: PIN, value: 'made up',
       }),
@@ -173,7 +175,7 @@ describe('declining a proposal', () => {
 
   it('refuses to decide the same proposal twice', () => {
     const g = propose({ model: 'A' })
-    acceptProposal({ db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
+    acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
     assert.throws(
       () => discardProposal(db, g),
       (e: OverlayRefused) => e.code === 'overlay.accept-already-decided',
@@ -186,13 +188,13 @@ describe('acceptance shares a slot with correction', () => {
 
   it('lets a later correction replace an accepted value rather than sit beside it', () => {
     const g = propose({ type: 'water_heater' })
-    acceptProposal({
+    acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
       field: 'type', targetKind: 'pin', targetId: PIN,
       value: { kind: 'component', componentType: 'water_heater', freeformLabel: null },
     })
 
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, kind: 'correct',
       targetKind: 'pin', targetId: PIN, field: 'type',
       newValue: { kind: 'component', componentType: 'boiler', freeformLabel: null },
@@ -207,8 +209,8 @@ describe('acceptance shares a slot with correction', () => {
 
   it('takes its prior value from the accepted value, not from the field', () => {
     const g = propose({ model: 'A' })
-    acceptProposal({ db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
-    const corrected = writeOverlay({
+    acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
+    const corrected = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, kind: 'correct',
       targetKind: 'pin', targetId: PIN, field: 'model', newValue: 'B',
     })
@@ -221,13 +223,13 @@ describe('taking an acceptance back', () => {
 
   it('withdraws the value and returns the proposal to pending', () => {
     const g = propose({ model: 'A' })
-    const { overlay } = acceptProposal({
+    const { overlay } = acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
       field: 'model', targetKind: 'pin', targetId: PIN, value: 'A',
     })
     assert.equal(liveValue('model'), 'A')
 
-    withdrawAcceptance(db, overlay.id)
+    withdrawAcceptance(db, overlay.id, { actorId: TEST_OPERATOR })
 
     assert.equal(liveValue('model'), undefined, 'the value is no longer current')
     assert.equal(findGeneration(db, g)!.human_decision, 'pending',
@@ -239,8 +241,8 @@ describe('taking an acceptance back', () => {
 
   it('lets the proposal be decided again after a withdrawal', () => {
     const g = propose({ model: 'A' })
-    const { overlay } = acceptProposal({ db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
-    withdrawAcceptance(db, overlay.id)
+    const { overlay } = acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' })
+    withdrawAcceptance(db, overlay.id, { actorId: TEST_OPERATOR })
     assert.equal(pendingProposals(db, VISIT).length, 1)
     discardProposal(db, g, 'on reflection that is the wrong plate')
     assert.equal(findGeneration(db, g)!.human_decision, 'discarded')
@@ -253,7 +255,7 @@ describe('acceptance is not a way around the field line', () => {
   it('refuses a field the desk could not have corrected either', () => {
     const g = propose({ anchor: { x: 0.5, y: 0.5 } })
     assert.throws(
-      () => acceptProposal({
+      () => acceptProposal({ actorId: TEST_OPERATOR,
         db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
         field: 'anchor', targetKind: 'pin', targetId: PIN, value: { x: 0.5, y: 0.5 },
       }),
@@ -267,7 +269,7 @@ describe('acceptance is not a way around the field line', () => {
   it('refuses a condition or grade however it arrives', () => {
     const g = propose({ condition: 'poor' })
     assert.throws(
-      () => acceptProposal({
+      () => acceptProposal({ actorId: TEST_OPERATOR,
         db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
         field: 'condition', targetKind: 'pin', targetId: PIN, value: 'poor',
       }),
@@ -279,22 +281,22 @@ describe('acceptance is not a way around the field line', () => {
   })
 
   it('refuses a proposal belonging to another visit', () => {
-    db.prepare(`INSERT INTO visits (id, property_id, kind, created_at) VALUES ('visit-2', ?, 'monthly', ?)`)
-      .run(PROPERTY, now())
-    const g = recordGeneration({
+    db.prepare(`INSERT INTO visits (id, property_id, kind, created_at, actor_id) VALUES ('visit-2', ?, 'monthly', ?, ?)`)
+      .run(PROPERTY, now(), TEST_OPERATOR)
+    const g = recordGeneration({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: 'visit-2', task: 'nameplate_extract',
       targetKind: 'pin', targetId: PIN, model: 'm', promptId: 'p', promptVersion: 'v001', promptHash: 'h',
       inputRefs: [], output: { fields: { model: 'A' } }, abstained: false, inputTokens: 1, outputTokens: 1,
     })
     assert.throws(
-      () => acceptProposal({ db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' }),
+      () => acceptProposal({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId: g, field: 'model', targetKind: 'pin', targetId: PIN, value: 'A' }),
       (e: OverlayRefused) => e.code === 'overlay.accept-other-visit',
     )
   })
 
   it('refuses an acceptance that cites no proposal at all', () => {
     assert.throws(
-      () => writeOverlay({
+      () => writeOverlay({ actorId: TEST_OPERATOR,
         db, propertyId: PROPERTY, visitId: VISIT, kind: 'accept',
         targetKind: 'pin', targetId: PIN, field: 'model', newValue: 'invented',
       }),
@@ -324,7 +326,7 @@ describe('the golden set grows from what the model got wrong', () => {
   beforeEach(seed)
 
   const proposeFor = (mediaId: string, fields: Record<string, unknown>) =>
-    recordGeneration({
+    recordGeneration({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, task: 'nameplate_extract',
       targetKind: 'media', targetId: mediaId, model: 'a-fast-model',
       promptId: 'nameplate_extract', promptVersion: 'v001', promptHash: 'h',
@@ -334,7 +336,7 @@ describe('the golden set grows from what the model got wrong', () => {
 
   it('surfaces an edited acceptance as a photograph worth adding to the set', () => {
     const g = proposeFor('media-7', { serial: 'Q13734S09' })
-    acceptProposal({
+    acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
       field: 'serial', targetKind: 'pin', targetId: PIN, value: 'Q13734509',
     })
@@ -359,7 +361,7 @@ describe('the golden set grows from what the model got wrong', () => {
 
   it('leaves accepted-as-is readings alone', () => {
     const g = proposeFor('media-9', { serial: 'Q13734509' })
-    acceptProposal({
+    acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
       field: 'serial', targetKind: 'pin', targetId: PIN, value: 'Q13734509',
     })
@@ -371,7 +373,7 @@ describe('the golden set grows from what the model got wrong', () => {
     // Auto-promotion would let a value someone typed in a hurry become permanent
     // ground truth — the exact failure per-value approval exists to prevent.
     const g = proposeFor('media-10', { serial: 'wrong' })
-    acceptProposal({
+    acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: g,
       field: 'serial', targetKind: 'pin', targetId: PIN, value: 'right',
     })

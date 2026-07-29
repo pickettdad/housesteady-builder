@@ -14,6 +14,10 @@ import { PIN_TYPE_TASK } from './ai/tasks/pinType.js'
 import { ROUTING_TASK } from './ai/tasks/routing.js'
 import { startDrain } from './ai/worker.js'
 import { newId, now, openDb } from './db/index.js'
+import {
+  createOperator, currentOperator, deactivateOperator, displayNameFor, listOperators,
+  OperatorRefused, resolveOperator,
+} from './operators/registry.js'
 import { buildReport } from './import/report.js'
 import { ImportRefused, runImport } from './import/runImport.js'
 import { resolveState } from './overlay/model.js'
@@ -53,6 +57,51 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
 // ------------------------------------------------------------------ properties
 
+/**
+ * Which operator is acting.
+ *
+ * From SERVER CONFIGURATION, never from the request body. With no authentication
+ * — deliberately out of scope for Increment 2c — a client naming its own actor
+ * is an unverifiable claim, and accepting one would put a name on a record on
+ * the strength of whatever the browser said. Configuration is the honest source
+ * until hosting brings a real answer.
+ */
+const acting = (): string => currentOperator(db).id
+
+/** Refusals about who is acting are the caller's problem to fix, not a crash. */
+const operatorGuard = (res: express.Response, e: unknown): boolean => {
+  if (e instanceof OperatorRefused) {
+    res.status(409).json({ error: e.message, code: e.code })
+    return true
+  }
+  return false
+}
+
+app.get('/api/operators', (_req, res) => {
+  res.json(listOperators(db, { includeInactive: String(_req.query.all) === 'true' }))
+})
+
+app.post('/api/operators', (req, res) => {
+  try {
+    res.status(201).json(createOperator(db, {
+      displayName: String(req.body?.displayName ?? ''),
+      shortCode: String(req.body?.shortCode ?? ''),
+    }))
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    throw e
+  }
+})
+
+app.post('/api/operators/:id/deactivate', (req, res) => {
+  try {
+    res.json(deactivateOperator(db, resolveOperator(db, req.params.id).id))
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    throw e
+  }
+})
+
 app.get('/api/properties', (_req, res) => {
   const rows = db
     .prepare(
@@ -69,11 +118,14 @@ app.post('/api/properties', (req, res) => {
   const label = String(req.body?.label ?? '').trim()
   if (!label) return res.status(400).json({ error: 'A property needs a label.' })
   const id = newId()
-  db.prepare('INSERT INTO properties (id, label, address, created_at) VALUES (?, ?, ?, ?)').run(
+  db.prepare(
+    'INSERT INTO properties (id, label, address, created_at, actor_id) VALUES (?, ?, ?, ?, ?)',
+  ).run(
     id,
     label,
     req.body?.address ? String(req.body.address).trim() : null,
     now(),
+    acting(),
   )
   res.status(201).json(db.prepare('SELECT * FROM properties WHERE id = ?').get(id))
 })
@@ -103,9 +155,17 @@ app.post('/api/properties/:id/visits', (req, res) => {
   // the config id. So the operator says, and the record keeps their word.
   const kind = String(req.body?.kind ?? 'baseline')
   const id = newId()
+  // `performed_by` is who was in the house — the client-facing "visited by"
+  // line — and it is left null when not yet known rather than defaulting to
+  // whoever created the row. Doctrine 4: an explicit unknown is information, and
+  // a visit booked in advance genuinely has no answer yet. `actor_id` still
+  // records who booked it.
+  const performedBy = req.body?.performedBy ? resolveOperator(db, String(req.body.performedBy)).id : null
   db.prepare(
-    'INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(id, req.params.id, kind, req.body?.visitDate ?? null, req.body?.notes ?? null, now())
+    `INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at, actor_id, performed_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(id, req.params.id, kind, req.body?.visitDate ?? null, req.body?.notes ?? null, now(),
+        acting(), performedBy)
   res.status(201).json(db.prepare('SELECT * FROM visits WHERE id = ?').get(id))
 })
 
@@ -166,6 +226,7 @@ app.post('/api/visits/:id/import', upload.any(), async (req, res) => {
       visitId: visit.id,
       raw,
       mediaZips,
+      actorId: acting(),
     })
     res.status(201).json({ importId, status })
   } catch (e) {
@@ -243,8 +304,9 @@ app.post('/api/visits/:id/overlays', (req, res) => {
       reason: req.body?.reason ?? null,
       supersedesId: req.body?.supersedesId ?? null,
       actor: req.body?.actor,
+      actorId: acting(),
     })
-    reopenIfCompleted(db, visit.id)
+    reopenIfCompleted(db, visit.id, acting())
     res.status(201).json(overlay)
   } catch (e) {
     if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
@@ -272,8 +334,8 @@ app.post('/api/visits/:id/overlays/undo', (req, res) => {
     // current that is not, and the same `u` keystroke reaches both.
     const target = readOne(db, targetId)
     if (target?.generationId) {
-      const undone = withdrawAcceptance(db, targetId, req.body?.reason ?? undefined)
-      reopenIfCompleted(db, visit.id)
+      const undone = withdrawAcceptance(db, targetId, { actorId: acting(), reason: req.body?.reason ?? undefined })
+      reopenIfCompleted(db, visit.id, acting())
       return res.status(201).json(undone)
     }
 
@@ -288,8 +350,9 @@ app.post('/api/visits/:id/overlays/undo', (req, res) => {
       supersedesId: targetId,
       reason: req.body?.reason ?? null,
       actor: req.body?.actor,
+      actorId: acting(),
     })
-    reopenIfCompleted(db, visit.id)
+    reopenIfCompleted(db, visit.id, acting())
     res.status(201).json(overlay)
   } catch (e) {
     if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
@@ -310,7 +373,7 @@ app.get('/api/visits/:id/pass', (req, res) => {
 
 app.post('/api/visits/:id/pass/start', (req, res) => {
   try {
-    res.json(startPass(db, req.params.id))
+    res.json(startPass(db, req.params.id, acting()))
   } catch (e) {
     if (e instanceof PassRefused) return res.status(422).json({ error: e.message, code: e.code })
     throw e
@@ -319,7 +382,7 @@ app.post('/api/visits/:id/pass/start', (req, res) => {
 
 app.post('/api/visits/:id/pass/zones/:zoneId/open', async (req, res) => {
   try {
-    const pass = openZone(db, req.params.id, req.params.zoneId)
+    const pass = openZone(db, req.params.id, req.params.zoneId, acting())
     res.json(pass)
 
     // Thumbnails start being made now, after the response has gone, and nothing
@@ -345,7 +408,7 @@ app.post('/api/visits/:id/pass/zones/:zoneId/open', async (req, res) => {
 app.post('/api/visits/:id/pass/complete', (req, res) => {
   try {
     // force = the concierge was shown what is outstanding and said yes anyway.
-    res.json(completePass(db, req.params.id, { force: Boolean(req.body?.force) }))
+    res.json(completePass(db, req.params.id, { force: Boolean(req.body?.force), actorId: acting() }))
   } catch (e) {
     if (e instanceof PassRefused) {
       return res.status(422).json({ error: e.message, code: e.code, outstanding: e.outstanding })
@@ -356,7 +419,7 @@ app.post('/api/visits/:id/pass/complete', (req, res) => {
 
 app.post('/api/visits/:id/pass/reopen', (req, res) => {
   try {
-    res.json(reopenPass(db, req.params.id))
+    res.json(reopenPass(db, req.params.id, acting()))
   } catch (e) {
     if (e instanceof PassRefused) return res.status(422).json({ error: e.message, code: e.code })
     throw e
@@ -394,6 +457,7 @@ app.post('/api/visits/:id/memory/audio', upload.single('audio'), (req, res) => {
       visitId: visit.id,
       zoneId,
       tempPath: file.path,
+      actorId: acting(),
       mime: file.mimetype ?? null,
       durationMs: num(req.body?.durationMs),
       // Measured in the browser while recording. A muted microphone yields a
@@ -401,7 +465,7 @@ app.post('/api/visits/:id/memory/audio', upload.single('audio'), (req, res) => {
       // catch it — this number is what can.
       peakLevel: num(req.body?.peakLevel),
     })
-    reopenIfCompleted(db, visit.id)
+    reopenIfCompleted(db, visit.id, acting())
     res.status(201).json({
       id: media.id,
       durationMs: media.duration_ms,
@@ -429,12 +493,13 @@ app.post('/api/visits/:id/memory/text', (req, res) => {
       db, propertyId: visit.property_id, visitId: visit.id,
       kind: 'memory', targetKind: 'zone', targetId: zoneId, field: 'text',
       newValue: { text },
+      actorId: acting(),
       // The provenance, verbatim from spec §4. The honesty label stays
       // Observed — the concierge did see the room; this says when it was
       // written down, which is the honest distinction.
       reason: 'human-entered, desk, from recall',
     })
-    reopenIfCompleted(db, visit.id)
+    reopenIfCompleted(db, visit.id, acting())
     res.status(201).json(overlay)
   } catch (e) {
     if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
@@ -485,7 +550,7 @@ app.post('/api/visits/:id/assists/run', (req, res) => {
   // jobs come back only when asked for — §4's deliberate opt-in, because a
   // retry loop that runs by itself is how a cap gets spent on a bad file.
   const requeued = req.body?.retryFailed ? requeueFailed(db, visit.id) : 0
-  const queued = queueAssists(db, visit.property_id, visit.id)
+  const queued = queueAssists(db, visit.property_id, visit.id, acting())
 
   void startDrain(db, visit.id)
   res.status(202).json({ queued, requeued, progress: queueProgress(db, visit.id) })
@@ -512,6 +577,7 @@ app.post('/api/visits/:id/assists/:generationId/accept', (req, res) => {
       visitId: visit.id,
       generationId: gen.id,
       actor: req.body?.actor,
+      actorId: acting(),
     }
 
     // A routing suggestion is answered by attaching the photograph, which is an
@@ -520,7 +586,7 @@ app.post('/api/visits/:id/assists/:generationId/accept', (req, res) => {
       const pinId = String(req.body?.pinId ?? '')
       if (!pinId) return res.status(400).json({ error: 'Say which pin the photograph belongs to.' })
       const result = acceptRoute({ ...common, mediaId: gen.target_id ?? '', pinId })
-      reopenIfCompleted(db, visit.id)
+      reopenIfCompleted(db, visit.id, acting())
       return res.status(201).json(result)
     }
 
@@ -548,7 +614,7 @@ app.post('/api/visits/:id/assists/:generationId/accept', (req, res) => {
     }
 
     const result = acceptReading({ ...common, targetKind: 'pin', targetId, values })
-    reopenIfCompleted(db, visit.id)
+    reopenIfCompleted(db, visit.id, acting())
     res.status(201).json(result)
   } catch (e) {
     if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })

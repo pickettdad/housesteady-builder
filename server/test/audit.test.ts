@@ -23,7 +23,7 @@ import {
 } from '../src/audit/triggers.js'
 import { auditZones, computeZoneAudit, inScope, listsForZoneType } from '../src/audit/zoneAudit.js'
 import { runImport } from '../src/import/runImport.js'
-import { freshDb, makePropertyAndVisit, readReference, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
 import type { Db } from '../src/db/index.js'
 
 // ------------------------------------------------------------------ evaluator
@@ -244,7 +244,7 @@ describe('the zone-audit oracle, against the reference export', () => {
   beforeEach(async () => {
     db = freshDb()
     const ids = makePropertyAndVisit(db)
-    const result = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const result = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     importId = result.importId
   })
 

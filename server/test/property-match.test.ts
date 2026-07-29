@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 import { buildReport } from '../src/import/report.js'
 import { checkPropertyLabel, MATCH_THRESHOLD, normalize, similarity } from '../src/import/propertyMatch.js'
 import { runImport } from '../src/import/runImport.js'
-import { freshDb, makePropertyAndVisit, readReference, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
 import { newId, now } from '../src/db/index.js'
 
 /**
@@ -72,7 +72,7 @@ describe('the guard in a real import', () => {
   it('warns, but still imports, when the export names a different house', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db, { label: 'Wannamaker', address: '443 Wannamaker Rd' })
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
 
     assert.equal(report.import.status, 'ok_with_warnings')
@@ -86,14 +86,15 @@ describe('the guard in a real import', () => {
   it('points at the better-matching property when one exists', async () => {
     const db = freshDb()
     // A second property whose label is exactly what the export says.
-    db.prepare('INSERT INTO properties (id, label, address, created_at) VALUES (?, ?, ?, ?)').run(
+    db.prepare('INSERT INTO properties (id, label, address, created_at, actor_id) VALUES (?, ?, ?, ?, ?)').run(
       newId(),
       'Test build 7 web app 1',
       null,
       now(),
+      TEST_OPERATOR,
     )
     const ids = makePropertyAndVisit(db, { label: 'Somewhere else entirely', address: '88 Bridge St' })
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
 
     const warning = report.validation.checks.find((c) => c.code === 'property.better-match-elsewhere')
@@ -105,7 +106,7 @@ describe('the guard in a real import', () => {
   it('says nothing when the label matches', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db, { label: 'Test build 7 web app 1' })
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
     assert.ok(!report.validation.checks.some((c) => c.code.startsWith('property.') && c.severity === 'warning'))
     db.close()

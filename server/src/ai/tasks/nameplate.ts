@@ -164,7 +164,10 @@ export async function runClassify(db: Db, job: AiJob, deps: TaskDeps): Promise<C
   })
 
   const generationId = recordGeneration({
-    db, propertyId: job.property_id, visitId: job.visit_id, task: CLASSIFY_TASK,
+    db, propertyId: job.property_id, visitId: job.visit_id,
+    // Whoever triggered the run owns the generation. The model is recorded
+    // separately; conflating them would make a proposal read as a human act.
+    actorId: job.actor_id, task: CLASSIFY_TASK,
     targetKind: job.target_kind, targetId: job.target_id, model: model.id,
     promptId: prompt.id, promptVersion: prompt.version, promptHash: prompt.hash,
     inputRefs: { mediaId: job.target_id, image: imageNote(image) },
@@ -181,6 +184,7 @@ export async function runClassify(db: Db, job: AiJob, deps: TaskDeps): Promise<C
   const extraction = enqueue({
     db, propertyId: job.property_id, visitId: job.visit_id,
     task: EXTRACT_TASK, targetKind: job.target_kind, targetId: job.target_id,
+    actorId: job.actor_id,
   })
   if (output.isNameplate === 'no') {
     skipJob(db, extraction.id, `classified as not a nameplate — ${output.reason}`)
@@ -237,7 +241,10 @@ export async function runExtract(db: Db, job: AiJob, deps: TaskDeps): Promise<Ex
   }
 
   const generationId = recordGeneration({
-    db, propertyId: job.property_id, visitId: job.visit_id, task: EXTRACT_TASK,
+    db, propertyId: job.property_id, visitId: job.visit_id,
+    // Whoever triggered the run owns the generation. The model is recorded
+    // separately; conflating them would make a proposal read as a human act.
+    actorId: job.actor_id, task: EXTRACT_TASK,
     targetKind: job.target_kind, targetId: job.target_id, model: model.id,
     promptId: prompt.id, promptVersion: prompt.version, promptHash: prompt.hash,
     inputRefs: { mediaId: job.target_id, image: imageNote(image) },
@@ -269,10 +276,10 @@ export function pinAttachedPhotos(db: Db, visitId: string): { mediaId: string; p
 }
 
 /** Queue classification for every pin-attached photo. Extraction follows from it. */
-export function queueNameplateReading(db: Db, propertyId: string, visitId: string): number {
+export function queueNameplateReading(db: Db, propertyId: string, visitId: string, actorId: string): number {
   const photos = pinAttachedPhotos(db, visitId)
   for (const p of photos) {
-    enqueue({ db, propertyId, visitId, task: CLASSIFY_TASK, targetKind: 'media', targetId: p.mediaId })
+    enqueue({ db, propertyId, visitId, task: CLASSIFY_TASK, targetKind: 'media', targetId: p.mediaId, actorId })
   }
   return photos.length
 }

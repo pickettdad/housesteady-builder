@@ -37,7 +37,7 @@ import {
   compareRoute, compareRoutes, contested, currentRoute, isRatified, NOTHING, offeredPins,
   summariseRoutes, type ExpectedRoute,
 } from '../src/ai/golden-routing.js'
-import { repoRoot } from './helpers.js'
+import { repoRoot, TEST_OPERATOR, freshDb } from './helpers.js'
 
 const FIXTURE = join(repoRoot, 'fixtures', 'nameplates', 'images', 'IMG_0004.jpeg')
 
@@ -54,16 +54,17 @@ let importId: string
 const TYPES = ['water-heater', 'water-softener', 'electrical-panel', 'smoke-alarm', 'sump-pump']
 
 function seed(types: string[] = TYPES): void {
-  db = openDb(':memory:')
-  db.prepare(`INSERT INTO properties (id, label, created_at) VALUES (?, 'A house', ?)`).run(PROPERTY, now())
-  db.prepare(`INSERT INTO visits (id, property_id, kind, created_at) VALUES (?, ?, 'baseline', ?)`)
-    .run(VISIT, PROPERTY, now())
+  db = freshDb()
+  db.prepare(`INSERT INTO properties (id, label, created_at, actor_id) VALUES (?, 'A house', ?, ?)`)
+    .run(PROPERTY, now(), TEST_OPERATOR)
+  db.prepare(`INSERT INTO visits (id, property_id, kind, created_at, actor_id) VALUES (?, ?, 'baseline', ?, ?)`)
+    .run(VISIT, PROPERTY, now(), TEST_OPERATOR)
   importId = newId()
   db.prepare(
     `INSERT INTO imports (id, visit_id, property_id, imported_at, media_mode, raw_manifest,
-                          validation_report, status, created_at)
-     VALUES (?, ?, ?, ?, 'manifest_only', '{}', '{}', 'ok', ?)`,
-  ).run(importId, VISIT, PROPERTY, now(), now())
+                          validation_report, status, created_at, actor_id)
+     VALUES (?, ?, ?, ?, 'manifest_only', '{}', '{}', 'ok', ?, ?)`,
+  ).run(importId, VISIT, PROPERTY, now(), now(), TEST_OPERATOR)
   db.prepare(
     `INSERT INTO config_snapshots (import_id, config_id, config_version, config_hash, snapshot, created_at)
      VALUES (?, 'cfg', 'v1.5.1', 'hash', ?, ?)`,
@@ -236,7 +237,7 @@ describe('routing — what counts as a loose photo', () => {
     addMedia('on-the-pin', { pin: 'pin-1' })
 
     assert.deepEqual(loosePhotos(db, VISIT).map((p) => p.mediaId), ['room-a', 'room-b'])
-    assert.equal(queuePhotoRouting(db, PROPERTY, VISIT), 2)
+    assert.equal(queuePhotoRouting(db, PROPERTY, VISIT, TEST_OPERATOR), 2)
   })
 
   it('takes an inbox photo whose grouping key names a real room', () => {
@@ -266,7 +267,7 @@ describe('routing — what counts as a loose photo', () => {
   it('skips a queued inbox photo whose room stopped resolving, saying which', async () => {
     addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
     addMedia('inbox-a', { inbox: true, groupKey: 'zone-1' })
-    queuePhotoRouting(db, PROPERTY, VISIT)
+    queuePhotoRouting(db, PROPERTY, VISIT, TEST_OPERATOR)
     // The zone goes away — a re-import that dropped it. The job is already queued.
     db.prepare('DELETE FROM zones WHERE zone_id = ?').run('zone-1')
 
@@ -282,7 +283,7 @@ describe('routing — what counts as a loose photo', () => {
     addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
     addMedia('room-a', { zone: 'zone-1' })
     addMedia('inbox-a', { inbox: true, groupKey: 'zone-1' })
-    queuePhotoRouting(db, PROPERTY, VISIT)
+    queuePhotoRouting(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const answer = route([{ pin: 1, confidence: 'certain', why: 'the only water heater' }])
     const roomDeps = stub([answer])
@@ -335,7 +336,7 @@ describe('routing — the six receptacles', () => {
     // a ranked list of maybes and no interruption.
     for (let n = 1; n <= 6; n++) addPin({ id: `pin-${n}`, number: n, freeform: 'Receptacle' })
     addMedia('room-a', { zone: 'zone-1' })
-    queuePhotoRouting(db, PROPERTY, VISIT)
+    queuePhotoRouting(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const deps = stub([
       route(
@@ -359,7 +360,7 @@ describe('routing — the six receptacles', () => {
     addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
     addPin({ id: 'pin-2', number: 2, componentType: 'electrical-panel' })
     addMedia('room-a', { zone: 'zone-1' })
-    queuePhotoRouting(db, PROPERTY, VISIT)
+    queuePhotoRouting(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const deps = stub([route([{ pin: 1, confidence: 'certain', why: 'the only water heater in the room' }])])
     const stored = (await runRoute(db, claim(ROUTING_TASK, 'room-a'), deps))!
@@ -376,7 +377,7 @@ describe('routing — silence, skipping, and never dropping anything', () => {
   it('records an empty answer as an abstention rather than an error', async () => {
     addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
     addMedia('room-a', { zone: 'zone-1' })
-    queuePhotoRouting(db, PROPERTY, VISIT)
+    queuePhotoRouting(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const job = claim(ROUTING_TASK, 'room-a')
     const stored = (await runRoute(db, job, stub([route([], { shows: 'a bare corner of a basement floor' })])))!
@@ -389,7 +390,7 @@ describe('routing — silence, skipping, and never dropping anything', () => {
 
   it('skips a room with no pins, with the reason on the row and no model call', async () => {
     addMedia('room-a', { zone: 'zone-1' })
-    queuePhotoRouting(db, PROPERTY, VISIT)
+    queuePhotoRouting(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const deps = stub([])
     const job = claim(ROUTING_TASK, 'room-a')
@@ -422,7 +423,7 @@ describe('routing — silence, skipping, and never dropping anything', () => {
     // gap between two numbers nobody compares. A row with a reason is findable.
     addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
     addMedia('room-a', { zone: 'zone-1', status: 'absent' })
-    assert.equal(queuePhotoRouting(db, PROPERTY, VISIT), 1)
+    assert.equal(queuePhotoRouting(db, PROPERTY, VISIT, TEST_OPERATOR), 1)
 
     const deps = stub([])
     const job = claim(ROUTING_TASK, 'room-a')
@@ -620,7 +621,7 @@ describe('answering a routing suggestion', () => {
     addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
     addPin({ id: 'pin-2', number: 2, componentType: 'water-softener' })
     addMedia('room-a', { zone: 'zone-1' })
-    queuePhotoRouting(db, PROPERTY, VISIT)
+    queuePhotoRouting(db, PROPERTY, VISIT, TEST_OPERATOR)
     const job = claim(ROUTING_TASK, 'room-a')
     await runRoute(db, job, stub([route(candidates)]))
     return generationOf(job.id)!.id
@@ -628,7 +629,7 @@ describe('answering a routing suggestion', () => {
 
   it('attaches the photo as an ordinary assignment, carrying the proposal', async () => {
     const generationId = await propose([{ pin: 1, confidence: 'certain', why: 'the only water heater' }])
-    const { overlay, decision } = acceptRoute({
+    const { overlay, decision } = acceptRoute({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId, mediaId: 'room-a', pinId: 'pin-1',
     })
 
@@ -645,7 +646,7 @@ describe('answering a routing suggestion', () => {
       { pin: 1, confidence: 'certain', why: 'a tank' },
       { pin: 2, confidence: 'possible', why: 'also a tank' },
     ])
-    const { overlay, decision } = acceptRoute({
+    const { overlay, decision } = acceptRoute({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId, mediaId: 'room-a', pinId: 'pin-2',
     })
 
@@ -661,7 +662,7 @@ describe('answering a routing suggestion', () => {
     addPin({ id: 'pin-1', number: 1, componentType: 'water-heater' })
     addMedia('room-a', { zone: 'zone-1' })
 
-    const written = writeOverlay({
+    const written = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, kind: 'assign', targetKind: 'media', targetId: 'room-a',
       newValue: { toKind: 'pin', toId: 'pin-1' },
     })
@@ -672,26 +673,26 @@ describe('answering a routing suggestion', () => {
   it('refuses to attach anything on the strength of an abstention', async () => {
     const generationId = await propose([])
     assert.throws(
-      () => acceptRoute({ db, propertyId: PROPERTY, visitId: VISIT, generationId, mediaId: 'room-a', pinId: 'pin-1' }),
+      () => acceptRoute({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId, mediaId: 'room-a', pinId: 'pin-1' }),
       (e: unknown) => e instanceof OverlayRefused && e.code === 'overlay.accept-abstained',
     )
   })
 
   it('refuses a second answer to the same proposal', async () => {
     const generationId = await propose([{ pin: 1, confidence: 'certain', why: 'the only one' }])
-    acceptRoute({ db, propertyId: PROPERTY, visitId: VISIT, generationId, mediaId: 'room-a', pinId: 'pin-1' })
+    acceptRoute({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId, mediaId: 'room-a', pinId: 'pin-1' })
     assert.throws(
-      () => acceptRoute({ db, propertyId: PROPERTY, visitId: VISIT, generationId, mediaId: 'room-a', pinId: 'pin-2' }),
+      () => acceptRoute({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, generationId, mediaId: 'room-a', pinId: 'pin-2' }),
       (e: unknown) => e instanceof OverlayRefused && e.code === 'overlay.accept-already-decided',
     )
   })
 
   it('puts the proposal back in front of a person when the attachment is withdrawn', async () => {
     const generationId = await propose([{ pin: 1, confidence: 'certain', why: 'the only one' }])
-    const { overlay } = acceptRoute({
+    const { overlay } = acceptRoute({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId, mediaId: 'room-a', pinId: 'pin-1',
     })
-    withdrawAcceptance(db, overlay.id, 'wrong outlet')
+    withdrawAcceptance(db, overlay.id, { actorId: TEST_OPERATOR, reason: 'wrong outlet' })
 
     assert.equal(findGeneration(db, generationId)!.human_decision, 'pending')
     const state = resolveState(readVisitOverlays(db, VISIT)).get(entityKey('media', 'room-a'))!
@@ -714,7 +715,7 @@ describe('pin-type suggestion', () => {
     addPin({ id: 'pin-4', number: 4, freeform: 'Receptacle' })
 
     assert.deepEqual(typelessPins(db, VISIT).map((p) => p.pinId), ['pin-2'])
-    assert.equal(queuePinTypes(db, PROPERTY, VISIT), 1)
+    assert.equal(queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR), 1)
   })
 
   it('offers exactly the types this import declares, and nothing else', () => {
@@ -730,7 +731,7 @@ describe('pin-type suggestion', () => {
     seed([...TYPES, 'heat-pump', 'backwater-valve'])
     addPin({ id: 'pin-2', number: 2 })
     addMedia('photo-1', { pin: 'pin-2' })
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const deps = stub([suggestion([{ type: 'heat-pump', confidence: 'certain', why: 'the outdoor unit' }])])
     const stored = (await runPinType(db, claim(PIN_TYPE_TASK, 'pin-2'), deps))!
@@ -745,7 +746,7 @@ describe('pin-type suggestion', () => {
   it('proposes the lead as the pin type an acceptance would set', async () => {
     addPin({ id: 'pin-2', number: 2 })
     addMedia('photo-1', { pin: 'pin-2' })
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const stored = (await runPinType(
       db,
@@ -781,7 +782,7 @@ describe('pin-type suggestion', () => {
     // no photograph and no note produces a plausible statement about somebody's
     // house made out of nothing at all.
     addPin({ id: 'pin-2', number: 2 })
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const deps = stub([])
     const job = claim(PIN_TYPE_TASK, 'pin-2')
@@ -798,7 +799,7 @@ describe('pin-type suggestion', () => {
     // is an error that costs an afternoon, so the two reasons are not one reason.
     addPin({ id: 'pin-2', number: 2 })
     addMedia('photo-1', { pin: 'pin-2', status: 'absent' })
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const job = claim(PIN_TYPE_TASK, 'pin-2')
     assert.equal(await runPinType(db, job, stub([])), null)
@@ -811,7 +812,7 @@ describe('pin-type suggestion', () => {
     addPin({ id: 'pin-2', number: 2 })
     addMedia('photo-1', { pin: 'pin-2', status: 'absent' })
     addNote('pin-2', 'softener, salt bridge')
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const deps = stub([suggestion([{ type: 'water-softener', confidence: 'likely', why: 'the note names it' }])])
     await runPinType(db, claim(PIN_TYPE_TASK, 'pin-2'), deps)
@@ -822,7 +823,7 @@ describe('pin-type suggestion', () => {
   it('runs on a note alone when there is no photograph', async () => {
     addPin({ id: 'pin-2', number: 2 })
     addNote('pin-2', 'water softener, no salt in it')
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const deps = stub([suggestion([{ type: 'water-softener', confidence: 'likely', why: 'the note names it' }])])
     const stored = (await runPinType(db, claim(PIN_TYPE_TASK, 'pin-2'), deps))!
@@ -835,7 +836,7 @@ describe('pin-type suggestion', () => {
     seed([])
     addPin({ id: 'pin-2', number: 2 })
     addMedia('photo-1', { pin: 'pin-2' })
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const deps = stub([])
     const job = claim(PIN_TYPE_TASK, 'pin-2')
@@ -851,7 +852,7 @@ describe('pin-type suggestion', () => {
     // from a cap buried in the source.
     addPin({ id: 'pin-2', number: 2 })
     for (let n = 1; n <= 6; n++) addMedia(`photo-${n}`, { pin: 'pin-2' })
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const job = claim(PIN_TYPE_TASK, 'pin-2')
     const deps = stub([suggestion([{ type: 'water-heater', confidence: 'likely', why: 'a tank' }])])
@@ -867,7 +868,7 @@ describe('pin-type suggestion', () => {
   it('accepts into the pin type slot the pass already corrects', async () => {
     addPin({ id: 'pin-2', number: 2 })
     addMedia('photo-1', { pin: 'pin-2' })
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
     const job = claim(PIN_TYPE_TASK, 'pin-2')
     await runPinType(
       db, job,
@@ -875,7 +876,7 @@ describe('pin-type suggestion', () => {
     )
     const generationId = generationOf(job.id)!.id
 
-    const { overlay, decision } = acceptProposal({
+    const { overlay, decision } = acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId,
       field: 'type', targetKind: 'pin', targetId: 'pin-2',
       value: { kind: 'component', componentType: 'water-heater', freeformLabel: null },
@@ -892,14 +893,14 @@ describe('pin-type suggestion', () => {
   it('reads as edited when the concierge picks a different type', async () => {
     addPin({ id: 'pin-2', number: 2 })
     addMedia('photo-1', { pin: 'pin-2' })
-    queuePinTypes(db, PROPERTY, VISIT)
+    queuePinTypes(db, PROPERTY, VISIT, TEST_OPERATOR)
     const job = claim(PIN_TYPE_TASK, 'pin-2')
     await runPinType(
       db, job,
       stub([suggestion([{ type: 'water-heater', confidence: 'likely', why: 'a tank' }])]),
     )
 
-    const { decision } = acceptProposal({
+    const { decision } = acceptProposal({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: generationOf(job.id)!.id,
       field: 'type', targetKind: 'pin', targetId: 'pin-2',
       value: { kind: 'component', componentType: 'water-softener', freeformLabel: null },
@@ -920,12 +921,12 @@ describe('the task dispatch', () => {
     addMedia('room-a', { zone: 'zone-1' })
     addMedia('room-b', { zone: 'zone-1' })
 
-    const first = queueAssists(db, PROPERTY, VISIT)
+    const first = queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     assert.deepEqual(first, { nameplates: 1, routing: 2, pinTypes: 1, total: 4 })
     assert.equal(queueProgress(db, VISIT).queued, 4)
 
     // §4: re-triggerable by hand, and pressing it twice must not pay twice.
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     assert.equal(queueProgress(db, VISIT).queued, 4)
   })
 

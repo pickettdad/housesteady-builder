@@ -18,32 +18,52 @@ export const readReference = (): string => readFileSync(referencePath, 'utf8')
 
 export const scratchDir = (): string => mkdtempSync(join(tmpdir(), 'housesteady-test-'))
 
+/**
+ * The operator every test acts as.
+ *
+ * A real row rather than a literal string, because the foreign key is part of
+ * what is being tested: a write path that invents an actor id has to fail here
+ * exactly as it would in production.
+ */
+export const TEST_OPERATOR = 'op-test'
+
 export function freshDb(): Db {
-  return openDb(':memory:')
+  const db = openDb(':memory:')
+  db.prepare(
+    `INSERT INTO operators (id, display_name, short_code, active, created_at, deactivated_at)
+     VALUES (?, 'Test Operator', 'test', 1, ?, NULL)`,
+  ).run(TEST_OPERATOR, now())
+  return db
 }
 
 export function makePropertyAndVisit(
   db: Db,
-  opts: { label?: string; address?: string | null; kind?: string } = {},
+  opts: { label?: string; address?: string | null; kind?: string; actorId?: string } = {},
 ): { propertyId: string; visitId: string } {
   const propertyId = newId()
   const visitId = newId()
-  db.prepare('INSERT INTO properties (id, label, address, created_at) VALUES (?, ?, ?, ?)').run(
+  const actorId = opts.actorId ?? TEST_OPERATOR
+  db.prepare(
+    'INSERT INTO properties (id, label, address, created_at, actor_id) VALUES (?, ?, ?, ?, ?)',
+  ).run(
     propertyId,
     opts.label ?? 'Test build 7 web app 1',
     opts.address ?? null,
     now(),
+    actorId,
   )
   db.prepare(
-    'INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(visitId, propertyId, opts.kind ?? 'baseline', null, null, now())
+    `INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at, actor_id, performed_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(visitId, propertyId, opts.kind ?? 'baseline', null, null, now(), actorId, actorId)
   return { propertyId, visitId }
 }
 
-export function addVisit(db: Db, propertyId: string, kind = 'baseline'): string {
+export function addVisit(db: Db, propertyId: string, kind = 'baseline', actorId = TEST_OPERATOR): string {
   const visitId = newId()
   db.prepare(
-    'INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(visitId, propertyId, kind, null, null, now())
+    `INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at, actor_id, performed_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(visitId, propertyId, kind, null, null, now(), actorId, actorId)
   return visitId
 }

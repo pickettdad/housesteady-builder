@@ -27,6 +27,8 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import { openDb } from '../db/index.js'
+import { displayNameFor, resolveOperator } from '../operators/registry.js'
 import { join } from 'node:path'
 import {
   contested, currentValue, fixturesRoot, historyFor, isRatified, latestAct, loadExpected,
@@ -35,28 +37,53 @@ import {
 
 const FILE = join(fixturesRoot, 'nameplates', 'expected.json')
 
+/**
+ * One handle, opened on first use.
+ *
+ * The registry is consulted once per ratification act when a contest report is
+ * printed, and opening the database inside that loop would leak a handle per
+ * row for the sake of one lookup.
+ */
+let handle: ReturnType<typeof openDb> | undefined
+const registry = (): ReturnType<typeof openDb> => (handle ??= openDb())
+
 const keysOf = (entry: ExpectedImage): string[] => ['classification', ...Object.keys(entry.fields)]
 
 const valueOf = currentValue
 
 /**
- * Who is ratifying.
+ * Who is ratifying — as an operator id.
  *
  * Required rather than defaulted to a username, because an approval whose author
  * is a machine guess is not traceable in the way the whole point requires.
+ *
+ * Resolved against the operator registry rather than kept as free text, so that
+ * `dave`, `Dave` and `David Pickett` are one reviewer rather than three. The
+ * drift check asks whether two DIFFERENT people ratified one key to different
+ * answers; spelling variants would make it cry drift at one person changing
+ * their mind, and miss it when it matters.
  */
 function ratifier(explicit?: string): string {
-  const who = explicit ?? process.env.HOUSESTEADY_RATIFIER
+  const who = explicit ?? process.env.HOUSESTEADY_RATIFIER ?? process.env.HOUSESTEADY_OPERATOR
   if (!who || who.trim() === '') {
     console.error(
-      'Who is ratifying? Set HOUSESTEADY_RATIFIER, or pass --by <name>.\n' +
+      'Who is ratifying? Set HOUSESTEADY_RATIFIER, or pass --by <name or short code>.\n' +
         'An approval has to record its author: if a wrong value is ever ratified, the question\n' +
         'that matters next is which review it came through, so the rest of that sitting can be\n' +
         're-checked. That is not reconstructible afterwards.',
     )
     process.exit(1)
   }
-  return who.trim()
+  try {
+    return resolveOperator(registry(), who.trim()).id
+  } catch (e) {
+    console.error(
+      `${(e as Error).message}\n\n` +
+        'Ratification uses the same operator registry as everything else, so one reviewer is one\n' +
+        'identity everywhere. Add them:  npm run operator -- add "Full Name" <short-code>',
+    )
+    process.exit(1)
+  }
 }
 
 function listUnratified(): void {
@@ -80,7 +107,11 @@ function listUnratified(): void {
   for (const entry of set.images) {
     for (const key of keysOf(entry)) {
       const r = ratifiedBy(entry, key)
-      if (r) byWhom.set(r.by, (byWhom.get(r.by) ?? 0) + 1)
+      if (r) {
+        // Stored as an id; shown as the name a person recognises.
+        const name = displayNameFor(registry(), r.by)
+        byWhom.set(name, (byWhom.get(name) ?? 0) + 1)
+      }
     }
   }
   if (byWhom.size > 0) {
@@ -97,7 +128,7 @@ function listUnratified(): void {
     console.log('\nCONTESTED — ratified more than once, to different answers:')
     for (const c of splits) {
       console.log(`    ${c.file}  ${c.key}`)
-      c.values.forEach((v, i) => console.log(`        "${v}"  (${c.by[i] ?? 'unknown'})`))
+      c.values.forEach((v, i) => console.log(`        "${v}"  (${displayNameFor(registry(), c.by[i])})`))
     }
     console.log('\n    One of them is wrong, or the plate is genuinely ambiguous and the entry')
     console.log('    needs a note saying so. Either way it is a question for the review role,')
@@ -175,7 +206,10 @@ function apply(
       entry.ratifications.push({ key, act: 'ratify', value, by: who, at })
       console.log(`  ${entry.file}  ${key} = ${value}   (${who})`)
       if (prior && prior.value !== value && prior.by !== who) {
-        console.log(`      NOTE: ${prior.by} ratified this as "${prior.value}". Both acts are in the log.`)
+        console.log(
+          `      NOTE: ${displayNameFor(registry(), prior.by)} ratified this as "${prior.value}". ` +
+            'Both acts are in the log.',
+        )
       }
     }
   }

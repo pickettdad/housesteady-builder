@@ -227,10 +227,10 @@ export function pinFacts(pin: TypelessPin, photosSent: number): string {
 }
 
 /** Queue one suggestion job per typeless pin. */
-export function queuePinTypes(db: Db, propertyId: string, visitId: string): number {
+export function queuePinTypes(db: Db, propertyId: string, visitId: string, actorId: string): number {
   const pins = typelessPins(db, visitId)
   for (const p of pins) {
-    enqueue({ db, propertyId, visitId, task: PIN_TYPE_TASK, targetKind: 'pin', targetId: p.pinId })
+    enqueue({ db, propertyId, visitId, task: PIN_TYPE_TASK, targetKind: 'pin', targetId: p.pinId, actorId })
   }
   return pins.length
 }
@@ -296,7 +296,10 @@ export async function runPinType(db: Db, job: AiJob, deps: PinTypeDeps): Promise
   const stored = normaliseType(output, types)
 
   const generationId = recordGeneration({
-    db, propertyId: job.property_id, visitId: job.visit_id, task: PIN_TYPE_TASK,
+    db, propertyId: job.property_id, visitId: job.visit_id,
+    // Whoever triggered the run owns the generation. The model is recorded
+    // separately; conflating them would make a proposal read as a human act.
+    actorId: job.actor_id, task: PIN_TYPE_TASK,
     targetKind: job.target_kind, targetId: job.target_id, model: model.id,
     promptId: prompt.id, promptVersion: prompt.version, promptHash: prompt.hash,
     inputRefs: {
