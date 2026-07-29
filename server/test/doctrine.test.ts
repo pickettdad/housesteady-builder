@@ -449,6 +449,50 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
       'the pass renders state; a proposal is not state and must arrive in its own payload')
   })
 
+  /**
+   * Increment 3 §1: *"Build it as a standalone module with no knowledge of
+   * binders or schedules, or it gets built twice and the two drift."*
+   *
+   * The scan is the strongest available form — the evaluator imports NOTHING.
+   * That guarantees the independence the spec asks for and the purity that makes
+   * it exhaustively testable in one stroke, and it fails the moment somebody
+   * reaches for a database handle or a schema type to save five lines.
+   *
+   * Two evaluators that disagree about whether a house has a well is not a bug
+   * anyone finds quickly. It shows up as a shutoff nobody was asked about.
+   */
+  it('keeps the trigger evaluator standalone — it imports nothing at all', () => {
+    const code = codeOf(join(serverSrc, 'audit', 'triggers.ts'))
+    const imports = [...code.matchAll(/^\s*import\s.+$/gm)].map((m) => m[0].trim())
+    assert.deepEqual(imports, [],
+      'the evaluator serves binder slots AND the maintenance schedule; it may know about neither')
+  })
+
+  /**
+   * §1's vocabulary lives in config, exactly as the field checklist's does.
+   *
+   * The same mechanism that makes pin-type invention structurally impossible: if
+   * no flag id, item id or component type appears as a literal in the audit
+   * path, then a config that adds one is supported the day it arrives and a
+   * config that removes one stops being honoured without anyone editing code.
+   */
+  it('hardcodes no flag id, item id or component type in the audit engine', () => {
+    // Config ids are dotted or hyphenated lowercase words: `property.well`,
+    // `int.canvas`, `water-softener`. The namespaces themselves are this
+    // repo's own grammar and are allowed.
+    const NAMESPACES = /^(property|zone|pin|house|answer|always|any|all|not)$/
+    const offenders: string[] = []
+    for (const file of sourceFiles(join(serverSrc, 'audit'))) {
+      for (const m of codeOf(file).matchAll(/'([a-z]+[.-][a-z][a-z0-9-]*)'/g)) {
+        const value = m[1]!
+        const head = value.split(/[.-]/)[0]!
+        if (NAMESPACES.test(head) && value.includes('.')) continue
+        offenders.push(`${file.replace(repoRoot, '')}: '${value}'`)
+      }
+    }
+    assert.deepEqual(offenders, [], 'the config decides which items and types exist, not the builder')
+  })
+
   it('lets nothing ask sharp to keep metadata on an image bound for a model', () => {
     // CLAUDE.md §14. The stripping is a library default, so the risk is not a
     // missing line — it is a future line that turns it off. Interior photographs

@@ -45,13 +45,25 @@ The substance: *photographs taken during the visit may be processed by an AI ser
 
 ## 4. What is deliberately not decided
 
-- **Hosting** — unchanged. Design v1 §8's triggers stand.
+- **Hosting** — **the trigger has fired.** Design v1 §8 named a second operator as a trigger; a concierge in training is planned immediately after launch, so hosted deployment is a **launch requirement**, not a later decision. Two consequences that bind what gets built from now: **every record carries who acted**, uniformly rather than nearly; and **nothing is built that works only because one particular person knows something.** Build for the second concierge.
 - **Managed or hosted agents** — a hosted configuration would put prompt instructions outside version control, which breaks the golden-set mechanism. Separate decision if it is ever wanted; see the Open Items note.
 - **Retention of what we send** — §2.5 is an obligation to establish and record, not an assertion of what the terms currently are.
 
-## 5. Transcription remains open, and this record does not settle it
+## 5. Transcription — DECIDED 2026-07-29: a cloud transcription vendor
 
-Increment 2b §6 holds it deliberately. Audio of a concierge speaking from recall is different in kind: it may name the household, mention occupants, or carry a stray remark never meant for a record. **A local model keeps it on the machine entirely and is the preferred outcome if one is workable.** Code investigates and reports; David decides; that decision is added here.
+**Authorized:** memory audio and field voice notes go to a purpose-built cloud transcription vendor (Deepgram or AssemblyAI are the candidates in the options report).
+
+**The reasoning is multi-operator, not technical.** Local transcription makes every concierge's hardware a support surface. Apple's on-device engine needs current macOS and exists nowhere else; whisper.cpp needs a compiler and an 800 MB model on each machine, is slow without a GPU, and **fabricates fluent sentences from silence** — which collides directly with 2a's silent-recording safeguard, turning an obvious blank the concierge chases into a plausible sentence they never said. A cloud vendor is identical on every machine, strongest on the material that actually matters (a person in a basement with a furnace running, saying *"Kinetico"* and a household surname), and costs roughly **$0.25–0.40 per visit** — noise against a retainer.
+
+**5.1 · Key-point extraction is separately authorized.** The chosen flow is: audio → verbatim transcript → **AI-extracted key points** → concierge verification. The extraction step goes to Anthropic, and a transcript of a concierge describing a client's home was **not** covered by §2. It is now.
+
+**5.2 · The transcript stays verbatim.** Extraction pulls key points; it never tidies the transcript. Audio is evidence; the transcript is derived from audio; key points are derived from the transcript. **Two derivations, each provenance-tagged, the original never discarded.**
+
+**5.3 · Verification is against the audio, never against the text.** Checking extracted details against the transcript cannot catch a transcription error — a wrong sentence would be faithfully summarised and would match. **The audio must be one tap away at the point of verification**, and the concierge's question is *"did I say this"* rather than *"does this match what's written."* This is required regardless of vendor.
+
+**5.4 · Obligations before the first real client recording.** A full entry on the model of §2.1–2.3: what is sent, on what terms, and **the vendor's retention and training terms established in writing** — the same obligation §2.5 places on the Anthropic account, with more force, because this is audio of people in their homes. The §3 client disclosure sentence extends to cover it, through the lawyer pass. *"Recordings of our concierge describing your home"* is a different sentence from *"photographs of equipment labels."*
+
+**5.5 · A transcript is a proposal.** Quarantined and unsigned until a human accepts it, exactly like a nameplate reading. It is not the concierge's words until the concierge says so. The manual path stays: the pass works with transcription unavailable.
 
 ## 6. Review triggers
 
