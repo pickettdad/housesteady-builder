@@ -560,15 +560,40 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
    */
   it('hardcodes no flag id, item id or component type in the audit engine', () => {
     // Config ids are dotted or hyphenated lowercase words: `property.well`,
-    // `int.canvas`, `water-softener`. The namespaces themselves are this
-    // repo's own grammar and are allowed.
+    // `int.canvas`, `water-softener`. The namespaces themselves are this repo's
+    // own grammar and are allowed.
     const NAMESPACES = /^(property|zone|pin|house|answer|always|any|all|not)$/
+
+    /**
+     * This repo's own domain vocabulary — code, not config.
+     *
+     * Bind states, profile classifications, slot kinds and refusal codes are
+     * words the builder defines and switches on. They share a SHAPE with
+     * component types (lowercase, hyphenated) and nothing else, so the scan
+     * cannot tell them apart and the list is explicit instead.
+     *
+     * **Explicit is the point.** Adding a real component type here is a visible
+     * line in a diff that a reviewer has to agree to, which is exactly the
+     * friction wanted — the failure this guards against is a type getting
+     * hardcoded quietly, not somebody arguing for one out loud.
+     */
+    const OURS = new Set([
+      // bind states — src/audit/binding.ts
+      'no-candidate', 'candidate-short', 'broken-binding', 'not-applicable', 'no-slot-wants-this-type',
+      // profile classifications and slot kinds — src/audit/schema.ts
+      'out-of-scope', 'present-when-populated', 'record-set',
+    ])
+
     const offenders: string[] = []
     for (const file of sourceFiles(join(serverSrc, 'audit'))) {
       for (const m of codeOf(file).matchAll(/'([a-z]+[.-][a-z][a-z0-9-]*)'/g)) {
         const value = m[1]!
         const head = value.split(/[.-]/)[0]!
         if (NAMESPACES.test(head) && value.includes('.')) continue
+        if (OURS.has(value)) continue
+        // Refusal codes are namespaced on the module that raises them and are
+        // this repo's own words by construction.
+        if (/^(schema|profile|binding|audit)\./.test(value)) continue
         offenders.push(`${file.replace(repoRoot, '')}: '${value}'`)
       }
     }
