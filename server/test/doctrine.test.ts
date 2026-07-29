@@ -698,7 +698,7 @@ describe('doctrine — the checklist master is reference, never an input', () =>
   })
 
   it('is present, so the cross-check can be run by hand', () => {
-    const master = join(repoRoot, 'docs', 'reference', 'HouseSteady_Checklist-Master_v1-6-2.md')
+    const master = join(repoRoot, 'docs', 'reference', 'HouseSteady_Checklist-Master_v1-11.md')
     assert.ok(statSync(master).isFile(), 'the authority the schema files are reconciled against')
   })
 })

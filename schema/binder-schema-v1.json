@@ -73,7 +73,7 @@
         "pinnedBy": "sit.curbstop",
         "componentType": "curb-stop",
         "viaItems": [],
-        "note": "Now its own site pin (G8 closed in v1.5). wm.curbstop retired as a redefinition."
+        "note": "Now its own site pin (G8 closed in v1.5). `wm.curbstop` retired in v1.5 \u2014 a redefinition, so the id does not carry over. Table F lineage: successors `cs.photo`, `cs.access`, `cs.key`."
        }
       },
       {
@@ -1245,5 +1245,8 @@
    "pin.water-treatment"
   ]
  },
- "vocabularyCrossCheckRule": "Every trigger referenced must appear in `triggerVocabulary` under its own namespace, and `property.*` must match Checklist Master Table A exactly. `house.*` and `pin.*` must name a declared component type; `zone.*` a Table B attribute. **Validate against the master's declared vocabulary, not only internal consistency** \u2014 a transformation applied uniformly to ids and to every reference leaves everything agreeing with everything and everything wrong. **Every trigger used must be declared; a declared flag need not be used. The component-type half is evaluated per import against that import's own config snapshot \u2014 never against a checked-in copy, which goes stale and produces false positives. Fail open on an unrecognised name.**"
+ "vocabularyCrossCheckRule": "Every trigger referenced must appear in `triggerVocabulary` under its own namespace, and `property.*` must match Checklist Master Table A exactly. `house.*` and `pin.*` must name a declared component type; `zone.*` a Table B attribute. **Validate against the master's declared vocabulary, not only internal consistency** \u2014 a transformation applied uniformly to ids and to every reference leaves everything agreeing with everything and everything wrong. **Every trigger used must be declared; a declared flag need not be used. The component-type half is evaluated per import against that import's own config snapshot \u2014 never against a checked-in copy, which goes stale and produces false positives. Fail open on an unrecognised name.**",
+ "reconciledAgainst": "CHECKLIST-MASTER v1.11 (2026-07-28). 409 items, 62 component types, 8 retirement-lineage rows.",
+ "tableI_provenance": "v1.9\u2013v1.11 Table I: any value transcribed from a physical artifact names the photo item that captures it. **The builder must carry the declaration, not just the value.** A value whose source photo item resolved `na / none-present` is **unverifiable** and must stay distinguishable from a verified one at every layer \u2014 including a fleet or registry view. Provenance is **co-visibility on the same pin**, resolved across component inheritance, not global existence of the item.",
+ "parsingWarning": "**Escaped pipes.** Table cells use `\\|` inside choice and multi-alternative pin values \u2014 `choice (ball\\|gate\\|other)`, `pin \\`comparison-position\\|dock\\``. A naive cell split drops every such row silently: it cost this schema a phantom 'stale id' report and a month of a wrong item count. Neutralise `\\|` before splitting. Field's v1.7 rule bans markdown emphasis in parsed cells for the same class of reason."
 }

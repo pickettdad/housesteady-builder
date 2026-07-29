@@ -1,6 +1,6 @@
 {
  "schemaId": "maintenance-schedule",
- "version": "1.3.1",
+ "version": "1.4.0",
  "date": "2026-07-27",
  "sourceDocument": "HouseSteady_Home-Binder_Master-Spec_v1_2026-07-20 \u00a715",
  "note": "The checklist library as data. Every item carries appliesWhen; there is no separate 'trigger adds' list \u2014 the custom property schedule is simply every item whose condition evaluates true. Evaluated by the SAME trigger evaluator the binder schema uses (Increment 3). Rules, not AI.",
@@ -139,8 +139,7 @@
     "owner"
    ],
    "category": "hvac",
-   "appliesWhen": "house.dehumidifier",
-   "undeclaredType": "No component type exists for this in Checklist Master v1.6.2. Fires nowhere until the field app declares one. Routed as B5."
+   "appliesWhen": "house.dehumidifier"
   },
   {
    "id": "wk.well-pressure",
@@ -573,8 +572,7 @@
     "pro"
    ],
    "category": "water",
-   "appliesWhen": "house.leak-sensor",
-   "undeclaredType": "No component type exists for this in Checklist Master v1.6.2. Fires nowhere until the field app declares one. Routed as B5."
+   "appliesWhen": "house.leak-sensor"
   },
   {
    "id": "pro.afci",
@@ -1234,8 +1232,7 @@
     "pro"
    ],
    "category": "hvac",
-   "appliesWhen": "house.humidifier",
-   "undeclaredType": "No component type exists for this in Checklist Master v1.6.2. Fires nowhere until the field app declares one. Routed as B5."
+   "appliesWhen": "house.humidifier"
   },
   {
    "id": "fa.chimney",
@@ -2236,5 +2233,6 @@
   ],
   "pin": []
  },
- "vocabularyCrossCheckRule": "REWRITTEN 2026-07-27 \u2014 the previous `flagVocabularyRule` could not pass as written. It asserted that every flag must be declared in `propertyTriggers`, which holds only the 17 `property.*` ids, while these files legitimately use four namespaces. **That is the same defect class the field session named \u2014 prose asserting what the tables do not say \u2014 occurring in our own file.** The check is now: every trigger referenced by an item must appear in `triggerVocabulary` under its own namespace. `property.*` is authoritative from Checklist Master Table A. `house.*` and `pin.*` must name a declared component type. `zone.*` must name a Table B attribute. `answer.*` is the builder's and references a checklist item id plus an operator. **Direction matters: every trigger USED must be declared; a declared flag need not be used.** `triggerVocabulary.property` mirrors Checklist Master Table A exactly, so an unused flag there (`property.municipal_sewer`) is correct rather than dead. **And the component-type half of this check must be evaluated against the config snapshot of the import being processed, never against a checked-in copy** \u2014 a stale copy produces false positives (`septic-alarm` was absent from the 48-type config only because v1.5 added it). Fail open: a name the import's snapshot does not declare is reported as unrecognised, never rejected."
+ "vocabularyCrossCheckRule": "REWRITTEN 2026-07-27 \u2014 the previous `flagVocabularyRule` could not pass as written. It asserted that every flag must be declared in `propertyTriggers`, which holds only the 17 `property.*` ids, while these files legitimately use four namespaces. **That is the same defect class the field session named \u2014 prose asserting what the tables do not say \u2014 occurring in our own file.** The check is now: every trigger referenced by an item must appear in `triggerVocabulary` under its own namespace. `property.*` is authoritative from Checklist Master Table A. `house.*` and `pin.*` must name a declared component type. `zone.*` must name a Table B attribute. `answer.*` is the builder's and references a checklist item id plus an operator. **Direction matters: every trigger USED must be declared; a declared flag need not be used.** `triggerVocabulary.property` mirrors Checklist Master Table A exactly, so an unused flag there (`property.municipal_sewer`) is correct rather than dead. **And the component-type half of this check must be evaluated against the config snapshot of the import being processed, never against a checked-in copy** \u2014 a stale copy produces false positives (`septic-alarm` was absent from the 48-type config only because v1.5 added it). Fail open: a name the import's snapshot does not declare is reported as unrecognised, never rejected.",
+ "reconciledAgainst": "CHECKLIST-MASTER v1.11 (2026-07-28). 409 items, 62 component types."
 }

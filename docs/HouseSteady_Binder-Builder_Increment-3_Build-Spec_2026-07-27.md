@@ -57,7 +57,7 @@ Decide on the AI binding assist once that number exists from a real visit. **Fre
 
 - **A binding target matches a component type OR any of its descendants.** Build the type graph from the config snapshot's inheritance declarations and walk it. Nothing new is needed from outside — the snapshot already carries the definitions.
 - **The graph lives in the shared evaluator**, beside the trigger logic. Both answer *does this thing satisfy that expectation*, and both must move together when the field vocabulary changes.
-- **Confirmed 2026-07-27 against Checklist Master v1.6.2.** Declared as `` ### `child` — inherits `parent` ``; the child's rendered list is the parent's items followed by its own; ids stay globally unique. 11 relations. The graph is in `binder-schema-v1.json` under `componentInheritance`.
+- **Confirmed against Checklist Master v1.11 (2026-07-28): 409 items, 62 component types, 8 retirement-lineage rows. Zero stale bindings.** Declared as `` ### `child` — inherits `parent` ``; the child's rendered list is the parent's items followed by its own; ids stay globally unique. 11 relations. The graph is in `binder-schema-v1.json` under `componentInheritance`.
 
 **Aliases are field-app-only and the builder must never bind to one.** v1.5 added a component-alias table — 56 search synonyms that resolve to a canonical type. They **never appear in the manifest and never carry items.** They exist so a concierge typing "air conditioner" finds `heat-pump`. **If an alias ever reaches a binding rule, that is a bug**, not a fallback.
 
@@ -102,6 +102,23 @@ Form: `answer.<itemId> <op> <value>`. Two live cases: `answer.utl.drain-material
 **The consequence to hold onto: the master's `choice` option values are now this repo's condition vocabulary.** Renaming or removing an option is a **breaking change here**, not a content edit. Recorded in master §9.
 
 This also delivers what the Master Spec calls *"customized, never blind"* — the schedule is re-derived every visit rather than fixed at intake, so a crack that was 1.5 mm and is now 4 mm changes what the next visit carries.
+
+
+## 1g. Two acceptance tests owed to the field contract (added 2026-07-28)
+
+**1g.1 · Unverifiable provenance must survive aggregation.** Master Table I declares, for every value transcribed from a physical artifact, the photo item that captures it. The manifest already carries what is needed — provenance ships in the config snapshot, and `resolutions[]` carries `{kind: "na", reasonId}` per scope — **so this needs no field change and is entirely ours to honour.**
+
+Write it as a real test: **a value whose source photo item resolved `na / none-present` is declared unverifiable and must stay distinguishable from a verified one.** If that flag is dropped when values roll into a fleet or registry view, an unverifiable install year re-enters looking verified — the exact failure Table I exists to prevent, reintroduced one layer down where nobody is looking.
+
+Two invariants to test against:
+- **Provenance is co-visibility on the same pin**, resolved across component inheritance — not global existence of the item somewhere in the config.
+- **The N/A declaration travels.** Every layer that derives, aggregates, or renders a value carries it forward.
+
+**1g.2 · Stale item ids fail the build.** The schema binds by field item id. Ids retire — `liv.egress` retired at v1.8, `wm.curbstop` at v1.5 — and a retired id in a binding fails silently, matching nothing and reporting a gap that is really a broken reference.
+
+**Check every item id the schema references against the config snapshot of the import being processed.** An id the snapshot does not declare is reported as a **broken binding**, distinct from both a gap and unrecognised vocabulary. Cross-check against Table F: if the id appears there, say so — *"this binding refers to an item retired at v1.8; Table F records the successors."* **Never auto-follow the lineage.** A retirement is a discontinuity by the master's own rule; the successor is shown to a human, never joined by software.
+
+**A parsing warning that cost real time.** Master table cells use escaped pipes inside choice and multi-alternative pin values — `choice (ball\|gate\|other)`, ``pin `comparison-position\|dock` ``. A naive cell split drops every such row **silently**: it produced a phantom stale-id report and a wrong item count that stood for days. Neutralise `\|` before splitting. **This is why the runtime check reads the config snapshot rather than parsing markdown** — but anything that ever does parse the master must handle it.
 
 ## 2. Completeness, per slot kind
 
@@ -149,7 +166,7 @@ The gap report render · any editing · **any AI, deliberately (§1a)** · sessi
 
 Behaviour: the reference visit audits without error and its gap list is inspectable · a `narrative` slot never appears in the gap list under any profile · a `derived` slot never reports independently · a house on municipal water is never asked for a well cap · an unknown flag id fails open and is reported as uncertain · an explicit `unknown` completes a `fixed` slot while a blank does not · a shutoff with only a close-up fails · a watch-schedule concern without a measurement, cadence, or escalation trigger fails · the same visit audited twice with the same schema and profile produces identical results.
 
-Binding: a list gate composes with an item trigger as `allOf` · a `house.*` condition is not satisfied by a `pin.*` evaluation or vice versa · a sub-type satisfies its parent's expectation (a `water-softener` pin satisfies a `water-treatment` expectation) · an alias never binds · a `.unit` item satisfies the unit-photo requirement rather than a separate photo check · a retired item id reports as a discontinuity and never joins across visits · an item whose canonical component type is present binds without inference · unmatched evidence is listed individually, never only counted · a slot with no candidate is distinguished from one whose candidate failed a requirement.
+Binding: every referenced item id resolves in the import's snapshot, and a retired one reports as a broken binding rather than a gap · an unverifiable value stays distinguishable from a verified one through every derivation · a list gate composes with an item trigger as `allOf` · a `house.*` condition is not satisfied by a `pin.*` evaluation or vice versa · a sub-type satisfies its parent's expectation (a `water-softener` pin satisfies a `water-treatment` expectation) · an alias never binds · a `.unit` item satisfies the unit-photo requirement rather than a separate photo check · a retired item id reports as a discontinuity and never joins across visits · an item whose canonical component type is present binds without inference · unmatched evidence is listed individually, never only counted · a slot with no candidate is distinguished from one whose candidate failed a requirement.
 
 Cross-check on load: **every slot in the schema is classified by the profile.** Unclassified is a loud error, not a default. *(Both shipped files currently pass: 41 slots, 41 classified.)*
 
