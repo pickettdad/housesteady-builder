@@ -159,3 +159,51 @@ Two parses of the master gave confident wrong answers before this one: a regex f
 That is the same caution the first addendum recorded about the stale config, and it generalises: **a check against a document you have just started parsing is a hint until its parse is verified against something you can read yourself.** Here that meant opening the tables. The lesson for Increment 3's loader is narrower and firmer — it must parse `triggerVocabulary`, which is structured data with one declaration site, and it must not parse this markdown at all.
 
 **Status:** one new finding (`zone.outbuilding`), one carried (`property.flat_roof` cannot fire), one leftover operand. All content, all the field or schema session's. Increment 3 remains not started.
+
+---
+
+## Third addendum — against Checklist Master v1.11 (2026-07-28)
+
+Re-run with the escaped-pipe rule applied per Increment 3 §1g: `\|` neutralised before any cell split, and every table slice bounded at the next `##` heading rather than running to end of file.
+
+### What reconciles exactly
+
+| Check | Master v1.11 | Schema files | |
+|---|---|---|---|
+| Live checklist items | **417 id rows − 8 Table F rows = 409** | states 409 | ✓ |
+| Table A property flags | 17 | 17 declared, both files | ✓ |
+| Table B zone attributes | 6 | — | — |
+| Inheritance relations | 11 | identical to `componentInheritance`, key for key | ✓ |
+| **§1g.2 — stale bindings** | 8 retired ids in Table F | **schema binds to 42 field item ids; none retired, none undeclared** | ✓ |
+
+**§1g.2 passes against v1.11.** `liv.egress` and `wm.curbstop` are both in Table F, and neither appears in any binding — `wm.curbstop` was already replaced by `sit.curbstop` in the `curb-stop` entry, which records the lineage in its note without following it.
+
+### One count I cannot reconcile — 61 against 62
+
+`reconciledAgainst` states **62 component types**. Section 7 bounded at the next `##`, deduplicated, gives **61 typed `### \`name\`` headings**, plus a **Stubs** line naming 9 more that have no headings — so 61 with items, or 70 names in total. No duplicates.
+
+The full 61, so it can be eyeballed in one pass rather than re-parsed:
+
+> water-heater · furnace · boiler · heat-pump · hrv-erv · electrical-panel · water-main · sump-pump · well-pressure-tank · water-treatment · water-softener · sediment-filter · uv-sterilizer · reverse-osmosis · toilet · sink · shower · bathtub · laundry-tub · smoke-alarm · gas-shutoff · fuel-tank · fireplace · dryer-duct · garage-door · generator · foundation-crack · comparison-position · wellhead · septic-lid · downspout · hose-bib · receptacle-gfci · window · door · deck · chimney · tree · floor-drain · cleanout · backwater-valve · vent-termination · register · appliance · appliance-refrigerator · appliance-dishwasher · appliance-range · appliance-range-hood · appliance-washer · appliance-dryer · appliance-microwave · dock · leak-sensor · humidifier · dehumidifier · retaining-wall · curb-stop · septic-alarm · solar-inverter · pool-equipment · irrigation-backflow
+
+**One of us is off by one, and on this round's record it is likelier to be me.** Stated as a question rather than a finding. Nothing depends on it: the runtime check reads each import's own snapshot, and the count appears only in prose.
+
+### Two carried, unchanged
+
+**`zone.outbuilding` is still not a Table B attribute.** Table B declares six and `outbuilding` is not among them — it is a zone *type* in §4's taxonomy, and separately a reserved stub component type. `pro.outbuildings` still asks a type question through the attribute namespace.
+
+**`any(property.solar, property.solar)`** survives at `s1.solar-battery-disconnect` in the binder schema.
+
+### B5 closed, confirmed against the master
+
+`leak-sensor`, `humidifier` and `dehumidifier` all appear as typed headings in v1.11. All three `house.*` conditions resolve, and the `undeclaredType` notes are gone from the schedule.
+
+### The method note, earning its keep
+
+Four parses of this master have now produced confident wrong answers before the right one: a regex that found zero Table A flags because ids are written bare; a line-window spanning Tables A and B; a Table F slice running to end of file that reported **16** retired ids instead of 8; and, from that same slice, **`pnl.service` reported as a broken binding when it is not retired at all**.
+
+None reached a report. Each was caught by the number being implausible against something already known — 17 flags, 8 lineage rows, 409 items — and then checked by opening the document.
+
+**The generalisable form: an unbounded slice of a structured document is the single most productive source of false findings here.** Every one of the four came from a boundary that was assumed rather than located. For Increment 3's loader the conclusion is unchanged and now better evidenced — parse `triggerVocabulary`, which is structured with one declaration site, and never parse this markdown at runtime.
+
+**Status:** one open question (61 vs 62), two carried findings, §1g.2 passing. Increment 3 remains not started.

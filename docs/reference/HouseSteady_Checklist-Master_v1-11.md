@@ -1,6 +1,7 @@
-# HouseSteady Field Assistant — Checklist Master (v1.6.2)
+# HouseSteady Field Assistant — Checklist Master (v1.11)
 
-**Version:** v1.6.2 · **Date:** 2026-07-27 · **Supersedes:** v1.6.1 (2026-07-27, never built)
+**Version:** v1.11 · **Date:** 2026-07-28 · **Supersedes:** v1.10 (2026-07-28)
+**Governance:** this file is a **governed cross-app contract** — see §10. Field is custodian; the binder builder and the equipment registry are consumers with ratifying interest on named surfaces.
 **What this is:** the source-of-truth content for v2's verification checklists — the human-editable master that `scripts/gen-checklists.mts` generates config from. Never edited downstream.
 
 
@@ -31,6 +32,115 @@ Also corrected: §6's prose claimed *"that attribute, not the zone type, is what
 
 **Count reconciliation:** component types **58** and `.unit` items **23** match exactly across both sessions' parses — same file, same reading. Items differ (345 rows vs 377 unique ids) and the two sessions should reconcile directly rather than either guessing; the likely difference is table rows in §5/§6/§7 versus unique ids across base + zone + session + component lists. Recorded in §9.
 
+
+
+
+
+
+
+
+**Changelog v1.10 → v1.11 — the last two provenance candidates, and the distinction that resolved them.**
+
+v1.10 deferred `fp.sweep` and `irr.test-record` pending a judgment: *is the record the tag, or the reading of it?* **The deferral dissolves, because v1.9's N/A semantics already answer it in both directions:**
+- Tag present → photograph it; the provenance row is honest.
+- No tag, owner's word only → the source resolves N/A `none-present`, and the value is **declared** unverifiable.
+
+**Leaving them unsourced is the one option that records "I saw the tag" and "the owner told me" in the same field with no way to separate them** — precisely what Table I exists to stop.
+
+**The distinction that makes this different from `wt.consumables` is worth keeping**, because it is what stops the boundary test collapsing into a coin flip:
+
+| | shape | verdict |
+|---|---|---|
+| `wt.consumables` | An artifact value **and** testimony bundled in **one field** — "size and last change." No single photograph reaches the whole value. | **Excluded.** A row would assert a check nobody can perform. |
+| `fp.sweep`, `irr.test-record` | **One** value that is **sometimes** evidenced. | **Included.** That is a resolution state, not a split — and the N/A path already models it. |
+
+**Added:** `fp.sweep-tag` and `irr.test-tag` (photo, standard), with Table I rows. Both source items resolve N/A `none-present` when no tag exists, which is real data: the date came from the owner, and the record says so.
+
+**Table I is now complete for the current library.** The §9.8 sweep opened in v1.9 is closed: seven values sourced, one deliberately excluded and recorded as such, none deferred.
+
+**Changelog v1.9 → v1.10 — the §9.8 provenance sweep, resolved, plus the boundary test that made it resolvable.**
+
+**The boundary test (field session, adopted into §2):**
+> **Is there a single artifact a photograph could capture that would let someone else reach the same value?** Yes → Table I entry required. Partly, or the value includes testimony → **do not claim provenance.**
+
+This is what keeps Table I meaning one thing. A provenance row on a value that is *partly* verifiable is worse than no row, because it asserts a check nobody can actually perform.
+
+**Applied to the three §9.8 candidates:**
+- **`pnl.service` and `pnl.brand` — in.** Both come off a panel label. `pnl.wide` locates the panel (a different item class) and `pnl.directory` photographs the circuit directory (a different artifact). Both values are insurance-relevant and both were unverifiable. **`pnl.label` added**, framed for what the dead-front-stays-on policy actually leaves visible: the manufacturer/rating label and the main breaker's amp marking, with the door open.
+- **`wt.consumables` — deliberately out.** "Last change" is usually what the owner says. No photograph verifies testimony, and a provenance row implying the whole value is verifiable would be worse than none. **Recorded as an explicit exclusion in §9 so it is not re-swept later as an oversight.**
+
+**Two further candidates surfaced by the test and left for the field to judge with the items in hand** (§9.8): `fp.sweep` ("last-sweep evidence noted") and `irr.test-record` ("last certification date if documented"). Both read a physical tag, both look like the same class as `pnl.service` — but both are phrased as *evidence noted*, and whether the tag or the concierge's reading of it is the record is a call worth making at the object rather than from here.
+
+**One clarification added to Table I, from the field session's check.** Provenance is **co-visibility on the same pin**, not global existence. Their first implementation verified the source item existed *anywhere* in the config — under which a furnace nameplate would have satisfied a water heater's age. The invariant is that the photograph is taken **of the same object**, resolved across inheritance (`wsf.age → wt.nameplate` passes because the chain is walked, not because the id exists somewhere).
+
+**And the unverifiable declaration must travel.** Where a source item resolves N/A `none-present`, that fact has to reach the consumer through the manifest. Dropped in an aggregation layer, the honesty is lost exactly where it was needed — an unverifiable value re-enters the fleet looking verified.
+
+**Changelog v1.8 → v1.9 — derived-value provenance, and the two gaps it immediately found.**
+
+v1.8's discussion produced a rule about derived values, stated in prose:
+
+> A value derivable from **other values in the same record** must not be recorded — it can contradict its own inputs. A value derived from an **artifact by applying expertise** should be recorded, **because the source artifact is captured alongside it as the check.**
+
+That last clause is an invariant, and the field session checked it. **It held for one of three items:**
+
+| item | source artifact captured? |
+|---|---|
+| `wh.age` — decoded from serial | ✅ `wh.nameplate` |
+| `ft.age` — "from data plate" | ❌ `fuel-tank` had **no plate item at all** — only `ft.wide`, a locating shot |
+| `apw.hose-age` — "hose year if marked" | ❌ `app.nameplate` photographs the washer, not the hose |
+
+**Nobody's data is wrong today, and that is the problem.** Those ages cannot be re-checked by anyone — not next year, not by a specialist, not by the homeowner. And it lands hardest on the consumer §10 names as unable to argue for itself: **an unverifiable install year enters the fleet aggregate looking identical to a verified one, and nothing downstream can distinguish them.** That is the permanent-corruption case, arriving quietly rather than as a visible break.
+
+**Fixed three ways:**
+1. **`ft.nameplate`** added to `fuel-tank` — data plate photographed. Core, because it is the source of a core value.
+2. **`apw.hose-label`** added to `appliance-washer` — hose date code photographed where legible. Standard, and resolves N/A `none-present` when no date exists, which is itself real data: *the age is unverifiable* rather than silently unverified.
+3. **New Table I — derived-value provenance.** The prose rule becomes a declaration site, per §2. **Any item recording a value transcribed or decoded from a physical artifact must have a Table I entry naming the item that photographs that artifact.** Parser-enforceable: the entry must exist, the source item must exist, and the source item must be a `photo`. That check would have caught both gaps at authoring time rather than two years into a series.
+
+*Scope note:* v1.9 applies the rule to the three age items — the unambiguous cases. **Other candidates exist** (`pnl.service` and `pnl.brand` are read off a panel label; `wt.consumables` off the unit) and are recorded in §9 rather than swept in blind, because whether a choice or a note counts as "transcribed from an artifact" is a judgment the field should make with the items in front of it.
+
+**Changelog v1.7.2 → v1.8 — the egress split. One item retired, four added.**
+
+`liv.egress` read *"opens fully; size and sill height measured"* and recorded **one number**. A year later nobody knows which dimension it was. Split into four:
+
+| new id | records |
+|---|---|
+| `liv.egress-opens` | check — window opens fully and stays open unheld |
+| `liv.egress-width` | measure (in) — clear opening width |
+| `liv.egress-height` | measure (in) — clear opening height |
+| `liv.egress-sill` | measure (in) — sill height above finished floor |
+
+**Why four and not three:** *"opens fully"* is a check, not a measurement, and folding it into a number leaves it homeless. **Why splitting matters beyond tidiness:** egress thresholds are **per dimension** — a minimum width, a minimum height, a minimum openable area and a maximum sill height are four different limits. One number cannot be tested against four, and the binder cannot report *which* dimension failed. That is the real argument, and it is stronger than "three numbers beat one."
+
+**Openable area is deliberately NOT a fifth item.** It is derived from width × height. Recording a derived value creates a number that can disagree with its own inputs, and the binder can compute it from two measurements that cannot.
+
+**`liv.egress` retires; it does not carry over to any of the four.** By §2's move-vs-redefine rule this is a redefinition, and it is a **worse case than `bth.toilet-secure`**: that id carried a pass/fail, and a pass/fail rendering against the wrong question is visibly a category error. This one carries a **number**, of now-unknown provenance — nobody can say which dimension a past reading measured. **A number carries false precision: it looks like data, so nothing about it invites doubt.** Recorded in Table F.
+
+**Rendered under a sub-heading, so the cap holds.** Four core items added to `interior-base` would take its group from five core to eight — at the §2 cap, with no headroom. Under the authored sub-heading **Egress (sleeping rooms)** they form their own group of four, and interior-base's main group drops to four. Uses the base-list sub-heading machinery added in v1.6.1.
+
+**Cost, stated plainly:** one tap becomes four, at one window per sleeping room. Proportionate for a life-safety item — and `liv.egress` was the **only** item in the master where a single `measure` carried more than one number, so this does not generalise into a wave of splits.
+
+**Changelog v1.7.1 → v1.7.2 — Table H made honest, two units assigned, the meter decision deferred deliberately.**
+
+- **Table H's prose contradicted its own table.** It asserted *"Every `measure` item declares its unit inline"* while five did not. That is the prose-vs-tables class living inside the table written to prevent it. Reworded to state what is true, with the exceptions named. The field session correctly declined to enforce the rule against an open question; it becomes enforceable when the last three are answered.
+- **`liv.egress` and `sit.measurements` assigned `in`.** Both are lengths; the unit was never in doubt. That leaves three, not five.
+- **Three moisture items stay unitless deliberately** — `int.moisture-suspect`, `rgh.moisture`, `wet.surround-moisture`. **The owner does not yet own a moisture meter**, and the unit cannot be declared before the instrument exists: %WME, %MC and relative 0–100 are different scales, and a wrong declaration corrupts the series exactly as Table H warns. See §9 — this is now a **purchasing decision with a permanent schema consequence**, not a content gap.
+- **Count correction:** five unitless items, not six as v1.7 stated.
+- **Emphasis removed from the thirteen §4 Inherits cells** (v1.7.1, folded in here). v1.7 authored the emphasis ban while the file violated it thirteen times — the ban caught it on first contact, which is the rule paying for itself immediately.
+
+**Changelog v1.6.2 → v1.7 — governance, plus four stability fixes the governance made obvious.**
+
+**1. §10 Governance added.** The master graduates from "Field's config" to a governed cross-app contract, alongside the Manifest Contract and the Object/Concern Model. Field remains custodian of the file, the validator, wording, ordering and gating ergonomics; the **binder builder** ratifies on named binding surfaces; the **equipment registry** is named as a third consumer that has no session and cannot argue for itself. Proposed by the builder session; three amendments from this side accepted there. Full statement in §10.
+
+**2. Choice option values now carry the id lifecycle (§2, Table G).** Option values are the builder's `answer.*` condition vocabulary and the registry's query predicates. **They are never renamed — only retired and replaced**, exactly as item ids are, and retirements are recorded in **Table G**. A silent rename would break a downstream condition with no error, which is the same failure shape as an id rename breaking a cross-visit series.
+
+**3. `.unit` and `.wide` are declared item classes (§2), not naming conventions.** The builder binds to them — `.unit` is the condition baseline, `.wide` is the locating photo. A suffix convention is prose pretending to be structure, which this file's own rule (§2, declaration sites) forbids. Now declared, so the parser can enforce them.
+
+**4. New Table H — measure units.** Five units are in use inline (`in`, `psi`, `%RH`, `year`, `mm`). Declared, they cannot drift: `fc.width` recorded in mm on visit one and cm on visit five would corrupt the comparison series with **nothing able to catch it**, because every existing check compares the config to itself. Same failure class as the underscore corruption — see §9.
+   *Flagged, not fixed:* six `measure` items carry **no unit at all** (`int.moisture-suspect`, `liv.egress`, `rgh.moisture`, `wet.surround-moisture`, `sit.measurements`, and moisture readings generally). Assigning them requires knowing what the actual instrument reads — %WME versus a relative scale — and guessing would corrupt the series in precisely the way Table H exists to prevent. Recorded in §9 for the field to answer from the instrument.
+
+**5. No markdown emphasis in parsed cells (§0).** v1.6.1 authored `**mechanical-base**` inside Inherits cells, which forced an emphasis-stripper in the generator, which then ate the underscores in `has_stairs`, `has_plumbing` and `exterior_wall` and shipped three corrupted ids to main. Nothing caught it: the corruption was applied uniformly to both the ids and every reference to them, so the config stayed internally consistent. **Emphasis in a parsed cell is decoration for humans and a hazard for machines.**
+
+**6. Three component types added** (`leak-sensor`, `humidifier`, `dehumidifier`) — the B5 set. These exist so the builder's maintenance conditions have pin types to reference: `house.leak-sensor` and the rest cannot resolve against a type that does not exist.
 
 **Changelog v1.6.1 → v1.6.2 — one defect, and a rule change to stop its class.**
 
@@ -138,10 +248,11 @@ Both are the same defect: the library was built from mechanical systems outward 
 
 ---
 
-## 0. Table dialect (for the generator — v1.6.2)
+## 0. Table dialect (for the generator — v1.11)
 
 - Base/zone/session tables: `id | text | satisfy | tier | attest [| scope] [| trigger]`. Scope defaults to `[baseline]` where the column is absent.
 - Component tables (§7): `id | text | satisfy | tier | attest`.
+- **No markdown emphasis inside parsed cells (v1.7).** Ids, types, refs and option values are read literally. Bold or italic markers inside a parsed cell force the generator to strip them, and a stripper broad enough to remove emphasis has already proved broad enough to remove underscores from snake_case ids. **Emphasis belongs in prose, never in a cell the parser reads.**
 - **List-level gate (v1.6.2).** A list heading may carry `— gated on <ref>`: `` ### `mechanical-base` — gated on `zone.has_mechanicals` ``. **Every item in that list is conditioned on that ref.** Where an item also carries a trigger cell, the effective condition is **`allOf(list gate, item trigger)`** — the cell's own `|` remains `anyOf` internally. This is the only way to express an AND of two refs; trigger cells cannot. Applies to base lists, zone lists and component lists alike. A list may carry at most one gate.
 - **Bold sub-headings are permitted in base lists as well as zone lists** (v1.6.1). They are group keys; a base item with no sub-heading groups under the base id. `mechanical-base` relies on this — without it, 24 items collapse into one group of 20 core, 2.5× the §2 cap.
 - **Component inheritance** is declared in the heading: ``### `child-type` — inherits `parent-type` ``. The child's rendered list is the parent's items followed by its own. Ids remain globally unique.
@@ -150,7 +261,7 @@ Both are the same defect: the library was built from mechanical systems outward 
   - measure units in parens — `measure (psi)`, `measure (year)`
   - choice options in parens, pipe-separated — `choice (ball|gate|other|unknown)`
 - **Trigger cells:** `|` means anyOf; ids after the first inherit the prefix of the first (`property.gas|propane` ⇒ `property.gas` OR `property.propane`).
-- Vocabulary tables (A–F at end): columns as declared per table. **Table E rows are `alias | canonical type` — aliases are free text (spaces, capitals, punctuation), never ids.**
+- Vocabulary tables (A–I at end): columns as declared per table. **Table E rows are `alias | canonical type` — aliases are free text (spaces, capitals, punctuation), never ids.**
 - Malformed rows fail closed.
 
 ---
@@ -214,6 +325,26 @@ water-treatment ┬── water-softener · sediment-filter
 
 **The pin-vs-item test (v1.5):** **does the thing need its own position on the map?** If someone must walk somewhere else to reach it, it is a **pin**. If it is on or immediately at another object, it is an **item** on that object's list. A curb stop is at the street while the main shutoff is in the basement — two positions, two pins. A water heater's shutoff is on the water heater — one position, so an item. Getting this wrong puts a thing on the emergency map at the wrong address, which is worse than omitting it.
 
+**Derived values and their provenance (v1.9).** Two kinds of derived value, opposite rules:
+- **Derivable from other values in the same record → do not record it.** Openable area is width × height; recording it creates a number that can contradict its own inputs, with no way to tell which side is wrong. The consumer computes it.
+- **Derived from a physical artifact by applying expertise → record it, and name the artifact.** A serial-decoded install year is not reproducible downstream — decoding schemes are manufacturer-specific — so the field is the right place to record it. **What makes that safe is that the source artifact is captured alongside as the check**, and that is an invariant, not an assumption: **every item recording a value transcribed or decoded from an artifact must have a Table I entry naming the `photo` item that captures it.**
+
+**Boundary test for Table I (v1.10):** *is there a **single artifact** a photograph could capture that would let someone else reach the same value?* **Yes → an entry is required. Partly, or the value includes testimony → do not claim provenance.** A row on a partly-verifiable value is worse than no row, because it asserts a check nobody can perform. Two shapes are easily confused and resolve oppositely:
+- **An artifact value *and* testimony bundled in one field** — `wt.consumables` records size *and* last change; no single photograph reaches the whole value. **Excluded.**
+- **One value that is *sometimes* evidenced** — `fp.sweep` reads a tag when a tag exists and the owner otherwise. **Included**, because that is a resolution state, not a split: the source resolves N/A `none-present` when no artifact exists, and the value is then *declared* unverifiable rather than silently so.
+
+**Provenance is co-visibility on the same pin, not global existence (v1.10).** The source item must be capturable **on the same object**, resolved across component inheritance. A source item sitting on an unrelated component satisfies "exists" and still never gets photographed — under an existence-only check, a furnace nameplate would prove a water heater's age.
+
+Without the entry the value is unverifiable forever — by the next visit, by a specialist, by the homeowner — while looking exactly as solid as a verified one. That is worst for the equipment registry (§10.3), which cannot distinguish the two and has no session to notice.
+
+**Choice option values carry the id lifecycle (v1.7).** An option value is not display text — it is a **vocabulary another repo binds to.** The builder reads option values as its `answer.*` condition predicates; the equipment registry queries on them. So they follow the same rule as item ids: **never renamed, only retired and replaced**, with retirements recorded in **Table G**. Renaming `poly-B` to `polybutylene` would silently break every downstream condition matching the old string, with no error anywhere — the same shape as an id rename silently breaking a cross-visit series. Adding a new option is safe and needs no ceremony; changing or removing an existing one is a breaking change.
+
+**Reserved item classes (v1.7).** Two id suffixes are **declared classes, not naming conventions**, because downstream consumers bind to them:
+- **`.unit`** — a photograph of the whole object, in place, framed to be repeatable. The **condition baseline**: what makes year-over-year comparison possible. Always `photo` + `evidence`.
+- **`.wide`** — a photograph framed to *locate* the object in its surroundings. The **locating shot**: what the emergency shutoff map and a returning operator use to find the thing.
+
+An object may carry both (they answer different questions). Neither suffix may be used for anything else. This is declared rather than conventional because a suffix convention is prose pretending to be structure, which §2's declaration-site rule forbids — and the builder binds to both.
+
 **Declaration sites (v1.6.2).** Every structural fact — what inherits what, what gates what, what defaults where — has **exactly one parsed home**, and prose never substitutes for it. Where this file states a structural fact in a sentence and nowhere else, that is a **defect in the dialect**, not a lapse in wording: the response is to add a declaration site (§0) and move the fact into it. Four consecutive revisions shipped this defect class before the rule took this form; writing it as "be careful" did not work.
 
 **Retirement lineage (v1.6):** when an item retires because its content moved elsewhere, the successor ids are recorded in **Table F**, not only in prose. Software must not join a retired series to its successor — a false continuity is worse than an honest break, and the binder correctly treats a retired id as a discontinuity. Table F exists so a *person* reading a series that stops can find where it continued. **Every retirement records its successors, or `none` if the question was genuinely dropped.**
@@ -252,19 +383,19 @@ Typed zone + editable label; **labels are display-only and never drive logic.**
 
 | Type | Typical labels | Inherits |
 |---|---|---|
-| `utility` | mechanical room, furnace room | interior-base, rough-base, **mechanical-base** |
-| `basement` | basement, cellar, rec room | interior-base, rough-base, **mechanical-base** |
-| `crawlspace` | crawlspace | rough-base, **mechanical-base** |
-| `attic` | attic, loft access | rough-base, **mechanical-base** |
-| `kitchen` | kitchen, kitchenette | interior-base, wet-base, **mechanical-base** |
-| `bathroom` | full bath, ensuite, powder room | interior-base, wet-base, **mechanical-base** |
-| `laundry` | laundry, mudroom w/ washer | interior-base, wet-base, **mechanical-base** |
-| `living-space` | bedroom, living, dining, office, den | interior-base, **mechanical-base** |
-| `circulation` | hall, stairwell, entry, landing | interior-base, **mechanical-base** |
-| `garage` | attached garage, carport | interior-base, rough-base, **mechanical-base** |
-| `elevation` | north side, front, rear | exterior-base, **mechanical-base** |
-| `site` | grounds, driveway, yard, shoreline | exterior-base, **mechanical-base** |
-| `outbuilding` | shed, barn, workshop, boathouse | exterior-base, rough-base, **mechanical-base** |
+| `utility` | mechanical room, furnace room | interior-base, rough-base, mechanical-base |
+| `basement` | basement, cellar, rec room | interior-base, rough-base, mechanical-base |
+| `crawlspace` | crawlspace | rough-base, mechanical-base |
+| `attic` | attic, loft access | rough-base, mechanical-base |
+| `kitchen` | kitchen, kitchenette | interior-base, wet-base, mechanical-base |
+| `bathroom` | full bath, ensuite, powder room | interior-base, wet-base, mechanical-base |
+| `laundry` | laundry, mudroom w/ washer | interior-base, wet-base, mechanical-base |
+| `living-space` | bedroom, living, dining, office, den | interior-base, mechanical-base |
+| `circulation` | hall, stairwell, entry, landing | interior-base, mechanical-base |
+| `garage` | attached garage, carport | interior-base, rough-base, mechanical-base |
+| `elevation` | north side, front, rear | exterior-base, mechanical-base |
+| `site` | grounds, driveway, yard, shoreline | exterior-base, mechanical-base |
+| `outbuilding` | shed, barn, workshop, boathouse | exterior-base, rough-base, mechanical-base |
 
 ## 5. Base checklists
 
@@ -281,8 +412,18 @@ Typed zone + editable label; **labels are display-only and never drive logic.**
 | `int.lighting` | Switches and fixtures function | check | standard | action | baseline | — |
 | `int.registers` | Supply/return registers unblocked, airflow confirmed — pin problem registers | check | standard | action | baseline | — |
 | `int.alarms` | Smoke/CO alarms in this zone pinned (manufacture dates photographed) | pin `smoke-alarm\|co-alarm` | standard | evidence | baseline, monthly | — |
-| `liv.egress` | Sleeping-room window egress: opens fully; size and sill height measured | measure | core | action | baseline | `zone.sleeping` |
 | `int.owner-quirks` | Anything the owner flagged in this room verified and captured | note | standard | action | baseline | — |
+
+**Egress (sleeping rooms)**
+
+| id | text | satisfy | tier | attest | scope | trigger |
+|---|---|---|---|---|---|---|
+| `liv.egress-opens` | Window opens fully and stays open without being held | check | core | action | baseline | `zone.sleeping` |
+| `liv.egress-width` | Clear opening width | measure (in) | core | action | baseline | `zone.sleeping` |
+| `liv.egress-height` | Clear opening height | measure (in) | core | action | baseline | `zone.sleeping` |
+| `liv.egress-sill` | Sill height above finished floor | measure (in) | core | action | baseline | `zone.sleeping` |
+
+*Four separate values because egress limits are per dimension. **Openable area is not recorded** — it is width × height, and a derived value that can disagree with its inputs is worse than no value. The binder computes it.*
 
 ### `wet-base`
 
@@ -506,7 +647,7 @@ A `utility` zone is an ordinary interior zone that **sets `zone.has_mechanicals`
 | `sit.retaining` | Retaining walls pinned: lean, drainage, condition | pin `retaining-wall` | standard | evidence | — |
 | `sit.shoreline` | Shoreline/dock captured; erosion comparison positions established | pin `comparison-position\|dock` | core | evidence | `property.waterfront` |
 | `sit.outbuildings` | Outbuildings identified; each gets a zone if substantial | check | standard | action | — |
-| `sit.measurements` | Driveway/walkway dimensions captured | measure | standard | action | — |
+| `sit.measurements` | Driveway/walkway dimensions captured | measure (in) | standard | action | — |
 
 ## 6b. Session items (session-close audit)
 
@@ -591,6 +732,7 @@ Dialect: `id | text | satisfy | tier | attest`. Inheritance declared in the head
 |---|---|---|---|---|
 | `pnl.wide` | Location photographed wide | photo | core | evidence |
 | `pnl.directory` | Directory photographed | photo | core | evidence |
+| `pnl.label` | Manufacturer/rating label and main breaker amp marking photographed legibly (door open, dead front on) | photo | core | evidence |
 | `pnl.brand` | Make/model recorded; known-issue brands flagged | note | core | evidence |
 | `pnl.service` | Service size | choice (60A\|100A\|125A\|150A\|200A\|400A\|other\|unknown) | core | evidence |
 | `pnl.type` | Overcurrent protection type | choice (breaker\|fuse\|mixed) | core | evidence |
@@ -737,8 +879,9 @@ Dialect: `id | text | satisfy | tier | attest`. Inheritance declared in the head
 | id | text | satisfy | tier | attest |
 |---|---|---|---|---|
 | `ft.wide` | Tank photographed wide | photo | core | evidence |
+| `ft.nameplate` | Data plate photographed legibly | photo | core | evidence |
 | `ft.type` | Tank configuration | choice (above-ground indoor\|above-ground outdoor\|underground\|propane cylinder\|unknown) | core | evidence |
-| `ft.age` | Manufacture year from data plate | measure (year) | core | evidence |
+| `ft.age` | Manufacture year from the data plate | measure (year) | core | evidence |
 | `ft.lines` | Lines and regulator condition | check | core | action |
 | `ft.base` | Base/support condition | check | standard | action |
 | `ft.fill` | Fill/vent configuration noted | note | standard | evidence |
@@ -754,7 +897,8 @@ Dialect: `id | text | satisfy | tier | attest`. Inheritance declared in the head
 | `fp.wett` | Wood: WETT-class inspection flag recorded — never cleared by us | check | core | action |
 | `fp.gas-valve` | Gas: valve located | check | core | action |
 | `fp.chimney` | Associated chimney/flue pinned | pin `chimney` | standard | evidence |
-| `fp.sweep` | Last-sweep evidence noted | note | standard | evidence |
+| `fp.sweep-tag` | Sweep/service tag photographed if present | photo | standard | evidence |
+| `fp.sweep` | Last sweep/service date recorded | note | standard | evidence |
 
 ### `dryer-duct`
 | id | text | satisfy | tier | attest |
@@ -959,7 +1103,8 @@ Dialect: `id | text | satisfy | tier | attest`. Inheritance declared in the head
 | id | text | satisfy | tier | attest |
 |---|---|---|---|---|
 | `apw.hoses` | Supply hose type | choice (braided stainless\|rubber\|unknown) | core | evidence |
-| `apw.hose-age` | Hose year if marked | measure (year) | standard | evidence |
+| `apw.hose-label` | Hose date code photographed where legible | photo | standard | evidence |
+| `apw.hose-age` | Hose year, from the date code | measure (year) | standard | evidence |
 | `apw.stops` | Shutoffs present and accessible | check | core | action |
 | `apw.pan` | Drain pan present if above living space | check | standard | action |
 
@@ -987,6 +1132,35 @@ Dialect: `id | text | satisfy | tier | attest`. Inheritance declared in the head
 | `dck.permit` | Shoreline/dock permit documentation noted | note | standard | evidence |
 
 *Filled in v1.6 because it was a stub **actively referenced** — `sit.shoreline` names it as a pin alternative, so a waterfront property could produce a `dock` pin with nothing behind it. `dck.unit` is a repeatable-position shot: shoreline and dock condition are the Master Spec §10 comparison case.*
+
+### `leak-sensor`
+| id | text | satisfy | tier | attest |
+|---|---|---|---|---|
+| `lks.unit` | Sensor photographed in place | photo | core | evidence |
+| `lks.covers` | What it protects recorded (which fixture or appliance) | note | core | evidence |
+| `lks.type` | Sensor type | choice (standalone alarm\|hub-connected\|integrated with automatic shutoff\|unknown) | core | evidence |
+| `lks.power` | Power source and battery state | choice (battery\|plug-in\|hardwired\|unknown) | standard | evidence |
+| `lks.test` | Tested (per manufacturer method) | check | standard | action |
+
+### `humidifier`
+| id | text | satisfy | tier | attest |
+|---|---|---|---|---|
+| `hum.unit` | Unit photographed in place | photo | core | evidence |
+| `hum.nameplate` | Nameplate photographed | photo | core | evidence |
+| `hum.pad` | Pad/filter size recorded | note | core | evidence |
+| `hum.water` | Supply line and drain condition | check | core | action |
+| `hum.setting` | Humidistat setting recorded | note | standard | evidence |
+| `hum.season` | Damper/bypass seasonal position | choice (winter/open\|summer/closed\|no damper\|unknown) | standard | evidence |
+
+### `dehumidifier`
+| id | text | satisfy | tier | attest |
+|---|---|---|---|---|
+| `deh.unit` | Unit photographed in place | photo | core | evidence |
+| `deh.nameplate` | Nameplate photographed | photo | core | evidence |
+| `deh.drainage` | Drainage method | choice (gravity to drain\|condensate pump\|bucket — manual\|unknown) | core | evidence |
+| `deh.draining` | Draining correctly; no standing water at the unit | check | core | action |
+| `deh.setting` | Humidistat setting recorded | note | standard | evidence |
+| `deh.filter` | Filter condition | check | standard | action |
 
 ### `retaining-wall`
 | id | text | satisfy | tier | attest |
@@ -1045,7 +1219,8 @@ Dialect: `id | text | satisfy | tier | attest`. Inheritance declared in the head
 | `irr.unit` | Backflow device photographed | photo | core | evidence |
 | `irr.shutoff` | Irrigation shutoff located | check | core | action |
 | `irr.type` | Device type | choice (RPZ\|double check\|pressure vacuum breaker\|atmospheric vacuum breaker\|none observed\|unknown) | standard | evidence |
-| `irr.test-record` | Last certification/test date if documented | note | standard | evidence |
+| `irr.test-tag` | Backflow test/certification tag photographed if present | photo | standard | evidence |
+| `irr.test-record` | Last certification/test date recorded | note | standard | evidence |
 | `irr.blowout` | Winterization/blow-out evidence noted | note | standard | evidence |
 
 *Many jurisdictions require annual backflow certification. We record the date if documented; we never certify.*
@@ -1197,9 +1372,54 @@ Where a retired item's content went. **Software must not use this to join a seri
 | `kit.fridge-line` | v1.4 | `apr.water-line` | Content moved to `appliance-refrigerator` |
 | `kit.fuel-range` | v1.4 | `apg.fuel`, `apg.shutoff`, `apg.connector` | Content moved to `appliance-range` |
 | `lnd.hoses` | v1.4 | `apw.hoses`, `apw.hose-age` | Content moved to `appliance-washer` |
+| `liv.egress` | v1.8 | `liv.egress-opens`, `liv.egress-width`, `liv.egress-height`, `liv.egress-sill` | Redefined: one item recording one number for four different questions. Past readings are of unknown provenance — no successor may inherit the id |
 | `wm.curbstop` | v1.5 | `cs.photo`, `cs.access`, `cs.key` | Redefined: an item became the `curb-stop` component type (pin-vs-item test — the curb stop is at the street) |
 
-*No retirements in v1.6. The `utl.*` mechanical items **moved** to `mechanical-base` and keep their ids, so none appear here.*
+*One retirement in v1.8 (`liv.egress`). No retirements in v1.6. The `utl.*` mechanical items **moved** to `mechanical-base` and keep their ids, so none appear here.*
+
+## G. Retired choice option values (v1.7)
+
+Option values follow the item-id lifecycle (§2): never renamed, only retired and replaced. This table is where a downstream consumer finds what happened to a value its conditions used to match.
+
+| item | retired value | version | replacement | reason |
+|---|---|---|---|---|
+| — | — | — | — | *No option values retired to date. This table exists so the first retirement has a home rather than being invented under pressure.* |
+
+## H. Measure units (v1.7)
+
+Units are declared inline on the item — `measure (psi)` — and this table is the closed set. **Three items are deliberately unitless and are listed below; every other `measure` item declares a unit.** **A unit is part of the item's identity: changing it is a breaking change, not a content edit.** A `fc.width` recorded in mm on visit one and cm on visit five would corrupt the comparison series, and **no existing check could catch it** — the drift gate, the schema validator and the round-trip test all compare the config to itself.
+
+| unit | means | used by |
+|---|---|---|
+| `in` | inches | `rgh.insulation`, `att.insulation-depth` |
+| `psi` | pounds per square inch | `utl.pressure`, `blr.pressure` |
+| `%RH` | relative humidity, percent | `bsm.humidity` |
+| `year` | four-digit calendar year (gated 1900–current) | `wh.age`, `ft.age`, `wsf.age`, `apw.hose-age` |
+| `mm` | millimetres | `fc.width` |
+| `in` | inches (lengths) | `liv.egress`, `sit.measurements` |
+
+**Deliberately unitless (3), pending an instrument:** `int.moisture-suspect` · `rgh.moisture` · `wet.surround-moisture`. All three record a moisture-meter reading, and **the scale is a property of the meter, not of the checklist** — %WME, %MC and relative 0–100 are not interchangeable. Declaring one before the instrument exists would guarantee the corruption this table prevents. **Enforce the "every measure item declares a unit" rule once these three are answered, not before.**
+
+
+
+## I. Derived-value provenance (v1.9)
+
+Every item recording a value **transcribed or decoded from a physical artifact** names the `photo` item that captures that artifact. **Parser-enforceable:** the entry must exist, the source item must be a `photo`, and — the invariant that matters — **the source must be capturable on the same pin**, resolved across component inheritance. Global existence is not provenance: a source item on an unrelated component passes "exists" and is never actually taken. Without it, a recorded value can never be re-checked by anyone.
+
+| item | value derived from | source artifact item |
+|---|---|---|
+| `wh.age` | Serial number, manufacturer-decoded | `wh.nameplate` |
+| `ft.age` | Tank data plate | `ft.nameplate` |
+| `apw.hose-age` | Hose date code | `apw.hose-label` |
+| `wsf.age` | Nameplate or unit label | `wt.nameplate` *(inherited — resolves across the chain)* |
+| `pnl.service` | Main breaker amp marking / rating label | `pnl.label` |
+| `pnl.brand` | Panel manufacturer label | `pnl.label` |
+| `fp.sweep` | Sweep/service tag date | `fp.sweep-tag` |
+| `irr.test-record` | Backflow test tag date | `irr.test-tag` |
+
+*Where the source item resolves N/A `none-present` — no legible date code on the hose, no readable plate — **the derived value is legitimately unverifiable, and recording that is real data.** It is the silent unverified value, not the declared one, that corrupts a series.*
+
+***The declaration must travel.*** *An N/A-sourced value has to carry that fact through the manifest to every consumer. Dropped in an aggregation layer, an unverifiable value re-enters the fleet indistinguishable from a verified one — which is the exact failure Table I exists to prevent, reintroduced downstream of the fix.*
 
 ---
 
@@ -1222,18 +1442,62 @@ Where a retired item's content went. **Software must not use this to join a seri
 5. **Pin nicknames** — v1.4 removes most of the reason they existed: nicknames were covering for missing component types. Recommend keeping them through the next field walk, then reviewing whether they still earn their place. Don't retire them in the same pass that adds the types, or you remove the workaround and the gap together and can't tell which mattered.
 6. **Intake form needs a question it does not ask.** `flat_roof` is declared in Table A because Master Spec §15's trigger table depends on it, but nothing sets it — the intake form has no flat/low-slope roof question. Add it there, or drop the flag; a flag no input can set is worse than an absent one. **And sweep the intake form the other way:** `seasonal_vacancy` and `secondary_suite` were asked for weeks and had no flag, which is how this class of gap hides.
 
-7. **Sweep for remaining prose-only structural claims.** v1.6.2 moved the last known one (the `mechanical-base` gate) into the dialect. **Anything else in this file that states a structural fact only in a sentence is an undetected instance of the same class.** Worth a deliberate pass by whoever next parses the file end to end — the generator sees the tables, so only a human reading the prose can find them, and only the parser can confirm they're absent from the config.
+7. **The moisture-meter decision — a purchase with a permanent schema consequence.** Three items (`int.moisture-suspect`, `rgh.moisture`, `wet.surround-moisture`) record a meter reading and stay unitless until an instrument exists. **The scale is set by the meter, and it is set once:** readings taken in %WME cannot be compared to readings in %MC or on a relative 0–100 scale, so switching instruments later corrupts every series retroactively. Decide the meter deliberately, declare its unit in Table H, and treat replacing it as a breaking change requiring a new item rather than a changed unit. *(A pinned meter reading %WME is the common inspection convention, but the choice is the owner's and the declaration follows the instrument, not the other way round.)*
 
-8. **Item-count reconciliation between sessions.** Component types (58) and `.unit` items (23) match exactly across both parses. The item total does not: 345 table rows vs 377 unique ids. Likely rows-in-§5/§6/§7 versus unique ids across base + zone + session + component lists. **The two sessions should reconcile directly with a per-section breakdown** rather than either adopting the other's number — a count that disagrees for an unexamined reason is a count neither should cite.
+8. **Table I sweep — closed (v1.11).** Seven values sourced. **One deliberate exclusion, on the record so it is never re-swept as an oversight:** `wt.consumables` bundles an artifact value and testimony in one field, so no single photograph reaches the whole value. `fp.sweep` and `irr.test-record`, deferred in v1.10, resolved into the table — they are one value *sometimes* evidenced, which the N/A path already models. **The invariant for any future item: if a recorded value can be read off something, name the photo of that something; if it can only sometimes be read off something, still name it and let N/A carry the honest case.**
 
-9. **The `answer.*` class is the binder's, and the binder must own its vocabulary too.** Conditions on recorded values are out of this file by design (§3). The builder reads this master's `choice` option values as its condition vocabulary — so **renaming or removing an option value is a breaking change for the builder**, not just a content edit. Worth the same care as an item id.
+*Note for whoever validates this: a check that enumerates the current provenance set fires on every legitimate addition. **State the invariant, not the inventory** — every item whose value is transcribed from an artifact has a row, and every row's source is a `photo` capturable on the same pin. That holds at seven rows and at seventy.*
 
-10. **§1 emergency-sheet coverage is the master's acceptance test.** Every entry on Master Spec §1's shutoff-and-control list must have somewhere in this library to land. v1.5 closes it; **any future component type should be checked against §1 before it is called done.** Remaining partial: propane appliance valves and oil-tank shutoff are covered only by `fuel-tank` generally, and a separate main electrical disconnect (where it exists apart from the panel) has no item. Both are candidates for v1.6 if the field shows they matter.
+9. **Sub-heading gates would remove a small duplication.** The four egress items each repeat `zone.sleeping` in their trigger cell. A list-level gate (§0) attaches to a `###` list, not to a bold sub-heading, so there is no way to gate a group. Four duplicated cells is tolerable; the pattern is worth watching if another sub-headed conditional group appears. Not worth new dialect for one case.
 
-11. **Vocabulary — "pin" now means the marker, not the entity.** Per the Object/Concern design record: an Object has a pin; a Concern has a pin. This master says "pinned" throughout, which remains correct under that reading. Entity words are Object and Concern.
+10. **Sweep for remaining prose-only structural claims.** v1.6.2 moved the last known one (the `mechanical-base` gate) into the dialect. **Anything else in this file that states a structural fact only in a sentence is an undetected instance of the same class.** Worth a deliberate pass by whoever next parses the file end to end — the generator sees the tables, so only a human reading the prose can find them, and only the parser can confirm they're absent from the config.
+
+11. **Item-count reconciliation between sessions.** Component types (58) and `.unit` items (23) match exactly across both parses. The item total does not: 345 table rows vs 377 unique ids. Likely rows-in-§5/§6/§7 versus unique ids across base + zone + session + component lists. **The two sessions should reconcile directly with a per-section breakdown** rather than either adopting the other's number — a count that disagrees for an unexamined reason is a count neither should cite.
+
+12. **The `answer.*` class is the binder's, and the binder must own its vocabulary too.** Conditions on recorded values are out of this file by design (§3). The builder reads this master's `choice` option values as its condition vocabulary — so **renaming or removing an option value is a breaking change for the builder**, not just a content edit. Worth the same care as an item id.
+
+13. **§1 emergency-sheet coverage is the master's acceptance test.** Every entry on Master Spec §1's shutoff-and-control list must have somewhere in this library to land. v1.5 closes it; **any future component type should be checked against §1 before it is called done.** Remaining partial: propane appliance valves and oil-tank shutoff are covered only by `fuel-tank` generally, and a separate main electrical disconnect (where it exists apart from the panel) has no item. Both are candidates for v1.6 if the field shows they matter.
+
+14. **Vocabulary — "pin" now means the marker, not the entity.** Per the Object/Concern design record: an Object has a pin; a Concern has a pin. This master says "pinned" throughout, which remains correct under that reading. Entity words are Object and Concern.
+
+## 10. Governance (v1.7)
+
+This file is a **governed cross-app contract**, alongside the Manifest Contract and the Object/Concern Model. Proposed by the binder session, amended and accepted here.
+
+**Why.** The master was authored by Field because Field shipped first. But v1.5–v1.6.2's change log shows structural direction arriving from the consumer side: §1 as a standing acceptance test, the pin-vs-item rule, `mechanical-base`, the `house.*` namespace, three Table A flags. Field authored the custodial machinery — id lifecycle, Table F, aliases, validator, the declaration-site rule. That split is not accidental. **Development order ran Field → Builder; dependency order runs Builder → Field:** the Binder Schema defines done, this master defines what must be captured to reach it, the field UX defines how. The master sits at that joint, which is where the Manifest Contract sits.
+
+**10.1 · Field is custodian.** The file, the validator, releases, item wording, ordering, tiering, gating ergonomics — everything that makes a visit runnable at hour three. None of that moves. **Pure content edits stay Field-autonomous**, subject to the standing acceptance tests.
+
+**10.2 · Binding surfaces — edits route through the owner with builder review.** These are the parts where an edit is a breaking change downstream:
+1. **Satisfy types** — a new one changes the resolution vocabulary
+2. **Choice option values** — the builder's `answer.*` predicates and the registry's query vocabulary (§2, Table G)
+3. **Item id lifecycle and Table F** — govern cross-visit joins and discontinuities
+4. **Component types and inheritance** — the binding graph
+5. **Trigger namespaces and Tables A/B** — shared with both builder schemas
+6. **N/A reason semantics** — define the gap list and the findings stream
+7. **`.unit` and `.wide` item classes** (§2) — condition baseline and locating photo
+8. **Measure units** (Table H) — the longitudinal comparison backbone
+9. **Table D layers** — the shutoffs layer *is* the §1 emergency map and the comparison layer *is* the §10 protocol; a predicate change silently changes a rendered binder artifact
+10. **Attest semantics** — `evidence`/`action` ride in the manifest; a new class needs builder handling
+
+**10.3 · Three consumers, and the blast radii differ in kind.**
+
+| consumer | a bad change breaks |
+|---|---|
+| Field app | a visit |
+| Binder builder | a binder |
+| **Equipment registry** | **every client's longitudinal series, simultaneously and permanently** |
+
+The registry reads component types (the fleet dimension), option values (the predicates), measure units (the comparison) and the `.unit`/nameplate photo classes (the evidence). It adds no surfaces beyond the ten above — but it raises the bar on four of them, because **it has no session and cannot argue for itself.** Renaming `water-softener` is not a two-app negotiation; it decides whether a fleet question is answerable in 2030.
+
+**10.4 · Standing acceptance tests are a minimum, never a maximum.** §1 is the first: every shutoff entry must have somewhere to land. More will follow as the Binder Schema hardens. **The Binder Schema declares required capture; the master proves it can be captured — and may always capture more than the schema requires. It may never capture less.** The sub-type taxonomy arrived from freeform field telemetry, not from a binder expectation; Field discovers things the binder cannot anticipate, and the governance must not close that door.
+
+**10.5 · Field keeps a real veto: "cannot reasonably capture."** The binder can require something the field cannot sensibly get at hour three. That answer routes back as a schema change or an explicitly recorded gap — **never a forced item.** The §1 partials still open (propane appliance valves, oil-tank shutoff, separate main disconnect) model this correctly: deliberately waiting on field evidence rather than guessed into existence.
+
+**10.6 · What this does not change.** Field's autonomy over content, wording, ordering and UX · validator ownership · release cadence · **the manifest as the runtime boundary** — the master never ships to the builder at runtime; every import carries its own config snapshot and validation is per-import, fail-open on vocabulary · the owner as router on every cross-app change.
 
 ---
 
-**Status:** v1.6.2 — supersedes v1.6.1 (never built). Adds the **list-level gate** to the dialect and applies it to `mechanical-base`, which had 21 of 24 items ungated in prose-only form and would have rendered the full mechanical checklist in every bedroom and hallway. Carries forward v1.6.1's Inherits wiring, base-list sub-headings, Table B column 4, and the `pin.*` zone-scope restriction. **No item ids retired or renamed since v1.5.**
+**Status:** v1.11 — **closes the Table I provenance sweep.** Seven values sourced (`wh.age`, `ft.age`, `apw.hose-age`, `wsf.age`, `pnl.service`, `pnl.brand`, `fp.sweep`, `irr.test-record`), one deliberately excluded and recorded as such, none deferred. Adds `fp.sweep-tag` and `irr.test-tag`. Carries v1.10's boundary test and co-visibility invariant, v1.9's Table I, v1.8's egress split, v1.7's governance (§10). **One id retired since v1.5 (`liv.egress`); no ids renamed; no option values retired ever.**
 
-*Authoring rule, now in §2 and §0 rather than only here: **every structural fact has exactly one parsed home, and prose never substitutes for it.** Where this file states a structural fact only in a sentence, that is a missing declaration site in the dialect — add the site, move the fact. Four revisions shipped this defect class while the rule was phrased as "be careful"; it is phrased as a mechanism now because the phrasing was the problem.*
+*Five stability rules share one cause — **a consistency check cannot catch a transformation applied uniformly.** Item ids, option values, measure units and derived-value provenance each needed a check against something external: the master's literal text, or a captured artifact. Corollaries earned across this run, each from a real failure: **a fix for that class must be tested on the class, not the instance** · **a number carries false precision** — a wrong pass/fail is visibly a category error, a wrong number just looks like a measurement · **an unverifiable value is indistinguishable from a verified one**, which is why provenance is an invariant and why the unverifiable declaration must survive aggregation · **existence is not provenance** — the artifact must be capturable on the same object · **proposing items is not separable from proposing where they render**, because the core cap is per rendered group · and **state the invariant, not the inventory** — a check that enumerates what exists fires on every legitimate addition.*
