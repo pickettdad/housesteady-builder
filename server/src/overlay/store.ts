@@ -60,6 +60,10 @@ const TARGET_EXISTS: Record<string, (db: Db, visitId: string, targetId: string) 
   pin: (db, v, t) => exists(db, `SELECT 1 FROM pins WHERE visit_id = ? AND pin_id = ?`, v, t),
   zone: (db, v, t) => exists(db, `SELECT 1 FROM zones WHERE visit_id = ? AND zone_id = ?`, v, t),
   media: (db, v, t) => exists(db, `SELECT 1 FROM media WHERE visit_id = ? AND media_id = ?`, v, t),
+  // A `discard` targets the PROPOSAL, not the thing the proposal was about —
+  // see discardProposal. Validated like any other target: an overlay pointing
+  // at nothing would be a decision about nothing.
+  generation: (db, v, t) => exists(db, `SELECT 1 FROM ai_generations WHERE visit_id = ? AND id = ?`, v, t),
 }
 
 const exists = (db: Db, sql: string, ...args: unknown[]): boolean => db.prepare(sql).get(...args) !== undefined

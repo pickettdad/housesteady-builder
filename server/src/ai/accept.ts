@@ -233,18 +233,67 @@ function settle(db: Db, generationId: string, overlays: Overlay[]): Acceptance {
 /**
  * Decline a proposal.
  *
- * No overlay: nothing about the house changed, and writing one would put an act
- * on the pin's trail that says nothing about the pin. The generation row carries
- * it, which is where the evidence about the prompt belongs.
+ * **The overlay targets the PROPOSAL, never the pin.** Nothing about the house
+ * changed, so an act on the pin's trail would say nothing about the pin — but
+ * the act being recorded is not about the pin. It is about the proposal, and
+ * `discarded` feeds the what-the-model-got-wrong query that improves the
+ * prompts.
+ *
+ * Which is why it has to name a person. **The same discard count has opposite
+ * fixes**: one reviewer discarding half of everything is a training problem;
+ * everyone discarding the same kind of reading is a prompt problem. Those are
+ * indistinguishable without knowing who, and the distinction is not
+ * reconstructible afterwards — the same argument the ratification log makes for
+ * `by`.
+ *
+ * `targetKind: 'generation'` is what keeps the record clean. `resolveState`
+ * buckets by target, so a discard lands in the proposal's own trail and the
+ * pin's is untouched — the original reasoning holds, and the attribution is
+ * kept anyway.
+ *
+ * **No confirmation step, deliberately.** Friction on discarding would nudge
+ * people toward accepting, and an acceptance is a signature. Making the honest
+ * answer the harder one is backwards.
  */
-export function discardProposal(db: Db, generationId: string, note?: string): GenerationRow {
+export function discardProposal(
+  db: Db,
+  generationId: string,
+  args: { actorId: string; note?: string },
+): GenerationRow {
   const gen = findGeneration(db, generationId)
   if (!gen) throw new OverlayRefused('That proposal is not in the record.', 'overlay.accept-unknown-generation')
   if (gen.human_decision !== 'pending') {
     throw new OverlayRefused(`That proposal was already ${gen.human_decision}.`, 'overlay.accept-already-decided')
   }
-  db.prepare('UPDATE ai_generations SET human_decision = ?, human_decided_at = ?, human_note = ? WHERE id = ?')
-    .run('discarded', now(), note ?? null, generationId)
+
+  // One transaction: a discard recorded on the generation with no overlay
+  // naming who did it is exactly the state this change exists to end.
+  // Both are non-null on any generation that reached a person; the guard is
+  // here because the column types allow null and a discard with no visit would
+  // write an overlay nothing could ever find again.
+  if (!gen.property_id || !gen.visit_id) {
+    throw new OverlayRefused(
+      'That proposal is not attached to a visit, so a decision about it could never be found again.',
+      'overlay.discard-unattached',
+    )
+  }
+
+  db.transaction(() => {
+    writeOverlay({
+      db,
+      propertyId: gen.property_id!,
+      visitId: gen.visit_id!,
+      kind: 'discard',
+      targetKind: 'generation',
+      targetId: generationId,
+      generationId,
+      actorId: args.actorId,
+      reason: args.note ?? 'declined at the desk',
+    })
+    db.prepare('UPDATE ai_generations SET human_decision = ?, human_decided_at = ?, human_note = ? WHERE id = ?')
+      .run('discarded', now(), args.note ?? null, generationId)
+  })()
+
   return findGeneration(db, generationId)!
 }
 
@@ -289,7 +338,11 @@ export function withdrawAcceptance(
     targetId: target.targetId,
     supersedesId: overlayId,
     actorId: args.actorId,
-    reason: args.reason ?? 'acceptance taken back at the desk',
+    // A discard and an acceptance are both taken back through here — the
+    // generation returns to `pending` either way — so the reason says which.
+    reason: args.reason ?? (target.kind === 'discard'
+      ? 'discard taken back at the desk — the proposal is open again'
+      : 'acceptance taken back at the desk'),
   })
 
   if (target.generationId) {

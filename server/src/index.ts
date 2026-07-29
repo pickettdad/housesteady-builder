@@ -633,7 +633,10 @@ app.post('/api/visits/:id/assists/:generationId/discard', (req, res) => {
   try {
     // Recorded, never deleted. A model that keeps proposing the same wrong
     // thing is a prompt problem and the discards are the evidence.
-    res.json(discardProposal(db, gen.id, req.body?.note ? String(req.body.note) : undefined))
+    res.json(discardProposal(db, gen.id, {
+      actorId: acting(),
+      note: req.body?.note ? String(req.body.note) : undefined,
+    }))
   } catch (e) {
     if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
     throw e
