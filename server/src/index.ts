@@ -13,6 +13,8 @@ import { queueAssists } from './ai/tasks/index.js'
 import { PIN_TYPE_TASK } from './ai/tasks/pinType.js'
 import { ROUTING_TASK } from './ai/tasks/routing.js'
 import { startDrain } from './ai/worker.js'
+import { latestRun, runAudit } from './audit/run.js'
+import { SchemaRefused } from './audit/schema.js'
 import { newId, now, openDb } from './db/index.js'
 import {
   createOperator, currentOperator, deactivateOperator, displayNameFor, listOperators,
@@ -100,6 +102,52 @@ app.post('/api/operators/:id/deactivate', (req, res) => {
     if (operatorGuard(res, e)) return
     throw e
   }
+})
+
+/**
+ * Run an audit — Increment 3 §3.
+ *
+ * A re-run is a NEW run, never an update. §3 stores results so a rendered gap
+ * report stays reproducible, and overwriting the row a report was rendered from
+ * would take that away for the sake of one less row.
+ */
+app.post('/api/visits/:id/audit', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+
+  const latestImport = db
+    .prepare('SELECT id FROM imports WHERE visit_id = ? ORDER BY imported_at DESC LIMIT 1')
+    .get(visit.id) as { id: string } | undefined
+  if (!latestImport) {
+    return res.status(409).json({ error: 'Nothing has been imported for this visit yet.', code: 'audit.no-import' })
+  }
+
+  try {
+    const result = runAudit({
+      db,
+      propertyId: visit.property_id,
+      visitId: visit.id,
+      importId: latestImport.id,
+      // From the visit record, never the manifest — the export does not declare
+      // which kind of visit it was, and it decides which items were in scope.
+      visitKind: visit.kind,
+      actorId: acting(),
+    })
+    res.status(201).json(result)
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    if (e instanceof SchemaRefused) return res.status(422).json({ error: e.message, code: e.code })
+    throw e
+  }
+})
+
+/** The most recent run, read back from storage rather than recomputed. */
+app.get('/api/visits/:id/audit', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+  const stored = latestRun(db, visit.id)
+  if (!stored) return res.status(404).json({ error: 'This visit has not been audited yet.' })
+  res.json(stored)
 })
 
 app.get('/api/properties', (_req, res) => {
@@ -256,9 +304,11 @@ app.get('/api/imports/:id/report', (req, res) => {
 const visitOr404 = (
   visitId: string,
   res: express.Response,
-): { id: string; property_id: string } | undefined => {
-  const visit = db.prepare('SELECT id, property_id FROM visits WHERE id = ?').get(visitId) as
-    | { id: string; property_id: string }
+): { id: string; property_id: string; kind: string } | undefined => {
+  // `kind` travels with the visit because the audit needs it and the manifest
+  // does not declare it — see the audit route.
+  const visit = db.prepare('SELECT id, property_id, kind FROM visits WHERE id = ?').get(visitId) as
+    | { id: string; property_id: string; kind: string }
     | undefined
   if (!visit) {
     res.status(404).json({ error: 'No such visit.' })
