@@ -41,7 +41,7 @@ export const findPass = (db: Db, visitId: string): PassRow | undefined =>
  * pass. "Time in pass" would otherwise reset every refresh and the number would
  * mean nothing.
  */
-export function startPass(db: Db, visitId: string): PassRow {
+export function startPass(db: Db, visitId: string, actorId: string): PassRow {
   const existing = findPass(db, visitId)
   if (existing) return existing
 
@@ -56,9 +56,14 @@ export function startPass(db: Db, visitId: string): PassRow {
   const mode = 'full'
   const id = newId()
   db.prepare(
-    `INSERT INTO passes (id, property_id, visit_id, mode, started_at, completed_at, created_at)
-     VALUES (?, ?, ?, ?, ?, NULL, ?)`,
-  ).run(id, visit.property_id, visit.id, mode, now(), now())
+    `INSERT INTO passes (id, property_id, visit_id, mode, started_at, completed_at, created_at,
+                         actor_id, worked_by)
+     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
+    // `worked_by` starts as whoever opened the pass, which is right almost
+    // always — but it is its own column because it MAY differ from
+    // visits.performed_by: one concierge walks the house, another assembles at
+    // the desk. Collapsing them would make that difference unaskable.
+  ).run(id, visit.property_id, visit.id, mode, now(), now(), actorId, actorId)
   return findPass(db, visitId)!
 }
 
@@ -68,12 +73,13 @@ export function startPass(db: Db, visitId: string): PassRow {
  * Appends rather than updating, so a room opened, left, and returned to reads as
  * three visits to it rather than one with a bigger number beside it.
  */
-export function openZone(db: Db, visitId: string, zoneId: string): PassRow {
-  const pass = startPass(db, visitId)
+export function openZone(db: Db, visitId: string, zoneId: string, actorId: string): PassRow {
+  const pass = startPass(db, visitId, actorId)
   const zone = db.prepare('SELECT 1 FROM zones WHERE visit_id = ? AND zone_id = ? LIMIT 1').get(visitId, zoneId)
   if (!zone) throw new PassRefused('This visit has no such zone.', 'pass.no-zone')
 
-  db.prepare('INSERT INTO pass_zone_opens (pass_id, zone_id, at) VALUES (?, ?, ?)').run(pass.id, zoneId, now())
+  db.prepare('INSERT INTO pass_zone_opens (pass_id, zone_id, at, actor_id) VALUES (?, ?, ?, ?)')
+    .run(pass.id, zoneId, now(), actorId)
   return pass
 }
 
@@ -96,8 +102,9 @@ export function openZone(db: Db, visitId: string, zoneId: string): PassRow {
 export function completePass(
   db: Db,
   visitId: string,
-  opts: { force?: boolean } = {},
+  opts: { force?: boolean; actorId: string },
 ): { pass: PassRow; model: PassModel } {
+  const actorId = opts.actorId
   const pass = findPass(db, visitId)
   if (!pass) throw new PassRefused('This pass has not been started.', 'pass.not-started')
 
@@ -152,8 +159,9 @@ export function completePass(
       )
       // The history keeps its own frozen copy, so reopening later cannot erase
       // the fact that this was once closed over open work.
-      db.prepare('INSERT INTO pass_events (pass_id, type, at, outstanding, reason) VALUES (?, ?, ?, ?, NULL)')
-        .run(pass.id, 'completed', at, outstanding)
+      db.prepare(
+        'INSERT INTO pass_events (pass_id, type, at, outstanding, reason, actor_id) VALUES (?, ?, ?, ?, NULL, ?)',
+      ).run(pass.id, 'completed', at, outstanding, actorId)
     })()
   }
   const updated = findPass(db, visitId)!
@@ -176,7 +184,7 @@ const parseOutstanding = (s: string | null): string[] | null => {
 }
 
 /** Re-open a completed pass — late thoughts are normal and must not need a hack. */
-export function reopenPass(db: Db, visitId: string, reason = 'reopened at the desk'): PassRow {
+export function reopenPass(db: Db, visitId: string, actorId: string, reason = 'reopened at the desk'): PassRow {
   const pass = findPass(db, visitId)
   if (!pass) throw new PassRefused('This pass has not been started.', 'pass.not-started')
   if (!pass.completed_at) return pass
@@ -187,8 +195,9 @@ export function reopenPass(db: Db, visitId: string, reason = 'reopened at the de
   db.transaction(() => {
     db.prepare('UPDATE passes SET completed_at = NULL, completed_with_outstanding = NULL WHERE id = ?')
       .run(pass.id)
-    db.prepare('INSERT INTO pass_events (pass_id, type, at, outstanding, reason) VALUES (?, ?, ?, NULL, ?)')
-      .run(pass.id, 'reopened', now(), reason)
+    db.prepare(
+      'INSERT INTO pass_events (pass_id, type, at, outstanding, reason, actor_id) VALUES (?, ?, ?, NULL, ?, ?)',
+    ).run(pass.id, 'reopened', now(), reason, actorId)
   })()
   return findPass(db, visitId)!
 }
@@ -205,10 +214,10 @@ export function reopenPass(db: Db, visitId: string, reason = 'reopened at the de
  * So the pass reopens, with the reason recorded, and the trail reads
  * completed → reopened. No friction, and nothing on the record is false.
  */
-export function reopenIfCompleted(db: Db, visitId: string): PassRow | undefined {
+export function reopenIfCompleted(db: Db, visitId: string, actorId: string): PassRow | undefined {
   const pass = findPass(db, visitId)
   if (!pass?.completed_at) return pass
-  return reopenPass(db, visitId, 'a decision was recorded after the pass was closed')
+  return reopenPass(db, visitId, actorId, 'a decision was recorded after the pass was closed')
 }
 
 export interface PassEvent {

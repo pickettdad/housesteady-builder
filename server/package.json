@@ -9,6 +9,7 @@
     "start": "tsx src/index.ts",
     "test": "node --test --import tsx test/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "operator": "tsx src/operators/cli.ts",
     "golden": "tsx src/ai/golden-run.ts",
     "golden:approve": "tsx src/ai/golden-approve.ts",
     "golden:standing": "tsx src/ai/golden-standing.ts"

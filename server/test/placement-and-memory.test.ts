@@ -12,7 +12,7 @@ import {
 } from '../src/pass/memory.js'
 import { buildPass } from '../src/pass/read.js'
 import { completePass, openZone, PassRefused, startPass } from '../src/pass/store.js'
-import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * Anchor placement at the desk, and memory capture with its assurance.
@@ -32,7 +32,7 @@ async function walk(mutate?: (m: Record<string, any>) => void) {
     mutate(parsed)
     raw = JSON.stringify(parsed)
   }
-  await runImport({ db, ...ids, raw, dataDir })
+  await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw, dataDir })
   return { db, dataDir, ...ids }
 }
 
@@ -61,7 +61,7 @@ describe('placing an anchor at the desk', () => {
     const { pin, canvasId, evidence } = pinWithEvidence(db, visitId)
     const before = JSON.stringify(db.prepare('SELECT * FROM anchors').all())
 
-    const o = writeOverlay({
+    const o = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
       newValue: { canvasId, x: 0.42, y: 0.17, evidence },
     })
@@ -80,14 +80,14 @@ describe('placing an anchor at the desk', () => {
 
     // This pin already has a field anchor, so the first desk placement is a
     // move and must record where it was.
-    const first = writeOverlay({
+    const first = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
       newValue: { canvasId, x: 0.4, y: 0.4, evidence },
     })
     assert.ok(first.priorValue, 'a move records the position it moved from')
     assert.equal((first.priorValue as { x: number }).x, pin.anchors[0]!.x)
 
-    const second = writeOverlay({
+    const second = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
       newValue: { canvasId, x: 0.6, y: 0.6, evidence },
     })
@@ -103,7 +103,7 @@ describe('placing an anchor at the desk', () => {
     const pin = zone.unplacedPins[0]!
     const roomPhoto = zone.roomPhotos[0]!
 
-    const o = writeOverlay({
+    const o = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
       newValue: { canvasId: zone.canvases[0]!.canvasId, x: 0.5, y: 0.5, evidence: { kind: 'media', id: roomPhoto.mediaId } },
     })
@@ -118,7 +118,7 @@ describe('placing an anchor at the desk', () => {
     const zone0 = pass0.zones.find((z) => z.unplacedPins.length > 0 && z.canvases[0])!
     const pin = zone0.unplacedPins[0]!
 
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
       newValue: {
         canvasId: zone0.canvases[0]!.canvasId, x: 0.5, y: 0.5,
@@ -147,7 +147,7 @@ describe('placing an anchor at the desk', () => {
     // somebody remembers being behind the furnace belongs in the next visit.
     assert.throws(
       () =>
-        writeOverlay({
+        writeOverlay({ actorId: TEST_OPERATOR,
           db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
           newValue: { canvasId, x: 0.5, y: 0.5 },
         }),
@@ -165,7 +165,7 @@ describe('placing an anchor at the desk', () => {
 
     assert.throws(
       () =>
-        writeOverlay({
+        writeOverlay({ actorId: TEST_OPERATOR,
           db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
           newValue: {
             canvasId: first!.canvases[0]!.canvasId, x: 0.5, y: 0.5,
@@ -184,7 +184,7 @@ describe('placing an anchor at the desk', () => {
     for (const [x, y] of [[1.4, 0.5], [-0.1, 0.5], [0.5, 2]]) {
       assert.throws(
         () =>
-          writeOverlay({
+          writeOverlay({ actorId: TEST_OPERATOR,
             db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
             newValue: { canvasId, x, y, evidence },
           }),
@@ -197,15 +197,15 @@ describe('placing an anchor at the desk', () => {
   it('reads as placed, moved, unplaced in the trail', async () => {
     const { db, propertyId, visitId } = await walk()
     const { pin, canvasId, evidence } = pinWithEvidence(db, visitId)
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
       newValue: { canvasId, x: 0.3, y: 0.3, evidence },
     })
-    const moved = writeOverlay({
+    const moved = writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'place', targetKind: 'pin', targetId: pin.pinId,
       newValue: { canvasId, x: 0.7, y: 0.7, evidence },
     })
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'undo', targetKind: 'overlay', targetId: moved.id, supersedesId: moved.id,
     })
 
@@ -243,7 +243,7 @@ describe('memory capture', () => {
   ) => {
     const tmp = join(scratchDir(), 'clip.webm')
     writeFileSync(tmp, Buffer.alloc(opts.bytes ?? 4096, 7))
-    return saveMemoryAudio({
+    return saveMemoryAudio({ actorId: TEST_OPERATOR,
       db, ...ids, zoneId, tempPath: tmp, mime: 'audio/webm',
       durationMs: opts.durationMs ?? 4200, peakLevel: opts.peak, dataDir,
     })
@@ -296,7 +296,7 @@ describe('memory capture', () => {
     const { db, dataDir, propertyId, visitId } = await walk()
     const zone = buildPass(db, visitId)!.zones[0]!
     record(db, { propertyId, visitId }, zone.zoneId, dataDir, { peak: 0.5 })
-    writeOverlay({
+    writeOverlay({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, kind: 'memory', targetKind: 'zone', targetId: zone.zoneId,
       field: 'text', newValue: { text: 'Owner mentioned the sump ran twice in June.' },
     })
@@ -329,23 +329,23 @@ describe('the capture-assurance backstop', () => {
   it('will not complete a pass with a silent recording sitting unacknowledged', async () => {
     const { db, dataDir, propertyId, visitId } = await walk()
     const pass = buildPass(db, visitId)!
-    startPass(db, visitId)
-    for (const z of pass.zones) openZone(db, visitId, z.zoneId)
+    startPass(db, visitId, TEST_OPERATOR)
+    for (const z of pass.zones) openZone(db, visitId, z.zoneId, TEST_OPERATOR)
     for (const d of [...pass.zones.flatMap((z) => z.decisions), ...pass.sessionItems]) {
-      writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
+      writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
     }
     // Everything else is done — only the silent recording stands in the way.
     assert.ok(buildPass(db, visitId)!.progress.complete)
 
     const tmp = join(scratchDir(), 'silent.webm')
     writeFileSync(tmp, Buffer.alloc(30_000))
-    saveMemoryAudio({
+    saveMemoryAudio({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, zoneId: pass.zones[0]!.zoneId, tempPath: tmp,
       mime: 'audio/webm', durationMs: 5000, peakLevel: 0.0005, dataDir,
     })
 
     try {
-      completePass(db, visitId)
+      completePass(db, visitId, { actorId: TEST_OPERATOR })
       assert.fail('should have refused')
     } catch (e) {
       assert.ok(e instanceof PassRefused)
@@ -363,10 +363,10 @@ describe('the capture-assurance backstop', () => {
   it('cannot be forced past — unlike the open-decision gate', async () => {
     const { db, dataDir, propertyId, visitId } = await walk()
     const zone = buildPass(db, visitId)!.zones[0]!
-    startPass(db, visitId)
+    startPass(db, visitId, TEST_OPERATOR)
     const tmp = join(scratchDir(), 'silent.webm')
     writeFileSync(tmp, Buffer.alloc(30_000))
-    saveMemoryAudio({
+    saveMemoryAudio({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, zoneId: zone.zoneId, tempPath: tmp,
       mime: 'audio/webm', durationMs: 5000, peakLevel: 0, dataDir,
     })
@@ -375,7 +375,7 @@ describe('the capture-assurance backstop', () => {
     // the exit is one click — re-record, or say you know — so forcing past it
     // would remove the only thing catching a muted microphone.
     assert.throws(
-      () => completePass(db, visitId, { force: true }),
+      () => completePass(db, visitId, { force: true , actorId: TEST_OPERATOR }),
       (e: PassRefused) => e.code === 'pass.silent-recording',
     )
     db.close()
@@ -384,14 +384,14 @@ describe('the capture-assurance backstop', () => {
   it('lets the pass finish once the recording is acknowledged', async () => {
     const { db, dataDir, propertyId, visitId } = await walk()
     const pass = buildPass(db, visitId)!
-    startPass(db, visitId)
-    for (const z of pass.zones) openZone(db, visitId, z.zoneId)
+    startPass(db, visitId, TEST_OPERATOR)
+    for (const z of pass.zones) openZone(db, visitId, z.zoneId, TEST_OPERATOR)
     for (const d of [...pass.zones.flatMap((z) => z.decisions), ...pass.sessionItems]) {
-      writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
+      writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
     }
     const tmp = join(scratchDir(), 'silent.webm')
     writeFileSync(tmp, Buffer.alloc(30_000))
-    const { media } = saveMemoryAudio({
+    const { media } = saveMemoryAudio({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, zoneId: pass.zones[0]!.zoneId, tempPath: tmp,
       mime: 'audio/webm', durationMs: 5000, peakLevel: 0, dataDir,
     })
@@ -408,25 +408,25 @@ describe('the capture-assurance backstop', () => {
     }
     assert.equal(kept.silent, 1)
     assert.ok(kept.acknowledged_at)
-    assert.ok(completePass(db, visitId).pass.completed_at)
+    assert.ok(completePass(db, visitId, { actorId: TEST_OPERATOR }).pass.completed_at)
     db.close()
   })
 
   it('does not stand in the way of a good recording', async () => {
     const { db, dataDir, propertyId, visitId } = await walk()
     const pass = buildPass(db, visitId)!
-    startPass(db, visitId)
-    for (const z of pass.zones) openZone(db, visitId, z.zoneId)
+    startPass(db, visitId, TEST_OPERATOR)
+    for (const z of pass.zones) openZone(db, visitId, z.zoneId, TEST_OPERATOR)
     for (const d of [...pass.zones.flatMap((z) => z.decisions), ...pass.sessionItems]) {
-      writeOverlay({ db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
+      writeOverlay({ actorId: TEST_OPERATOR, db, propertyId, visitId, kind: 'confirm', targetKind: d.targetKind, targetId: d.targetId })
     }
     const tmp = join(scratchDir(), 'good.webm')
     writeFileSync(tmp, Buffer.alloc(30_000, 3))
-    saveMemoryAudio({
+    saveMemoryAudio({ actorId: TEST_OPERATOR,
       db, propertyId, visitId, zoneId: pass.zones[0]!.zoneId, tempPath: tmp,
       mime: 'audio/webm', durationMs: 5000, peakLevel: 0.7, dataDir,
     })
-    assert.ok(completePass(db, visitId).pass.completed_at)
+    assert.ok(completePass(db, visitId, { actorId: TEST_OPERATOR }).pass.completed_at)
     db.close()
   })
 })

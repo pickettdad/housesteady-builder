@@ -1,3 +1,4 @@
+import { TEST_OPERATOR, freshDb } from './helpers.js'
 /**
  * Reading nameplates, and the golden set that decides whether a prompt ships.
  *
@@ -35,16 +36,17 @@ const PROPERTY = 'prop-1'
 const VISIT = 'visit-1'
 
 function seed(): { importId: string } {
-  db = openDb(':memory:')
-  db.prepare(`INSERT INTO properties (id, label, created_at) VALUES (?, 'A house', ?)`).run(PROPERTY, now())
-  db.prepare(`INSERT INTO visits (id, property_id, kind, created_at) VALUES (?, ?, 'baseline', ?)`)
-    .run(VISIT, PROPERTY, now())
+  db = freshDb()
+  db.prepare(`INSERT INTO properties (id, label, created_at, actor_id) VALUES (?, 'A house', ?, ?)`)
+    .run(PROPERTY, now(), TEST_OPERATOR)
+  db.prepare(`INSERT INTO visits (id, property_id, kind, created_at, actor_id) VALUES (?, ?, 'baseline', ?, ?)`)
+    .run(VISIT, PROPERTY, now(), TEST_OPERATOR)
   const importId = newId()
   db.prepare(
     `INSERT INTO imports (id, visit_id, property_id, imported_at, media_mode, raw_manifest,
-                          validation_report, status, created_at)
-     VALUES (?, ?, ?, ?, 'manifest_only', '{}', '{}', 'ok', ?)`,
-  ).run(importId, VISIT, PROPERTY, now(), now())
+                          validation_report, status, created_at, actor_id)
+     VALUES (?, ?, ?, ?, 'manifest_only', '{}', '{}', 'ok', ?, ?)`,
+  ).run(importId, VISIT, PROPERTY, now(), now(), TEST_OPERATOR)
   db.prepare(
     `INSERT INTO zones (zone_id, import_id, property_id, visit_id, label, created_at)
      VALUES ('zone-1', ?, ?, ?, 'Utility room', ?)`,
@@ -134,7 +136,7 @@ describe('classification gates extraction', () => {
     addMedia(importId, 'media-room-1', { zone: 'zone-1' })
     addMedia(importId, 'media-room-2', { zone: 'zone-1' })
 
-    assert.equal(queueNameplateReading(db, PROPERTY, VISIT), 1)
+    assert.equal(queueNameplateReading(db, PROPERTY, VISIT, TEST_OPERATOR), 1)
     assert.equal(queueProgress(db, VISIT).queued, 1,
       '200+ room photos through extraction is the bill this split exists to avoid')
   })
@@ -142,7 +144,7 @@ describe('classification gates extraction', () => {
   it('leaves a skipped extraction row when the photo is not a nameplate', async () => {
     const { importId } = seed()
     addMedia(importId, 'media-1', { pin: 'pin-1' })
-    queueNameplateReading(db, PROPERTY, VISIT)
+    queueNameplateReading(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const deps = stub([CLASSIFY_NO])
     const job = claimNext(db, VISIT)!
@@ -157,7 +159,7 @@ describe('classification gates extraction', () => {
   it('queues extraction when a plate is there', async () => {
     const { importId } = seed()
     addMedia(importId, 'media-1', { pin: 'pin-1' })
-    queueNameplateReading(db, PROPERTY, VISIT)
+    queueNameplateReading(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     await runClassify(db, claimNext(db, VISIT)!, stub([CLASSIFY_YES]))
     const next = claimNext(db, VISIT)
@@ -167,7 +169,7 @@ describe('classification gates extraction', () => {
   it('still extracts when classification is unsure', async () => {
     const { importId } = seed()
     addMedia(importId, 'media-1', { pin: 'pin-1' })
-    queueNameplateReading(db, PROPERTY, VISIT)
+    queueNameplateReading(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     await runClassify(db, claimNext(db, VISIT)!, stub([{ ...CLASSIFY_YES, isNameplate: 'unsure' }]))
     assert.equal(queueProgress(db, VISIT).queued, 1,
@@ -184,7 +186,7 @@ describe('extraction records what it read, and what it declined to', () => {
   const runOne = async (result: Extraction) => {
     const { importId } = seed()
     addMedia(importId, 'media-1', { pin: 'pin-1' })
-    const job = enqueue({ db, propertyId: PROPERTY, visitId: VISIT, task: EXTRACT_TASK, targetKind: 'media', targetId: 'media-1' })
+    const job = enqueue({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, task: EXTRACT_TASK, targetKind: 'media', targetId: 'media-1' })
     const claimed = claimNext(db, VISIT)!
     const out = await runExtract(db, claimed, stub([result]))
     return { out, job: claimed }

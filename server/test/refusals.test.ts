@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { buildReport } from '../src/import/report.js'
 import { ImportRefused, runImport } from '../src/import/runImport.js'
-import { freshDb, makePropertyAndVisit, readReference, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * Fail closed on structure, fail open on vocabulary.
@@ -19,7 +19,7 @@ describe('structural failures refuse the import', () => {
     const raw = typeof replaced === 'string' ? replaced : JSON.stringify(parsed)
     let error: ImportRefused | null = null
     try {
-      await runImport({ db, ...ids, raw, dataDir: scratchDir() })
+      await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw, dataDir: scratchDir() })
     } catch (e) {
       error = e as ImportRefused
     }
@@ -82,7 +82,7 @@ describe('content problems warn, they do not refuse', () => {
     const ids = makePropertyAndVisit(db)
     const parsed = JSON.parse(readReference()) as Record<string, unknown>
     mutate(parsed)
-    const { importId } = await runImport({ db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
     db.close()
     return report
@@ -142,7 +142,7 @@ describe('the derived gap and finding columns come from the config, never from t
     const parsed = JSON.parse(readReference()) as Record<string, unknown>
     const config = parsed.config as { snapshot: { naReasons: Record<string, unknown>[] } }
     mutate(config.snapshot.naReasons)
-    const { importId } = await runImport({ db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
     db.close()
     return report

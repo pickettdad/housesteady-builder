@@ -5,7 +5,7 @@ import { after, before, describe, it } from 'node:test'
 import type { Db } from '../src/db/index.js'
 import { buildReport, type ImportReport } from '../src/import/report.js'
 import { runImport } from '../src/import/runImport.js'
-import { addVisit, freshDb, makePropertyAndVisit, readReference, scratchDir } from './helpers.js'
+import { addVisit, freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * The increment's primary acceptance test.
@@ -27,7 +27,7 @@ describe('the real reference export', () => {
     const ids = makePropertyAndVisit(db, { label: 'Test build 7 web app 1' })
     propertyId = ids.propertyId
     visitId = ids.visitId
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir })
     report = buildReport(db, importId)!
   })
 
@@ -236,14 +236,14 @@ describe('the real reference export', () => {
 
   it('refuses the same export twice into the same visit', async () => {
     await assert.rejects(
-      () => runImport({ db, propertyId, visitId, raw: readReference(), dataDir }),
+      () => runImport({ actorId: TEST_OPERATOR, db, propertyId, visitId, raw: readReference(), dataDir }),
       /already been imported/,
     )
   })
 
   it('allows the same export into a different visit — that is a re-walk, not a duplicate', async () => {
     const otherVisit = addVisit(db, propertyId)
-    const { status } = await runImport({ db, propertyId, visitId: otherVisit, raw: readReference(), dataDir })
+    const { status } = await runImport({ actorId: TEST_OPERATOR, db, propertyId, visitId: otherVisit, raw: readReference(), dataDir })
     assert.equal(status, 'ok_with_warnings')
   })
 })

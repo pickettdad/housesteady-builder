@@ -13,6 +13,8 @@ export interface PersistInput {
   canonical: CanonicalImport
   report: ValidationReport
   mediaMode: 'manifest_only' | 'with_media'
+  /** Which operator ran the import. Required — Increment 2c. */
+  actorId: string
   /** Array indexes the vocabulary pass found unfamiliar words in. */
   unrecognizedResolutions?: Set<number>
   unrecognizedEvents?: Set<number>
@@ -41,6 +43,7 @@ export function persistImport(input: PersistInput): string {
     canonical: c,
     report,
     mediaMode,
+    actorId,
     unrecognizedResolutions = new Set<number>(),
     unrecognizedEvents = new Set<number>(),
     placement,
@@ -52,10 +55,10 @@ export function persistImport(input: PersistInput): string {
     db.prepare(
       `INSERT INTO imports (id, visit_id, property_id, imported_at, manifest_schema_version,
         app_version, session_id, config_id, config_version, config_hash, media_mode,
-        raw_manifest, validation_report, status, created_at)
+        raw_manifest, validation_report, status, actor_id, created_at)
        VALUES (@id, @visit_id, @property_id, @imported_at, @manifest_schema_version,
         @app_version, @session_id, @config_id, @config_version, @config_hash, @media_mode,
-        @raw_manifest, @validation_report, @status, @created_at)`,
+        @raw_manifest, @validation_report, @status, @actor_id, @created_at)`,
     ).run({
       id: importId,
       visit_id: visitId,
@@ -72,6 +75,9 @@ export function persistImport(input: PersistInput): string {
       raw_manifest: raw, // verbatim, whole, byte-for-byte what arrived
       validation_report: JSON.stringify(report),
       status: report.status,
+      // Who ran the import. The manifest says who was in the house; this says
+      // who sat down and brought it in, and the two are routinely different.
+      actor_id: actorId,
       created_at: ts,
     })
 

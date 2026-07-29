@@ -35,6 +35,12 @@
  * turns out to have been ratified, the question that matters next is which
  * review it came through, so the rest of that sitting can be re-checked. That is
  * not reconstructible afterwards, so it is recorded at the time.
+ *
+ * **It holds an OPERATOR ID** — Increment 2c. It was free text, and free text
+ * meant a second identity system running beside the first: `dave`, `Dave`, and
+ * `David Pickett` are three reviewers to the drift check and one person in fact.
+ * The drift signal is *two names ratified this key to different answers*, so it
+ * is only as good as `by` meaning exactly one thing.
  */
 export interface RatificationAct {
   /** Which value on the entry this act is about. */

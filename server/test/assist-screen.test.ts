@@ -26,7 +26,7 @@ import { buildAssists } from '../src/ai/screen.js'
 import { drainVisit } from '../src/ai/worker.js'
 import { queueAssists, type AssistDeps } from '../src/ai/tasks/index.js'
 import { OverlayRefused } from '../src/overlay/store.js'
-import { repoRoot } from './helpers.js'
+import { repoRoot, TEST_OPERATOR, freshDb } from './helpers.js'
 
 const FIXTURE = join(repoRoot, 'fixtures', 'nameplates', 'images', 'IMG_0004.jpeg')
 
@@ -42,16 +42,17 @@ const VISIT = 'visit-1'
 let importId: string
 
 function seed(): void {
-  db = openDb(':memory:')
-  db.prepare(`INSERT INTO properties (id, label, created_at) VALUES (?, 'A house', ?)`).run(PROPERTY, now())
-  db.prepare(`INSERT INTO visits (id, property_id, kind, created_at) VALUES (?, ?, 'baseline', ?)`)
-    .run(VISIT, PROPERTY, now())
+  db = freshDb()
+  db.prepare(`INSERT INTO properties (id, label, created_at, actor_id) VALUES (?, 'A house', ?, ?)`)
+    .run(PROPERTY, now(), TEST_OPERATOR)
+  db.prepare(`INSERT INTO visits (id, property_id, kind, created_at, actor_id) VALUES (?, ?, 'baseline', ?, ?)`)
+    .run(VISIT, PROPERTY, now(), TEST_OPERATOR)
   importId = newId()
   db.prepare(
     `INSERT INTO imports (id, visit_id, property_id, imported_at, media_mode, raw_manifest,
-                          validation_report, status, created_at)
-     VALUES (?, ?, ?, ?, 'manifest_only', '{}', '{}', 'ok', ?)`,
-  ).run(importId, VISIT, PROPERTY, now(), now())
+                          validation_report, status, created_at, actor_id)
+     VALUES (?, ?, ?, ?, 'manifest_only', '{}', '{}', 'ok', ?, ?)`,
+  ).run(importId, VISIT, PROPERTY, now(), now(), TEST_OPERATOR)
   db.prepare(
     `INSERT INTO config_snapshots (import_id, config_id, config_version, config_hash, snapshot, created_at)
      VALUES (?, 'cfg', 'v1.5.1', 'hash', ?, ?)`,
@@ -128,7 +129,7 @@ describe('the worker', () => {
   })
 
   it('runs what is queued and leaves the queue empty', async () => {
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     const result = await drainVisit(db, VISIT, {
       deps: deps({ nameplate_classify: YES, nameplate_extract: A_PLATE }),
     })
@@ -150,7 +151,7 @@ describe('the worker', () => {
    * had already been given up on, and nobody would know to ask for it again.
    */
   it('does not run at all with no model, and says so without failing anything', async () => {
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     const before = queueProgress(db, VISIT).queued
 
     const result = await drainVisit(db, VISIT, {
@@ -164,13 +165,14 @@ describe('the worker', () => {
   })
 
   it('stops at the ceiling with the work still queued', async () => {
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     // A generation that has already spent the visit's whole allowance.
     db.prepare(
       `INSERT INTO ai_generations (id, property_id, visit_id, task, model, output, abstained,
-                                   input_tokens, output_tokens, cost_estimate, human_decision, created_at)
-       VALUES (?, ?, ?, 'nameplate_extract', 'm', '{}', 0, 0, 0, 999, 'accepted', ?)`,
-    ).run(newId(), PROPERTY, VISIT, now())
+                                   input_tokens, output_tokens, cost_estimate, human_decision,
+                                   actor_id, created_at)
+       VALUES (?, ?, ?, 'nameplate_extract', 'm', '{}', 0, 0, 0, 999, 'accepted', ?, ?)`,
+    ).run(newId(), PROPERTY, VISIT, TEST_OPERATOR, now())
 
     const result = await drainVisit(db, VISIT, { deps: deps({}) })
     assert.equal(result.stopped, 'cap')
@@ -183,7 +185,7 @@ describe('the worker', () => {
   it('lets one job fail without losing the others', async () => {
     addPin('pin-2', 2, 'electrical-panel')
     addMedia('plate-b', { pin: 'pin-2' })
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     // Classification succeeds for both; extraction is the thing that breaks.
     const result = await drainVisit(db, VISIT, {
@@ -203,7 +205,7 @@ describe('the worker', () => {
    * times for the same answer.
    */
   it('does not retry a failure the model called permanent', async () => {
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     await drainVisit(db, VISIT, {
       deps: deps({}, {
         throwOn: 'nameplate_classify',
@@ -218,7 +220,7 @@ describe('the worker', () => {
   })
 
   it('fails a job whose task nothing recognises rather than leaving it queued forever', async () => {
-    enqueue({ db, propertyId: PROPERTY, visitId: VISIT, task: 'nameplate_smell', targetKind: 'media', targetId: 'plate-a' })
+    enqueue({ actorId: TEST_OPERATOR, db, propertyId: PROPERTY, visitId: VISIT, task: 'nameplate_smell', targetKind: 'media', targetId: 'plate-a' })
     const result = await drainVisit(db, VISIT, { deps: deps({}) })
 
     assert.equal(result.failed, 1)
@@ -229,7 +231,7 @@ describe('the worker', () => {
   it('stops after the limit with the rest still owed', async () => {
     addPin('pin-2', 2, 'electrical-panel')
     addMedia('plate-b', { pin: 'pin-2' })
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
 
     const result = await drainVisit(db, VISIT, {
       limit: 1,
@@ -250,7 +252,7 @@ describe('what the screen is given', () => {
   })
 
   it('offers a reading as a proposal, with the model and prompt it came from', async () => {
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     await drainVisit(db, VISIT, { deps: deps({ nameplate_classify: YES, nameplate_extract: A_PLATE }) })
 
     const model = buildAssists(db, VISIT)
@@ -269,7 +271,7 @@ describe('what the screen is given', () => {
    * it in front of a person as a proposal would be a question with no answer.
    */
   it('keeps classifications out of the proposal list and beside the reading instead', async () => {
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     await drainVisit(db, VISIT, { deps: deps({ nameplate_classify: YES, nameplate_extract: A_PLATE }) })
 
     const model = buildAssists(db, VISIT)
@@ -283,7 +285,7 @@ describe('what the screen is given', () => {
 
   /** §11: the non-nameplate is not extracted at all — and that is SAID. */
   it('names the photographs it deliberately did not read', async () => {
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     await drainVisit(db, VISIT, { deps: deps({ nameplate_classify: NO }) })
 
     const model = buildAssists(db, VISIT)
@@ -294,7 +296,7 @@ describe('what the screen is given', () => {
   })
 
   it('marks a whole-plate abstention as an abstention, not as an empty reading', async () => {
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     await drainVisit(db, VISIT, {
       deps: deps({
         nameplate_classify: YES,
@@ -328,7 +330,7 @@ describe('what the screen is given', () => {
   it('keeps a suggestion for a pin somebody has already typed, but marks it answered', async () => {
     addPin('pin-2', 2)
     addMedia('shot', { pin: 'pin-2' })
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     await drainVisit(db, VISIT, {
       deps: deps({
         nameplate_classify: NO,
@@ -346,9 +348,10 @@ describe('what the screen is given', () => {
     void gen
     db.prepare(
       `INSERT INTO overlays (id, property_id, visit_id, seq, kind, target_kind, target_id, field,
-                             prior_value, new_value, actor, actor_context, created_at)
-       VALUES (?, ?, ?, 999, 'correct', 'pin', 'pin-2', 'type', NULL, ?, 'concierge', 'desk', ?)`,
-    ).run(newId(), PROPERTY, VISIT, JSON.stringify({ kind: 'component', componentType: 'sump-pump' }), now())
+                             prior_value, new_value, actor, actor_context, actor_id, created_at)
+       VALUES (?, ?, ?, 999, 'correct', 'pin', 'pin-2', 'type', NULL, ?, 'concierge', 'desk', ?, ?)`,
+    ).run(newId(), PROPERTY, VISIT, JSON.stringify({ kind: 'component', componentType: 'sump-pump' }),
+          TEST_OPERATOR, now())
 
     const after = buildAssists(db, VISIT)
     assert.equal(after.types[0]?.alreadyAnswered, true, 'quiet, but never dropped')
@@ -362,7 +365,7 @@ describe('what the screen is given', () => {
    * import worth chasing as a feature working quietly.
    */
   it('says why every skipped job was skipped, grouped and counted', async () => {
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     await drainVisit(db, VISIT, { deps: deps({ nameplate_classify: NO }) })
 
     const { queue } = buildAssists(db, VISIT)
@@ -397,7 +400,7 @@ describe('accepting a whole reading', () => {
     seed()
     addPin('pin-1', 1, 'water-heater')
     addMedia('plate-a', { pin: 'pin-1' })
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     await drainVisit(db, VISIT, { deps: deps({ nameplate_classify: YES, nameplate_extract: A_PLATE }) })
   })
 
@@ -410,7 +413,7 @@ describe('accepting a whole reading', () => {
    */
   it('writes every field in one act and settles the proposal once', () => {
     const n = reading()
-    const result = acceptReading({
+    const result = acceptReading({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: n.generationId,
       targetKind: 'pin', targetId: 'pin-1',
       values: { make: 'Rheem', model: 'XE50M06ST45U1', serial: 'Q1373750159', capacity: '189 L' },
@@ -428,7 +431,7 @@ describe('accepting a whole reading', () => {
    */
   it('calls the whole reading edited when one character changed', () => {
     const n = reading()
-    const result = acceptReading({
+    const result = acceptReading({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: n.generationId,
       targetKind: 'pin', targetId: 'pin-1',
       values: { make: 'Rheem', serial: 'Q1373750158' },
@@ -442,7 +445,7 @@ describe('accepting a whole reading', () => {
 
   it('leaves a field the concierge did not touch entirely unwritten', () => {
     const n = reading()
-    acceptReading({
+    acceptReading({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: n.generationId,
       targetKind: 'pin', targetId: 'pin-1', values: { make: 'Rheem' },
     })
@@ -461,7 +464,7 @@ describe('accepting a whole reading', () => {
   it('tells picking the lead candidate apart from picking a lower one', async () => {
     addPin('pin-9', 9)
     addMedia('shot-9', { pin: 'pin-9' })
-    queueAssists(db, PROPERTY, VISIT)
+    queueAssists(db, PROPERTY, VISIT, TEST_OPERATOR)
     await drainVisit(db, VISIT, {
       deps: deps({
         nameplate_classify: NO,
@@ -476,7 +479,7 @@ describe('accepting a whole reading', () => {
     })
 
     const t = buildAssists(db, VISIT).types.find((x) => x.pinId === 'pin-9')!
-    const lower = acceptReading({
+    const lower = acceptReading({ actorId: TEST_OPERATOR,
       db, propertyId: PROPERTY, visitId: VISIT, generationId: t.generationId,
       targetKind: 'pin', targetId: 'pin-9',
       values: { type: { kind: 'component', componentType: 'water-softener', freeformLabel: null } },
@@ -493,7 +496,7 @@ describe('accepting a whole reading', () => {
     const n = reading()
     assert.throws(
       () =>
-        acceptReading({
+        acceptReading({ actorId: TEST_OPERATOR,
           db, propertyId: PROPERTY, visitId: VISIT, generationId: n.generationId,
           targetKind: 'pin', targetId: 'pin-1', values: {},
         }),

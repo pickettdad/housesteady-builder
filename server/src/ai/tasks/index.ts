@@ -73,9 +73,9 @@ export interface QueuedWork {
  * classification exists to avoid. The per-visit spend cap is what stands between
  * that and a surprise, and it is checked before each call rather than after.
  */
-export function queueAssists(db: Db, propertyId: string, visitId: string): QueuedWork {
-  const nameplates = queueNameplateReading(db, propertyId, visitId)
-  const routing = queuePhotoRouting(db, propertyId, visitId)
-  const pinTypes = queuePinTypes(db, propertyId, visitId)
+export function queueAssists(db: Db, propertyId: string, visitId: string, actorId: string): QueuedWork {
+  const nameplates = queueNameplateReading(db, propertyId, visitId, actorId)
+  const routing = queuePhotoRouting(db, propertyId, visitId, actorId)
+  const pinTypes = queuePinTypes(db, propertyId, visitId, actorId)
   return { nameplates, routing, pinTypes, total: nameplates + routing + pinTypes }
 }

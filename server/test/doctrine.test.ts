@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import { buildReport } from '../src/import/report.js'
 import { runImport } from '../src/import/runImport.js'
-import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * Doctrine, pinned.
@@ -81,7 +81,7 @@ describe('doctrine 1 — the manifest is immutable evidence', () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
     const raw = readReference()
-    const { importId } = await runImport({ db, ...ids, raw, dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw, dataDir: scratchDir() })
     const stored = db.prepare('SELECT raw_manifest FROM imports WHERE id = ?').get(importId) as { raw_manifest: string }
     assert.equal(stored.raw_manifest, raw)
     db.close()
@@ -204,7 +204,7 @@ describe('doctrine 3 — provenance travels', () => {
   it('keeps the source block on every kind of record that carries one', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
 
     for (const table of ['media', 'notes', 'resolutions', 'events']) {
       const row = db
@@ -229,7 +229,7 @@ describe('doctrine 6 — never drop anything silently', () => {
   it('creates a row for every media record even when no file arrives', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const count = db.prepare('SELECT COUNT(*) AS n FROM media WHERE import_id = ?').get(importId) as { n: number }
     assert.equal(count.n, 37, 'absent is a recorded state, not an omission')
     db.close()
@@ -240,7 +240,7 @@ describe('doctrine 6 — never drop anything silently', () => {
     const ids = makePropertyAndVisit(db)
     const parsed = JSON.parse(readReference())
     parsed.orphanEvents = [{ type: 'PhotoAdded', reason: 'no session' }]
-    const { importId } = await runImport({ db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
     assert.equal(report.counts.orphanEvents, 1)
     db.close()
@@ -249,7 +249,7 @@ describe('doctrine 6 — never drop anything silently', () => {
   it('counts the inbox as first-class rather than burying it', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const report = buildReport(db, importId)!
     assert.equal(report.counts.inboxTotal, 1)
     db.close()
@@ -260,7 +260,7 @@ describe('doctrine — resolutions[] is state, events[] is history', () => {
   it('stores both, deriving neither from the other', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
 
     const resolutions = db.prepare('SELECT COUNT(*) AS n FROM resolutions WHERE import_id = ?').get(importId) as { n: number }
     const events = db.prepare('SELECT COUNT(*) AS n FROM events WHERE import_id = ?').get(importId) as { n: number }
@@ -280,7 +280,7 @@ describe('doctrine — resolutions[] is state, events[] is history', () => {
   it('keeps each event whole, not just the fields the schema names', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const row = db
       .prepare("SELECT payload FROM events WHERE import_id = ? AND type = 'SessionInitialized'")
       .get(importId) as { payload: string }
@@ -296,7 +296,7 @@ describe('doctrine — the four streams never collapse', () => {
   it('never lets one resolution be both a gap and a finding', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const both = db
       .prepare('SELECT COUNT(*) AS n FROM resolutions WHERE import_id = ? AND feeds_gap_list = 1 AND records_finding = 1')
       .get(importId) as { n: number }
@@ -450,6 +450,88 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
   })
 
   /**
+   * Increment 2c §5 — *"no write path to an attributed table without an actor
+   * argument. This is the rule that survives the next feature; a behavioural
+   * test only covers paths that exist today."*
+   *
+   * Read against the SQL rather than against function signatures, because the
+   * insert is the thing that either carries an actor or does not. A helper that
+   * takes an `actorId` and forgets to bind it would pass a signature check and
+   * fail here.
+   *
+   * The database trigger refuses such a row at runtime as well — belt and
+   * braces, deliberately. The trigger catches it when it runs; this catches it
+   * when it is written, which is cheaper and lands on the person who can fix it.
+   */
+  it('gives every insert into an attributed table an actor column', () => {
+    const ATTRIBUTED = [
+      'properties', 'visits', 'imports', 'passes', 'pass_zone_opens', 'pass_events',
+      'desk_media', 'ai_jobs', 'ai_generations', 'overlays',
+    ]
+    const offenders: string[] = []
+
+    for (const file of sourceFiles(serverSrc)) {
+      const code = codeOf(file)
+      for (const m of code.matchAll(/INSERT\s+(?:OR\s+\w+\s+)?INTO\s+(\w+)\s*\(([^)]*)\)/gis)) {
+        const [, table, columns] = m
+        if (!ATTRIBUTED.includes(table!)) continue
+        if (/\bactor_id\b/.test(columns!)) continue
+        offenders.push(`${file.replace(repoRoot, '')}: INSERT INTO ${table} with no actor_id`)
+      }
+    }
+
+    assert.deepEqual(
+      offenders, [],
+      'every row on these tables records which operator acted — with two concierges, ' +
+        'an unattributed row is unanswerable, and it cannot be backfilled afterwards',
+    )
+  })
+
+  /**
+   * The other half of the same rule: nothing may reach for the legacy operator
+   * to satisfy the constraint.
+   *
+   * `op-legacy` means *this predates attribution*. A write path using it for new
+   * work would file live records under a name that asserts the opposite, and it
+   * would pass every other check here — the row has an actor, the foreign key
+   * resolves, the trigger is satisfied. Only this scan catches it.
+   */
+  it('never lets new work be filed under the legacy operator', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(serverSrc)) {
+      // The registry defines the constant and the guard that refuses it; every
+      // other mention would be a use.
+      if (file.endsWith(join('operators', 'registry.ts'))) continue
+      if (/(['"])op-legacy\1|LEGACY_OPERATOR_ID/.test(codeOf(file))) {
+        offenders.push(file.replace(repoRoot, ''))
+      }
+    }
+    assert.deepEqual(offenders, [], 'the legacy operator is what pre-attribution rows point at, never a default')
+  })
+
+  /**
+   * Increment 2c §6 — *"This increment answers 'who did this,' never 'who is
+   * allowed to.'"*
+   *
+   * Attribution and access control look adjacent and are not. The way this goes
+   * wrong is not a decision to build auth; it is a permission check appearing
+   * inside an identity module because the data was conveniently to hand, and the
+   * first real authentication decision then getting made by accident, in a file
+   * whose job was bookkeeping.
+   */
+  it('keeps the operator registry free of access control', () => {
+    const forbidden = /\b(password|passwordHash|bcrypt|argon2|jwt|sessionToken|authenticate|authorize|permission|canAccess|isAdmin|role)\b/i
+    for (const file of sourceFiles(join(serverSrc, 'operators'))) {
+      const found = codeOf(file).match(forbidden)
+      assert.equal(
+        found, null,
+        `${file.replace(repoRoot, '')} mentions "${found?.[0]}" — attribution, never access control. ` +
+          'Authentication arrives with hosting and wants its own decision.',
+      )
+    }
+  })
+
+  /**
    * Increment 3 §1: *"Build it as a standalone module with no knowledge of
    * binders or schedules, or it gets built twice and the two drift."*
    *
@@ -534,7 +616,7 @@ describe('doctrine 1 — the canonical shape is derived from the raw, never a re
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
     const raw = readReference()
-    const { importId } = await runImport({ db, ...ids, raw, dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw, dataDir: scratchDir() })
     const stored = db.prepare('SELECT raw_manifest FROM imports WHERE id = ?').get(importId) as {
       raw_manifest: string
     }
@@ -555,7 +637,7 @@ describe('doctrine 1 — the canonical shape is derived from the raw, never a re
     parsed.pins[0].futureFieldFromV4 = 'concern-uuid-here'
     const raw = JSON.stringify(parsed)
 
-    const { importId } = await runImport({ db, ...ids, raw, dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw, dataDir: scratchDir() })
     const stored = JSON.parse(
       (db.prepare('SELECT raw_manifest FROM imports WHERE id = ?').get(importId) as { raw_manifest: string })
         .raw_manifest,
@@ -581,7 +663,7 @@ describe('doctrine 1 — the canonical shape is derived from the raw, never a re
     const ids = makePropertyAndVisit(db)
     const parsed = JSON.parse(readReference())
     parsed.resolutions[0].resolution = { kind: 'satisfied', via: 'measure', value: 52, unit: 'psi' }
-    const { importId } = await runImport({ db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: JSON.stringify(parsed), dataDir: scratchDir() })
 
     const stored = JSON.parse(
       (db.prepare('SELECT raw_manifest FROM imports WHERE id = ?').get(importId) as { raw_manifest: string })
@@ -604,7 +686,7 @@ describe('doctrine — nothing stored is tied to this machine', () => {
     const db = freshDb()
     const dataDir = scratchDir()
     const ids = makePropertyAndVisit(db)
-    const { importId } = await runImport({ db, ...ids, raw: readReference(), dataDir })
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir })
 
     const paths = [
       ...(db.prepare('SELECT file FROM media WHERE import_id = ? AND file IS NOT NULL').all(importId) as { file: string }[]),
@@ -625,7 +707,7 @@ describe('doctrine — nothing stored is tied to this machine', () => {
     const db = freshDb()
     const dataDir = scratchDir()
     const ids = makePropertyAndVisit(db)
-    await runImport({ db, ...ids, raw: readReference(), dataDir })
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir })
 
     const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[])
       .map((t) => t.name)

@@ -39,6 +39,19 @@ export interface WriteOverlayArgs {
   supersedesId?: string | null
   /** Required for accept: the proposal this act is answering. */
   generationId?: string | null
+  /**
+   * WHICH OPERATOR IS DOING THIS. Required — Increment 2c.
+   *
+   * Not optional with a default, because a default is how an act ends up filed
+   * under the wrong person: the second concierge's overlays would silently read
+   * as the first's, and nothing downstream could tell. TypeScript refusing the
+   * call is the point.
+   *
+   * Distinct from `actor` below, which is the ROLE and has only ever held
+   * 'concierge'. This is the person.
+   */
+  actorId: string
+  /** Role, not person — see actorId. Kept as-is by Increment 2c. */
   actor?: string
   actorContext?: string
 }
@@ -194,6 +207,7 @@ export function writeOverlay(args: WriteOverlayArgs): Overlay {
       supersedesId,
       actor: args.actor ?? 'concierge',
       actorContext: args.actorContext ?? 'desk',
+      actorId: args.actorId,
     })
   }
 
@@ -401,6 +415,7 @@ export function writeOverlay(args: WriteOverlayArgs): Overlay {
     supersedesId,
     actor: args.actor ?? 'concierge',
     actorContext: args.actorContext ?? 'desk',
+    actorId: args.actorId,
     generationId: args.generationId ?? null,
   })
 }
@@ -418,6 +433,7 @@ interface InsertArgs {
   supersedesId: string | null
   actor: string
   actorContext: string
+  actorId: string
   generationId?: string | null
 }
 
@@ -514,8 +530,8 @@ function insertRow(db: Db, id: string, seq: number, a: InsertArgs): void {
   db.prepare(
     `INSERT INTO overlays
        (id, property_id, visit_id, seq, kind, target_kind, target_id, field, prior_value, new_value,
-        reason, supersedes_id, actor, actor_context, generation_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        reason, supersedes_id, actor, actor_context, actor_id, generation_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     a.propertyId,
@@ -531,6 +547,7 @@ function insertRow(db: Db, id: string, seq: number, a: InsertArgs): void {
     a.supersedesId,
     a.actor,
     a.actorContext,
+    a.actorId,
     a.generationId ?? null,
     now(),
   )

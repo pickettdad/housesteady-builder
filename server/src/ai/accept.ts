@@ -56,6 +56,8 @@ export interface AcceptArgs {
   targetId: string
   /** What the human is accepting. Equal to the proposal means accepted as-is. */
   value: unknown
+  /** Which operator is accepting. Required — Increment 2c. */
+  actorId: string
   actor?: string
 }
 
@@ -80,6 +82,8 @@ export interface ReadingArgs {
   targetId: string
   /** field → value. Only the fields being accepted; the rest stay unwritten. */
   values: Record<string, unknown>
+  /** Which operator is accepting. Required — Increment 2c. */
+  actorId: string
   actor?: string
 }
 
@@ -120,6 +124,7 @@ export function acceptReading(args: ReadingArgs): Acceptance {
       generationId: args.generationId,
       actor: args.actor ?? 'concierge',
       actorContext: 'desk',
+      actorId: args.actorId,
       // Provenance in plain words, for the quiet line under an accepted value.
       reason: 'read from the photo, accepted at the desk',
     }),
@@ -146,6 +151,7 @@ export function acceptProposal(args: AcceptArgs): Acceptance {
     targetId: args.targetId,
     values: { [args.field]: args.value },
     actor: args.actor,
+    actorId: args.actorId,
   })
 }
 
@@ -158,6 +164,8 @@ export interface RouteAcceptArgs {
   mediaId: string
   /** The pin the concierge chose — not necessarily the one that was offered. */
   pinId: string
+  /** Which operator is accepting. Required — Increment 2c. */
+  actorId: string
   actor?: string
 }
 
@@ -187,6 +195,7 @@ export function acceptRoute(args: RouteAcceptArgs): Acceptance {
     generationId: args.generationId,
     actor: args.actor ?? 'concierge',
     actorContext: 'desk',
+    actorId: args.actorId,
     reason: 'suggested from the photo, attached at the desk',
   })
 
@@ -257,7 +266,14 @@ export function discardProposal(db: Db, generationId: string, note?: string): Ge
  * acceptance does. An assignment made by hand carries no generation and is
  * undone through the ordinary undo route.
  */
-export function withdrawAcceptance(db: Db, overlayId: string, reason?: string): Overlay {
+export function withdrawAcceptance(
+  db: Db,
+  overlayId: string,
+  // An object rather than two more positionals: taking something back is itself
+  // an attributable act, and `withdrawAcceptance(db, id, someString)` would
+  // read as a reason at every call site whichever order the two ended up in.
+  args: { actorId: string; reason?: string },
+): Overlay {
   const target = readOne(db, overlayId)
   if (!target) throw new OverlayRefused('That acceptance is not in the record.', 'overlay.undo-unknown')
   if (!target.generationId) {
@@ -272,7 +288,8 @@ export function withdrawAcceptance(db: Db, overlayId: string, reason?: string): 
     targetKind: target.targetKind,
     targetId: target.targetId,
     supersedesId: overlayId,
-    reason: reason ?? 'acceptance taken back at the desk',
+    actorId: args.actorId,
+    reason: args.reason ?? 'acceptance taken back at the desk',
   })
 
   if (target.generationId) {

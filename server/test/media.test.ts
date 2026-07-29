@@ -44,7 +44,7 @@ import { writeFixture } from '../scripts/make-fixture.js'
 import { buildReport, type ImportReport } from '../src/import/report.js'
 import { safeJoin } from '../src/import/media.js'
 import { runImport } from '../src/import/runImport.js'
-import { freshDb, makePropertyAndVisit, scratchDir } from './helpers.js'
+import { freshDb, makePropertyAndVisit, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * The synthetic fixture, imported with its media.
@@ -79,7 +79,7 @@ async function importSynthetic(
 
   const mediaDir = opts.corruptFirstFile || opts.deleteFirstFile ? fixtureDir : undefined
   const ids = makePropertyAndVisit(db, { label: '12 Riverside Lane', address: '12 Riverside Lane' })
-  const { importId } = await runImport({
+  const { importId } = await runImport({ actorId: TEST_OPERATOR,
     db,
     ...ids,
     raw,
@@ -292,7 +292,7 @@ describe('path safety', () => {
     writeFileSync(evilPath, storedZip('../../../escaped.txt', Buffer.from('pwned')))
 
     const ids = makePropertyAndVisit(db, { label: '12 Riverside Lane' })
-    const { importId } = await runImport({
+    const { importId } = await runImport({ actorId: TEST_OPERATOR,
       db,
       ...ids,
       raw: readFileSync(manifestPath, 'utf8'),
