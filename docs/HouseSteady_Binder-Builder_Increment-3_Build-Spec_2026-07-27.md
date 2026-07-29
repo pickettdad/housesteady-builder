@@ -120,6 +120,25 @@ Two invariants to test against:
 
 **A parsing warning that cost real time.** Master table cells use escaped pipes inside choice and multi-alternative pin values — `choice (ball\|gate\|other)`, ``pin `comparison-position\|dock` ``. A naive cell split drops every such row **silently**: it produced a phantom stale-id report and a wrong item count that stood for days. Neutralise `\|` before splitting. **This is why the runtime check reads the config snapshot rather than parsing markdown** — but anything that ever does parse the master must handle it.
 
+
+## 1h. A free correctness oracle, and a three-state fail-open (added 2026-07-29)
+
+Both from Builder Code's `/docs` notes, verified by hand and not previously in this spec.
+
+**1h.1 · Every imported zone audit summary is a test case with a known answer.** `zones[].audit` (`coreUnresolved[]`, `standardUnresolved`, `naCount`) is **derivable exactly** from the import's own config snapshot plus `resolutions[]`: resolve the zone type's `inherits[]`, collect the matching base lists and zone list, filter by visit-kind `scope[]`, apply `trigger.anyOf[]` against zone attributes and session flags, then subtract the resolutions scoped to that zone.
+
+Verified against both zones of the reference export — **item-for-item identical**, including `liv.egress` being correctly excluded by its `zone.sleeping` trigger on a bedroom marked `sleeping: false`.
+
+**So the engine's applicability logic can be checked against every zone of every import, for free.** Any divergence is a real bug — in the engine, the config, or the field app — and is surfaced, never papered over.
+
+**Two constraints on using it.** Store `zones[].audit` **verbatim** and compute alongside it; this is not a licence to overwrite what the field app exported. And **pin-scoped resolutions are not counted in the zone summary** — component items come from `componentLists[]` matched on the pin's `componentType`, and the two scopes are independent.
+
+**One thing the manifest does not carry: the visit kind.** `scope[]` values are `baseline`, `monthly`, `seasonal:spring`, but nothing declares which kind of visit this was — only `config.configId` hints. **Take the visit kind from the visit record, never from the manifest.**
+
+**1h.2 · Fail open has three branches, not two.** A component type is **typed** (declared, has items), **stub** (declared, ids reserved, no items), or **undeclared**. §1a's rule as written has two.
+
+**A stub silently passing as "declared" looks resolved and is not** — it can be pinned, it satisfies a name check, and it can never satisfy a checklist-based expectation because it has no items. Report the three states distinctly: a binding to a stub is *declared but not yet answerable*, which is different from both a valid binding and an unrecognised name.
+
 ## 2. Completeness, per slot kind
 
 | Kind | Rule |
@@ -166,7 +185,7 @@ The gap report render · any editing · **any AI, deliberately (§1a)** · sessi
 
 Behaviour: the reference visit audits without error and its gap list is inspectable · a `narrative` slot never appears in the gap list under any profile · a `derived` slot never reports independently · a house on municipal water is never asked for a well cap · an unknown flag id fails open and is reported as uncertain · an explicit `unknown` completes a `fixed` slot while a blank does not · a shutoff with only a close-up fails · a watch-schedule concern without a measurement, cadence, or escalation trigger fails · the same visit audited twice with the same schema and profile produces identical results.
 
-Binding: every referenced item id resolves in the import's snapshot, and a retired one reports as a broken binding rather than a gap · an unverifiable value stays distinguishable from a verified one through every derivation · a list gate composes with an item trigger as `allOf` · a `house.*` condition is not satisfied by a `pin.*` evaluation or vice versa · a sub-type satisfies its parent's expectation (a `water-softener` pin satisfies a `water-treatment` expectation) · an alias never binds · a `.unit` item satisfies the unit-photo requirement rather than a separate photo check · a retired item id reports as a discontinuity and never joins across visits · an item whose canonical component type is present binds without inference · unmatched evidence is listed individually, never only counted · a slot with no candidate is distinguished from one whose candidate failed a requirement.
+Binding: the computed zone audit matches the imported summary for every zone of the reference export · a stub type reports distinctly from a typed one and from an undeclared one · every referenced item id resolves in the import's snapshot, and a retired one reports as a broken binding rather than a gap · an unverifiable value stays distinguishable from a verified one through every derivation · a list gate composes with an item trigger as `allOf` · a `house.*` condition is not satisfied by a `pin.*` evaluation or vice versa · a sub-type satisfies its parent's expectation (a `water-softener` pin satisfies a `water-treatment` expectation) · an alias never binds · a `.unit` item satisfies the unit-photo requirement rather than a separate photo check · a retired item id reports as a discontinuity and never joins across visits · an item whose canonical component type is present binds without inference · unmatched evidence is listed individually, never only counted · a slot with no candidate is distinguished from one whose candidate failed a requirement.
 
 Cross-check on load: **every slot in the schema is classified by the profile.** Unclassified is a loud error, not a default. *(Both shipped files currently pass: 41 slots, 41 classified.)*
 
