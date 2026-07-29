@@ -3,11 +3,21 @@ import multer from 'multer'
 import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import {
+  acceptReading, acceptRoute, discardProposal, findGeneration, withdrawAcceptance,
+} from './ai/accept.js'
+import { queueProgress, requeueFailed } from './ai/queue.js'
+import { buildAssists } from './ai/screen.js'
+import { EXTRACT_TASK, pinForMedia } from './ai/tasks/nameplate.js'
+import { queueAssists } from './ai/tasks/index.js'
+import { PIN_TYPE_TASK } from './ai/tasks/pinType.js'
+import { ROUTING_TASK } from './ai/tasks/routing.js'
+import { startDrain } from './ai/worker.js'
 import { newId, now, openDb } from './db/index.js'
 import { buildReport } from './import/report.js'
 import { ImportRefused, runImport } from './import/runImport.js'
 import { resolveState } from './overlay/model.js'
-import { latestLiveDecision, OverlayRefused, readVisitOverlays, writeOverlay } from './overlay/store.js'
+import { latestLiveDecision, OverlayRefused, readOne, readVisitOverlays, writeOverlay } from './overlay/store.js'
 import {
   acknowledgeDeskMedia,
   deskMediaPath,
@@ -255,6 +265,18 @@ app.post('/api/visits/:id/overlays/undo', (req, res) => {
   if (!targetId) return res.status(404).json({ error: 'Nothing to undo.' })
 
   try {
+    // An act that answered a proposal is taken back through the acceptance
+    // path, not the plain one — the overlay is superseded either way, but the
+    // generation has to return to `pending` too. Leaving it `accepted` while
+    // the value it set has been withdrawn would make the row claim a value is
+    // current that is not, and the same `u` keystroke reaches both.
+    const target = readOne(db, targetId)
+    if (target?.generationId) {
+      const undone = withdrawAcceptance(db, targetId, req.body?.reason ?? undefined)
+      reopenIfCompleted(db, visit.id)
+      return res.status(201).json(undone)
+    }
+
     const overlay = writeOverlay({
       db,
       propertyId: visit.property_id,
@@ -436,6 +458,120 @@ app.get('/api/visits/:id/memory/:mediaId/audio', (req, res) => {
   if (!media || media.visit_id !== visit.id) return res.status(404).json({ error: 'No such recording.' })
   res.setHeader('Content-Type', media.mime ?? 'audio/webm')
   res.sendFile(deskMediaPath(media))
+})
+
+// ----------------------------------------------------------------- assists
+//
+// Increment 2b. Proposals sit beside the record and never in it; an acceptance
+// is an ordinary overlay and the pass reads it back through the same state
+// resolution as a correction typed by hand.
+//
+// NO ROUTE HERE WAITS ON A MODEL CALL. §0.4 — the pass is fully usable with no
+// API key, no network, or a failed job. `run` starts a drain and returns; the
+// screen finds out what happened by reading the job rows, which is also what it
+// does after a restart.
+
+app.get('/api/visits/:id/assists', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+  res.json(buildAssists(db, visit.id))
+})
+
+app.post('/api/visits/:id/assists/run', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+
+  // Re-queueing is idempotent, so pressing this twice costs nothing. Failed
+  // jobs come back only when asked for — §4's deliberate opt-in, because a
+  // retry loop that runs by itself is how a cap gets spent on a bad file.
+  const requeued = req.body?.retryFailed ? requeueFailed(db, visit.id) : 0
+  const queued = queueAssists(db, visit.property_id, visit.id)
+
+  void startDrain(db, visit.id)
+  res.status(202).json({ queued, requeued, progress: queueProgress(db, visit.id) })
+})
+
+/**
+ * Accept a proposal, possibly after editing it.
+ *
+ * Dispatched on the generation's own task rather than on a body field: the
+ * caller says which value it is accepting, never which machinery to use, so a
+ * mislabelled request cannot write a routing answer into a nameplate field.
+ */
+app.post('/api/visits/:id/assists/:generationId/accept', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+
+  const gen = findGeneration(db, req.params.generationId)
+  if (!gen || gen.visit_id !== visit.id) return res.status(404).json({ error: 'No such proposal in this visit.' })
+
+  try {
+    const common = {
+      db,
+      propertyId: visit.property_id,
+      visitId: visit.id,
+      generationId: gen.id,
+      actor: req.body?.actor,
+    }
+
+    // A routing suggestion is answered by attaching the photograph, which is an
+    // ordinary assignment. See acceptRoute for why it is not its own kind.
+    if (gen.task === ROUTING_TASK) {
+      const pinId = String(req.body?.pinId ?? '')
+      if (!pinId) return res.status(400).json({ error: 'Say which pin the photograph belongs to.' })
+      const result = acceptRoute({ ...common, mediaId: gen.target_id ?? '', pinId })
+      reopenIfCompleted(db, visit.id)
+      return res.status(201).json(result)
+    }
+
+    // A nameplate reading is about the photograph but belongs to the pin the
+    // photograph is on — the plate is a fact about the water heater, not about
+    // the image of it.
+    const targetId =
+      gen.task === EXTRACT_TASK ? (pinForMedia(db, visit.id, gen.target_id ?? '') ?? '') : (gen.target_id ?? '')
+    if (!targetId) {
+      return res.status(422).json({
+        error: 'That photograph is not attached to a pin, so there is nothing for the reading to belong to.',
+        code: 'assist.no-pin',
+      })
+    }
+
+    // A whole plate goes in as one act — see acceptReading. A pin type is one
+    // field and arrives as one value, so it is spelled the same way here.
+    const values: Record<string, unknown> =
+      gen.task === PIN_TYPE_TASK
+        ? { type: req.body?.value }
+        : ((req.body?.values ?? {}) as Record<string, unknown>)
+
+    if (Object.keys(values).length === 0 || Object.values(values).some((v) => v === undefined)) {
+      return res.status(400).json({ error: 'There is no value to accept.' })
+    }
+
+    const result = acceptReading({ ...common, targetKind: 'pin', targetId, values })
+    reopenIfCompleted(db, visit.id)
+    res.status(201).json(result)
+  } catch (e) {
+    if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
+    console.error(e)
+    res.status(500).json({ error: (e as Error).message })
+  }
+})
+
+app.post('/api/visits/:id/assists/:generationId/discard', (req, res) => {
+  const visit = visitOr404(req.params.id, res)
+  if (!visit) return
+
+  const gen = findGeneration(db, req.params.generationId)
+  if (!gen || gen.visit_id !== visit.id) return res.status(404).json({ error: 'No such proposal in this visit.' })
+
+  try {
+    // Recorded, never deleted. A model that keeps proposing the same wrong
+    // thing is a prompt problem and the discards are the evidence.
+    res.json(discardProposal(db, gen.id, req.body?.note ? String(req.body.note) : undefined))
+  } catch (e) {
+    if (e instanceof OverlayRefused) return res.status(422).json({ error: e.message, code: e.code })
+    throw e
+  }
 })
 
 // ------------------------------------------------------------------- media

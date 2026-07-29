@@ -426,6 +426,29 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
       'a read path touching ai_generations is how an unsigned value reaches the screen')
   })
 
+  /**
+   * The structural half of "a proposal is not state", one layer above the
+   * table scan.
+   *
+   * `buildPass` is the payload the screen renders as the record: pins, photos,
+   * decisions, the trail. If it ever learned to fetch proposals — for
+   * convenience, to save a request — an unsigned reading would arrive in the
+   * same object as signed values and every guard after that would depend on the
+   * front end remembering which was which. Keeping the two in separate payloads
+   * is what makes the doctrine hard to break by accident rather than merely
+   * forbidden, and this is the line that keeps them separate.
+   *
+   * Accepted values still reach the pass, because they are overlays and arrive
+   * through `resolveState` like every other act. That is the point.
+   */
+  it('keeps the pass read model out of the AI layer entirely', () => {
+    const offenders = sourceFiles(join(serverSrc, 'pass')).filter((f) =>
+      /from '\.\.?\/ai\//.test(codeOf(f)),
+    )
+    assert.deepEqual(offenders, [],
+      'the pass renders state; a proposal is not state and must arrive in its own payload')
+  })
+
   it('lets nothing ask sharp to keep metadata on an image bound for a model', () => {
     // CLAUDE.md §14. The stripping is a library default, so the risk is not a
     // missing line — it is a future line that turns it off. Interior photographs
