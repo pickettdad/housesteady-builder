@@ -139,6 +139,61 @@ Verified against both zones of the reference export — **item-for-item identica
 
 **A stub silently passing as "declared" looks resolved and is not** — it can be pinned, it satisfies a name check, and it can never satisfy a checklist-based expectation because it has no items. Report the three states distinctly: a binding to a stub is *declared but not yet answerable*, which is different from both a valid binding and an unrecognised name.
 
+
+## 1i. The audit is PROPERTY-scoped, not visit-scoped (added 2026-07-29 — live correction)
+
+**This spec was ambiguous and §7's "open an imported visit → run the audit" reads visit-scoped. That is wrong, and it is being built now.**
+
+**A binder is the property's record, not a visit's.** If the audit evaluates only the current visit's data, then on a monthly visit §7's systems inventory reads as empty — every component was captured at the Baseline — and the gap report says *"no components recorded"* for a house whose furnace has been in the binder for a year. **That is not a small error; it is the gap report being confidently, catastrophically wrong on its second-ever run.**
+
+- **The evaluation is over everything the property has accumulated**, across every import.
+- **`audit_runs.visit_id` stays**, but as *"which visit triggered this run"* — never as the filter on what was evaluated.
+- **Add a per-slot contribution dimension:** which visit most recently satisfied each slot. That answers *what did this visit change* without narrowing what the audit sees, and it is what the monthly report needs later.
+
+**This is true today, with one field app and no drone.** The aerial question surfaced it; it was already wrong.
+
+## 1j. Manifests are property-scoped artifacts, not visit attachments (added 2026-07-29)
+
+`imports` currently carries `visit_id` and **not** `property_id` — the only table in the schema without it. That forces every manifest to belong to a visit.
+
+**A second capture producer breaks that**, and not hypothetically: a drone run may cover six properties in one afternoon three weeks after an inspection, and a scaled site canvas captured in April is still current in July. **Hanging that on a visit would mean inventing one, which would be a lie — a visit is when someone was in the house.**
+
+**Three changes, all cheap now and expensive later:**
+
+1. **`imports` gains `property_id`; `visit_id` becomes nullable.** An import belongs to a property, and *optionally* to a visit.
+2. **`imports` gains `producer`** — which app made this manifest. One field; the adapter already dispatches on `manifestSchemaVersion`, and this is the other half of that key.
+3. **The media path shape assumes a visit** — `data/properties/<id>/visits/<visitId>/media/…`. A property-scoped artifact has no `visitId`. Allow `data/properties/<id>/artifacts/<importId>/media/…` for imports without one.
+
+**Currency is a query, not a new concept.** *"The current site canvas for this property"* is the latest non-superseded artifact of that kind — the same shape as any evidence, resolved on read. **No validity field, no expiry.** Just never assume the newest import is the one a slot should read.
+
+**Nothing else changes.** A second producer is a second adapter feeding the same tables, which is the architecture working as designed rather than being stretched.
+
+
+## 1k. Two things that only surface on visit two (added 2026-07-29)
+
+Both invisible with one import. Both consequential once a property has a history.
+
+**1k.1 · Newest-config governs expectations; the recording config governs interpretation.**
+
+Vocabulary for *what the binder now requires* comes from the newest config. But a resolution recorded under an earlier config is **not unrecognised vocabulary** — it is a valid answer to a question that has since changed.
+
+A Baseline answer against `liv.egress` (retired at master v1.8) is a correct answer under v1.2.1. The slot is still incomplete, rightly, because the four successor items are unanswered — **but the reason differs, and so does the implication.** Report it as *"answered under a superseded item; Table F records the successors"*, never as unrecognised vocabulary. **Same class of distinction as broken-binding versus gap:** one says the record is malformed, the other says the question moved.
+
+**Never auto-follow the lineage.** A retirement is a discontinuity by the master's own rule; the successor is shown to a person.
+
+**1k.2 · Latest-answer-wins is right for state and wrong for identity.**
+
+A check that passed in January and could not be reached in March is genuinely unknown now — reverting is correct.
+
+**But a serial number does not become unknown because nobody could reach the unit.** Make, model, serial and install date are not current-state claims; they are facts about a thing that was true when read and remain true. **§19's capital plan depends on install dates, and they must not evaporate on a no-access visit.**
+
+**The config does not appear to declare which is which**, so this needs deciding rather than assuming:
+- **Proposal:** an identity value, once established, persists until *superseded by a different reading*, not until unanswered. A `na / no-access` on an identity item leaves the prior value standing and records that it could not be re-confirmed.
+- **A state value reverts** on any later `na` or unresolved, as now.
+- Where a value is `Documented` or comes from an accepted extraction rather than a checklist answer, it lives in an overlay and is unaffected either way — **which is a hint that the distinction may be about source rather than item.**
+
+**Route to the field session** as a question about whether the config can declare it, before the builder invents a rule the master would answer differently.
+
 ## 2. Completeness, per slot kind
 
 | Kind | Rule |
@@ -185,7 +240,7 @@ The gap report render · any editing · **any AI, deliberately (§1a)** · sessi
 
 Behaviour: the reference visit audits without error and its gap list is inspectable · a `narrative` slot never appears in the gap list under any profile · a `derived` slot never reports independently · a house on municipal water is never asked for a well cap · an unknown flag id fails open and is reported as uncertain · an explicit `unknown` completes a `fixed` slot while a blank does not · a shutoff with only a close-up fails · a watch-schedule concern without a measurement, cadence, or escalation trigger fails · the same visit audited twice with the same schema and profile produces identical results.
 
-Binding: the computed zone audit matches the imported summary for every zone of the reference export · a stub type reports distinctly from a typed one and from an undeclared one · every referenced item id resolves in the import's snapshot, and a retired one reports as a broken binding rather than a gap · an unverifiable value stays distinguishable from a verified one through every derivation · a list gate composes with an item trigger as `allOf` · a `house.*` condition is not satisfied by a `pin.*` evaluation or vice versa · a sub-type satisfies its parent's expectation (a `water-softener` pin satisfies a `water-treatment` expectation) · an alias never binds · a `.unit` item satisfies the unit-photo requirement rather than a separate photo check · a retired item id reports as a discontinuity and never joins across visits · an item whose canonical component type is present binds without inference · unmatched evidence is listed individually, never only counted · a slot with no candidate is distinguished from one whose candidate failed a requirement.
+Scope: an identity value survives a later no-access while a state value reverts · a resolution recorded under an earlier config reports as superseded rather than unrecognised · an audit run on a property with two visits evaluates both · a slot satisfied at the Baseline still reads satisfied on a monthly run · an import with no visit imports and is evaluated · Binding: the computed zone audit matches the imported summary for every zone of the reference export · a stub type reports distinctly from a typed one and from an undeclared one · every referenced item id resolves in the import's snapshot, and a retired one reports as a broken binding rather than a gap · an unverifiable value stays distinguishable from a verified one through every derivation · a list gate composes with an item trigger as `allOf` · a `house.*` condition is not satisfied by a `pin.*` evaluation or vice versa · a sub-type satisfies its parent's expectation (a `water-softener` pin satisfies a `water-treatment` expectation) · an alias never binds · a `.unit` item satisfies the unit-photo requirement rather than a separate photo check · a retired item id reports as a discontinuity and never joins across visits · an item whose canonical component type is present binds without inference · unmatched evidence is listed individually, never only counted · a slot with no candidate is distinguished from one whose candidate failed a requirement.
 
 Cross-check on load: **every slot in the schema is classified by the profile.** Unclassified is a loud error, not a default. *(Both shipped files currently pass: 41 slots, 41 classified.)*
 
@@ -193,7 +248,7 @@ Doctrine scans: no hardcoded section, slot, or trigger id anywhere outside the s
 
 ## 7. Done means
 
-`npm run dev` → open an imported visit → run the audit → per-section states with counts, the gap list naming specifics, the resolved trigger facts visible, and the schema and profile versions recorded on the run. Swap in a modified profile and the results change with no code edit. Tests green.
+`npm run dev` → open a **property** → run the audit over everything it has accumulated → per-section states with counts, the gap list naming specifics, the resolved trigger facts visible, and the schema and profile versions recorded on the run. Swap in a modified profile and the results change with no code edit. Tests green.
 
 ---
 
