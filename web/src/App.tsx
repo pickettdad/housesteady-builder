@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AuditView } from './pages/Audit.js'
 import { ImportReportView } from './pages/ImportReport.js'
 import { Properties } from './pages/Properties.js'
 import { PropertyPage } from './pages/Property.js'
@@ -9,6 +10,9 @@ export type View =
   | { name: 'property'; id: string }
   | { name: 'report'; id: string }
   | { name: 'pass'; id: string }
+  // §1i — the audit is property-scoped, so its route is too. A visit-shaped URL
+  // would invite a visit-shaped evaluation back in through the front door.
+  | { name: 'audit'; id: string }
 
 const parseHash = (): View => {
   const h = window.location.hash.replace(/^#\/?/, '')
@@ -16,6 +20,7 @@ const parseHash = (): View => {
   if (what === 'property' && id) return { name: 'property', id }
   if (what === 'report' && id) return { name: 'report', id }
   if (what === 'pass' && id) return { name: 'pass', id }
+  if (what === 'audit' && id) return { name: 'audit', id }
   return { name: 'properties' }
 }
 
@@ -42,7 +47,7 @@ export function App() {
               HouseSteady
             </a>
           </h1>
-          <span className="sub">binder builder · increment 2a — the fresh pass</span>
+          <span className="sub">binder builder · increment 3 — the audit engine</span>
         </div>
       </header>
       <div className="shell">
@@ -50,6 +55,7 @@ export function App() {
         {view.name === 'property' && <PropertyPage id={view.id} />}
         {view.name === 'report' && <ImportReportView id={view.id} />}
         {view.name === 'pass' && <PassView visitId={view.id} />}
+        {view.name === 'audit' && <AuditView propertyId={view.id} />}
       </div>
     </>
   )

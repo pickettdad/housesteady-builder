@@ -1,3 +1,4 @@
+import { sentenceOf } from '../src/audit/completeness.js'
 /**
  * Scope — Increment 3 §1i and §1j.
  *
@@ -267,8 +268,8 @@ describe('the gap list says why, not just what', () => {
     const shutoffs = result.slots.find((s) => s.slotId === 's1.shutoff-map')!
 
     assert.ok(shutoffs.missing.length > 0, 'the reference export is two rooms, so §1 is short')
-    const unwalked = shutoffs.missing.filter((m) => /has been walked on this property/.test(m))
-    assert.ok(unwalked.length > 0, `expected an unwalked note, got: ${shutoffs.missing.slice(0, 3).join(' | ')}`)
+    const unwalked = shutoffs.missing.map(sentenceOf).filter((m) => /has been walked on this property/.test(m))
+    assert.ok(unwalked.length > 0, `expected an unwalked note, got: ${shutoffs.missing.map(sentenceOf).slice(0, 3).join(' | ')}`)
     for (const line of unwalked) {
       assert.match(line, /not been reached rather than missed/)
       assert.doesNotMatch(line, /nothing captured/, 'the two must not stack — the specific one would be buried')
@@ -303,11 +304,11 @@ describe('the gap list says why, not just what', () => {
   it('calls a human-entered slot not yet enterable rather than not readable', () => {
     const result = runAudit({ db, propertyId, visitId, visitKind: 'baseline', actorId: TEST_OPERATOR })
     const humanSourced = result.slots.find((s) => s.slotId === 's2.next-review')!
-    assert.match(humanSourced.missing.join(' '), /not yet enterable/)
-    assert.doesNotMatch(humanSourced.missing.join(' '), /does not read/)
+    assert.match(humanSourced.missing.map(sentenceOf).join(' '), /not yet enterable/)
+    assert.doesNotMatch(humanSourced.missing.map(sentenceOf).join(' '), /does not read/)
 
     // And a genuinely external input still says what it says.
     const intake = result.slots.find((s) => s.slotId === 's4.profile')!
-    assert.match(intake.missing.join(' '), /no source wired yet/)
+    assert.match(intake.missing.map(sentenceOf).join(' '), /no source wired yet/)
   })
 })

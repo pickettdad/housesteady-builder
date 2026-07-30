@@ -97,6 +97,17 @@ export interface ResolutionState {
  * March. §19's capital plan depends on install dates, and they must not
  * evaporate on a no-access visit.
  *
+ * **A counterexample was looked for and not found.** `measure` items are where
+ * this should break — a crack width read in January must not read as current in
+ * March. Every state-reading measure item is `action` (`fc.width`,
+ * `utl.pressure`, `bsm.humidity`, `att.insulation-depth`, `rgh.moisture`) and
+ * every label-reading one is `evidence` (`wh.age`, `ft.age`, `app.age`,
+ * `apw.hose-age`). So the crack width reverts and the water heater's year
+ * persists, correctly, on the same rule. The master's authors drew this line
+ * under a different name, which is why it is safe to lean on: a correlation
+ * inside one config could be coincidence, and a distinction that survives a
+ * search for its counterexample is not.
+ *
  * **PROVISIONAL.** The spec routes this to the field session rather than letting
  * the builder invent it, so every value carried forward this way is recorded in
  * the run's warnings naming `attest` as the basis. If the master says otherwise,

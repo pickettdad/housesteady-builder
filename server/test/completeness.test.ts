@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import {
   assessItem, assessSlot, gapList, naReasonsOf, rollUp, watchScheduleShortfall,
   type SlotAssessment,
+  sentenceOf,
 } from '../src/audit/completeness.js'
 import { loadProfile, loadSchema } from '../src/audit/schema.js'
 import { latestRun, runAudit } from '../src/audit/run.js'
@@ -160,10 +161,12 @@ describe('completeness per slot kind', () => {
     const result = assess(slot(), { items })
     assert.equal(result.state, 'partial')
     assert.equal(result.detail.applicableItems, 3, 'the inapplicable item is not counted against the house')
-    assert.deepEqual(result.missing, [
+    assert.deepEqual(result.missing.map(sentenceOf), [
       'Panel directory — nothing captured',
       'Sump breaker — nothing captured',
     ])
+    // Structured, so a label containing a dash cannot be split in half later.
+    assert.deepEqual(result.missing[0], { what: 'Panel directory', why: 'nothing captured' })
   })
 
   it('reports a coverage slot as complete when every applicable item has an answer', () => {
@@ -341,10 +344,10 @@ describe('auditing the reference visit', () => {
    * slot the builder simply cannot see — true state, false implication.
    */
   it('says when a slot has no source wired rather than implying the client is short', () => {
-    const unwired = run().slots.filter((s) => s.missing.some((m) => /no source wired/.test(m)))
+    const unwired = run().slots.filter((s) => s.missing.some((m) => /no source wired/.test(sentenceOf(m))))
     assert.ok(unwired.length > 0, 'intake, documents and lab are not tables here yet')
     for (const s of unwired) {
-      assert.match(s.missing.join(' '), /which this builder does not read/)
+      assert.match(s.missing.map(sentenceOf).join(' '), /which this builder does not read/)
     }
   })
 

@@ -58,7 +58,14 @@ export function PropertyPage({ id }: { id: string }) {
         <a className="crumb" onClick={() => go({ name: 'properties' })}>Properties</a> › {property.label}
       </div>
 
-      <h2>{property.label}</h2>
+      <div className="row-between">
+        <h2>{property.label}</h2>
+        {/* §1i — the audit belongs to the property, so the way into it does
+            too. Putting it on a visit would suggest it evaluates one. */}
+        <button className="ghost" onClick={() => go({ name: 'audit', id: property.id })}>
+          Audit the binder
+        </button>
+      </div>
       <p className="lede">{property.address ?? <span className="muted">No address recorded.</span>}</p>
 
       <div className="card">

@@ -428,8 +428,90 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 
+/** What one slot's audit says. Mirrors `audit_slots` — §3. */
+export interface AuditSlot {
+  slotId: string
+  kind: string
+  applicable: boolean
+  required: boolean
+  state: 'complete' | 'partial' | 'empty' | 'not-applicable' | 'n-a-narrative'
+  /**
+   * What specifically is short, in two parts — §3.
+   *
+   * Structured rather than a sentence because the screen groups by the shared
+   * reason, and a label containing a dash ("Water heater shutoff — water and
+   * fuel/power") splits in half if the client tries to take the sentence apart.
+   */
+  missing: { what: string; why?: string }[]
+  detail: Record<string, unknown>
+}
+
+export interface AuditSection {
+  sectionId: string
+  number: number
+  title: string
+  rollup: { state: string; complete: number; partial: number; empty: number; notApplicable: number }
+}
+
+export interface AuditRun {
+  runId: string
+  provenance: {
+    schemaVersion: string
+    schemaHash: string
+    profileId: string
+    profileVersion: string
+    profileHash: string
+    versionMismatch?: string
+  }
+  slots: AuditSlot[]
+  sections: AuditSection[]
+  gaps: AuditSlot[]
+  warnings: string[]
+  triggerFacts: {
+    property: string[]
+    propertyVocabulary: string[]
+    pinsAnywhere: string[]
+    visitKind: string
+    zoneTypesWalked: string[]
+    importsRead: { id: string; visitId: string | null; at: string; producer: string | null; configVersion: string | null }[]
+  }
+  binding: {
+    context: {
+      configVersion: string
+      schemaReconciledAgainst: string
+      zoneTypes: string[]
+      zoneCount: number
+      importsRead: number
+      producers: string[]
+    }
+    bound: { slotId: string; itemId: string; label: string }[]
+    noCandidate: { slotId: string; itemId: string; label: string }[]
+    candidateShort: { slotId: string; itemId: string; label: string; unresolvedItems: string[]; matched: { number: number }[] }[]
+    brokenBindings: { slotId: string; itemId: string; label: string; brokenRefs: string[] }[]
+    unmatchedEvidence: { pinId: string; number: number; zoneId: string | null; describedAs: string; reason: string }[]
+    rate: {
+      itemsConsidered: number
+      itemsApplicable: number
+      itemsBound: number
+      evidenceConsidered: number
+      evidenceBound: number
+      evidenceUnmatched: number
+      unmatchedPercent: number
+    }
+  }
+  contributions: Record<string, { visitId: string | null; importId: string; at: string }>
+}
+
 export const api = {
   listProperties: () => req<Property[]>('/api/properties'),
+
+  /** §1i — the audit is PROPERTY-scoped. A re-run is a new run, never an update. */
+  runAudit: (propertyId: string, visitId?: string | null) =>
+    req<AuditRun>(`/api/properties/${propertyId}/audit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visitId: visitId ?? null }),
+    }),
 
   createProperty: (label: string, address: string) =>
     req<Property>('/api/properties', {
