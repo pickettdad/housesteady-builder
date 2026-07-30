@@ -10,7 +10,7 @@
  * the type system.
  *
  * Where the shipped export differs from the contract document, these follow the
- * export. See /docs/HouseSteady_Manifest-Contract_v3_Observed-Addendum_2026-07-25.md
+ * export. See /docs/HouseSteady_Manifest-Contract_v3_Observed-Addendum_2026-07-27.md
  */
 
 export interface Source {

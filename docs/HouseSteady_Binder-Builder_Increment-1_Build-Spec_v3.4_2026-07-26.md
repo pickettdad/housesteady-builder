@@ -4,7 +4,7 @@
 **Supersedes:** Increment-1 v1, v2, v3. (v3.1 adds §8 — the AI provenance table, created empty now to avoid a migration later.)
 **v3.2 adjudications** (2026-07-25, after Claude Code's pre-build read of the real manifest) are in §9. Where §9 and an earlier section differ, §9 wins.
 **Supersedes note:** v1 and v2 Both were written against the contract *document*; this one is written against a **real v3 export** and the Observed Addendum that corrects the contract.
-**Read first:** `CLAUDE.md` · `/docs/HouseSteady_Manifest-Contract_v3_Observed-Addendum_2026-07-25.md` (authoritative on shape) · `/docs/HouseSteady_Binder-Builder_Design_v1_*.md` (§5 is the storage doctrine) · `/fixtures/reference/housesteady-019f9a33-manifest.json` (the real export — **read it before writing the data model**).
+**Read first:** `CLAUDE.md` · `/docs/HouseSteady_Manifest-Contract_v3_Observed-Addendum_2026-07-27.md` (authoritative on shape) · `/docs/HouseSteady_Binder-Builder_Design_v1_*.md` (§5 is the storage doctrine) · `/fixtures/reference/housesteady-019f9a33-manifest.json` (the real export — **read it before writing the data model**).
 
 **Scope:** repo skeleton, data model, manifest v3 import with validation, import report screen. Nothing else.
 
