@@ -105,35 +105,53 @@ app.post('/api/operators/:id/deactivate', (req, res) => {
 })
 
 /**
- * Run an audit — Increment 3 §3.
+ * Run an audit — Increment 3 §1i.
+ *
+ * **PROPERTY-scoped.** The evaluation reads everything the property has
+ * accumulated, across every import. A visit-scoped audit reads §7's systems
+ * inventory as empty on the first monthly run — every component was captured at
+ * the Baseline — and the gap report then announces "no components recorded" for
+ * a house whose furnace has been in the binder for a year.
  *
  * A re-run is a NEW run, never an update. §3 stores results so a rendered gap
  * report stays reproducible, and overwriting the row a report was rendered from
  * would take that away for the sake of one less row.
  */
-app.post('/api/visits/:id/audit', (req, res) => {
-  const visit = visitOr404(req.params.id, res)
-  if (!visit) return
+app.post('/api/properties/:id/audit', (req, res) => {
+  const property = db.prepare('SELECT id FROM properties WHERE id = ?').get(req.params.id) as
+    | { id: string }
+    | undefined
+  if (!property) return res.status(404).json({ error: 'No such property.' })
 
-  const latestImport = db
-    .prepare('SELECT id FROM imports WHERE visit_id = ? ORDER BY imported_at DESC LIMIT 1')
-    .get(visit.id) as { id: string } | undefined
-  if (!latestImport) {
-    return res.status(409).json({ error: 'Nothing has been imported for this visit yet.', code: 'audit.no-import' })
+  const imports = db
+    .prepare('SELECT COUNT(*) AS n FROM imports WHERE property_id = ?')
+    .get(property.id) as { n: number }
+  if (imports.n === 0) {
+    return res.status(409).json({ error: 'Nothing has been imported for this property yet.', code: 'audit.no-import' })
   }
+
+  // Which visit TRIGGERED the run, optionally. Never a filter on what is
+  // evaluated — and §1j allows an import with no visit at all, so a run may have
+  // no triggering visit.
+  const triggering = req.body?.visitId
+    ? visitOr404(String(req.body.visitId), res)
+    : (db.prepare(
+        `SELECT id, property_id, kind FROM visits WHERE property_id = ? ORDER BY created_at DESC LIMIT 1`,
+      ).get(property.id) as { id: string; property_id: string; kind: string } | undefined)
+  if (req.body?.visitId && !triggering) return
 
   try {
     const result = runAudit({
       db,
-      propertyId: visit.property_id,
-      visitId: visit.id,
-      importId: latestImport.id,
-      // From the visit record, never the manifest — the export does not declare
-      // which kind of visit it was, and it decides which items were in scope.
-      visitKind: visit.kind,
+      propertyId: property.id,
+      visitId: triggering?.id ?? null,
+      // The visit kind decides which checklist items were ever in scope, and the
+      // manifest does not declare it. With no triggering visit — a property-scoped
+      // artifact — a baseline is the widest reading and therefore the safe one.
+      visitKind: triggering?.kind ?? 'baseline',
       actorId: acting(),
     })
-    res.status(201).json(result)
+    res.status(201).json({ ...result, contributions: Object.fromEntries(result.contributions) })
   } catch (e) {
     if (operatorGuard(res, e)) return
     if (e instanceof SchemaRefused) return res.status(422).json({ error: e.message, code: e.code })
@@ -141,12 +159,10 @@ app.post('/api/visits/:id/audit', (req, res) => {
   }
 })
 
-/** The most recent run, read back from storage rather than recomputed. */
-app.get('/api/visits/:id/audit', (req, res) => {
-  const visit = visitOr404(req.params.id, res)
-  if (!visit) return
-  const stored = latestRun(db, visit.id)
-  if (!stored) return res.status(404).json({ error: 'This visit has not been audited yet.' })
+/** The most recent run for a property, read back from storage rather than recomputed. */
+app.get('/api/properties/:id/audit', (req, res) => {
+  const stored = latestRun(db, req.params.id)
+  if (!stored) return res.status(404).json({ error: 'This property has not been audited yet.' })
   res.json(stored)
 })
 

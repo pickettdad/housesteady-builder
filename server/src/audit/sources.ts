@@ -18,9 +18,14 @@
 import type { Db } from '../db/index.js'
 import type { Slot } from './schema.js'
 
+/**
+ * §1i — reads are property-scoped.
+ *
+ * A narrative slot counting only the current visit's notes would report §8 as
+ * empty on every monthly run, having quietly forgotten a year of them.
+ */
 export interface ReadContext {
-  visitId: string
-  importId: string
+  propertyId: string
 }
 
 interface SourceReader {
@@ -36,22 +41,33 @@ interface SourceReader {
    * truth is *nothing can be captured here yet*, and those have different fixes.
    */
   count?: (db: Db, ctx: ReadContext) => number
+  /**
+   * True where this builder WILL read it — the input arrives through a surface
+   * not yet built rather than from somewhere outside the system.
+   *
+   * The distinction is the difference between a sequencing fact and a permanent
+   * one, and the second is a heavier claim than the truth supports.
+   */
+  notYetEnterable?: boolean
 }
 
 const READERS: SourceReader[] = [
   {
     prefix: 'field',
     label: 'the field manifest',
-    count: (db, { importId }) =>
-      (db.prepare('SELECT COUNT(*) AS n FROM notes WHERE import_id = ?').get(importId) as { n: number }).n,
+    count: (db, { propertyId }) =>
+      (db.prepare(
+        `SELECT COUNT(*) AS n FROM notes n JOIN imports i ON i.id = n.import_id
+          WHERE i.property_id = ?`,
+      ).get(propertyId) as { n: number }).n,
   },
   {
     prefix: 'desk',
     label: 'desk capture',
-    count: (db, { visitId }) =>
+    count: (db, { propertyId }) =>
       (db.prepare(
-        `SELECT COUNT(*) AS n FROM overlays WHERE visit_id = ? AND kind = 'memory'`,
-      ).get(visitId) as { n: number }).n,
+        `SELECT COUNT(*) AS n FROM overlays WHERE property_id = ? AND kind = 'memory'`,
+      ).get(propertyId) as { n: number }).n,
   },
   {
     prefix: 'ai',
@@ -74,7 +90,10 @@ const READERS: SourceReader[] = [
   { prefix: 'lab', label: 'lab results' },
   { prefix: 'research', label: 'research' },
   { prefix: 'reference', label: 'reference data' },
-  { prefix: 'human', label: 'human judgement' },
+  // "Not yet enterable" rather than "not readable". The workbench IS where a
+  // human enters this, so calling it unreadable states a sequencing fact as a
+  // permanent one.
+  { prefix: 'human', label: 'human judgement', notYetEnterable: true },
   { prefix: 'template', label: 'a template' },
   { prefix: 'trigger-set', label: 'the property trigger set' },
   { prefix: 'business-data', label: 'business data' },
@@ -107,8 +126,12 @@ export function unwiredNote(slot: Slot): string | undefined {
   if (sources.length === 0) return undefined
   if (sources.some(isWired)) return undefined
 
+  const readers = sources.map(readerFor)
   const named = [...new Set(sources.map((s) => readerFor(s)?.label ?? prefixOf(s)))]
-  return `no source wired yet: this slot comes from ${named.join(', ')}, which this builder does not read`
+  const enterable = readers.some((r) => r?.notYetEnterable)
+  return enterable
+    ? `not yet enterable: this slot comes from ${named.join(', ')}, and the surface for entering it is not built`
+    : `no source wired yet: this slot comes from ${named.join(', ')}, which this builder does not read`
 }
 
 /** How many entries this repo holds for a slot, across every source it can read. */

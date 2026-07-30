@@ -42,13 +42,36 @@ export function openDb(file?: string): Db {
 
   for (const name of pending) {
     const sql = readFileSync(join(migrationsDir, name), 'utf8')
-    db.transaction(() => {
+
+    /**
+     * A migration may declare that it manages its own transaction.
+     *
+     * SQLite cannot drop a NOT NULL constraint in place, so relaxing one means
+     * the documented rebuild — new table, copy, drop, rename — which requires
+     * `PRAGMA foreign_keys=off`, and that pragma is a **silent no-op inside a
+     * transaction.** Wrapping such a migration would appear to work and leave
+     * every child row's foreign key pointing at a table that no longer exists.
+     *
+     * So a file may opt out with a leading `-- no-transaction`, take
+     * responsibility for its own BEGIN/COMMIT, and run `PRAGMA
+     * foreign_key_check` before it finishes. The default stays wrapped: this is
+     * the exception, and it has to be asked for in the file where the reason is
+     * written down.
+     */
+    const managesOwnTransaction = /^\s*--\s*no-transaction\b/.test(sql)
+
+    if (managesOwnTransaction) {
       db.exec(sql)
-      db.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(
-        name,
-        new Date().toISOString(),
-      )
-    })()
+      db.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(name, new Date().toISOString())
+    } else {
+      db.transaction(() => {
+        db.exec(sql)
+        db.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(
+          name,
+          new Date().toISOString(),
+        )
+      })()
+    }
     console.log(`[db] applied migration ${name}`)
   }
 

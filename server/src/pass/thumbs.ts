@@ -43,6 +43,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, renameSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import sharp from 'sharp'
+import { absoluteFilePath } from '../media/paths.js'
 import { dataRoot, type Db } from '../db/index.js'
 
 /** Everything a caller needs to serve, or to explain why it cannot. */
@@ -53,7 +54,9 @@ export type MediaResolution =
 export interface MediaRow {
   media_id: string
   property_id: string
-  visit_id: string
+  /** Null for a property-scoped artifact — §1j. */
+  visit_id: string | null
+  import_id: string
   kind: string | null
   mime: string | null
   file: string | null
@@ -63,7 +66,7 @@ export interface MediaRow {
 export const findMedia = (db: Db, visitId: string, mediaId: string): MediaRow | undefined =>
   db
     .prepare(
-      `SELECT m.media_id, m.property_id, m.visit_id, m.kind, m.mime, m.file, m.file_status
+      `SELECT m.media_id, m.property_id, m.visit_id, m.import_id, m.kind, m.mime, m.file, m.file_status
          FROM media m JOIN imports i ON i.id = m.import_id
         WHERE m.visit_id = ? AND m.media_id = ? ORDER BY i.imported_at DESC LIMIT 1`,
     )
@@ -71,7 +74,14 @@ export const findMedia = (db: Db, visitId: string, mediaId: string): MediaRow | 
 
 /** Where the import actually put this file. Relative in the DB, resolved here. */
 export const originalPath = (m: MediaRow, root = dataRoot): string =>
-  join(root, 'properties', m.property_id, 'visits', m.visit_id, m.file ?? '')
+  // §1j — the layout has two roots and `media/paths.ts` is the only thing that
+  // knows which applies. A media row mirrors its import's visit, so a null one
+  // here means a property-scoped artifact rather than an unresolved lookup.
+  absoluteFilePath(
+    { propertyId: m.property_id, visitId: m.visit_id ?? null, importId: m.import_id },
+    m.file,
+    root,
+  )
 
 /**
  * Resolve a media id to a servable original.
@@ -133,8 +143,12 @@ let nextTmp = 0
  * ids cannot serve a stale picture.
  */
 export function cachePath(m: MediaRow, width: number, root = dataRoot): string {
-  const key = createHash('sha256').update(`${m.visit_id}:${m.media_id}:${m.file}:${width}`).digest('hex').slice(0, 16)
-  return join(root, '.cache', 'thumbs', m.property_id, m.visit_id, `${m.media_id}-w${width}-${key}.jpg`)
+  // §1j — an artifact's media has no visit, so the cache is keyed on the import
+  // instead. Falling back to the string "null" would put every artifact's
+  // thumbnails for a property in one directory and let two of them collide.
+  const scope = m.visit_id ?? m.import_id
+  const key = createHash('sha256').update(`${scope}:${m.media_id}:${m.file}:${width}`).digest('hex').slice(0, 16)
+  return join(root, '.cache', 'thumbs', m.property_id, scope, `${m.media_id}-w${width}-${key}.jpg`)
 }
 
 /**

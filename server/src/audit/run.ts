@@ -14,13 +14,12 @@
 
 import type { Db } from '../db/index.js'
 import { newId, now } from '../db/index.js'
-import { bindVisit, type BindingReport, type ItemBinding } from './binding.js'
+import { bindProperty, type BindingReport, type ItemBinding } from './binding.js'
 import {
   assessItem, assessSlot, gapList, naReasonsOf, rollUp,
   type ItemAssessment, type SlotAssessment, type SlotEvidence,
 } from './completeness.js'
-import { componentGraph } from './components.js'
-import { factsForImport, type VisitFacts } from './facts.js'
+import { propertyEvidence, unwalkedNote, type PropertyEvidence } from './propertyEvidence.js'
 import { countEntries, isSlotReference, unwiredNote } from './sources.js'
 import { evaluate } from './triggers.js'
 import { loadProfile, loadSchema, provenanceOf, type LoadedProfile, type LoadedSchema, type Slot } from './schema.js'
@@ -41,74 +40,124 @@ export interface AuditResult {
   binding: BindingReport
   warnings: string[]
   triggerFacts: Record<string, unknown>
+  /** §1i — which visit most recently satisfied each slot, where anything has. */
+  contributions: Map<string, Contribution>
 }
 
-/** Coverage items, assessed from the binding report and the visit's resolutions. */
-function coverageItems(slot: Slot, bindings: ItemBinding[], facts: VisitFacts, naReasonIds: Map<string, string>): ItemAssessment[] {
-  const naReasons = naReasonsOf(facts.snapshot)
+/**
+ * Coverage items, assessed from the binding report and the property's resolutions.
+ *
+ * The `unwalked` note is the correction the gap list needed. *"Main interior
+ * water shutoff — nothing captured"* reads as **the concierge missed it**; on a
+ * two-room capture the truth is that no room where that item is ever asked has
+ * been walked. Same class of error as the binding report's bare 100%, and the
+ * gap report is the one place a false implication reaches a client.
+ */
+function coverageItems(
+  slot: Slot,
+  bindings: ItemBinding[],
+  evidence: PropertyEvidence,
+): { items: ItemAssessment[]; contribution?: Contribution } {
+  const naReasons = naReasonsOf(evidence.snapshot)
   const forSlot = new Map(bindings.filter((b) => b.slotId === slot.id).map((b) => [b.itemId, b]))
 
-  return (slot.items ?? []).map((item) => {
+  const items = (slot.items ?? []).map((item) => {
     const binding = forSlot.get(item.id)
-    // The `na` a resolution recorded against the field item this binding pins
-    // by. Read through the binding rather than guessed at from the item id:
-    // the schema's item and the field's item are different vocabularies and
-    // only the binding knows how they line up.
     const pinnedBy = item.binding?.pinnedBy
-    return assessItem({
+    const recorded = pinnedBy ? evidence.resolutions.get(pinnedBy) : undefined
+
+    const assessed = assessItem({
       item,
-      facts: facts.visit,
+      facts: evidence.facts,
       naReasons,
       evidence: {
         bound: binding?.state === 'bound',
         short: binding?.state === 'candidate-short' ? binding.unresolvedItems : [],
         brokenRefs: binding?.state === 'broken-binding' ? binding.brokenRefs : undefined,
-        naReasonId: pinnedBy ? naReasonIds.get(pinnedBy) : undefined,
+        naReasonId: recorded?.kind === 'na' ? recorded.reasonId ?? undefined : undefined,
       },
     })
+
+    // Only where nothing was captured — a shortfall that already names a
+    // specific unresolved item does not need this, and stacking both would bury
+    // the specific one.
+    if (assessed.state === null && assessed.shortBecause === 'nothing captured') {
+      const unwalked = unwalkedNote(evidence, pinnedBy)
+      if (unwalked) return { ...assessed, shortBecause: unwalked }
+    }
+    return assessed
   })
+
+  // §1i's contribution dimension: which visit most recently SATISFIED this slot.
+  //
+  // Only `satisfied` resolutions count. The first version of this took the newest
+  // resolution of any kind, which gave an empty slot a contributing visit —
+  // "what did this visit change" answered with a visit that changed nothing.
+  const satisfying = (slot.items ?? [])
+    .map((item) => item.binding?.pinnedBy)
+    .filter((id): id is string => Boolean(id))
+    .map((id) => evidence.resolutions.get(id))
+    .filter((r): r is NonNullable<typeof r> => r?.kind === 'satisfied')
+    .sort((a, b) => (a.at < b.at ? 1 : -1))[0]
+
+  return {
+    items,
+    contribution: satisfying
+      ? { visitId: satisfying.visitId, importId: satisfying.importId, at: satisfying.at }
+      : undefined,
+  }
 }
 
 /**
- * Every `na` reason recorded in this visit, by field item id.
+ * §1i — which visit most recently satisfied a slot.
  *
- * Last write wins where an item was answered at more than one scope, which is
- * the same rule `resolutions[]` itself follows — it is a projection of the event
- * log, resolves minus reopens, and the array is the state.
+ * *"What did this visit change"* answered without narrowing what the audit sees.
+ * Nullable throughout: a slot nothing has satisfied has no answer, and defaulting
+ * it to the triggering visit would invent one.
  */
-function naReasonsByItem(db: Db, importId: string): Map<string, string> {
-  const rows = db
-    .prepare(
-      `SELECT item_id, reason_id FROM resolutions
-        WHERE import_id = ? AND kind = 'na' AND reason_id IS NOT NULL ORDER BY id`,
-    )
-    .all(importId) as { item_id: string; reason_id: string }[]
-  return new Map(rows.map((r) => [r.item_id, r.reason_id]))
+export interface Contribution {
+  visitId: string | null
+  importId: string
+  at: string
 }
 
 export function runAudit(args: {
   db: Db
+  /** What is evaluated. §1i — the audit is property-scoped. */
   propertyId: string
-  visitId: string
-  importId: string
+  /**
+   * Which visit TRIGGERED this run, if one did. Never a filter.
+   *
+   * §1j allows an import with no visit — a drone run covering six properties
+   * three weeks after an inspection — so a run may have no triggering visit at
+   * all.
+   */
+  visitId?: string | null
+  /** Which import triggered it, likewise. */
+  importId?: string | null
   visitKind: string
   actorId: string
   schema?: LoadedSchema
   profile?: LoadedProfile
 }): AuditResult {
-  const { db, propertyId, visitId, importId, visitKind, actorId } = args
+  const { db, propertyId, visitKind, actorId } = args
+  const visitId = args.visitId ?? null
+  const importId = args.importId ?? null
   const schema = args.schema ?? loadSchema()
   const profile = args.profile ?? loadProfile(schema)
 
-  const facts = factsForImport(db, importId)
-  const graph = componentGraph(facts.snapshot)
-  const binding = bindVisit({ db, importId, schema, facts, graph })
-  const naIds = naReasonsByItem(db, importId)
+  // Everything the property has accumulated, across every import. NOT the
+  // triggering visit's data — see §1i, and the reason: on the first monthly run
+  // a visit-scoped evaluation reads §7 as empty and the gap report announces
+  // "no components recorded" for a house whose furnace has been in the binder
+  // for a year.
+  const evidence = propertyEvidence(db, propertyId)
+  const binding = bindProperty({ evidence, schema })
 
-  const warnings: string[] = []
+  const warnings: string[] = [...evidence.warnings]
   const provenance = provenanceOf(schema, profile)
   if (provenance.versionMismatch) warnings.push(provenance.versionMismatch)
-  if (graph.anomalies.length > 0) warnings.push(...graph.anomalies.map((a) => `config: ${a}`))
+  if (evidence.graph.anomalies.length > 0) warnings.push(...evidence.graph.anomalies.map((a) => `config: ${a}`))
   for (const b of binding.brokenBindings) {
     warnings.push(`broken binding: ${b.itemId} refers to ${b.brokenRefs.join(', ')}, undeclared in config ${binding.context.configVersion}`)
   }
@@ -122,37 +171,42 @@ export function runAudit(args: {
   // it. A derived slot is complete when its inputs are (§0.5), so it cannot be
   // assessed until they have been.
   const assessed = new Map<string, SlotAssessment>()
+  const contributions = new Map<string, Contribution>()
   const derived: Slot[] = []
 
   for (const slot of schema.slots) {
     if (slot.kind === 'derived') { derived.push(slot); continue }
 
-    const applies = evaluate(slot.appliesWhen ?? 'always', facts.visit)
+    const applies = evaluate(slot.appliesWhen ?? 'always', evidence.facts)
     if (!applies.certain) {
       warnings.push(`${slot.id}: applicability uncertain — ${applies.unrecognised.join(', ')} not declared`)
     }
 
-    const evidence: SlotEvidence = {}
+    const slotEvidence: SlotEvidence = {}
     const unwired = unwiredNote(slot)
-    if (unwired) evidence.noSourceWired = unwired
+    if (unwired) slotEvidence.noSourceWired = unwired
 
     if (slot.kind === 'coverage' && !unwired) {
-      evidence.items = coverageItems(slot, allBindings, facts, naIds)
+      const covered = coverageItems(slot, allBindings, evidence)
+      slotEvidence.items = covered.items
+      if (covered.contribution) contributions.set(slot.id, covered.contribution)
       // A coverage slot the schema declares with no items has nothing to read
       // yet; say which rather than reporting a bare empty.
-      if (evidence.items.length === 0) {
-        evidence.noSourceWired = `no items declared for this slot in schema ${schema.version}`
+      if (slotEvidence.items.length === 0) {
+        slotEvidence.noSourceWired = `no items declared for this slot in schema ${schema.version}`
       }
     }
     if (slot.kind === 'narrative') {
-      evidence.narrative = { entries: countEntries(db, slot, { visitId, importId }) }
+      slotEvidence.narrative = { entries: countEntries(db, slot, { propertyId }) }
     }
     if (slot.kind === 'record-set' && !unwired) {
-      evidence.records = recordSetEvidence(db, importId, slot)
+      const records = recordSetEvidence(evidence, slot)
+      slotEvidence.records = records.evidence
+      if (records.contribution) contributions.set(slot.id, records.contribution)
     }
 
     assessed.set(slot.id, assessSlot({
-      slot, classification: profile.classify(slot.id), applicable: applies.applies, evidence,
+      slot, classification: profile.classify(slot.id), applicable: applies.applies, evidence: slotEvidence,
     }))
   }
 
@@ -207,11 +261,18 @@ export function runAudit(args: {
   }))
 
   const triggerFacts = {
-    property: [...facts.visit.property].sort(),
-    propertyVocabulary: [...facts.visit.propertyVocabulary].sort(),
-    pinsAnywhere: [...facts.visit.pinsAnywhere].sort(),
+    property: [...evidence.facts.property].sort(),
+    propertyVocabulary: [...evidence.facts.propertyVocabulary].sort(),
+    pinsAnywhere: [...evidence.facts.pinsAnywhere].sort(),
     visitKind,
-    disagreements: facts.disagreements,
+    // §1i, made visible on the run: what the evaluation actually saw. A result
+    // that read one import of four and one that read all four are different
+    // answers, and nothing else on the row would tell them apart.
+    importsRead: evidence.imports.map((i) => ({
+      id: i.id, visitId: i.visit_id, at: i.imported_at,
+      producer: i.producer, configVersion: i.config_version,
+    })),
+    zoneTypesWalked: [...evidence.zoneTypes].sort(),
   }
 
   const runId = newId()
@@ -220,27 +281,41 @@ export function runAudit(args: {
     db.prepare(
       `INSERT INTO audit_runs (id, property_id, visit_id, import_id, schema_version, schema_hash,
          profile_id, profile_version, profile_hash, visit_kind, trigger_facts, binding_report,
-         warnings, run_at, actor_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         warnings, imports_read, run_at, actor_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       runId, propertyId, visitId, importId, provenance.schemaVersion, provenance.schemaHash,
       provenance.profileId, provenance.profileVersion, provenance.profileHash, visitKind,
-      JSON.stringify(triggerFacts), JSON.stringify(binding), JSON.stringify(warnings), at, actorId, at,
+      JSON.stringify(triggerFacts), JSON.stringify(binding), JSON.stringify(warnings),
+      evidence.imports.length, at, actorId, at,
     )
     const insert = db.prepare(
-      `INSERT INTO audit_slots (audit_run_id, section_id, slot_id, kind, applicable, required, state, missing, detail)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO audit_slots (audit_run_id, section_id, slot_id, kind, applicable, required, state,
+         missing, detail, satisfied_by_visit_id, satisfied_by_import_id, satisfied_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     for (const s of slots) {
+      // §1i's contribution dimension. Recorded only where something actually
+      // satisfied the slot — a fallback to the triggering visit would answer
+      // "what did this visit change" with "everything", every time.
+      // Recorded only on a slot that is actually satisfied. The column says
+      // `satisfied_by`, and a partial or empty slot has not been satisfied by
+      // anybody — writing the newest contributor there would make the monthly
+      // report claim credit for work that is still outstanding.
+      const c = s.state === 'complete' ? contributions.get(s.slotId) : undefined
       insert.run(
         runId, schema.sectionOf(s.slotId)?.id ?? '', s.slotId, s.kind,
         s.applicable ? 1 : 0, s.required ? 1 : 0, s.state,
         JSON.stringify(s.missing), JSON.stringify(s.detail),
+        c?.visitId ?? null, c?.importId ?? null, c?.at ?? null,
       )
     }
   })()
 
-  return { runId, provenance, slots, sections, gaps: gapList(slots), binding, warnings, triggerFacts }
+  return {
+    runId, provenance, slots, sections, gaps: gapList(slots), binding, warnings, triggerFacts,
+    contributions,
+  }
 }
 
 /**
@@ -262,33 +337,43 @@ const externalSourceNote = (slot: Slot): string =>
   unwiredNote(slot) ?? `schema ${slot.id} declares no sources, so nothing can be derived for it`
 
 /**
- * What a record-set has against what it expects.
+ * What a record-set has against what it expects — across the whole property.
  *
  * §7's components are keyed by the field-minted uuid, so the expectation set is
- * the live typed pins and the records are the same pins — which makes it
- * complete by construction today. That is honest rather than useless: the
- * shortfall arrives with `recordFields`, once nameplate values and documents
- * are bound to records, and the shape is here so that lands as data rather than
- * a rewrite.
+ * every live typed pin the property holds, from any visit. **This is the case
+ * §1i exists for**: evaluated per-visit, a monthly run would find the pins it
+ * captured this month and report a house's whole systems inventory as missing.
  */
-function recordSetEvidence(db: Db, importId: string, slot: Slot): { expected: number; withRecord: number; shortfalls: string[] } {
+function recordSetEvidence(evidence: PropertyEvidence, slot: Slot): {
+  evidence: { expected: number; withRecord: number; shortfalls: string[] }
+  contribution?: Contribution
+} {
   if (slot.id !== 's7.components') {
     // Every other record-set is keyed on something this builder does not hold
     // yet — lab results, concerns (Increment 5, gated on v4), programs.
-    return { expected: 0, withRecord: 0, shortfalls: [] }
+    return { evidence: { expected: 0, withRecord: 0, shortfalls: [] } }
   }
-  const pins = db.prepare(
-    `SELECT COUNT(*) AS n FROM pins
-      WHERE import_id = ? AND retired_at IS NULL AND component_type IS NOT NULL`,
-  ).get(importId) as { n: number }
-  return { expected: pins.n, withRecord: pins.n, shortfalls: [] }
+
+  const components = evidence.pins.filter((p) => !p.retired && p.componentType !== null)
+  const newest = [...components].sort((a, b) => (a.at < b.at ? 1 : -1))[0]
+
+  return {
+    evidence: { expected: components.length, withRecord: components.length, shortfalls: [] },
+    contribution: newest ? { visitId: newest.visitId, importId: newest.importId, at: newest.at } : undefined,
+  }
 }
 
-/** The most recent run for a visit, read back from storage rather than recomputed. */
-export function latestRun(db: Db, visitId: string): { run: Record<string, unknown>; slots: Record<string, unknown>[] } | undefined {
+/**
+ * The most recent run for a PROPERTY, read back from storage rather than recomputed.
+ *
+ * Keyed on the property because that is what an audit is about — §1i. A run
+ * triggered by one visit is still the property's current answer, and looking it
+ * up by visit would miss it entirely for a visit that never triggered one.
+ */
+export function latestRun(db: Db, propertyId: string): { run: Record<string, unknown>; slots: Record<string, unknown>[] } | undefined {
   const run = db
-    .prepare('SELECT * FROM audit_runs WHERE visit_id = ? ORDER BY run_at DESC, id DESC LIMIT 1')
-    .get(visitId) as Record<string, unknown> | undefined
+    .prepare('SELECT * FROM audit_runs WHERE property_id = ? ORDER BY run_at DESC, id DESC LIMIT 1')
+    .get(propertyId) as Record<string, unknown> | undefined
   if (!run) return undefined
   const slots = db
     .prepare('SELECT * FROM audit_slots WHERE audit_run_id = ? ORDER BY section_id, slot_id')

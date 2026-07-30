@@ -1,7 +1,8 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Db } from '../db/index.js'
-import { dataRoot } from '../db/index.js'
+import { dataRoot, newId } from '../db/index.js'
+import { mediaDirFor } from '../media/paths.js'
 import { parseToCanonical } from './adapters/parse.js'
 import {
   checkAnchorBounds,
@@ -32,7 +33,6 @@ export class ImportRefused extends Error {
 export interface RunImportArgs {
   db: Db
   propertyId: string
-  visitId: string
   raw: string
   /**
    * Zip archives holding the visit's media, at the export's own relative paths.
@@ -46,6 +46,15 @@ export interface RunImportArgs {
   dataDir?: string
   /** Which operator ran the import. Required — Increment 2c. */
   actorId: string
+  /**
+   * Which visit this capture belongs to, if any — §1j.
+   *
+   * Optional, because a manifest is a property artifact rather than a visit
+   * attachment. A drone run covering six properties cannot name one.
+   */
+  visitId?: string | null
+  /** Which app produced the manifest — §1j. */
+  producer?: string
 }
 
 /** Decimal MB, matching the manifest's own byte figures and the report screen. */
@@ -62,19 +71,27 @@ const mb = (bytes: number): string => `${(bytes / 1_000_000).toFixed(0)} MB`
  * below this line knows which manifest version arrived.
  */
 export async function runImport(args: RunImportArgs): Promise<{ importId: string; status: string }> {
-  const { db, propertyId, visitId, raw, mediaZips = [], mediaDir, dataDir = dataRoot, actorId } = args
+  const { db, propertyId, raw, mediaZips = [], mediaDir, dataDir = dataRoot, actorId } = args
+  const visitId = args.visitId ?? null
 
   const property = db.prepare('SELECT * FROM properties WHERE id = ?').get(propertyId) as
     | { id: string; label: string; address: string | null }
     | undefined
   if (!property) throw new ImportRefused('No such property.', [])
 
-  const visit = db.prepare('SELECT * FROM visits WHERE id = ?').get(visitId) as
-    | { id: string; property_id: string }
-    | undefined
-  if (!visit) throw new ImportRefused('No such visit.', [])
-  if (visit.property_id !== propertyId) {
-    throw new ImportRefused('That visit belongs to a different property.', [])
+  // §1j — a manifest belongs to a property and only OPTIONALLY to a visit. Where
+  // one is named it still has to be real and still has to belong to this
+  // property; where none is named that is a property-scoped artifact, not an
+  // error, and inventing a visit to hold it would be a lie about somebody
+  // having been in the house.
+  if (visitId !== null) {
+    const visit = db.prepare('SELECT id, property_id FROM visits WHERE id = ?').get(visitId) as
+      | { id: string; property_id: string }
+      | undefined
+    if (!visit) throw new ImportRefused('No such visit.', [])
+    if (visit.property_id !== propertyId) {
+      throw new ImportRefused('That visit belongs to a different property.', [])
+    }
   }
 
   // ---------------------------------------- fail closed on structure, then adapt
@@ -93,7 +110,11 @@ export async function runImport(args: RunImportArgs): Promise<{ importId: string
     throw new ImportRefused(headline, parseChecks)
   }
 
-  const visitDir = join(dataDir, 'properties', propertyId, 'visits', visitId)
+  // §1j — an import with no visit has no visit folder. The id is minted here
+  // rather than inside persist so a property-scoped artifact has a directory to
+  // be written into before its row exists.
+  const importId = newId()
+  const visitDir = join(dataDir, mediaDirFor({ propertyId, visitId: visitId ?? null, importId }))
   const stagingDir = join(visitDir, '.staging')
   const hasMedia = mediaZips.length > 0 || mediaDir !== undefined
   const mediaMode: 'manifest_only' | 'with_media' = hasMedia ? 'with_media' : 'manifest_only'
@@ -275,7 +296,7 @@ export async function runImport(args: RunImportArgs): Promise<{ importId: string
 
   const report = finalize(checks, checksRun, vocabulary.terms)
 
-  const importId = persistImport({
+  persistImport({
     db,
     propertyId,
     visitId,
@@ -287,6 +308,8 @@ export async function runImport(args: RunImportArgs): Promise<{ importId: string
     unrecognizedEvents: vocabulary.unrecognizedEvents,
     placement,
     actorId,
+    importId,
+    producer: args.producer,
   })
 
   // The verbatim file on disk beside where its media will live. Two copies on
