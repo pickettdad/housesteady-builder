@@ -11,12 +11,12 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import { componentGraph } from '../src/audit/components.js'
-import { alternativesOf, bindItem, bindVisit, declaredItemIds, describeBinding } from '../src/audit/binding.js'
-import { factsForImport } from '../src/audit/facts.js'
+import { alternativesOf, bindItem, bindProperty, describeBinding } from '../src/audit/binding.js'
+import { declaredItemIds, propertyEvidence } from '../src/audit/propertyEvidence.js'
 import {
   loadProfile, loadSchema, provenanceOf, schemaRoot, SchemaRefused,
 } from '../src/audit/schema.js'
-import { noFacts } from '../src/audit/triggers.js'
+import { noFacts, type FactSet } from '../src/audit/triggers.js'
 import { runImport } from '../src/import/runImport.js'
 import { newId, now, type Db } from '../src/db/index.js'
 import { freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
@@ -168,23 +168,19 @@ const SNAPSHOT = {
 
 const slotOf = (item: CoverageItem): Slot => ({ id: 's1.shutoff-map', kind: 'coverage', items: [item] })
 
-const factsOf = (over: Partial<VisitFacts> = {}): VisitFacts => ({
-  snapshot: SNAPSHOT as Record<string, unknown>,
-  graph: componentGraph(SNAPSHOT),
-  visit: noFacts(),
-  byZone: new Map(),
-  disagreements: [],
-  ...over,
-})
+const factsOf = (over: Partial<FactSet> = {}): FactSet => ({ ...noFacts(), ...over })
 
 const pin = (over: Partial<{ componentType: string | null; freeformLabel: string | null; retired: boolean }> = {}) => ({
   pinId: newId(), number: 1, zoneId: 'z1', flag: null,
-  componentType: null, freeformLabel: null, retired: false, ...over,
+  componentType: null, freeformLabel: null, retired: false,
+  // §1i — a candidate carries where it came from, so a satisfied slot can name
+  // which visit satisfied it.
+  importId: 'i1', visitId: 'v1', at: '2026-07-25T00:00:00.000Z', ...over,
 })
 
 describe('deterministic binding', () => {
   const facts = factsOf()
-  const graph = facts.graph
+  const graph = componentGraph(SNAPSHOT)
   const declaredItems = declaredItemIds(SNAPSHOT)
 
   const bind = (item: CoverageItem, candidates: ReturnType<typeof pin>[], resolved: string[] = []) =>
@@ -289,7 +285,8 @@ describe('deterministic binding', () => {
       binding: { componentType: 'water-main', viaItems: [] },
     }
     const municipal = factsOf({
-      visit: { ...noFacts(), property: new Set(['municipal_water']), propertyVocabulary: new Set(['well', 'municipal_water']) },
+      property: new Set(['municipal_water']),
+      propertyVocabulary: new Set(['well', 'municipal_water']),
     })
     const result = bindItem({
       slot: slotOf(wellOnly), item: wellOnly, facts: municipal, graph, candidates: [],
@@ -303,20 +300,18 @@ describe('deterministic binding', () => {
 
 describe('the binding report on the reference export', () => {
   let db: Db
+  let ids: { propertyId: string; visitId: string }
   let importId: string
   const schema = loadSchema()
 
   beforeEach(async () => {
     db = freshDb()
-    const ids = makePropertyAndVisit(db)
+    ids = makePropertyAndVisit(db)
     const result = await runImport({ db, ...ids, raw: readReference(), dataDir: scratchDir(), actorId: TEST_OPERATOR })
     importId = result.importId
   })
 
-  const run = () => {
-    const facts = factsForImport(db, importId)
-    return bindVisit({ db, importId, schema, facts, graph: componentGraph(facts.snapshot) })
-  }
+  const run = () => bindProperty({ evidence: propertyEvidence(db, ids.propertyId), schema })
 
   /**
    * §1a — **unmatched evidence is listed individually, never only counted.**

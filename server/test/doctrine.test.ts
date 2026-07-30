@@ -77,6 +77,62 @@ describe('doctrine 1 — the manifest is immutable evidence', () => {
     }
   })
 
+  /**
+   * Migration 010 rebuilt four CAPTURED tables to relax `visit_id` — §1j. A
+   * rebuild is a copy, and a copy is where evidence gets quietly altered: a
+   * column dropped from a hand-written list, a value coerced, a row lost to a
+   * failed constraint.
+   *
+   * So the reference export is imported and every captured row is checksummed
+   * against the manifest it came from. Doctrine 1 is only true if the rebuild
+   * preserved it exactly, and "the tests still pass" does not prove that on its
+   * own — most of them never look at a pin's nickname.
+   */
+  it('preserves every captured column through the rebuild', async () => {
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db)
+    const raw = readReference()
+    const { importId } = await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw, dataDir: scratchDir() })
+    const manifest = JSON.parse(raw) as {
+      pins: { pinId: string; number: number; nickname?: string }[]
+      zones: { zoneId: string; label: string }[]
+      resolutions: { itemId: string }[]
+      media: { mediaId: string; sha256?: string }[]
+    }
+
+    // Counts first: a row lost in the copy is the loudest possible failure.
+    for (const [table, expected] of [
+      ['pins', manifest.pins.length],
+      ['zones', manifest.zones.length],
+      ['resolutions', manifest.resolutions.length],
+      ['media', manifest.media.length],
+    ] as const) {
+      const got = db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE import_id = ?`).get(importId) as { n: number }
+      assert.equal(got.n, expected, `${table}: ${got.n} rows for ${expected} in the manifest`)
+    }
+
+    // Then values, on the columns a rebuild is most likely to drop — the ones
+    // nothing else in the suite reads.
+    for (const pin of manifest.pins) {
+      const row = db.prepare('SELECT number, nickname FROM pins WHERE import_id = ? AND pin_id = ?')
+        .get(importId, pin.pinId) as { number: number; nickname: string | null } | undefined
+      assert.ok(row, `pin ${pin.pinId} survived`)
+      assert.equal(row.number, pin.number)
+      assert.equal(row.nickname, pin.nickname ?? null)
+    }
+    for (const zone of manifest.zones) {
+      const row = db.prepare('SELECT label FROM zones WHERE import_id = ? AND zone_id = ?')
+        .get(importId, zone.zoneId) as { label: string | null } | undefined
+      assert.equal(row?.label, zone.label)
+    }
+    for (const m of manifest.media.filter((m) => m.sha256)) {
+      const row = db.prepare('SELECT sha256 FROM media WHERE import_id = ? AND media_id = ?')
+        .get(importId, m.mediaId) as { sha256: string | null } | undefined
+      assert.equal(row?.sha256, m.sha256, 'a checksum altered in a copy is undetectable later')
+    }
+    db.close()
+  })
+
   it('stores the raw manifest byte-for-byte, whatever else it derives', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)

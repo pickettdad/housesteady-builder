@@ -26,10 +26,9 @@
  * somebody to the wrong one.
  */
 
-import type { Db } from '../db/index.js'
 import type { ComponentGraph } from './components.js'
-import type { VisitFacts } from './facts.js'
-import { evaluate } from './triggers.js'
+import { declaredItemIds, type CurrentPin, type PropertyEvidence } from './propertyEvidence.js'
+import { evaluate, type FactSet } from './triggers.js'
 import type { Binding, CoverageItem, LoadedSchema, Slot } from './schema.js'
 
 /**
@@ -58,16 +57,13 @@ export const alternativesOf = (ref: string): string[] => {
     .filter(Boolean)
 }
 
-/** A pin as binding sees it. */
-export interface Candidate {
-  pinId: string
-  number: number
-  zoneId: string | null
-  componentType: string | null
-  freeformLabel: string | null
-  flag: string | null
-  retired: boolean
-}
+/**
+ * A pin as binding sees it — the property's CURRENT state of it.
+ *
+ * §1i: not the row from one import but the latest row per field-minted uuid, so
+ * a water heater captured at the baseline is still bindable in March.
+ */
+export type Candidate = CurrentPin
 
 export type BindState =
   /** A candidate was found and everything the binding requires is resolved. */
@@ -126,6 +122,15 @@ export interface BindingContext {
   /** Zone types actually walked. A slot's items live in rooms nobody entered. */
   zoneTypes: string[]
   zoneCount: number
+  /**
+   * How many imports the evaluation read — §1i.
+   *
+   * A run that saw one import of four is a different answer from one that saw
+   * all four, and without this on the report the two are indistinguishable.
+   */
+  importsRead: number
+  /** Which producers contributed — §1j. One field app today; not forever. */
+  producers: string[]
 }
 
 export interface BindingReport {
@@ -151,38 +156,6 @@ export interface BindingReport {
 }
 
 // --------------------------------------------------------------- the evidence
-
-/**
- * Every pin in the visit, as binding sees it.
- *
- * **Retired pins are read and kept.** A retirement reason drives binder
- * inclusion rather than deletion — `removed` and `replaced` are house history —
- * so dropping them here would quietly decide something this module has no
- * business deciding. They are marked and excluded from *satisfying* a binding,
- * which is a different thing from being invisible.
- */
-export function candidatesFor(db: Db, importId: string): Candidate[] {
-  return (
-    db
-      .prepare(
-        `SELECT pin_id, number, zone_id, component_type, freeform_label, flag, retired_at
-           FROM pins WHERE import_id = ? ORDER BY number`,
-      )
-      .all(importId) as {
-      pin_id: string; number: number; zone_id: string | null
-      component_type: string | null; freeform_label: string | null
-      flag: string | null; retired_at: string | null
-    }[]
-  ).map((r) => ({
-    pinId: r.pin_id,
-    number: r.number,
-    zoneId: r.zone_id,
-    componentType: r.component_type,
-    freeformLabel: r.freeform_label,
-    flag: r.flag,
-    retired: r.retired_at !== null,
-  }))
-}
 
 /**
  * Does this pin satisfy a binding's component type?
@@ -217,7 +190,7 @@ const satisfies = (pin: Candidate, binding: Binding, graph: ComponentGraph): boo
 export function bindItem(args: {
   slot: Slot
   item: CoverageItem
-  facts: VisitFacts
+  facts: FactSet
   graph: ComponentGraph
   candidates: Candidate[]
   resolvedItems: Set<string>
@@ -227,7 +200,7 @@ export function bindItem(args: {
   const { slot, item, facts, graph, candidates, resolvedItems, declaredItems } = args
   const binding = item.binding ?? {}
 
-  const verdict = evaluate(item.appliesWhen ?? 'always', facts.visit)
+  const verdict = evaluate(item.appliesWhen ?? 'always', facts)
   const base = {
     slotId: slot.id,
     itemId: item.id,
@@ -276,27 +249,21 @@ export function bindItem(args: {
 /**
  * Bind every coverage item in the schema against one import, and measure.
  */
-export function bindVisit(args: {
-  db: Db
-  importId: string
+export function bindProperty(args: {
+  evidence: PropertyEvidence
   schema: LoadedSchema
-  facts: VisitFacts
-  graph: ComponentGraph
+  /** The master version the schema was reconciled against, for the report context. */
+  reconciledAgainst?: string
 }): BindingReport {
-  const { db, importId, schema, facts, graph } = args
+  const { evidence, schema } = args
+  const { pins: candidates, graph, facts } = evidence
 
-  const candidates = candidatesFor(db, importId)
-
+  // Every item resolved anywhere on this property, latest answer wins. An item
+  // satisfied at the baseline is still satisfied in March — §1i in one line.
   const resolvedItems = new Set(
-    (db.prepare('SELECT DISTINCT item_id FROM resolutions WHERE import_id = ?').all(importId) as
-      { item_id: string }[]).map((r) => r.item_id),
+    [...evidence.resolutions.values()].filter((r) => r.kind === 'satisfied').map((r) => r.itemId),
   )
-
-  // Every item id this import's config declares, across all four list kinds.
-  // Read from the snapshot rather than a checked-in copy: a checked-in copy goes
-  // stale and produces false positives, which is the failure the schema's own
-  // cross-check rule calls out by name.
-  const declaredItems = declaredItemIds(facts.snapshot)
+  const declaredItems = declaredItemIds(evidence.snapshot)
 
   const bindings: ItemBinding[] = []
   for (const slot of schema.slots) {
@@ -327,19 +294,17 @@ export function bindVisit(args: {
   const live = candidates.filter((p) => !p.retired)
   const applicable = bindings.filter((b) => b.state !== 'not-applicable')
 
-  const zoneTypes = (db.prepare('SELECT DISTINCT type FROM zones WHERE import_id = ?').all(importId) as
-    { type: string | null }[]).map((z) => z.type).filter((t): t is string => Boolean(t))
-
   return {
     context: {
-      configVersion: String(facts.snapshot.configVersion ?? 'unknown'),
+      configVersion: String(evidence.snapshot.configVersion ?? evidence.latest?.config_version ?? 'unknown'),
       // The version token only. The schema's own field is a full sentence with
       // counts in it, which is right for a schema and unreadable in a report line.
-      schemaReconciledAgainst: (String(schema.raw.reconciledAgainst ?? 'unknown').match(/^[\w-]+ v[\d.]+/) ?? [
-        'unknown',
-      ])[0],
-      zoneTypes,
-      zoneCount: zoneTypes.length,
+      schemaReconciledAgainst: (String(args.reconciledAgainst ?? schema.raw.reconciledAgainst ?? 'unknown')
+        .match(/^[\w-]+ v[\d.]+/) ?? ['unknown'])[0],
+      zoneTypes: [...evidence.zoneTypes].sort(),
+      zoneCount: evidence.zoneTypes.length,
+      importsRead: evidence.imports.length,
+      producers: [...new Set(evidence.imports.map((i) => i.producer).filter((p): p is string => Boolean(p)))],
     },
     bound,
     noCandidate: by('no-candidate'),
@@ -360,30 +325,6 @@ export function bindVisit(args: {
 }
 
 /**
- * Every checklist item id a config snapshot declares.
- *
- * All four list kinds, because a binding may name an item from any of them and
- * a partial answer would report live ids as broken references — the loudest
- * possible false alarm in a check whose whole job is to be believed.
- */
-export function declaredItemIds(snapshot: Record<string, unknown>): Set<string> {
-  const ids = new Set<string>()
-  const collect = (items: unknown): void => {
-    if (!Array.isArray(items)) return
-    for (const item of items) {
-      const id = (item as { id?: unknown })?.id
-      if (typeof id === 'string') ids.add(id)
-    }
-  }
-  for (const key of ['baseLists', 'zoneLists', 'componentLists']) {
-    const lists = snapshot[key]
-    if (Array.isArray(lists)) for (const entry of lists) collect((entry as { items?: unknown }).items)
-  }
-  collect(snapshot.sessionItems)
-  return ids
-}
-
-/**
  * The report in words.
  *
  * §1a says the rate is a decision input, so it has to be readable without a
@@ -394,6 +335,8 @@ export function describeBinding(report: BindingReport): string[] {
   const { rate, context } = report
   const lines = [
     `config ${context.configVersion} · schema reconciled against ${context.schemaReconciledAgainst}`,
+    `${context.importsRead} import(s) read` +
+      (context.producers.length ? ` from ${context.producers.join(', ')}` : ''),
     `${context.zoneCount} zone type(s) walked: ${context.zoneTypes.join(', ') || 'none'}`,
     `${rate.itemsBound} of ${rate.itemsApplicable} applicable items bound ` +
       `(${rate.itemsConsidered - rate.itemsApplicable} do not apply to this house)`,

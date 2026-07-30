@@ -525,7 +525,7 @@ describe('thumbnails', () => {
     assert.equal(bytes.at(-1), 0xd9)
 
     // And no temp files left lying about in the cache.
-    const dir = join(dataDir, '.cache', 'thumbs', media.property_id, media.visit_id)
+    const dir = join(dataDir, '.cache', 'thumbs', media.property_id, media.visit_id ?? media.import_id)
     assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith('.tmp')), [])
     db.close()
   })

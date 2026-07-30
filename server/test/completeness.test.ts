@@ -250,7 +250,10 @@ describe('auditing the reference visit', () => {
   })
 
   const run = (profile = loadProfile(schema)) =>
-    runAudit({ db, ...ids, importId, visitKind: 'baseline', actorId: TEST_OPERATOR, schema, profile })
+    runAudit({
+      db, propertyId: ids.propertyId, visitId: ids.visitId, importId,
+      visitKind: 'baseline', actorId: TEST_OPERATOR, schema, profile,
+    })
 
   it('audits without error and produces an inspectable gap list', () => {
     const result = run()
@@ -299,7 +302,7 @@ describe('auditing the reference visit', () => {
   /** §3 — stored, so a rendered gap report stays reproducible. */
   it('stores the run with its schema and profile provenance', () => {
     const result = run()
-    const stored = latestRun(db, ids.visitId)!
+    const stored = latestRun(db, ids.propertyId)!
     assert.equal(stored.run.id, result.runId)
     assert.equal(stored.run.schema_version, schema.version)
     assert.equal(stored.run.schema_hash, schema.hash)
@@ -316,7 +319,7 @@ describe('auditing the reference visit', () => {
    */
   it('stores the resolved trigger facts with the run', () => {
     run()
-    const facts = JSON.parse(latestRun(db, ids.visitId)!.run.trigger_facts as string)
+    const facts = JSON.parse(latestRun(db, ids.propertyId)!.run.trigger_facts as string)
     assert.deepEqual(facts.property.sort(), ['ev', 'generator', 'propane', 'septic', 'well'])
     assert.ok(facts.propertyVocabulary.length > facts.property.length, 'and what could have been set')
     assert.equal(facts.visitKind, 'baseline')
@@ -327,7 +330,7 @@ describe('auditing the reference visit', () => {
     assert.ok(result.warnings.length > 0, 'v1.2.1 predates the .unit items, so there are broken bindings')
     assert.ok(result.warnings.some((w) => /broken binding/.test(w)))
     assert.deepEqual(
-      JSON.parse(latestRun(db, ids.visitId)!.run.warnings as string), result.warnings,
+      JSON.parse(latestRun(db, ids.propertyId)!.run.warnings as string), result.warnings,
       'and they are stored, not only returned',
     )
   })
@@ -348,7 +351,8 @@ describe('auditing the reference visit', () => {
   it('gives a different answer for a monthly visit', () => {
     const baseline = run()
     const monthly = runAudit({
-      db, ...ids, importId, visitKind: 'monthly', actorId: TEST_OPERATOR, schema, profile: loadProfile(schema),
+      db, propertyId: ids.propertyId, visitId: ids.visitId, importId,
+      visitKind: 'monthly', actorId: TEST_OPERATOR, schema, profile: loadProfile(schema),
     })
     assert.equal(monthly.triggerFacts.visitKind, 'monthly')
     assert.notEqual(monthly.runId, baseline.runId, 'each run is its own record')

@@ -7,7 +7,7 @@ import type { ValidationReport } from './validate.js'
 export interface PersistInput {
   db: Db
   propertyId: string
-  visitId: string
+  visitId: string | null
   /** The original bytes, stored verbatim. Never the canonical shape. */
   raw: string
   canonical: CanonicalImport
@@ -15,6 +15,10 @@ export interface PersistInput {
   mediaMode: 'manifest_only' | 'with_media'
   /** Which operator ran the import. Required — Increment 2c. */
   actorId: string
+  /** Minted by the caller so media has a directory before the row exists — §1j. */
+  importId: string
+  /** Which app produced this manifest — §1j. Defaults to the field app. */
+  producer?: string
   /** Array indexes the vocabulary pass found unfamiliar words in. */
   unrecognizedResolutions?: Set<number>
   unrecognizedEvents?: Set<number>
@@ -44,21 +48,21 @@ export function persistImport(input: PersistInput): string {
     report,
     mediaMode,
     actorId,
+    importId,
     unrecognizedResolutions = new Set<number>(),
     unrecognizedEvents = new Set<number>(),
     placement,
   } = input
-  const importId = newId()
   const ts = now()
 
   const run = db.transaction(() => {
     db.prepare(
       `INSERT INTO imports (id, visit_id, property_id, imported_at, manifest_schema_version,
         app_version, session_id, config_id, config_version, config_hash, media_mode,
-        raw_manifest, validation_report, status, actor_id, created_at)
+        raw_manifest, validation_report, status, actor_id, producer, created_at)
        VALUES (@id, @visit_id, @property_id, @imported_at, @manifest_schema_version,
         @app_version, @session_id, @config_id, @config_version, @config_hash, @media_mode,
-        @raw_manifest, @validation_report, @status, @actor_id, @created_at)`,
+        @raw_manifest, @validation_report, @status, @actor_id, @producer, @created_at)`,
     ).run({
       id: importId,
       visit_id: visitId,
@@ -78,6 +82,10 @@ export function persistImport(input: PersistInput): string {
       // Who ran the import. The manifest says who was in the house; this says
       // who sat down and brought it in, and the two are routinely different.
       actor_id: actorId,
+      // Named rather than defaulted silently: this repo's own field app is the
+      // only producer today and will not be the only one, and a row that does
+      // not say which app made it cannot be adapted later.
+      producer: input.producer ?? 'housesteady-field',
       created_at: ts,
     })
 
