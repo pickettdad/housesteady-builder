@@ -47,7 +47,7 @@ Nothing about `pnl.service` looked wrong. The number upstream of it did.
 
 ---
 
-## The three rules
+## The rules
 
 ### 1. Locate every boundary; never assume one
 
@@ -87,6 +87,71 @@ prior round, and each caught a parse that disagreed with it.
 
 Where no independent count exists, produce one *by a different method* before reporting.
 Two parses that agree are worth far more than one parse that looks right.
+
+### 4. Never re-derive a boundary the producer already has
+
+*(Added 2026-07-30, after a third and fourth instance.)*
+
+Four now, from one cause:
+
+- **Escaped pipes** in a master table cell — `choice (ball\|gate\|other)`. A naive split
+  dropped every such row silently and produced a phantom stale-id report that stood for days.
+- **A NUL byte used as a map-key separator**, which collided with the data it separated.
+- **A dash inside a composed sentence** — the gap list rendered
+  `"Water heater shutoff — water and fuel/power — binding refers to wh.shutoff"`, and the
+  screen split it on the dash to group by reason. The **label** contains a dash, so it split
+  in half and the item took another item's reason. Splitting on the *last* dash fails too,
+  because the reasons contain dashes as well.
+- **A section end assumed rather than located**, which miscounted component types by one.
+
+The delimiter framing is too narrow, and rule 1 already covers it. **The sharper form: the
+producer knew the parts, composed them into one string, and the consumer tried to
+un-compose it.** That is information destruction followed by guessing — and no amount of
+care in the guessing recovers what the composition threw away.
+
+**Carry the parts; compose in one place.** It is the same rule as verbatim extraction, which
+this repo already ratified for a different reason: normalise at query time, never at write
+time, because the write is where the original is lost. A composed sentence is a normalised
+value, and re-parsing it is the same mistake wearing different clothes.
+
+The fix is structural rather than careful. `SlotAssessment.missing` carries
+`{ what, why? }` and `sentenceOf()` is the one place either becomes prose.
+
+### 5. A fix that removes a symptom has not removed a class
+
+*(Added 2026-07-30.)*
+
+The sentence *"its inputs have not been assessed"* was removed once in Increment 3, when
+derived slots gained a fixed-point resolution. It came back in the same increment from a
+different direction: a derived slot with no slot-level inputs at all, whose unwired-source
+note could not be reached because **§0.5's ordering guarantee ran first.**
+
+**Neither rule was wrong.** The guarantee is correct — a derived slot must return before
+any independent emptiness is reachable — and the note is correct. Two correct rules
+combined to produce a false sentence, which no test asserted because no test knew to ask.
+
+Only running it showed that. So: after fixing a symptom, ask what *class* it belongs to and
+where else that class could surface. And prefer a fix that makes the class unreachable over
+one that makes this instance correct.
+
+### 6. Where a missing state would read as a confident answer, add the state
+
+*(Added 2026-07-30.)*
+
+Four instances, all the same shape:
+
+- **typed / stub / undeclared** for a component type — a stub passes a name check and can
+  never satisfy a checklist expectation, so two states report it as valid.
+- **declared-and-false / never-declared** for a property flag — collapsing them turns every
+  vocabulary the builder has not caught up with into a silent *"does not apply"*.
+- **verified / unverifiable / unknown-provenance** for a transcribed value — a config
+  declaring no capturing item cannot say a value is verified, and two states say it is.
+- **superseded / unrecognised** for an answer recorded under a retired item — one says the
+  record is malformed, the other says the question moved.
+
+In every case the two-state version reports the unknown case **as the safe one**, which is
+exactly backwards: the unknown case is where confident wrongness lives. The third state is
+almost never expensive and is almost always where the honesty is.
 
 ---
 

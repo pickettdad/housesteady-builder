@@ -684,6 +684,8 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
       'out-of-scope', 'present-when-populated', 'record-set',
       // slot and item states — src/audit/completeness.ts
       'n-a-narrative', 'not-applicable', 'confirmed-absent', 'not-found',
+      // §1g.1 verification states — src/audit/provenance.ts
+      'unknown-provenance',
     ])
 
     const offenders: string[] = []
