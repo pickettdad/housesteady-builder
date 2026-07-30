@@ -88,6 +88,17 @@ export interface ItemEvidence {
   naReasonId?: string
   /** The binding could not be evaluated at all — a broken reference. */
   brokenRefs?: string[]
+  /**
+   * §1k.1 — answered under a config that has since retired the item.
+   *
+   * The slot is still short, rightly: the successors are unanswered. What
+   * changes is the SENTENCE, because "unrecognised" says the record is
+   * malformed and "superseded" says the question moved, and those send a person
+   * to different places.
+   */
+  supersededSince?: string
+  /** §1k.2 — this answer is an earlier reading a later visit could not re-confirm. */
+  carriedForward?: { since: string; blockedBy: string }
 }
 
 /**
@@ -135,7 +146,32 @@ export function assessItem(args: {
     return { ...base, state: null, applicable: false }
   }
 
-  if (evidence.bound) return { ...base, state: 'present' }
+  if (evidence.supersededSince) {
+    // Never auto-followed. A retirement is a discontinuity by the master's own
+    // rule; the successor is shown to a person, never joined by software.
+    return {
+      ...base,
+      state: null,
+      shortBecause:
+        `answered under a superseded item (recorded against config ${evidence.supersededSince}, ` +
+        'which this property\'s current config no longer declares) — the successor items are unanswered',
+    }
+  }
+
+  if (evidence.bound) {
+    // §1k.2 — a carried-forward reading is still an answer, and says so. The
+    // value stands; what is recorded alongside it is that nobody could
+    // re-confirm it on the latest visit.
+    return evidence.carriedForward
+      ? {
+          ...base,
+          state: 'present',
+          shortBecause:
+            `read ${evidence.carriedForward.since.slice(0, 10)} and not re-confirmed since ` +
+            `(${evidence.carriedForward.blockedBy})`,
+        }
+      : { ...base, state: 'present' }
+  }
 
   if (evidence.short.length > 0) {
     // §2's locating-photo rule. A shutoff marked present with only a close-up

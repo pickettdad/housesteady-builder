@@ -16,6 +16,22 @@ export const referencePath = join(
 
 export const readReference = (): string => readFileSync(referencePath, 'utf8')
 
+/**
+ * The reference export as a SECOND capture of the same house.
+ *
+ * A re-walk is a new field session and carries a new session id — migration 011
+ * refuses the same capture event twice, on the reasoning that recording it twice
+ * is duplicate evidence and inflates `imports_read`. The pin uuids are
+ * deliberately left alone: they are the cross-visit identity, and keeping them
+ * is what makes this a second look at the same water heater rather than a
+ * second water heater.
+ */
+export const readReferenceAsRewalk = (sessionId = 'session-rewalk-1'): string => {
+  const manifest = JSON.parse(readReference()) as { session: { sessionId: string } }
+  manifest.session.sessionId = sessionId
+  return JSON.stringify(manifest)
+}
+
 export const scratchDir = (): string => mkdtempSync(join(tmpdir(), 'housesteady-test-'))
 
 /**

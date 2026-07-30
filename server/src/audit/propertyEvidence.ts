@@ -58,7 +58,51 @@ export interface ResolutionState {
   importId: string
   visitId: string | null
   at: string
+
+  /**
+   * §1k.1 — answered under a config that has since retired the item.
+   *
+   * **Not unrecognised vocabulary.** It is a valid answer to a question that has
+   * since changed, and the two carry opposite implications: unrecognised says
+   * the record is malformed, superseded says the question moved. Same class of
+   * distinction as broken-binding versus gap.
+   */
+  supersededSince?: string
+
+  /**
+   * §1k.2 — this answer is an EARLIER reading carried forward, because the
+   * latest visit could not re-confirm it.
+   *
+   * Provisional. See `identityPersists`.
+   */
+  carriedForward?: { since: string; blockedBy: string; blockedAt: string }
 }
+
+/**
+ * §1k.2 — does this item's answer survive a later "could not reach it"?
+ *
+ * **The spec asks whether the config declares which items are identity and which
+ * are state. It does, under a different name: `attest`.**
+ *
+ * `attest: 'evidence'` marks an item that CAPTURES something — a nameplate
+ * photographed, an age decoded from a serial, a canvas of the room. `attest:
+ * 'action'` marks one where the concierge looked and judged — storage
+ * conditions, alarm coverage. Every nameplate, age and serial item in the
+ * reference config is `evidence`; every state check is `action`.
+ *
+ * And the rule follows from what the words mean rather than from what they are
+ * being used for here: **evidence, once captured, does not un-capture.** A
+ * nameplate photographed in January is still photographed in March even if
+ * nobody could reach the unit; a judgement made in January is not still true in
+ * March. §19's capital plan depends on install dates, and they must not
+ * evaporate on a no-access visit.
+ *
+ * **PROVISIONAL.** The spec routes this to the field session rather than letting
+ * the builder invent it, so every value carried forward this way is recorded in
+ * the run's warnings naming `attest` as the basis. If the master says otherwise,
+ * this is one predicate to change and the warnings say where it was applied.
+ */
+export const identityPersists = (attest: string | undefined): boolean => attest === 'evidence'
 
 export interface PropertyEvidence {
   propertyId: string
@@ -85,6 +129,50 @@ const parse = <T,>(s: unknown, fallback: T): T => {
   } catch {
     return fallback
   }
+}
+
+/** One checklist item, as much of it as this module needs. */
+export interface ChecklistItem {
+  id: string
+  attest?: string
+  satisfy?: string
+}
+
+/** Every checklist item a snapshot declares, keyed by id, across all four list kinds. */
+export function itemsOf(snapshot: Record<string, unknown>): Map<string, ChecklistItem> {
+  const out = new Map<string, ChecklistItem>()
+  const collect = (items: unknown): void => {
+    if (!Array.isArray(items)) return
+    for (const item of items) {
+      const i = item as ChecklistItem
+      if (typeof i?.id === 'string') out.set(i.id, i)
+    }
+  }
+  for (const key of ['baseLists', 'zoneLists', 'componentLists']) {
+    const lists = snapshot[key]
+    if (Array.isArray(lists)) for (const entry of lists) collect((entry as { items?: unknown }).items)
+  }
+  collect(snapshot.sessionItems)
+  return out
+}
+
+/**
+ * The `na` reasons this config says feed the gap list.
+ *
+ * **The config decides, not the builder.** A reason that feeds the gap list is a
+ * failure to reach; one that does not is a substantive answer. §1k.2 turns on
+ * that difference, and hardcoding which reasons are which would make a config
+ * that adds one silently mishandled.
+ */
+const gapFeedingReasons = (snapshot: Record<string, unknown>): Set<string> => {
+  const out = new Set<string>()
+  const declared = snapshot.naReasons
+  if (Array.isArray(declared)) {
+    for (const entry of declared as Record<string, unknown>[]) {
+      if (entry.feedsGapList === true && typeof entry.id === 'string') out.add(entry.id)
+    }
+  }
+  return out
 }
 
 const idsOf = (list: unknown): Set<string> => {
@@ -122,6 +210,7 @@ export function propertyEvidence(db: Db, propertyId: string): PropertyEvidence {
       )
     : {}
   const graph = componentGraph(snapshot)
+  const gapFeeding = gapFeedingReasons(snapshot)
 
   if (imports.length > 1) {
     const versions = [...new Set(imports.map((i) => i.config_version).filter(Boolean))]
@@ -195,9 +284,26 @@ export function propertyEvidence(db: Db, propertyId: string): PropertyEvidence {
     import_id: string; visit_id: string | null; imported_at: string
   }[]
 
+  // Every item id each import's OWN config declared, and what it declared about
+  // it. §1k.1 needs the recording config, not the current one: an answer is
+  // interpreted under the rules it was given under.
+  const declaredPerImport = new Map<string, Map<string, ChecklistItem>>()
+  for (const row of imports) {
+    const snap = parse<Record<string, unknown>>(
+      (db.prepare('SELECT snapshot FROM config_snapshots WHERE import_id = ?').get(row.id) as
+        { snapshot: string } | undefined)?.snapshot,
+      {},
+    )
+    declaredPerImport.set(row.id, itemsOf(snap))
+  }
+  const currentItems = itemsOf(snapshot)
+
   const resolutions = new Map<string, ResolutionState>()
+  const superseded: string[] = []
+  const carried: string[] = []
+
   for (const r of resolutionRows) {
-    resolutions.set(r.item_id, {
+    const state: ResolutionState = {
       itemId: r.item_id,
       kind: r.kind,
       reasonId: r.reason_id,
@@ -205,7 +311,56 @@ export function propertyEvidence(db: Db, propertyId: string): PropertyEvidence {
       importId: r.import_id,
       visitId: r.visit_id,
       at: r.imported_at,
-    })
+    }
+
+    // §1k.1 — declared when it was answered, not declared now.
+    const recordingConfig = declaredPerImport.get(r.import_id)
+    if (!currentItems.has(r.item_id) && recordingConfig?.has(r.item_id)) {
+      const version = imports.find((i) => i.id === r.import_id)?.config_version ?? 'an earlier config'
+      state.supersededSince = version
+      if (!superseded.includes(r.item_id)) superseded.push(r.item_id)
+    }
+
+    /**
+     * §1k.2 — a later "could not reach it" does not un-capture evidence.
+     *
+     * The prior reading stands and records that it could not be re-confirmed.
+     * Only where the config's own `attest` marks the item as evidence, and only
+     * where the blocking answer feeds the gap list — a `none-present` is a
+     * substantive finding that genuinely replaces an earlier reading, not a
+     * failure to reach.
+     */
+    const prior = resolutions.get(r.item_id)
+    const declaration = recordingConfig?.get(r.item_id) ?? currentItems.get(r.item_id)
+    const blocked = r.kind === 'na' && r.reason_id !== null && gapFeeding.has(r.reason_id)
+
+    if (prior?.kind === 'satisfied' && blocked && identityPersists(declaration?.attest)) {
+      resolutions.set(r.item_id, {
+        ...prior,
+        carriedForward: { since: prior.at, blockedBy: r.reason_id!, blockedAt: r.imported_at },
+      })
+      if (!carried.includes(r.item_id)) carried.push(r.item_id)
+      continue
+    }
+
+    resolutions.set(r.item_id, state)
+  }
+
+  if (superseded.length > 0) {
+    warnings.push(
+      `${superseded.length} answer(s) were recorded against items this property's current config no longer ` +
+        `declares — ${superseded.slice(0, 5).join(', ')}${superseded.length > 5 ? ', …' : ''}. ` +
+        'These were answered under a superseded item, not unrecognised vocabulary; the successors are ' +
+        'shown to a person and never joined by software.',
+    )
+  }
+  if (carried.length > 0) {
+    warnings.push(
+      `${carried.length} value(s) were carried forward past a later "could not reach it" — ` +
+        `${carried.slice(0, 5).join(', ')}${carried.length > 5 ? ', …' : ''}. ` +
+        'Classified as identity rather than state by the config\'s own `attest: evidence`. ' +
+        'PROVISIONAL — pending confirmation from the field session that attest is the right declaration.',
+    )
   }
 
   // ------------------------------------------------------------------ the facts

@@ -20,7 +20,9 @@ import { latestRun, runAudit } from '../src/audit/run.js'
 import { loadProfile, loadSchema } from '../src/audit/schema.js'
 import { mediaDirFor } from '../src/media/paths.js'
 import { runImport } from '../src/import/runImport.js'
-import { addVisit, freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
+import {
+  addVisit, freshDb, makePropertyAndVisit, readReference, readReferenceAsRewalk, scratchDir, TEST_OPERATOR,
+} from './helpers.js'
 import type { Db } from '../src/db/index.js'
 
 describe('the audit is property-scoped', () => {
@@ -49,9 +51,9 @@ describe('the audit is property-scoped', () => {
   /** §6 — an audit run on a property with two visits evaluates both. */
   it('evaluates every import the property has, not just the triggering visit', async () => {
     const monthly = addVisit(db, propertyId, 'monthly')
-    // A second capture. Same export, different visit — a re-walk.
+    // A re-walk: the same house, a new field session, the same pin uuids.
     await runImport({
-      db, propertyId, visitId: monthly, raw: readReference(),
+      db, propertyId, visitId: monthly, raw: readReferenceAsRewalk(),
       dataDir: scratchDir(), actorId: TEST_OPERATOR,
     })
 
@@ -154,7 +156,9 @@ describe('cross-visit pin identity', () => {
     const first = propertyEvidence(db, propertyId).pins.length
 
     const second = addVisit(db, propertyId, 'monthly')
-    await runImport({ db, propertyId, visitId: second, raw: readReference(), dataDir: scratchDir(), actorId: TEST_OPERATOR })
+    await runImport({
+      db, propertyId, visitId: second, raw: readReferenceAsRewalk(), dataDir: scratchDir(), actorId: TEST_OPERATOR,
+    })
 
     const evidence = propertyEvidence(db, propertyId)
     assert.equal(evidence.pins.length, first, 'the same pins, not twice as many')
@@ -222,7 +226,7 @@ describe('a manifest is a property artifact', () => {
       dataDir: scratchDir(), actorId: TEST_OPERATOR, producer: 'housesteady-aerial',
     })
     const second = await runImport({
-      db, propertyId, visitId: null, raw: readReference().replace(/"sessionId": "/, '"sessionId": "x'),
+      db, propertyId, visitId: null, raw: readReferenceAsRewalk('artifact-2'),
       dataDir: scratchDir(), actorId: TEST_OPERATOR, producer: 'housesteady-aerial',
     })
 
