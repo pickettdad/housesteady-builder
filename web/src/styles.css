@@ -435,3 +435,70 @@ button.tile-state:hover { color: var(--accent); }
 .not-read figcaption { max-width: 178px; }
 .skips { list-style: none; padding: 0; margin: 4px 0 0; flex-basis: 100%; color: var(--ink-soft); }
 .skips li { padding: 1px 0; }
+
+/* ------------------------------------------------------- the audit — §4 */
+
+.row-between { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+
+/*
+ * One dot, five states. The same vocabulary the data uses, so a person reading
+ * the screen and a person reading `audit_slots` are looking at one thing.
+ *
+ * `n-a-narrative` is deliberately its own colour rather than borrowing
+ * not-applicable's: one means this house does not have one, the other means
+ * this can never be finished by design, and a shared dot would merge them.
+ */
+.pip-complete { background: var(--ok); border-color: var(--ok); }
+.pip-partial { background: var(--warn); border-color: var(--warn); }
+.pip-empty { background: transparent; border-color: var(--ink-faint); }
+.pip-not-applicable { background: var(--line); border-color: var(--line); }
+.pip-n-a-narrative {
+  background: transparent;
+  border-color: var(--accent);
+  border-style: dashed;
+}
+
+.sections { width: 100%; border-collapse: collapse; }
+.section-row { cursor: pointer; border-top: 1px solid var(--line); }
+.section-row:hover { background: var(--paper); }
+.section-row td { padding: 7px 8px; vertical-align: baseline; }
+.section-row .num { color: var(--ink-faint); font-variant-numeric: tabular-nums; width: 44px; }
+.section-row .title { font-weight: 500; }
+.section-row .state { white-space: nowrap; width: 130px; }
+.section-row .state .pip { display: inline-block; margin-right: 6px; vertical-align: middle; }
+.section-row .counts { text-align: right; }
+
+/*
+ * Greyed, NEVER hidden — §4. A silently absent section is indistinguishable
+ * from one nobody thought of, and only one of those is a defect worth finding.
+ */
+.section-row.inapplicable .title,
+.section-row.inapplicable .num { color: var(--ink-faint); }
+
+.slot-row td { padding: 0 8px 10px; }
+.slot-detail { border-left: 2px solid var(--line); padding: 6px 0 6px 12px; }
+.slot-detail code { font-size: 12px; }
+.slot-detail .state .pip { display: inline-block; margin-right: 6px; vertical-align: middle; }
+
+.missing, .gaps ul, .bucket ul { margin: 4px 0 0; padding-left: 18px; }
+.missing li, .gaps ul li, .bucket ul li { color: var(--ink-soft); font-size: 13px; margin: 2px 0; }
+.gaps > li { margin-bottom: 10px; }
+
+.warnings { margin: 8px 0; padding-left: 18px; }
+.warnings li { color: var(--warn); font-size: 13px; margin: 3px 0; }
+
+.hash { color: var(--ink-faint); font-family: ui-monospace, monospace; font-size: 11px; }
+
+.facts { margin: 10px 0 0; border-top: 1px solid var(--line); padding-top: 10px; }
+.fact-row { display: flex; gap: 12px; margin: 5px 0; align-items: baseline; }
+.fact-label { color: var(--ink-faint); font-size: 12px; min-width: 260px; flex-shrink: 0; }
+.imports { margin: 0; padding-left: 16px; font-size: 12px; color: var(--ink-soft); }
+
+.bucket { margin-top: 14px; }
+.bucket h4 { margin: 0 0 2px; font-size: 13px; font-weight: 600; }
+
+button.link {
+  background: none; border: none; padding: 0; margin-top: 8px;
+  color: var(--accent); font-size: 13px; cursor: pointer; text-decoration: underline;
+}
+.grouped { color: var(--ink-faint); font-size: 12px; margin: 2px 0 6px; }

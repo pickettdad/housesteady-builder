@@ -31,6 +31,30 @@ export interface ItemAssessment {
   applicable: boolean
 }
 
+/**
+ * One thing that is short, in two parts.
+ *
+ * **Structured rather than a sentence, and that is not tidiness.** The screen
+ * groups items by the reason they share, which meant splitting the sentence on
+ * its dash — and `"Water heater shutoff — water and fuel/power"` is a LABEL
+ * containing a dash, so it split in half and the item took another item's
+ * reason. Splitting on the last dash fails too, because the reasons contain
+ * dashes as well.
+ *
+ * Same class as §1g.2's escaped pipes — a delimiter that also occurs inside the
+ * data — and the same lesson: do not re-derive a boundary the producer already
+ * knows. So the parts travel separately and the sentence is composed once.
+ */
+export interface Missing {
+  /** Which item, slot or expectation is short. */
+  what: string
+  /** Why, where there is a distinct reason. Absent when `what` says it all. */
+  why?: string
+}
+
+/** The one place a shortfall becomes a sentence. */
+export const sentenceOf = (m: Missing): string => (m.why ? `${m.what} — ${m.why}` : m.what)
+
 export interface SlotAssessment {
   slotId: string
   kind: string
@@ -38,7 +62,7 @@ export interface SlotAssessment {
   required: boolean
   state: SlotState
   /** What specifically is short. Named, never counted — §3. */
-  missing: string[]
+  missing: Missing[]
   detail: Record<string, unknown>
 }
 
@@ -237,7 +261,7 @@ export function assessSlot(args: {
     kind: slot.kind,
     applicable,
     required,
-    missing: [] as string[],
+    missing: [] as Missing[],
     detail: {} as Record<string, unknown>,
   }
 
@@ -271,13 +295,28 @@ export function assessSlot(args: {
   if (slot.kind === 'derived') {
     const inputs = evidence.inputs ?? []
     if (inputs.length === 0) {
-      return { ...base, state: 'partial', missing: ['its inputs have not been assessed'], detail: { inputs: 0 } }
+      /**
+       * A derived slot with no slot-level inputs is not waiting on a slot.
+       *
+       * It derives from reference data or research this builder does not hold,
+       * and `noSourceWired` says which. Read HERE rather than at the check
+       * below, because §0.5's ordering guarantee puts this branch first — and
+       * "its inputs have not been assessed" is a statement about the audit's own
+       * ordering wearing the clothes of a fact about the binder. That sentence
+       * shipped once already; this is where it came from.
+       */
+      return {
+        ...base,
+        state: 'partial',
+        missing: [{ what: evidence.noSourceWired ?? 'its inputs have not been assessed' }],
+        detail: { inputs: 0, noSourceWired: Boolean(evidence.noSourceWired) },
+      }
     }
     const complete = inputs.every((s) => s === 'complete' || s === 'not-applicable' || s === 'n-a-narrative')
     return {
       ...base,
       state: complete ? 'complete' : 'partial',
-      missing: complete ? [] : [`waiting on ${inputs.filter((s) => s !== 'complete').length} of ${inputs.length} inputs`],
+      missing: complete ? [] : [{ what: `waiting on ${inputs.filter((s) => s !== 'complete').length} of ${inputs.length} inputs` }],
       detail: { inputs: inputs.length },
     }
   }
@@ -287,12 +326,12 @@ export function assessSlot(args: {
   // owes us this" against a slot the builder simply cannot see — a true state
   // with a false implication, which doctrine 4 treats as the worse failure.
   if (evidence.noSourceWired) {
-    return { ...base, state: 'empty', missing: [evidence.noSourceWired], detail: { noSourceWired: true } }
+    return { ...base, state: 'empty', missing: [{ what: evidence.noSourceWired }], detail: { noSourceWired: true } }
   }
 
   if (slot.kind === 'fixed') {
     const v = evidence.value
-    if (!v?.recorded) return { ...base, state: 'empty', missing: ['no value recorded'] }
+    if (!v?.recorded) return { ...base, state: 'empty', missing: [{ what: 'no value recorded' }] }
     // §2 — an explicit unknown COMPLETES a fixed slot. Doctrine 4: an explicit
     // unknown is information; a blank is an absence of one.
     return { ...base, state: 'complete', detail: { explicitUnknown: v.explicitUnknown } }
@@ -301,7 +340,7 @@ export function assessSlot(args: {
   if (slot.kind === 'coverage') {
     const items = (evidence.items ?? []).filter((i) => i.applicable)
     if (items.length === 0) {
-      return { ...base, state: 'empty', missing: ['no applicable items'], detail: { applicableItems: 0 } }
+      return { ...base, state: 'empty', missing: [{ what: 'no applicable items' }], detail: { applicableItems: 0 } }
     }
     const short = items.filter((i) => i.state === null)
     const detail = {
@@ -317,7 +356,7 @@ export function assessSlot(args: {
       // Named individually — §3's example is "3 of 19 applicable items have no
       // state: main electrical disconnect, panel directory, sump breaker",
       // never "§1 incomplete".
-      missing: short.map((i) => `${i.label}${i.shortBecause ? ` — ${i.shortBecause}` : ''}`),
+      missing: short.map((i) => ({ what: i.label, why: i.shortBecause })),
       detail,
     }
   }
@@ -328,17 +367,24 @@ export function assessSlot(args: {
       return { ...base, state: 'complete', detail: { expected: 0 }, missing: [] }
     }
     if (r.withRecord === 0) {
-      return { ...base, state: 'empty', missing: r.shortfalls.length ? r.shortfalls : [`no records for ${r.expected} expected`], detail: { ...r } }
+      return {
+        ...base,
+        state: 'empty',
+        missing: r.shortfalls.length
+          ? r.shortfalls.map((what) => ({ what }))
+          : [{ what: `no records for ${r.expected} expected` }],
+        detail: { ...r },
+      }
     }
     if (r.shortfalls.length === 0 && r.withRecord >= r.expected) {
       return { ...base, state: 'complete', detail: { ...r } }
     }
-    return { ...base, state: 'partial', missing: r.shortfalls, detail: { ...r } }
+    return { ...base, state: 'partial', missing: r.shortfalls.map((what) => ({ what })), detail: { ...r } }
   }
 
   // An unrecognised slot kind. Doctrine 7 — preserved, reported, never a crash
   // and never silently complete.
-  return { ...base, state: 'partial', missing: [`unrecognised slot kind "${slot.kind}"`] }
+  return { ...base, state: 'partial', missing: [{ what: `unrecognised slot kind "${slot.kind}"` }] }
 }
 
 /**
