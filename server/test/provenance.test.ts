@@ -17,7 +17,6 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { componentGraph } from '../src/audit/components.js'
 import { naReasonsOf } from '../src/audit/completeness.js'
 import { propertyEvidence } from '../src/audit/propertyEvidence.js'
 import {
@@ -28,73 +27,99 @@ import { runImport } from '../src/import/runImport.js'
 import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
- * A config that declares Table I.
+ * A config that declares Table I, in its confirmed shape.
  *
- * Synthetic, and honestly so: Table I arrived at master v1.9–v1.11 and the
- * reference export carries config v1.2.1, which declares none of it. Testing the
- * mechanism against a literal is the only way to exercise it at all — and a test
- * asserting the reference export has no declarations is the companion, so the
- * absence is a recorded fact rather than an untested assumption.
+ * `config.snapshot.provenance`, three keys per row — `itemId`, `sourceItemId`,
+ * `derivedFrom` — confirmed by the field session.
+ *
+ * Synthetic, and honestly so: Table I arrived at master v1.9 and the reference
+ * export carries config v1.2.1, which declares none of it. A test asserting the
+ * reference export has no declarations is the companion below, so the absence
+ * stays a recorded fact rather than an untested assumption.
  */
 const SNAPSHOT = {
   naReasons: [
     { id: 'none-present', feedsGapList: false, recordsFinding: true },
     { id: 'no-access', feedsGapList: true, recordsFinding: false },
   ],
+  provenance: [
+    { itemId: 'wh.serial', sourceItemId: 'wh.nameplate', derivedFrom: 'read from the nameplate' },
+    { itemId: 'wh.age', sourceItemId: 'wh.nameplate', derivedFrom: 'decoded from the serial' },
+    // §1b — an inherited item keeps the PARENT's id, so a softener's nameplate
+    // item is `wt.nameplate` and its row is keyed on `wt.serial`. No rebasing.
+    { itemId: 'wt.serial', sourceItemId: 'wt.nameplate', derivedFrom: 'read from the nameplate' },
+  ],
   componentLists: [
-    {
-      types: ['water-heater'],
-      items: [
-        { id: 'wh.nameplate', satisfy: 'photo', attest: 'evidence' },
-        { id: 'wh.serial', satisfy: 'note', attest: 'evidence', capturedBy: 'wh.nameplate' },
-        { id: 'wh.age', satisfy: 'note', attest: 'evidence', capturedBy: 'wh.nameplate' },
-      ],
-    },
-    {
-      types: ['water-treatment'],
-      items: [
-        { id: 'wt.nameplate', satisfy: 'photo', attest: 'evidence' },
-        { id: 'wt.serial', satisfy: 'note', attest: 'evidence', capturedBy: 'wt.nameplate' },
-      ],
-    },
+    { types: ['water-heater'], items: [{ id: 'wh.nameplate' }, { id: 'wh.serial' }, { id: 'wh.age' }] },
+    { types: ['water-treatment'], items: [{ id: 'wt.nameplate' }, { id: 'wt.serial' }] },
     { types: ['water-softener'], inherits: 'water-treatment', items: [{ id: 'ws.salt' }] },
   ],
 }
 
-const GRAPH = componentGraph(SNAPSHOT)
 const PROVENANCE = provenanceMap(SNAPSHOT)
 const NA = naReasonsOf(SNAPSHOT)
 
 const pinRes = (entries: [string, { kind: string | null; reasonId: string | null }][]): PinResolutions =>
   new Map(entries)
 
-const check = (
-  valueItem: string,
-  pinResolutions: PinResolutions,
-  componentType: string | null = 'water-heater',
-) =>
+const check = (valueItem: string, pinResolutions: PinResolutions) =>
   verify({
     valueItem,
     field: valueItem.split('.')[1] ?? valueItem,
     value: 'ABC123',
     provenance: PROVENANCE,
     pinResolutions,
-    graph: GRAPH,
-    componentType,
     recordsFinding: NA.recordsFinding,
   })
 
 describe('reading Table I', () => {
-  it('reads the declaration off the item, the way every other per-item rule is declared', () => {
-    assert.equal(PROVENANCE.get('wh.serial'), 'wh.nameplate')
-    assert.equal(PROVENANCE.get('wh.age'), 'wh.nameplate')
+  it('reads config.snapshot.provenance, keyed on the derived value', () => {
+    assert.equal(PROVENANCE.get('wh.serial')?.sourceItemId, 'wh.nameplate')
+    assert.equal(PROVENANCE.get('wh.age')?.sourceItemId, 'wh.nameplate')
     assert.equal(PROVENANCE.get('wh.nameplate'), undefined, 'the photo item is not its own source')
   })
 
-  /** Read in more than one shape, because the observable one does not exist yet. */
-  it('also reads a top-level declaration, in list or map form', () => {
-    assert.equal(provenanceMap({ provenance: [{ valueItem: 'a.x', photoItem: 'a.p' }] }).get('a.x'), 'a.p')
-    assert.equal(provenanceMap({ tableI: { 'b.y': 'b.p' } }).get('b.y'), 'b.p')
+  it('carries derivedFrom, which is the master own prose', () => {
+    assert.equal(PROVENANCE.get('wh.age')?.derivedFrom, 'decoded from the serial')
+    // Used in the verdict rather than paraphrased — rule 4: the producer wrote
+    // the relationship down, so quoting beats composing a second version of it.
+    const v = check('wh.age', pinRes([['wh.nameplate', { kind: 'satisfied', reasonId: null }]]))
+    assert.match(v.because, /decoded from the serial/)
+  })
+
+  /**
+   * The three speculative shapes are gone.
+   *
+   * They existed because the key was unknown and guessing one would have made
+   * the reader silently find nothing the day the real one arrived. Now that it
+   * is confirmed, a surviving speculative branch is not caution — it is an
+   * untested path that will never run and will be maintained forever by people
+   * who assume it must be there for a reason.
+   */
+  it('reads no other shape', () => {
+    assert.equal(provenanceMap({ tableI: [{ itemId: 'a.x', sourceItemId: 'a.p' }] }).size, 0)
+    assert.equal(provenanceMap({ provenance: { 'b.y': 'b.p' } }).size, 0, 'a map is not the shape')
+    assert.equal(
+      provenanceMap({ componentLists: [{ items: [{ id: 'c.z', capturedBy: 'c.p' }] }] }).size, 0,
+      'nor an item-level declaration',
+    )
+  })
+
+  /** Eight rows at v1.11, six at v1.10 — a growing list. Nothing counts them. */
+  it('does not care how many rows there are', () => {
+    const rows = Array.from({ length: 40 }, (_, i) => ({ itemId: `x.${i}`, sourceItemId: `p.${i}` }))
+    assert.equal(provenanceMap({ provenance: rows }).size, 40)
+    assert.equal(provenanceMap({ provenance: [] }).size, 0)
+  })
+
+  it('skips a malformed row rather than failing the config', () => {
+    const map = provenanceMap({ provenance: [
+      { itemId: 'good.x', sourceItemId: 'good.p' },
+      { itemId: 'no-source' },
+      { sourceItemId: 'no-item' },
+      'not an object',
+    ] })
+    assert.deepEqual([...map.keys()], ['good.x'], 'fail open on vocabulary — one bad row is not a bad config')
   })
 
   /**
@@ -142,15 +167,25 @@ describe('verification is co-visibility on the same pin', () => {
     assert.ok(PROVENANCE.has('wh.serial'), 'the item is declared config-wide either way')
   })
 
-  /** §1b — resolved across component inheritance. */
-  it('resolves the capturing item through an inherited type', () => {
+  /**
+   * §1b — inheritance needs no special handling, and that is the finding.
+   *
+   * *"The child's rendered list is the parent's items followed by its own, and
+   * ids stay globally unique."* So a water-softener pin's nameplate item IS
+   * `wt.nameplate` and its serial IS `wt.serial` — the parent's ids, unchanged.
+   * The Table I row is keyed on those, and the lookup is direct.
+   *
+   * An earlier version walked the type graph and rebased ids by guessing a
+   * prefix from the component type's initials. It was scaffolding built without
+   * the declaration's shape, working around a rule that does not exist.
+   */
+  it('resolves an inherited item directly, because the id is the parent own', () => {
     const softener = pinRes([['wt.nameplate', { kind: 'na', reasonId: 'none-present' }]])
     const v = verify({
-      valueItem: 'ws.serial', field: 'serial', value: 'X',
-      provenance: PROVENANCE, pinResolutions: softener, graph: GRAPH,
-      componentType: 'water-softener', recordsFinding: NA.recordsFinding,
+      valueItem: 'wt.serial', field: 'serial', value: 'X',
+      provenance: PROVENANCE, pinResolutions: softener, recordsFinding: NA.recordsFinding,
     })
-    assert.equal(v.capturedBy, 'wt.nameplate', 'a softener inherits water-treatment\'s provenance')
+    assert.equal(v.capturedBy, 'wt.nameplate')
     assert.equal(v.verification, 'unverifiable')
   })
 
