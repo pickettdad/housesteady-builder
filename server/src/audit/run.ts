@@ -14,7 +14,9 @@
 
 import type { Db } from '../db/index.js'
 import { newId, now } from '../db/index.js'
+import { activeItemKey, activeItemSet, type ItemScope } from './activeItems.js'
 import { bindProperty, type BindingReport, type ItemBinding } from './binding.js'
+import { carriedItems, type CarriedItems, type StatusCheck } from './carriedItems.js'
 import {
   assessItem, assessSlot, gapList, naReasonsOf, rollUp,
   type ItemAssessment, type SlotAssessment, type SlotEvidence,
@@ -42,6 +44,17 @@ export interface AuditResult {
   triggerFacts: Record<string, unknown>
   /** §1i — which visit most recently satisfied each slot, where anything has. */
   contributions: Map<string, Contribution>
+  /**
+   * §1b — the field-checklist gap stream.
+   *
+   * **A separate output from `gaps`, and they must not be added together.**
+   * `gaps` is binder-slot completeness; this is which checklist item in which
+   * room was never answered. On the reference export `gaps` carries none of
+   * these twenty, which is §1a's whole point.
+   */
+  carried: CarriedItems
+  /** §1c — where `activeItems[].status` and `resolutions[]` disagree. Reported, never resolved. */
+  statusDisagreements: StatusCheck[]
 }
 
 /**
@@ -254,6 +267,27 @@ export function runAudit(args: {
     }))
   }
 
+  /**
+   * §1b — the field-checklist gap stream, computed alongside and never from the
+   * slots above.
+   *
+   * **Scope-keyed, which is the part that cannot be shortcut.** The property-wide
+   * `resolutions` map is keyed on item id alone, and on the reference export
+   * `int.canvas` is satisfied in the bedroom and unanswered in the ensuite. Read
+   * that map and nineteen of the twenty vanish — the same item id looks answered
+   * because it was answered somewhere else.
+   */
+  const active = activeItemSet(db, propertyId)
+  const scoped = scopedResolutions(db, propertyId)
+  const stream = carriedItems({ evidence, active, resolutions: scoped })
+  warnings.push(...stream.carried.warnings)
+  for (const d of stream.statusDisagreements) {
+    warnings.push(
+      `${d.itemId} at ${d.scopeKey}: the export's active-item status says ${d.declared}, ` +
+        `resolutions[] says ${d.derived}. Recorded as a disagreement — neither side is picked.`,
+    )
+  }
+
   const slots = schema.slots.map((s) => assessed.get(s.id)!)
   const sections = schema.sections.map((section) => ({
     sectionId: section.id,
@@ -312,12 +346,66 @@ export function runAudit(args: {
         c?.visitId ?? null, c?.importId ?? null, c?.at ?? null,
       )
     }
+
+    // §1b's rows, stored for the same reason `audit_slots` is: a rendered gap
+    // report has to be reproducible. A client asking in September why their
+    // March report listed nineteen items in the ensuite gets an answer out of
+    // the record rather than a re-run against today's config.
+    const insCarried = db.prepare(
+      `INSERT INTO audit_carried_items (audit_run_id, scope_kind, scope_zone_id, scope_pin_id,
+         item_id, reason, na_reason_id, column_id, parts, due_since_import_id, due_since_at,
+         origin, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    for (const item of stream.carried.items) {
+      insCarried.run(
+        runId, item.scope.kind, item.scope.zoneId, item.scope.pinId, item.itemId,
+        item.reason, item.naReasonId, item.column, JSON.stringify(item.parts),
+        item.dueSince.importId, item.dueSince.at, item.origin, item.status, at,
+      )
+    }
   })()
 
   return {
     runId, provenance, slots, sections, gaps: gapList(slots), binding, warnings, triggerFacts,
-    contributions,
+    contributions, carried: stream.carried, statusDisagreements: stream.statusDisagreements,
   }
+}
+
+/**
+ * The latest resolution per `(scope, item)` across every import on the property.
+ *
+ * **Scope-keyed, unlike `PropertyEvidence.resolutions`, and both are correct.**
+ * That map answers *"has this item ever been answered on this property"*, which
+ * is the right question for a binder slot: §7's systems inventory does not care
+ * which room a serial was read in. This one answers *"was this item answered
+ * HERE"*, which is the right question for a checklist gap — and on the reference
+ * export the two differ by nineteen rows.
+ *
+ * Latest wins, by import order then row order, the same rule everywhere else.
+ */
+function scopedResolutions(
+  db: Db,
+  propertyId: string,
+): Map<string, { kind: string | null; reasonId: string | null; at: string }> {
+  const rows = db
+    .prepare(
+      `SELECT r.scope_kind, r.scope_zone_id, r.scope_pin_id, r.item_id, r.kind, r.reason_id,
+              i.imported_at
+         FROM resolutions r JOIN imports i ON i.id = r.import_id
+        WHERE r.property_id = ? ORDER BY i.imported_at, r.id`,
+    )
+    .all(propertyId) as {
+    scope_kind: string | null; scope_zone_id: string | null; scope_pin_id: string | null
+    item_id: string; kind: string | null; reason_id: string | null; imported_at: string
+  }[]
+
+  const out = new Map<string, { kind: string | null; reasonId: string | null; at: string }>()
+  for (const r of rows) {
+    const scope: ItemScope = { kind: r.scope_kind ?? 'session', zoneId: r.scope_zone_id, pinId: r.scope_pin_id }
+    out.set(activeItemKey(scope, r.item_id), { kind: r.kind, reasonId: r.reason_id, at: r.imported_at })
+  }
+  return out
 }
 
 /**
@@ -372,7 +460,11 @@ function recordSetEvidence(evidence: PropertyEvidence, slot: Slot): {
  * triggered by one visit is still the property's current answer, and looking it
  * up by visit would miss it entirely for a visit that never triggered one.
  */
-export function latestRun(db: Db, propertyId: string): { run: Record<string, unknown>; slots: Record<string, unknown>[] } | undefined {
+export function latestRun(db: Db, propertyId: string): {
+  run: Record<string, unknown>
+  slots: Record<string, unknown>[]
+  carried: Record<string, unknown>[]
+} | undefined {
   const run = db
     .prepare('SELECT * FROM audit_runs WHERE property_id = ? ORDER BY run_at DESC, id DESC LIMIT 1')
     .get(propertyId) as Record<string, unknown> | undefined
@@ -380,5 +472,11 @@ export function latestRun(db: Db, propertyId: string): { run: Record<string, unk
   const slots = db
     .prepare('SELECT * FROM audit_slots WHERE audit_run_id = ? ORDER BY section_id, slot_id')
     .all(run.id) as Record<string, unknown>[]
-  return { run, slots }
+  // Read back with the slots, not instead of them. Two streams, both stored,
+  // both returned — a reader that gets one and has to ask for the other will
+  // eventually forget to ask, and the forgotten one is always this one.
+  const carried = db
+    .prepare('SELECT * FROM audit_carried_items WHERE audit_run_id = ? ORDER BY scope_kind, item_id')
+    .all(run.id) as Record<string, unknown>[]
+  return { run, slots, carried }
 }

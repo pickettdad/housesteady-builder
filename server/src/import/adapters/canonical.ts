@@ -197,6 +197,42 @@ export interface CanonicalResolution {
   source: CanonicalSource | null
 }
 
+/**
+ * The field app's own resolved active item set — Increment 4 §3c.
+ *
+ * **Which items were ever due is the field's answer, not ours.** Deriving it
+ * here is a second implementation of the field's trigger engine, and its failure
+ * mode is silent divergence: two apps disagreeing about whether an item was ever
+ * due, with nothing to error. Ratified with the field session 2026-07-30 — v4
+ * ships this per scope, for every scope, open zones included.
+ *
+ * **v3 exports carry none of this and the v3 adapter emits an empty array.** The
+ * builder then computes the set locally and marks every item `computed`. That is
+ * a real adapter difference, and it is the only one: nothing downstream branches
+ * on manifest version, only on the per-item origin.
+ *
+ * **Ids only, never item bodies.** A copied item body is a second thing that can
+ * disagree with the config snapshot, and the config snapshot is already stored.
+ */
+export interface CanonicalActiveItem {
+  scopeKind: string | null
+  scopeZoneId: string | null
+  scopePinId: string | null
+  itemId: string | null
+  /** The field app's own grouping. Advisory, display only, never joined on. */
+  group: string | null
+  /**
+   * Open vocabulary — §1c.
+   *
+   * **Only `proposed` is read from here.** `resolutions[]` remains authoritative
+   * for `satisfied` and `na`; this field's other values are cross-checked
+   * against it and any disagreement is reported rather than resolved. A second
+   * copy of a fact is a second thing that can disagree, so the duplication is
+   * used as an oracle instead of as a source.
+   */
+  status: string | null
+}
+
 export interface CanonicalEvent {
   eventId: string | null
   seq: number | null
@@ -229,6 +265,8 @@ export interface CanonicalImport {
   chatThreads: CanonicalChatThread[]
   inboxRefs: CanonicalInboxRef[]
   resolutions: CanonicalResolution[]
+  /** Empty on every v3 export. See `CanonicalActiveItem`. */
+  activeItems: CanonicalActiveItem[]
   events: CanonicalEvent[]
   /** What the export claimed. Reconciled against the arrays by validation. */
   declaredTotals: CanonicalTotals

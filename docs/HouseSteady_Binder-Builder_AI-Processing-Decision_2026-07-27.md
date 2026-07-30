@@ -1,7 +1,8 @@
 # Binder Builder — AI Processing & Data Handling Decision
 
 **Date:** 2026-07-27
-**Status:** decision record, **pending David's ratification.** Satisfies `CLAUDE.md` §14 (nothing goes to a third-party service without an explicit decision recorded in `/docs`).
+**Status:** decision record, **ratified by the owner 2026-07-30.** Satisfies `CLAUDE.md` §14 (nothing goes to a third-party service without an explicit decision recorded in `/docs`). §5's transcription vendor was decided 2026-07-29 and is ratified with the rest.
+**Ratification is not authorization to run.** §5.4 and §6 carry obligations that fall due before the first real client recording, and §2.3's loose-photo routing stays conditional on §3's client disclosure existing.
 **Why now:** Increment 2b sends photographs to the Anthropic API. Today those are photographs of the owner's own equipment. **The first time it runs in anger it will send photographs of a client's home**, and by our own rules that needs a written decision first.
 **Scope:** what leaves the machine for AI processing, and on what terms. Does not authorize hosting, and does not modify the Backup Decision, which remains narrowly scoped to encrypted backup archives.
 

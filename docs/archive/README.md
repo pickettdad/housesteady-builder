@@ -6,7 +6,22 @@ reason the event log is append-only: *why* a spec changed is sometimes the thing
 needs, and a deleted file cannot answer it.
 
 **Nothing here is authoritative. Nothing reads it.** No code path, no test, and no live
-document references anything in this directory — checked at the time of archiving.
+document references anything in this directory — checked at the time of archiving, and
+re-checked 2026-07-30.
+
+**Who cites the Observed Addendum, and by what name.** Two places name it by dated
+filename, and both were moved from `_2026-07-25` to `_2026-07-27` in the same commit that
+archived the older copy:
+
+| Citing | Line | Cites |
+|---|---|---|
+| `server/src/import/manifest.ts` | 13 | `..._Observed-Addendum_2026-07-27.md` |
+| `docs/HouseSteady_Binder-Builder_Increment-1_Build-Spec_v3.4_2026-07-26.md` | 7 | `..._Observed-Addendum_2026-07-27.md` |
+
+**A dated citation is correct here and should stay dated.** Two addenda exist; a citation
+that named the document without its date would be unanswerable the moment a third arrives.
+*(Correcting the record: a PR body of 2026-07-30 said "none cite a date." That was wrong.
+What was true is that no citation still points at the archived copy — a different claim.)*
 
 | Archived | Superseded by | What changed |
 |---|---|---|

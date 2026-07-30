@@ -280,6 +280,16 @@ export function toCanonical(m: Manifest): { canonical: CanonicalImport; checks: 
       }
     }),
 
+    /**
+     * v3 ships no active item set — Increment 4 §3c.
+     *
+     * Empty rather than absent, so nothing downstream has to ask whether the
+     * key exists before reading it. The builder computes the set for a v3
+     * import and marks it `computed`; that difference is the whole of what a
+     * version adapter is for.
+     */
+    activeItems: [],
+
     events: (m.events ?? []).map((e) => ({
       eventId: str(e.eventId),
       seq: num(e.seq),

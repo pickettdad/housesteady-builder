@@ -686,6 +686,12 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
       'n-a-narrative', 'not-applicable', 'confirmed-absent', 'not-found',
       // §1g.1 verification states — src/audit/provenance.ts
       'unknown-provenance',
+      // Increment 4 §1b — the gap report's three columns, and the one gap
+      // reason the builder names itself. `not-reached` is ours because an
+      // unanswered item has no resolution record to carry a reason: there is
+      // nothing to quote. Every OTHER reason in that stream is the config's own
+      // na reason id, passed through verbatim and deliberately absent from here.
+      'missing-from-you', 'missing-from-us', 'triggered-flags', 'not-reached',
     ])
 
     const offenders: string[] = []
@@ -984,5 +990,221 @@ describe('doctrine — the checklist master is reference, never an input', () =>
   it('is present, so the cross-check can be run by hand', () => {
     const master = join(repoRoot, 'docs', 'reference', 'HouseSteady_Checklist-Master_v1-11.md')
     assert.ok(statSync(master).isFile(), 'the authority the schema files are reconciled against')
+  })
+})
+
+/**
+ * Increment 4 §8 — the five scans the spec asks for, plus the two the build
+ * turned out to need.
+ *
+ * Design's own words: *"doctrine scans are the durable half, and the highest-
+ * leverage request available."* These encode §2's composer boundary and §2b's
+ * label rules as properties of the code's shape, so a later change that produces
+ * a correct-looking gap report by the wrong mechanism still fails here.
+ */
+describe('Increment 4 §8 — the client-facing boundary', () => {
+  const reportDir = join(serverSrc, 'report')
+  const reportFiles = (): string[] => sourceFiles(reportDir)
+
+  /**
+   * §2a — *"no client-facing string is derived by transforming an internal
+   * composed sentence."*
+   *
+   * The spec left the mechanism to Code and named the outcome. This is the
+   * mechanism: the client-facing directory may not reach the internal composer
+   * at all. Not by import, not by name.
+   *
+   * A lint over the internal sentence would satisfy any behavioural test — the
+   * output would read fine — while being exactly the information destruction the
+   * dash lesson names, one layer out and landing in a client's document.
+   */
+  it('never lets a client-facing composer reach the internal one', () => {
+    const offenders: string[] = []
+    for (const file of reportFiles()) {
+      const code = codeOf(file)
+      for (const banned of ['sentenceOf', 'describeProvenance', 'shortBecause']) {
+        if (new RegExp(`\\b${banned}\\b`).test(code)) {
+          offenders.push(`${file.replace(repoRoot, '')}: reaches ${banned}`)
+        }
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'the client composer reads structured parts; un-composing an internal sentence is guessing at a boundary that was never ambiguous')
+  })
+
+  /**
+   * §2b — *"no client-facing render path can reach an item id, an na reason id,
+   * or a provenance state name."*
+   *
+   * The values, not the type names. `Verification` as a type is fine; the string
+   * `'unknown-provenance'` reaching a sentence a homeowner reads is the failure —
+   * and on any export predating config v1.9 that is EVERY transcribed value, so
+   * this is the normal path rather than a rare one.
+   */
+  it('never lets internal vocabulary into a client-facing string', () => {
+    const BANNED = [
+      'unknown-provenance', 'unverifiable', 'none-present', 'no-access',
+      'not-applicable', 'candidate-short', 'broken-binding', 'feedsGapList',
+    ]
+    const offenders: string[] = []
+    for (const file of reportFiles()) {
+      const code = codeOf(file)
+      /**
+       * ONE left-to-right pass over string literals, and both checks ride on it.
+       *
+       * **A second, independent regex for item ids got this wrong**, and wrongly
+       * in the way this repo keeps relearning: given
+       * `i.text === 'string' && i.text.trim() !== ''`, a pattern that opens on a
+       * quote can open on the CLOSING quote of `'string'` and close on the first
+       * quote of `''`, making ` && i.text.trim() !== ` look like a quoted string
+       * containing an item id. Only a scan that consumes each literal whole,
+       * in order, pairs quotes correctly.
+       *
+       * **And the escape has to be part of the pattern.** `'not the client\'s'`
+       * ends at the escaped apostrophe under a naive class, and every literal
+       * after it in the file is paired one position out. Same failure as §1g.2's
+       * escaped pipes in the master table and the dash inside a composed label —
+       * third instance now, and always the same shape: a delimiter that also
+       * occurs inside the data, un-escaped by a reader that did not know it was
+       * escaped.
+       */
+      for (const m of code.matchAll(/`(?:[^`\\]|\\.)*`|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g)) {
+        const literal = m[0]!
+        const inner = literal.slice(1, -1)
+        // A bare enum literal is a comparison — how the code does its job. One
+        // embedded in a sentence, with whitespace beside it, is prose headed for
+        // a page a client reads.
+        if (!/\s/.test(inner)) continue
+        for (const word of BANNED) {
+          if (inner.includes(word)) offenders.push(`${file.replace(repoRoot, '')}: ${literal.slice(0, 70)}`)
+        }
+        // Item ids have a shape: two-to-four lowercase letters, a dot, a slug.
+        if (/\b[a-z]{2,4}\.[a-z][a-z-]+\b/.test(inner)) {
+          offenders.push(`${file.replace(repoRoot, '')}: item id in prose — ${inner.slice(0, 70)}`)
+        }
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'a homeowner learns nothing from an item id except that we discuss their house in a language they do not speak')
+  })
+
+  /**
+   * §1b — *"the gap report reads `feedsGapList` from an import's config snapshot,
+   * never from a literal."*
+   *
+   * The config decides, not the builder — CLAUDE.md §5, and this is the fourth
+   * place that rule has bitten. Two reasons carry it today and the field app will
+   * add more; a hardcoded list makes every one of those silently mishandled by
+   * code nobody thought to update.
+   */
+  it('never hardcodes which na reasons feed the gap list', () => {
+    const DECLARED_TODAY = ['no-access', 'deferred']
+    const offenders: string[] = []
+    for (const file of sourceFiles(join(serverSrc, 'audit')).concat(reportFiles())) {
+      const code = codeOf(file)
+      // A list of reason ids sitting in an array is the shape this forbids —
+      // `['no-access', 'deferred']` — regardless of what it is called.
+      for (const m of code.matchAll(/\[[^\]]*\]/g)) {
+        const inside = m[0]!
+        const hits = DECLARED_TODAY.filter((r) => inside.includes(`'${r}'`))
+        if (hits.length > 1) offenders.push(`${file.replace(repoRoot, '')}: ${inside.slice(0, 60)}`)
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'membership comes from the boolean the config declares; a builder-side list goes stale the next time the field app ships')
+  })
+
+  /**
+   * §2b — *"no gap row carries a positive honesty label."*
+   *
+   * `observed`, `measured`, `documented`, `reported-by-homeowner` and `inferred`
+   * are assertions about the house. **A gap report asserts nothing about the
+   * house** — it says what we do not yet know, and a positive label on an absence
+   * is an overclaim in the one artifact where overclaiming is the cardinal sin.
+   */
+  it('never lets a positive honesty label onto a gap row', () => {
+    const POSITIVE = ['observed', 'measured', 'documented', 'reported-by-homeowner', 'inferred']
+    const offenders: string[] = []
+    for (const file of reportFiles()) {
+      const code = codeOf(file)
+      for (const m of code.matchAll(/label\s*[:=]\s*'([a-z-]+)'/g)) {
+        if (POSITIVE.includes(m[1]!)) offenders.push(`${file.replace(repoRoot, '')}: assigns '${m[1]}'`)
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'a gap report says what we do not know; only not-accessible and not-inspected can say that')
+
+    // And the type itself is closed, which is the exception to fail-open and is
+    // deliberate: an unknown word is still a word everywhere else, but a label
+    // that reaches a client asserts something nobody reviewed.
+    const source = readFileSync(join(reportDir, 'clientVoice.ts'), 'utf8')
+    assert.match(source, /export type GapLabel = 'not-accessible' \| 'not-inspected'/)
+  })
+
+  /**
+   * §1b again, from the storage side: the two gap streams stay two.
+   *
+   * Increment 3's causes describe why a BINDER SLOT is short. §1b's describe why
+   * a CHECKLIST ITEM has no answer. Collapsing them is the modelling mistake
+   * CLAUDE.md §5 names as the most damaging available here, and the tables are
+   * where it would happen first.
+   */
+  it('keeps the field-checklist gap stream out of audit_slots', () => {
+    const migrations = readdirSync(join(serverSrc, 'db', 'migrations'))
+      .filter((f) => f.endsWith('.sql'))
+      .map((f) => readFileSync(join(serverSrc, 'db', 'migrations', f), 'utf8'))
+      .join('\n')
+
+    assert.match(migrations, /CREATE TABLE audit_carried_items/,
+      'the checklist stream has its own table')
+    const slotsTable = migrations.slice(migrations.indexOf('CREATE TABLE audit_slots'))
+      .slice(0, migrations.slice(migrations.indexOf('CREATE TABLE audit_slots')).indexOf(');'))
+    assert.ok(!/na_reason_id|scope_pin_id/.test(slotsTable),
+      'a checklist item\'s scope has no business on a binder slot — that is the two streams collapsing')
+  })
+
+  /**
+   * §3c — the active item set's origin travels per item.
+   *
+   * Same shape as §1g.1's refusal to return a bare count. A property with a v3
+   * baseline and a v4 monthly holds both origins at once — the ordinary case from
+   * v4 onward — and a single field on the set would have to lie about one half.
+   */
+  it('keeps the active-set origin on the item rather than on the set', () => {
+    const code = readFileSync(join(serverSrc, 'audit', 'activeItems.ts'), 'utf8')
+    assert.match(code, /interface ActiveItem\b[\s\S]*?origin: Origin/,
+      'each item knows where its claim came from')
+    assert.match(code, /origins: \{ received: number; computed: number \}/,
+      'and the set reports the breakdown, never one word for a mixed set')
+  })
+
+  /**
+   * §3c — no v4 adapter is registered, and that is load-bearing.
+   *
+   * A partial v4 adapter would make the import path ACCEPT a real v4 export and
+   * silently drop everything v4 adds beyond `activeItems[]` — concerns as
+   * entities above all. The refusal message is correct today and must stay
+   * correct until v4 is actually built.
+   */
+  it('does not claim to read a manifest version it cannot read', () => {
+    const registry = readFileSync(join(serverSrc, 'import', 'adapters', 'index.ts'), 'utf8')
+    /**
+     * The ARRAY LITERAL, not the file and not the declaration.
+     *
+     * The `Adapter` interface declares `version: number` and `adapterFor` takes
+     * `version: unknown`, so a scan over the whole file reads three registered
+     * adapters. And slicing from `const ADAPTERS` to the first `]` ends inside
+     * `Adapter[]` on the declaration line itself, which reads zero. **Both
+     * failures are the same one:** a boundary re-derived by looking for a
+     * character that also occurs inside the data. So: open at the assignment,
+     * close at the line that closes it.
+     */
+    const start = registry.indexOf('const ADAPTERS')
+    const open = registry.indexOf('= [', start)
+    const close = registry.indexOf('\n]', open)
+    assert.ok(start >= 0 && open > start && close > open, 'the adapter registry is still an array literal')
+    const versions = [...registry.slice(open, close).matchAll(/version:\s*(\w+)/g)].map((m) => m[1])
+    assert.deepEqual(versions, ['V3'],
+      'accepting a v4 export with a v3-shaped adapter loses everything v4 added, silently')
   })
 })
