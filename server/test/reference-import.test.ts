@@ -5,7 +5,7 @@ import { after, before, describe, it } from 'node:test'
 import type { Db } from '../src/db/index.js'
 import { buildReport, type ImportReport } from '../src/import/report.js'
 import { runImport } from '../src/import/runImport.js'
-import { addVisit, freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
+import { addVisit, freshDb, makePropertyAndVisit, readReference, readReferenceAsRewalk, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * The increment's primary acceptance test.
@@ -241,9 +241,31 @@ describe('the real reference export', () => {
     )
   })
 
-  it('allows the same export into a different visit — that is a re-walk, not a duplicate', async () => {
+  /**
+   * DECIDED, not inherited. Increment 1's spec said "one import per visit for
+   * now", which implied a different visit was fine — and reading it back, that
+   * was an accident of phrasing rather than a decision.
+   *
+   * The same session id is the same capture event. Recording it twice is
+   * duplicate evidence: the same pins, the same resolutions, the same
+   * photographs, counted twice. §1i made that consequential rather than untidy,
+   * because `imports_read` is now a number somebody reads to know what an audit
+   * saw, and a duplicate inflates it.
+   */
+  it('refuses the same capture event twice, even into a different visit', async () => {
     const otherVisit = addVisit(db, propertyId)
-    const { status } = await runImport({ actorId: TEST_OPERATOR, db, propertyId, visitId: otherVisit, raw: readReference(), dataDir })
+    await assert.rejects(
+      () => runImport({ actorId: TEST_OPERATOR, db, propertyId, visitId: otherVisit, raw: readReference(), dataDir }),
+      /UNIQUE constraint failed: imports.property_id, imports.session_id/,
+    )
+  })
+
+  /** And a genuine re-walk — a new field session — imports normally. */
+  it('accepts a re-walk, which is a new session of the same house', async () => {
+    const otherVisit = addVisit(db, propertyId)
+    const { status } = await runImport({
+      actorId: TEST_OPERATOR, db, propertyId, visitId: otherVisit, raw: readReferenceAsRewalk(), dataDir,
+    })
     assert.equal(status, 'ok_with_warnings')
   })
 })

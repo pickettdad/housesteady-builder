@@ -75,6 +75,8 @@ function coverageItems(
         short: binding?.state === 'candidate-short' ? binding.unresolvedItems : [],
         brokenRefs: binding?.state === 'broken-binding' ? binding.brokenRefs : undefined,
         naReasonId: recorded?.kind === 'na' ? recorded.reasonId ?? undefined : undefined,
+        supersededSince: recorded?.supersededSince,
+        carriedForward: recorded?.carriedForward,
       },
     })
 

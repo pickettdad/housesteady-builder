@@ -260,6 +260,10 @@ export function bindProperty(args: {
 
   // Every item resolved anywhere on this property, latest answer wins. An item
   // satisfied at the baseline is still satisfied in March — §1i in one line.
+  // §1k.2 — a carried-forward reading still satisfies. `resolutions` already
+  // holds the earlier `satisfied` state where the config's `attest` says the
+  // value is evidence rather than a judgement, so nothing extra is needed here;
+  // the filter is on the answer, not on when it was given.
   const resolvedItems = new Set(
     [...evidence.resolutions.values()].filter((r) => r.kind === 'satisfied').map((r) => r.itemId),
   )
