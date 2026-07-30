@@ -128,6 +128,15 @@ export interface PropertyEvidence {
   pins: CurrentPin[]
   /** Latest state per checklist item id, across every import. */
   resolutions: Map<string, ResolutionState>
+  /**
+   * Latest state per (pin, item) — §1g.1.
+   *
+   * The item-keyed map above cannot answer co-visibility: it says whether
+   * `wh.nameplate` was satisfied *somewhere*, and Table I asks whether it was
+   * satisfied *on this pin*. Those differ on exactly the pin where it matters —
+   * the one whose nameplate was recorded absent.
+   */
+  pinResolutions: Map<string, Map<string, ResolutionState>>
   /** Zone types walked anywhere on this property, ever. */
   zoneTypes: string[]
   warnings: string[]
@@ -286,13 +295,14 @@ export function propertyEvidence(db: Db, propertyId: string): PropertyEvidence {
   // the most recent answer is the answer.
   const resolutionRows = db
     .prepare(
-      `SELECT r.item_id, r.kind, r.reason_id, r.result, r.import_id, i.visit_id, i.imported_at
+      `SELECT r.item_id, r.kind, r.reason_id, r.result, r.import_id, r.scope_pin_id,
+              i.visit_id, i.imported_at
          FROM resolutions r JOIN imports i ON i.id = r.import_id
         WHERE r.property_id = ? ORDER BY i.imported_at, r.id`,
     )
     .all(propertyId) as {
     item_id: string; kind: string | null; reason_id: string | null; result: string | null
-    import_id: string; visit_id: string | null; imported_at: string
+    import_id: string; scope_pin_id: string | null; visit_id: string | null; imported_at: string
   }[]
 
   // Every item id each import's OWN config declared, and what it declared about
@@ -310,6 +320,7 @@ export function propertyEvidence(db: Db, propertyId: string): PropertyEvidence {
   const currentItems = itemsOf(snapshot)
 
   const resolutions = new Map<string, ResolutionState>()
+  const pinResolutions = new Map<string, Map<string, ResolutionState>>()
   const superseded: string[] = []
   const carried: string[] = []
 
@@ -355,6 +366,15 @@ export function propertyEvidence(db: Db, propertyId: string): PropertyEvidence {
     }
 
     resolutions.set(r.item_id, state)
+
+    // §1g.1 — the same answer, kept against the pin it was recorded on. Latest
+    // wins here too, and for the same reason: the most recent answer is the
+    // answer.
+    if (r.scope_pin_id) {
+      const forPin = pinResolutions.get(r.scope_pin_id) ?? new Map<string, ResolutionState>()
+      forPin.set(r.item_id, state)
+      pinResolutions.set(r.scope_pin_id, forPin)
+    }
   }
 
   if (superseded.length > 0) {
@@ -427,7 +447,8 @@ export function propertyEvidence(db: Db, propertyId: string): PropertyEvidence {
   ).map((z) => z.type)
 
   return {
-    propertyId, imports, latest, snapshot, graph, facts, pins, resolutions, zoneTypes, warnings,
+    propertyId, imports, latest, snapshot, graph, facts, pins, resolutions, pinResolutions,
+    zoneTypes, warnings,
   }
 }
 
