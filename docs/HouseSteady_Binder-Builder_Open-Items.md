@@ -90,12 +90,17 @@ The owner identified three ways a Baseline visit can run. They are a spectrum, n
 
 ## 4. Builder track — sequenced
 
+*Increment states below updated 2026-07-30 by Builder Code — repo facts only. Nothing else
+in this register has been edited; the routing, priorities and reasoning are the design
+session's.*
+
 | Increment | State |
 |---|---|
 | 1 · Import | **Done.** PRs #1–#4 merged. |
 | 2a · Fresh pass | **Done.** Overlays, screen, memory capture, anchor placement. PRs #5–#7. |
-| **2b · First assists** | **With Code now.** *(Freeform-vocabulary clustering moved here from Increment 3 — it never needed the schema.)* Nameplate classification + extraction, loose-photo routing, pin-type suggestion. Transcription held on D5. |
-| 3 · Audit engine | **Specced and ready.** No AI, deliberately — binding is deterministic, and the unmatched-evidence rate is a first-class output that decides whether an assist is warranted (spec §1a, corrects the AI Assist Plan). |
+| **2b · First assists** | **Done.** Nameplate classification + extraction, loose-photo routing, pin-type suggestion, the assist screen. *(Freeform-vocabulary clustering moved here from Increment 3 — it never needed the schema.)* Transcription decided; see the AI Processing Decision §5. |
+| **2c · Operator identity** | **Done.** Inserted before the rest of Increment 3 — ten tables gained an actor, enforced by a database trigger rather than only a write path. |
+| 3 · Audit engine | **Done 2026-07-30.** All of §0–§4 plus §1g.1, §1h, §1i, §1j, §1k. 533 tests, 45 doctrine scans. `npm run dev` → open a property → run the audit. **Not built, deliberately:** §1d's cross-visit discontinuity display and §1f's `answer.*` operators — the spec places both with the session plan, so Increment 4 should claim them explicitly rather than inherit them. |
 
 | 4 · Carried items | Gap report **and** session plan v0 — same data, two outputs. **= v0.5 finish line.** House style **done 2026-07-27**; still needs the golden set and the lint built into the render path. |
 | 5 · Concern register + dashboard | **Gated on manifest v4.** No concerns to adopt until the field app emits them. |

@@ -71,6 +71,39 @@ So the spec can bind to it rather than re-specify it.
 
 **What Increment 4 will need that does not exist:** the intake form as a table (six of the binder's inputs are unwired, and the audit says so per slot), the house-style lint in a render path, and the golden set ratified past zero. The last two are the gates the handoff note already names.
 
+## 6. Documents I wrote that may never have been read
+
+**A process failure worth naming, because it happened on the field side too.** I have
+written seven notes into `/docs` across the increments. Each was committed, and some were
+surfaced in a PR body — **but I cannot tell from here which ones reached you**, and a
+document nobody was told about is a document nobody has.
+
+The rule I am adopting, and worth asking the next session to keep: **anything written into
+`/docs` gets named in the PR body and in the chat reply, with one line on why it exists.** A
+commit is not a delivery.
+
+| Note | What it settles |
+|---|---|
+| **Verification Discipline** *(now six rules)* | How to run a check in this repo. Written after five checks produced confident wrong answers in one session. Rules 4–6 added 2026-07-30. **The most useful single file for a fresh session — read it first.** |
+| **Verbatim Extraction** | Extraction is verbatim; normalisation happens at query time. Ratified by the owner. Binds the prompts, the golden set, and the registry when it is built. |
+| **Golden-Set Generality** | Whether the harness was nameplate-shaped, answered before routing landed — plus what actually happened when it did, added the same day. |
+| **Transcription Options** | Four options with what each costs. **A report, not a recommendation** — §6 said Code investigates and does not pick, and it does not. |
+| **Assist Screen** | Six reversible decisions in 2b §7, each with its reasoning, so any of them can be reversed knowingly rather than rediscovered. |
+| **Zone-Audit Reconstruction** | The free correctness oracle. Became §1h.1, and agrees with the field app item-for-item on every zone. |
+| **Honesty-Label Mapping** | The mapping is the risk, not the labels. Carried requirement, **still unbuilt** — no path assigns a label yet, and a doctrine scan holds that. |
+
+## 7. Two files whose status I changed
+
+**`Open-Items.md`** said *"3 · Audit engine — Specced and ready."* The handoff note points a
+fresh session at that register first, so it would have started from a wrong picture. I
+updated **only the increment-state cells** — repo facts — and marked the edit inline.
+Routing, priorities and reasoning are untouched and remain the design session's.
+
+**`Note_Verification-Discipline`** gained rules 4, 5 and 6, as asked: never re-derive a
+boundary the producer already has · a fix that removes a symptom has not removed a class ·
+where a missing state would read as a confident answer, add the state. Each carries its
+instances, because the rule without them reads as advice.
+
 ---
 
 **One thing worth saying plainly.** The corrections in the last five rounds ran in both directions, and the specs were consistently better than what I would have specified alone — §1i in particular was a catastrophe caught before it shipped, and no amount of care on my side would have found it, because it needed someone thinking about visit two. The division worked. It is worth preserving in the next session rather than rebuilt from scratch.
