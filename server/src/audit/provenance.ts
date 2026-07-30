@@ -25,7 +25,6 @@
  *   a value carries it forward.
  */
 
-import type { ComponentGraph } from './components.js'
 
 /**
  * Three states, not two — and the third is the one that matters.
@@ -49,53 +48,51 @@ export interface VerifiedValue<T = unknown> {
   because: string
 }
 
+/** One Table I row, as the config emits it. */
+export interface ProvenanceRow {
+  /** The derived value's own item id. */
+  itemId: string
+  /** The photo item it was read off. */
+  sourceItemId: string
+  /** The master's own prose for the relationship. Human-facing. */
+  derivedFrom?: string
+}
+
 /**
- * How a config declares Table I.
+ * Table I, from `config.snapshot.provenance`.
  *
- * Read in more than one shape on purpose. Table I arrived at master v1.9–v1.11
- * and the reference export is config v1.2.1, which declares none of it — so the
- * exact key is not yet observable in a real snapshot, and **committing to one
- * guessed shape would make this silently read nothing the day it arrives in
- * another.** Both plausible shapes are read; neither is invented downstream.
+ * **The key and its three columns are confirmed by the field session** —
+ * `itemId` (the derived value), `sourceItemId` (the photo item it was read off),
+ * `derivedFrom` (prose, human-facing). Top-level in the snapshot, beside
+ * `propertyFlags`, `zoneAttributes`, `naReasons` and `layers`.
  *
- * Where a config declares nothing, every value is `unknown-provenance` and says
- * so. That is the honest answer and it is deliberately not `verified`.
+ * An earlier version of this read three other shapes as well, because the key
+ * was unknown and guessing one would have made the reader silently find nothing
+ * the day the real one arrived. **All three are now deleted.** A speculative
+ * read path that survives past the answer is not caution — it is an untested
+ * branch that will never run and will be maintained forever by people who
+ * assume it must be there for a reason.
+ *
+ * **Eight rows at master v1.11, six at v1.10 — a growing list.** Nothing here
+ * counts them, and nothing should: a count that was right once becomes a check
+ * that fails on the next master, which trains people to update the number
+ * rather than read the reason.
  */
-export function provenanceMap(snapshot: Record<string, unknown>): Map<string, string> {
-  const out = new Map<string, string>()
+export function provenanceMap(snapshot: Record<string, unknown>): Map<string, ProvenanceRow> {
+  const out = new Map<string, ProvenanceRow>()
+  const declared = snapshot.provenance
+  if (!Array.isArray(declared)) return out
 
-  // Shape one: a top-level map or list, which is how the master's own table
-  // would serialise most directly.
-  const declared = snapshot.provenance ?? snapshot.tableI
-  if (Array.isArray(declared)) {
-    for (const row of declared as Record<string, unknown>[]) {
-      const value = row.valueItem ?? row.item ?? row.id
-      const photo = row.photoItem ?? row.capturedBy ?? row.photo
-      if (typeof value === 'string' && typeof photo === 'string') out.set(value, photo)
-    }
-  } else if (declared && typeof declared === 'object') {
-    for (const [value, photo] of Object.entries(declared as Record<string, unknown>)) {
-      if (typeof photo === 'string') out.set(value, photo)
-    }
+  for (const entry of declared as Record<string, unknown>[]) {
+    const itemId = entry.itemId
+    const sourceItemId = entry.sourceItemId
+    if (typeof itemId !== 'string' || typeof sourceItemId !== 'string') continue
+    out.set(itemId, {
+      itemId,
+      sourceItemId,
+      derivedFrom: typeof entry.derivedFrom === 'string' ? entry.derivedFrom : undefined,
+    })
   }
-
-  // Shape two: declared on the item itself, which is how every other per-item
-  // rule in this config is declared (`satisfy`, `attest`, `trigger`).
-  const walk = (items: unknown): void => {
-    if (!Array.isArray(items)) return
-    for (const entry of items) {
-      const item = entry as Record<string, unknown>
-      const id = item.id
-      const photo = item.capturedBy ?? item.provenance
-      if (typeof id === 'string' && typeof photo === 'string') out.set(id, photo)
-    }
-  }
-  for (const key of ['baseLists', 'zoneLists', 'componentLists']) {
-    const lists = snapshot[key]
-    if (Array.isArray(lists)) for (const e of lists) walk((e as { items?: unknown }).items)
-  }
-  walk(snapshot.sessionItems)
-
   return out
 }
 
@@ -108,13 +105,9 @@ export interface VerifyArgs {
   field: string
   value: unknown
   /** Table I, from this import's config. */
-  provenance: Map<string, string>
+  provenance: Map<string, ProvenanceRow>
   /** Resolutions recorded against THIS pin. Co-visibility, not global existence. */
   pinResolutions: PinResolutions
-  /** For resolving the capturing item across component inheritance. */
-  graph: ComponentGraph
-  /** The pin's component type, for the inheritance walk. */
-  componentType: string | null
   /**
    * Which `na` reasons this config marks as recording a finding — a confirmed
    * absence rather than a failure to reach. Read from the config, never guessed.
@@ -133,7 +126,18 @@ export interface VerifyArgs {
 export function verify(args: VerifyArgs): VerifiedValue {
   const { valueItem, field, value, provenance, pinResolutions, recordsFinding } = args
 
-  const capturedBy = capturingItem(args)
+  /**
+   * A direct lookup, and inheritance needs no special handling.
+   *
+   * §1b: *"the child's rendered list is the parent's items followed by its own,
+   * and ids stay globally unique."* So a water-softener pin's nameplate item IS
+   * `wt.nameplate` — the parent's id, unchanged — and the Table I row is keyed
+   * on it. An earlier version rebased ids across the type graph by guessing a
+   * prefix from the type's initials. That was scaffolding built without the
+   * declaration's shape, and the rule it was working around does not exist.
+   */
+  const row = provenance.get(valueItem)
+  const capturedBy = row?.sourceItemId
   if (!capturedBy) {
     return {
       field, value,
@@ -153,8 +157,13 @@ export function verify(args: VerifyArgs): VerifiedValue {
     }
   }
 
+  // The master's own words where it has them. Rule 4 again: the producer wrote
+  // the relationship down, so quoting it beats paraphrasing it — and if the
+  // wording ever needs to change, it changes in one place, upstream.
+  const relationship = row?.derivedFrom ? `${row.derivedFrom} (${capturedBy})` : capturedBy
+
   if (resolution.kind === 'satisfied') {
-    return { field, value, capturedBy, verification: 'verified', because: `${capturedBy} was satisfied on this pin` }
+    return { field, value, capturedBy, verification: 'verified', because: `${relationship} was satisfied on this pin` }
   }
 
   /**
@@ -167,66 +176,15 @@ export function verify(args: VerifyArgs): VerifiedValue {
     return {
       field, value, capturedBy,
       verification: 'unverifiable',
-      because: `${capturedBy} was recorded ${resolution.reasonId} on this pin — no photograph backs this value`,
+      because: `${relationship} was recorded ${resolution.reasonId} on this pin — no photograph backs this value`,
     }
   }
 
   return {
     field, value, capturedBy,
     verification: 'unverifiable',
-    because: `${capturedBy} resolved ${resolution.kind}${resolution.reasonId ? ` / ${resolution.reasonId}` : ''} on this pin, not satisfied`,
+    because: `${relationship} resolved ${resolution.kind}${resolution.reasonId ? ` / ${resolution.reasonId}` : ''} on this pin, not satisfied`,
   }
-}
-
-/**
- * Which photo item captures this value, resolved across component inheritance.
- *
- * §1b — a `water-softener` pin's nameplate item may be declared on
- * `water-treatment`. The declaration is looked up against the value item first,
- * then against the same item id rebased on each ancestor type, because a
- * sub-type inherits its parent's items and therefore its parent's provenance.
- */
-function capturingItem(args: VerifyArgs): string | undefined {
-  const { valueItem, provenance, graph, componentType } = args
-
-  const direct = provenance.get(valueItem)
-  if (direct) return direct
-
-  if (!componentType) return undefined
-
-  // The item id's prefix is its component's, so rebasing means swapping the
-  // prefix for an ancestor's. `ws.serial` on a softener inheriting from
-  // water-treatment looks for `wt.serial`.
-  const suffix = valueItem.includes('.') ? valueItem.slice(valueItem.indexOf('.') + 1) : valueItem
-  for (const ancestor of graph.lineage(componentType)) {
-    const prefix = prefixFor(ancestor, provenance)
-    if (!prefix) continue
-    const found = provenance.get(`${prefix}.${suffix}`)
-    if (found) return found
-  }
-  return undefined
-}
-
-/**
- * The item-id prefix a component type uses.
- *
- * Derived from the declarations themselves rather than from a table of
- * abbreviations: `water-heater` uses `wh`, and nothing in the config states that
- * mapping, so the only honest source is which prefixes appear beside which
- * types. Where it cannot be derived, the lookup simply does not resolve — and an
- * unresolved lookup reports `unknown-provenance` rather than guessing.
- */
-const prefixFor = (componentType: string, provenance: Map<string, string>): string | undefined => {
-  // A type whose own items are declared gives its prefix away directly.
-  for (const key of provenance.keys()) {
-    const prefix = key.slice(0, key.indexOf('.'))
-    // Initials of the hyphenated type — `water-heater` → `wh`, `water-treatment`
-    // → `wt`. The convention the master uses, checked rather than assumed: if it
-    // does not match, nothing resolves and the value reports unknown.
-    const initials = componentType.split('-').map((w) => w[0]).join('')
-    if (prefix === initials) return prefix
-  }
-  return undefined
 }
 
 // ------------------------------------------------------------- the aggregation
