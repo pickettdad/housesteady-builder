@@ -42,54 +42,59 @@ describe('zone attributes as decided', () => {
   })
 
   /**
-   * `unanswered`, not `neverAsked` — the word was claiming a history the
-   * derivation does not have.
+   * **The emitter does not send an unanswered list, and cannot honestly.**
    *
-   * The list is today's `zoneAttributes[]` minus what the zone recorded, so an
-   * attribute added to the config between visits appears here. That is correct
-   * for the purpose — nobody has answered it and somebody should — and it is
-   * exactly what *never* would misdescribe.
+   * It was here, derived from this config's declared attributes minus the keys
+   * the zone recorded. Field Code's evidence: **v1.2.1 declares five zone
+   * attributes and v1.11 declares six, and the sixth is `has_mechanicals` — the
+   * only attribute in the whole config carrying a `defaultsTrueFor`.**
+   *
+   * An emitter always reads a PAST config, so its list is systematically
+   * under-inclusive, and across these two versions it is missing exactly the
+   * attribute §3a is named after. The receiver has the current vocabulary and
+   * derives it from the verbatim map.
    */
-  it('names the field for what it is: unanswered as of this plan, not never asked', async () => {
+  it('sends no unanswered list, because an emitter always reads a past config', async () => {
     const { db, propertyId } = await walked()
     const zone = plan(db, propertyId).zones[0]!
-    assert.ok('unanswered' in zone)
-    assert.ok(!('neverAsked' in zone),
-      'a historical quantifier on a current fact is the same failure as "we were not able to cover"')
+    assert.ok(!('unanswered' in zone))
+    assert.ok(!('neverAsked' in zone))
+    assert.deepEqual(Object.keys(zone).sort(), ['attributes', 'label', 'type', 'zoneId'])
 
-    // The derivation follows the config, which is the behaviour the name has to
-    // describe: add an attribute to the vocabulary and it becomes unanswered.
-    const snap = JSON.parse(
-      (db.prepare('SELECT snapshot FROM config_snapshots LIMIT 1').get() as { snapshot: string }).snapshot,
-    ) as Record<string, unknown>
-    ;(snap.zoneAttributes as unknown[]).push({ id: 'has_mechanicals', label: 'Mechanicals', askAtCreation: true })
-    db.prepare('UPDATE config_snapshots SET snapshot = ?').run(JSON.stringify(snap))
-
-    assert.ok(plan(db, propertyId).zones.every((z) => z.unanswered.includes('has_mechanicals')),
-      'an attribute the config gains between visits is unanswered, and should be asked')
+    // The verbatim map is what makes the receiver's own derivation possible:
+    // its declared attributes minus these keys.
+    assert.deepEqual(Object.keys(zone.attributes).sort(), ['finished', 'has_stairs', 'sleeping'])
   })
 
   /**
-   * **The trap inside "carry the attributes."**
+   * **A recorded `false` is NOT "somebody was asked and said no", and the
+   * correction matters more than the conclusion.**
    *
-   * A recorded `false` is a decision — somebody was asked and said no. An absent
-   * attribute is not: this config sets `askAtCreation: false` on `has_plumbing`
-   * and `exterior_wall`, so nobody was ever asked. An emitter that drops falsy
-   * values makes the two identical on the receiving end, and visit two cannot
-   * tell *"we established there is no plumbing here"* from *"nobody has
-   * considered it."*
+   * Field Code: zone creation writes `attributes[a.id] = attrs.has(a.id)` for
+   * every `askAtCreation: true` attribute, **and there is no skip path.** So an
+   * untouched toggle and a considered *no* produce the same `false`, and the
+   * bedroom's three falses are almost certainly three toggles nobody moved.
    *
-   * Third instance of the same distinction after declared-and-false in the
-   * trigger evaluator and the three-state component types.
+   * The verbatim map is still right — **it preserves the field's own ambiguity
+   * faithfully**, which is the most any emitter can do. But the earlier reason
+   * licensed rendering `false` as *"we established there is none"*, which is the
+   * proposed error a third time: a value read as more definite than its
+   * provenance supports.
+   *
+   * What survives the correction: a recorded key and an absent key are different
+   * things, and both must reach the receiver.
    */
-  it('keeps a decided false distinguishable from a question nobody asked', async () => {
+  it('carries what the field wrote down without claiming it was deliberated', async () => {
     const { db, propertyId } = await walked()
     const bedroom = plan(db, propertyId).zones.find((z) => z.label === 'bedroom')!
 
-    assert.equal(bedroom.attributes.sleeping, false, 'decided — somebody said no')
-    assert.ok(!('has_plumbing' in bedroom.attributes), 'never asked — askAtCreation is false for it')
-    assert.deepEqual(bedroom.unanswered, ['exterior_wall', 'has_plumbing'],
-      'and the unanswered ones are named rather than merely absent')
+    // Recorded false — the field wrote this. It does NOT say whether anybody
+    // moved the toggle, and nothing downstream may claim it does.
+    assert.equal(bedroom.attributes.sleeping, false)
+    // Absent — `askAtCreation: false`, so zone creation never wrote a key at all.
+    // A different state, and the one distinction the record genuinely supports.
+    assert.ok(!('has_plumbing' in bedroom.attributes))
+    assert.ok(!('exterior_wall' in bedroom.attributes))
   })
 
   /**
@@ -177,33 +182,80 @@ describe('the payload', () => {
     assert.equal(gaps.filter((g) => g.reason === 'deferred').length, 1)
     // Scope travels, because the same item id in two rooms is two gaps.
     assert.ok(gaps.every((g) => g.scopeKind === 'zone' ? g.zoneId !== null : true))
-    // `since` is the VISIT DATE. An import timestamp has no meaning in the
-    // field — this export was visited on the 24th and imported later — and one
-    // field standing for two facts is how a zone `type` ended up doing a
-    // nickname's job.
     assert.ok(gaps.every((g) => typeof g.sinceImportedAt === 'string' && g.sinceImportedAt !== ''))
   })
 
-  it('sends the visit date as `since`, and the import timestamp under its own name', async () => {
+  /**
+   * **`since` reads the manifest, not the hand-typed field — and this is the one
+   * that had already gone wrong in a client's document.**
+   *
+   * `visits.visit_date` comes from a request body and **no import path writes
+   * it.** The first signed edition rendered *"visited 2026-07-24"* against a
+   * session that began 2026-07-25T16:55Z, because a seed script typed a date
+   * nothing checked.
+   */
+  it('reads the session start, not the typed visit date', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
+    // A typed date that disagrees with the manifest, exactly as happened.
     db.prepare('UPDATE visits SET visit_date = ? WHERE id = ?').run('2026-07-24', ids.visitId)
     await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     runAudit({ db, propertyId: ids.propertyId, visitId: ids.visitId, visitKind: 'baseline', actorId: TEST_OPERATOR })
 
-    const gaps = plan(db, ids.propertyId).carriedGaps
-    assert.ok(gaps.every((g) => g.since === '2026-07-24'), 'what the field can say out loud')
-    assert.ok(gaps.every((g) => g.sinceImportedAt !== '2026-07-24'), 'and a different fact, named separately')
+    const p = plan(db, ids.propertyId)
+    assert.ok(p.carriedGaps.every((g) => g.since === '2026-07-25'),
+      'the session began on the 25th; the typed 24th is not evidence')
+    assert.ok(p.warnings.some((w) => /typed date of 2026-07-24/.test(w) && /began 2026-07-25/.test(w)),
+      'and the disagreement is reported rather than silently preferred')
   })
 
-  it('sends a null `since` rather than falling back, when the visit has no date', async () => {
+  /**
+   * `startedAt`, not `completedAt`.
+   *
+   * A reopened session has more than one completion. This export reads
+   * *completed 17:41 · reopened "Test ai" 17:42 · completed 17:45* — so
+   * `completedAt` is when somebody stopped editing, and `startedAt` is when the
+   * house was walked.
+   */
+  it('reads startedAt, which a reopening does not move', async () => {
     const { db, propertyId } = await walked()
-    // The helper creates visits with no date, which is the honest case here.
+    const session = db.prepare('SELECT started_at, completed_at, lifecycle FROM session_meta LIMIT 1')
+      .get() as { started_at: string; completed_at: string; lifecycle: string }
+
+    const lifecycle = JSON.parse(session.lifecycle) as { type: string }[]
+    assert.equal(lifecycle.filter((l) => l.type === 'completed').length, 2,
+      'this export really was reopened, so the distinction is exercised rather than asserted')
+    assert.notEqual(session.started_at, session.completed_at)
+
+    assert.ok(plan(db, propertyId).carriedGaps.every((g) => g.since === session.started_at.slice(0, 10)))
+  })
+
+  it('sends a null `since` rather than falling back, when no session start exists', async () => {
+    const { db, propertyId } = await walked()
+    db.prepare('UPDATE session_meta SET started_at = NULL').run()
     const p = plan(db, propertyId)
     assert.ok(p.carriedGaps.every((g) => g.since === null))
     assert.ok(p.carriedGaps.every((g) => g.sinceImportedAt !== null))
-    assert.match(p.sections.carriedGaps.note, /carry no `since` because the visit .* has no date recorded/)
+    assert.match(p.sections.carriedGaps.note, /no import for the visit that made them due records a session start/)
     assert.match(p.sections.carriedGaps.note, /not defaulted to the import timestamp/)
+  })
+
+  /**
+   * §C5's failure one artifact out.
+   *
+   * Design record §1 retires `monitor` at v4. *"The mechanism ran and found
+   * none"* is then true and misleading — it reads as *nothing is being watched*
+   * when the truth is *the word is gone.* Three states, not two.
+   */
+  it('says the vocabulary may be retired, rather than reporting a confident empty', async () => {
+    const { db, propertyId } = await walked()
+    assert.match(plan(db, propertyId).sections.monitorsDue.note, /the mechanism ran and found none/)
+
+    db.prepare('UPDATE imports SET manifest_schema_version = 4').run()
+    const note = plan(db, propertyId).sections.monitorsDue.note
+    assert.match(note, /retires\s+the `monitor` flag/)
+    assert.match(note, /open question with the field session/)
+    assert.ok(!/found none/.test(note), 'the confident empty must not survive alongside it')
   })
 
   /**
@@ -245,8 +297,11 @@ describe('the payload', () => {
     assert.equal(p.comparisonPositionsDue.length, 0)
     assert.match(p.sections.comparisonPositionsDue.note, /declares no `\.unit` items/)
     assert.match(p.sections.comparisonPositionsDue.note, /unexercised rather than empty/)
-    assert.ok(p.warnings.some((w) => /`\.unit` items/.test(w) && /master declares 23/.test(w)),
+    assert.ok(p.warnings.some((w) => /`\.unit` items/.test(w)),
       'and it says so loudly enough to reach whoever wonders why the section is empty')
+    assert.ok(!p.warnings.some((w) => /declares 23|27 `\.unit`/.test(w)),
+      'the master-side count is disputed between two readings — 27 + 5 `.wide` against 23 — and nothing ' +
+      'binds to it, so no figure is cited')
   })
 
   /** §B3's two canonical photographs stay distinct and are never conflated. */

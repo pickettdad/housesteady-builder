@@ -15,6 +15,7 @@ import { ROUTING_TASK } from './ai/tasks/routing.js'
 import { startDrain } from './ai/worker.js'
 import type { ColumnId } from './audit/carriedItems.js'
 import { latestRun, runAudit } from './audit/run.js'
+import { walkedAt } from './audit/walkedAt.js'
 import { addManualRow, buildDraft, rowTrail, writeEdit, type EditKind } from './report/draft.js'
 import { HouseStyleRefused, rules as houseStyleRules } from './report/houseStyle.js'
 import { editionHtml, editions, RenderRefused, signEdition } from './report/render.js'
@@ -879,9 +880,20 @@ app.post('/api/properties/:id/report/sign', (req, res) => {
   const signerName = (db.prepare('SELECT display_name FROM operators WHERE id = ?').get(signer) as
     | { display_name: string }
     | undefined)?.display_name
+  /**
+   * When the house was walked, **from the manifest** — not the hand-typed
+   * `visits.visit_date`.
+   *
+   * That column is filled from a request body and no import path writes it, so
+   * it can disagree with the evidence. It did: the first signed edition rendered
+   * *"visited 2026-07-24"* against a session that began 2026-07-25T16:55Z. A
+   * client-facing document must not carry an unchecked claim about when we were
+   * in their house.
+   */
   const visit = db
-    .prepare('SELECT visit_date FROM visits WHERE property_id = ? ORDER BY created_at DESC LIMIT 1')
-    .get(property.id) as { visit_date: string | null } | undefined
+    .prepare('SELECT id FROM visits WHERE property_id = ? ORDER BY created_at DESC LIMIT 1')
+    .get(property.id) as { id: string } | undefined
+  const walked = visit ? walkedAt(db, visit.id) : null
 
   try {
     const edition = signEdition({
@@ -899,7 +911,7 @@ app.post('/api/properties/:id/report/sign', (req, res) => {
       clientNames: { version: names.version, hash: names.hash },
       houseStyleVersion: 'house-style/v001',
       property: { label: property.label, address: property.address },
-      visitDate: visit?.visit_date ?? null,
+      visitDate: walked?.date ?? null,
     })
     // The bytes are not in the response. They are the deliverable and they live
     // in the record; this says what was signed and where to read it.

@@ -36,22 +36,28 @@
  *
  * ## The trap inside "carry the attributes"
  *
- * **A recorded `false` is a decision. An absent attribute is not.** The bedroom
- * carries `sleeping: false` — somebody was asked and said no. `has_plumbing` is
- * absent from both zones, because this config sets `askAtCreation: false` on it
- * and nobody was ever asked.
+ * **A recorded key and an absent key are different things. That is all the
+ * record supports, and it is enough.**
  *
- * An emitter that carries truthy keys only makes those two identical on the
- * receiving end, and the second visit cannot tell *"we established there is no
- * plumbing here"* from *"nobody has ever considered it."* Same shape as
- * declared-and-false versus never-declared in the trigger evaluator, and the
- * third time this distinction has decided a design here.
+ * **An earlier version of this said a recorded `false` meant somebody was asked
+ * and said no. It does not.** Zone creation writes
+ * `attributes[a.id] = attrs.has(a.id)` for every `askAtCreation: true`
+ * attribute and there is no skip path, so an untouched toggle and a considered
+ * *no* produce the same `false`. The bedroom's three falses are almost
+ * certainly three toggles nobody moved.
  *
- * So the plan carries **the recorded map verbatim, falses included**, and names
- * the unanswered attributes separately — `unanswered` rather than `neverAsked`,
- * because *never* is a historical quantifier on a current fact and the list is
- * derived from today's config. Same correction as *"we were not able to
- * cover"*: a word claiming more than the data supports.
+ * The verbatim map is still right — **it preserves the field's own ambiguity
+ * faithfully**, which is the most any emitter can do. But the earlier reason
+ * licensed rendering `false` as *"we established there is none"*, which is the
+ * proposed error a third time: a value read as more definite than its
+ * provenance supports.
+ *
+ * So, precisely: a recorded `false` is what the field wrote down and says
+ * nothing about how it got there; an ABSENT key means `askAtCreation: false`,
+ * so nothing was ever written. An emitter carrying truthy keys only collapses
+ * those two and loses the one distinction the record genuinely supports. Same
+ * shape as declared-and-false versus never-declared in the trigger evaluator,
+ * and the third time this distinction has decided a design here.
  *
  * ---
  *
@@ -78,6 +84,7 @@ import { now } from '../db/index.js'
 import { activeItemSet } from '../audit/activeItems.js'
 import { carriedItems } from '../audit/carriedItems.js'
 import { propertyEvidence } from '../audit/propertyEvidence.js'
+import { walkedAtByVisit } from '../audit/walkedAt.js'
 
 /** The plan's own version, independent of the manifest's. */
 export const PLAN_SCHEMA_VERSION = 1
@@ -94,23 +101,28 @@ export interface PlanZone {
    * nobody has been asked.
    */
   attributes: Record<string, boolean>
-  /**
-   * Attributes this config declares that this zone has no recorded answer for,
-   * **as of this plan.**
-   *
-   * **Deliberately not `neverAsked`, and the rename is the same correction as
-   * *"we were not able to cover."*** *Never* is a historical quantifier on a
-   * current fact: this list is derived from today's `zoneAttributes[]` minus
-   * what the zone recorded, so it changes when the config changes. An attribute
-   * added between visits appears here — correctly, because nobody has answered
-   * it and somebody should — and calling that *never asked* would claim a
-   * history the derivation does not have.
-   *
-   * The derivation is right for the purpose. The word was claiming more than it
-   * supports.
-   */
-  unanswered: string[]
 }
+
+/**
+ * **There is deliberately no `unanswered` list in the payload**, and the reason
+ * is a version argument the emitter cannot win.
+ *
+ * It was here, derived from this config's `zoneAttributes[]` minus the keys the
+ * zone recorded. Field Code's evidence killed it: **v1.2.1 declares five zone
+ * attributes and v1.11 declares six, and the sixth is `has_mechanicals` — the
+ * only attribute in the whole config carrying a `defaultsTrueFor`.**
+ *
+ * **An emitter always reads a past config.** Its list is therefore
+ * systematically under-inclusive, and on these two versions it is missing
+ * exactly the attribute §3a is named after. A receiver trusting it would be
+ * told nothing is unanswered about the one thing most worth asking.
+ *
+ * The receiver has the current vocabulary and derives it itself:
+ *
+ * > `unanswered = its own declared attributes − keys(zone.attributes)`
+ *
+ * The verbatim map is all the emitter can honestly send, and it is enough.
+ */
 
 export interface PlanObject {
   pinId: string
@@ -134,21 +146,26 @@ export interface PlanGap {
   /** `not-reached`, or the config's own na reason id. Verbatim. */
   reason: string
   /**
-   * The DATE OF THE VISIT that first made this due — what the field can say out
-   * loud: *"open since your March visit."*
+   * The date the WALK BEGAN, from the manifest's `session.startedAt`.
    *
-   * **Null when that visit carries no date**, and it does not fall back to the
-   * import timestamp. One field standing for two facts is how a zone `type`
-   * ended up doing a nickname's job, and a field the receiver has to guess the
-   * meaning of is worse than a null it can see.
+   * **Not `visits.visit_date`, which is hand-typed and unchecked** — see
+   * `walkedAt.ts`. The first signed gap report rendered a date a day off the
+   * manifest because a seed script typed one, and *"open since your visit"* must
+   * not read a field that can disagree with the evidence.
+   *
+   * **And not `completedAt`, which moves.** A reopened session has more than one
+   * completion; this export reads *completed 17:41 · reopened "Test ai" 17:42 ·
+   * completed 17:45*. `startedAt` is when the house was walked and does not move.
+   *
+   * Null where no import for that visit carries a session start.
    */
   since: string | null
   /**
-   * When the import that first made it due was read.
+   * When the import that first made it due was READ by this builder.
    *
-   * A different fact, named separately. It has no meaning in the field — this
-   * export was visited on the 24th and imported on the 31st — and it is here
-   * because it is the ordering key this repo actually sorts on.
+   * A different fact under its own name. It has no meaning in the field — the
+   * reference session was walked on the 25th and imported days later — and it is
+   * here because it is the ordering key this repo actually sorts on.
    */
   sinceImportedAt: string
 }
@@ -259,13 +276,6 @@ export function buildSessionPlan(args: {
   //
   // §3a. The latest row per zone uuid — the field-minted id is the cross-visit
   // identity, so the same ensuite seen twice is one ensuite.
-  const declaredAttributes = new Set(
-    (Array.isArray(evidence.snapshot.zoneAttributes)
-      ? (evidence.snapshot.zoneAttributes as { id?: unknown }[])
-      : []
-    ).map((a) => a.id).filter((id): id is string => typeof id === 'string'),
-  )
-
   const zoneRows = db
     .prepare(
       `SELECT z.zone_id, z.label, z.type, z.attributes, i.imported_at
@@ -289,7 +299,6 @@ export function buildSessionPlan(args: {
       label: row.label,
       type: row.type,
       attributes,
-      unanswered: [...declaredAttributes].filter((a) => !(a in attributes)).sort(),
     })
   }
   const zones = [...byZone.values()]
@@ -334,12 +343,17 @@ export function buildSessionPlan(args: {
   const active = activeItemSet(db, propertyId)
   const scoped = scopedResolutions(db, propertyId)
   const { carried } = carriedItems({ evidence, active, resolutions: scoped })
-  // The visit date for each visit that first made something due. Looked up
-  // once: a query per gap would be twenty queries for two answers.
-  const visitDates = new Map(
-    (db.prepare('SELECT id, visit_date FROM visits WHERE property_id = ?').all(propertyId) as
-      { id: string; visit_date: string | null }[]).map((v) => [v.id, v.visit_date]),
-  )
+  // When each visit's walk began, from the manifest. One query rather than one
+  // per gap. NOT the hand-typed visit date — see `walkedAt.ts` for why.
+  const walks = walkedAtByVisit(db, propertyId)
+  for (const [visitId, walk] of walks) {
+    if (!walk.disagreesWithTyped) continue
+    warnings.push(
+      `visit ${visitId} carries a typed date of ${walk.disagreesWithTyped.typed}, and the session it ` +
+        `imported began ${walk.disagreesWithTyped.evidence}. The plan sends the evidence; the ` +
+        'disagreement is reported rather than silently preferred.',
+    )
+  }
 
   const carriedGaps: PlanGap[] = carried.items.map((item) => ({
     scopeKind: item.scope.kind,
@@ -347,7 +361,7 @@ export function buildSessionPlan(args: {
     pinId: item.scope.pinId,
     itemId: item.itemId,
     reason: item.reason,
-    since: item.dueSince.visitId ? visitDates.get(item.dueSince.visitId) ?? null : null,
+    since: item.dueSince.visitId ? walks.get(item.dueSince.visitId)?.date ?? null : null,
     sinceImportedAt: item.dueSince.at,
   }))
   const undated = carriedGaps.filter((g) => g.since === null).length
@@ -379,7 +393,35 @@ export function buildSessionPlan(args: {
     if (p.retired || !p.flag) continue
     flagCounts.set(p.flag, (flagCounts.get(p.flag) ?? 0) + 1)
   }
+  /**
+   * The two values this build knows, from the Manifest Contract.
+   *
+   * **The pin `flag` has no declared vocabulary in the config** — `propertyFlags`
+   * is a different thing entirely, house-level facts like `well`. So these come
+   * from a document rather than from data, which is why the retirement question
+   * below is a real one rather than a hypothetical.
+   */
   const KNOWN_FLAGS = ['monitor', 'issue']
+
+  /**
+   * **`monitor` is retired at v4, and "found none" would then be true and
+   * misleading.**
+   *
+   * Design record §1 retires `monitor` and `fine`. So on a v4 export this
+   * section would say *the mechanism ran and found none* — accurate, and read as
+   * *this house has nothing being watched* when the truth is *the word no longer
+   * exists.* Amendment §C5's failure one artifact out, and the same three-state
+   * shape as everywhere else: **empty · unbuilt · vocabulary-retired.**
+   *
+   * What a monitor becomes under the ratified model is with the field session.
+   * Until that lands, this says the question is open rather than answering it —
+   * an open question stated is information; a confident empty is not.
+   */
+  const versions = (db
+    .prepare('SELECT DISTINCT manifest_schema_version AS v FROM imports WHERE property_id = ?')
+    .all(propertyId) as { v: number | null }[])
+    .map((r) => r.v).filter((v): v is number => typeof v === 'number')
+  const retiredVocabulary = versions.some((v) => v >= 4)
   const unrecognisedFlags = [...flagCounts].filter(([f]) => !KNOWN_FLAGS.includes(f))
   const flagsSeen = [...flagCounts].map(([f, n]) => `${n} ${f}`).join(' · ')
   if (unrecognisedFlags.length > 0) {
@@ -403,7 +445,9 @@ export function buildSessionPlan(args: {
     warnings.push(
       'this property\'s config declares no `.unit` items, so there are no comparison positions to ' +
         'carry — §B3\'s prior unit photographs cannot be exercised until a config that declares them ' +
-        'arrives. The master declares 23; field config v1.2.1 declares none.',
+        'arrives. The master declares some; the count is in dispute between two readings and is ' +
+        'deliberately not stated here, because nothing binds to it and a disputed number in prose is ' +
+        'worse than none.',
     )
   }
   if (!Array.isArray(evidence.snapshot.zoneAttributes)) {
@@ -446,17 +490,24 @@ export function buildSessionPlan(args: {
           ? 'every applicable item on this property has an answer'
           : `unanswered items and gap-feeding na, with the reason the config gave` +
             (undated > 0
-              ? ` · ${undated} carry no \`since\` because the visit that made them due has no date recorded — ` +
-                'not defaulted to the import timestamp, which means something else'
+              ? ` · ${undated} carry no \`since\` because no import for the visit that made them due ` +
+                'records a session start — not defaulted to the import timestamp, which means something else'
               : ''),
       },
       monitorsDue: {
         count: monitorsDue.length,
         note: [
-          monitorsDue.length === 0
-            ? 'no live pin carries the monitor flag — the mechanism ran and found none, ' +
-              'which is not the same as it being unbuilt'
-            : 'pins the field flagged for monitoring',
+          // Three states, not two. `retired` is the one that would otherwise
+          // read as a confident empty.
+          retiredVocabulary
+            ? 'this property has evidence at manifest v4 or later, where the design record retires ' +
+              'the `monitor` flag — so an empty list here may mean the vocabulary is gone rather than ' +
+              'that nothing is being watched. What a monitor becomes under the ratified model is an ' +
+              'open question with the field session, and this build does not guess.'
+            : monitorsDue.length === 0
+              ? 'no live pin carries the monitor flag — the mechanism ran and found none, ' +
+                'which is not the same as it being unbuilt'
+              : 'pins the field flagged for monitoring',
           // Every flag value present, whether or not this build acts on it.
           // Preserve, display, count — never ignore.
           flagCounts.size > 0 ? `flags on live pins: ${flagsSeen}` : 'no live pin carries any flag',
