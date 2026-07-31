@@ -103,7 +103,7 @@ session's.*
 | 3 · Audit engine | **Done 2026-07-30.** All of §0–§4 plus §1g.1, §1h, §1i, §1j, §1k. 533 tests, 45 doctrine scans. `npm run dev` → open a property → run the audit. **Not built, deliberately:** §1d's cross-visit discontinuity display and §1f's `answer.*` operators — the spec places both with the session plan, so Increment 4 should claim them explicitly rather than inherit them. |
 
 | 4 · Carried items | Gap report **and** session plan v0 — same data, two outputs. **= v0.5 finish line.** House style **done 2026-07-27**; still needs the golden set and the lint built into the render path. |
-| 5 · Concern register + dashboard | **Gated on manifest v4.** No concerns to adopt until the field app emits them. |
+| 5 · Concern register + dashboard | **Gated on manifest v4.** No concerns to adopt until the field app emits them. **Sized bigger than its name — see `Note_Increment-5-Scope_2026-07-31`:** Field Code established that `issue` decomposes into object-plus-concern the same way `monitor` does, so v4 retires the pin flag **as a concept** rather than shrinking an enum. Three streams read that flag today and all three re-source — findings from `issue` (Observed Addendum §3b), `monitorsDue` (Session-Plan Contract §9a), and layer derivation (Design v1.1 §C5). So it is *build a register and re-point three existing streams*, not *add a register*. |
 | 6 · Workbench + first sections + editions | Was 5 in the original ladder. |
 
 **New work surfaced 2026-07-27, not previously on any list:**
@@ -115,6 +115,12 @@ session's.*
 | N2 | **Serial decoding moves up, from Increment 5+ to immediately after 2b** | It gates §19's capital plan, which is in the month-one *minimum*. Reads the same values 2b already extracts. Decoded dates are always `Inferred`. |
 
 **Held deliberately:** the two-visit fixture generator (v4-shaped — building it now means building it twice) · anything client-facing before the language lint exists.
+
+**Small, waiting for a slice that touches the same file:**
+
+| # | Item | Where |
+|---|---|---|
+| S1 | ~~`a.ghost` missing from the button styles~~ | **Done 2026-07-31** in the `planned_date` PR — the session-plan download link was rendering as a browser-default blue underline between two styled ghost buttons. Two selectors. Caught in a screenshot, not a test. |
 
 **No longer merely held — see §3a:** **desk entity creation.** Still shaped by v4's object-or-concern split, so it lands with v4 rather than before it, but it is now understood as gating an operating model rather than as an optional convenience.
 

@@ -66,7 +66,24 @@ export interface Slot {
   kind: 'fixed' | 'coverage' | 'record-set' | 'derived' | 'narrative'
   title?: string
   sources?: string[]
-  defaultLabel?: string
+  /**
+   * The honesty label this slot's content carries unless something states
+   * otherwise — **and `null` is a value here, not an absence.**
+   *
+   * Nineteen of the schema's forty-one slots declare this key and one of them
+   * declares it `null`: `s1.response-procedures`, a coverage slot fed from the
+   * template library, where no honesty label applies because the builder writes
+   * the content rather than observing it. **That is a statement, not an
+   * omission**, and typing this `string | undefined` would narrow the `null`
+   * away and let the first reader treat *no label applies* as *nobody said*.
+   *
+   * Fifth time this distinction has decided something here, after
+   * declared-and-false in the trigger evaluator, typed/stub/undeclared for
+   * component types, the verbatim zone-attribute map, and `since`'s four bases.
+   * Found by Verification Discipline rule 9 — the count in a document did not
+   * survive being re-derived, and the type did not survive the count.
+   */
+  defaultLabel?: string | null
   items?: CoverageItem[]
   itemRequires?: unknown
   expectationSource?: unknown
