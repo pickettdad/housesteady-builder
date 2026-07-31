@@ -96,8 +96,34 @@ export interface ActiveItem {
   origin: Origin
   /** The import that first made it due. */
   dueSince: { importId: string; visitId: string | null; at: string }
-  /** Where it was asked, in words. For a person, never joined on. */
+  /** Where it was asked, in words. **Desk display** — may name a zone TYPE. */
   where: string
+  /**
+   * Where it was asked, **safe to put in a client's document** — or null.
+   *
+   * The two differ on exactly the zone somebody did not label. `where` falls
+   * back to the zone's TYPE (`living-space`, `utility`) so the desk always has
+   * something to show; those are config vocabulary and *"the living-space"* in a
+   * homeowner's document is §2b's failure in three words. So the client-safe
+   * form carries only the label a person actually wrote, and null means the
+   * sentence composes without a location rather than with a bad one.
+   */
+  whereLabel: string | null
+  /**
+   * What the field checklist actually asked, in the config's own words.
+   *
+   * **Desk-facing, and never a client-facing name** — that distinction is the
+   * whole of Amendment 1 §C. *"Windows operated, locked, latched; seal-fog noted
+   * — pin defects"* is an instruction to a concierge standing in a room, and
+   * four of these contain the word *issue*, which House Style bans outright.
+   *
+   * It is carried because the person writing a client-facing name needs
+   * something to write FROM. §9's first guard, one artifact over: evidence
+   * first, suggestion second — a naming box beside an item id asks somebody to
+   * invent, and a naming box beside what the checklist asked asks them to
+   * translate.
+   */
+  itemText: string | null
 }
 
 export interface ActiveItemSet {
@@ -115,6 +141,12 @@ export interface ActiveItemSet {
 
 const labelFor = (label: string | null, type: string | null, fallback: string): string =>
   label ?? (type ? `the ${type}` : fallback)
+
+/** Only what a person wrote. Never a config type — see `ActiveItem.whereLabel`. */
+const clientLabelOf = (label: string | null): string | null => {
+  const trimmed = label?.trim()
+  return trimmed ? trimmed : null
+}
 
 /**
  * Every item the property has ever had due, per scope.
@@ -191,12 +223,12 @@ function fromReceived(
   const zoneLabels = new Map(
     (db.prepare('SELECT zone_id, label, type FROM zones WHERE import_id = ?').all(imp.id) as
       { zone_id: string; label: string | null; type: string | null }[])
-      .map((z) => [z.zone_id, labelFor(z.label, z.type, 'an unnamed zone')]),
+      .map((z) => [z.zone_id, { desk: labelFor(z.label, z.type, 'an unnamed zone'), client: clientLabelOf(z.label) }]),
   )
   const pinLabels = new Map(
     (db.prepare('SELECT pin_id, number, component_type, freeform_label FROM pins WHERE import_id = ?').all(imp.id) as
       { pin_id: string; number: number; component_type: string | null; freeform_label: string | null }[])
-      .map((p) => [p.pin_id, labelFor(p.freeform_label, p.component_type, `pin ${p.number}`)]),
+      .map((p) => [p.pin_id, { desk: labelFor(p.freeform_label, p.component_type, `pin ${p.number}`), client: clientLabelOf(p.freeform_label) }]),
   )
 
   return rows.map((r) => {
@@ -206,8 +238,9 @@ function fromReceived(
       itemId: r.item_id,
       // The field sends ids only, by design — an item body copied across the
       // seam is a second thing that can disagree with the config snapshot, and
-      // the config snapshot is already stored. Tier comes from there.
-      tier: tierOf(db, imp.id, r.item_id),
+      // the config snapshot is already stored. Tier and text come from there.
+      tier: declarationOf(db, imp.id, r.item_id).tier,
+      itemText: declarationOf(db, imp.id, r.item_id).text,
       source: 'field',
       certain: true,
       unrecognised: [],
@@ -216,29 +249,36 @@ function fromReceived(
       origin: 'received',
       dueSince: { importId: imp.id, visitId: imp.visit_id, at: imp.imported_at },
       where: r.scope_zone_id
-        ? zoneLabels.get(r.scope_zone_id) ?? 'a zone this import does not carry'
+        ? zoneLabels.get(r.scope_zone_id)?.desk ?? 'a zone this import does not carry'
         : r.scope_pin_id
-          ? pinLabels.get(r.scope_pin_id) ?? 'a pin this import does not carry'
+          ? pinLabels.get(r.scope_pin_id)?.desk ?? 'a pin this import does not carry'
           : 'this visit',
+      whereLabel: r.scope_zone_id
+        ? zoneLabels.get(r.scope_zone_id)?.client ?? null
+        : r.scope_pin_id
+          ? pinLabels.get(r.scope_pin_id)?.client ?? null
+          : null,
     }
   })
 }
 
-/** One item's tier, from the import's own config snapshot. */
-function tierOf(db: Db, importId: string, itemId: string): string {
+/** One item's tier and text, from the import's own config snapshot. */
+function declarationOf(db: Db, importId: string, itemId: string): { tier: string; text: string | null } {
   const row = db.prepare('SELECT snapshot FROM config_snapshots WHERE import_id = ?').get(importId) as
     | { snapshot: string }
     | undefined
-  if (!row) return 'standard'
+  if (!row) return { tier: 'standard', text: null }
   try {
     const snap = JSON.parse(row.snapshot) as Record<string, unknown>
-    for (const item of allItems(snap)) if (item.id === itemId) return item.tier ?? 'standard'
+    for (const item of allItems(snap)) {
+      if (item.id === itemId) return { tier: item.tier ?? 'standard', text: item.text ?? null }
+    }
   } catch {
     // A snapshot that will not parse is a structural problem the import path
     // already refused on. Reaching here at all means something else is wrong,
     // and a wrong tier is not the thing to report about it.
   }
-  return 'standard'
+  return { tier: 'standard', text: null }
 }
 
 const allItems = (snapshot: Record<string, unknown>): ChecklistItem[] => {
@@ -282,7 +322,7 @@ function fromConfig(
   const out: ActiveItem[] = []
   const due = { importId: imp.id, visitId: imp.visit_id, at: imp.imported_at }
 
-  const push = (scope: ItemScope, item: ChecklistItem, source: string, where: string, verdict: { certain: boolean; unrecognised: string[] }): void => {
+  const push = (scope: ItemScope, item: ChecklistItem, source: string, where: string, whereLabel: string | null, verdict: { certain: boolean; unrecognised: string[] }): void => {
     out.push({
       scope, itemId: item.id, tier: item.tier ?? 'standard', source,
       certain: verdict.certain, unrecognised: verdict.unrecognised,
@@ -290,7 +330,8 @@ function fromConfig(
       // evidence exists on a pin and one human tap confirms it, which is a fact
       // about the field app's own state and is exactly the value §1c says this
       // repo cannot reconstruct. Null is the honest answer, not a default.
-      group: null, status: null, origin: 'computed', dueSince: due, where,
+      group: null, status: null, origin: 'computed', dueSince: due, where, whereLabel,
+      itemText: item.text ?? null,
     })
   }
 
@@ -304,6 +345,7 @@ function fromConfig(
     const zoneFacts = facts.byZone.get(zone.zone_id) ?? facts.visit
     const seen = new Set<string>()
     const where = labelFor(zone.label, zone.type, 'an unnamed zone')
+    const whereLabel = clientLabelOf(zone.label)
 
     for (const list of lists) {
       for (const item of list.items) {
@@ -312,7 +354,7 @@ function fromConfig(
         const verdict = evaluate(composeGate(list.gate, item.trigger ?? null), zoneFacts)
         if (!verdict.applies) continue
         seen.add(item.id)
-        push({ kind: 'zone', zoneId: zone.zone_id, pinId: null }, item, list.source, where, verdict)
+        push({ kind: 'zone', zoneId: zone.zone_id, pinId: null }, item, list.source, where, whereLabel, verdict)
       }
     }
   }
@@ -341,6 +383,7 @@ function fromConfig(
     const zoneFacts = facts.visit
     const seen = new Set<string>()
     const where = labelFor(pin.freeform_label, pin.component_type, `pin ${pin.number}`)
+    const whereLabel = clientLabelOf(pin.freeform_label)
     // Parent first, so the child's own items follow the parent's — the order
     // §1b declares for a rendered list.
     for (const type of [...graph.lineage(pin.component_type)].reverse()) {
@@ -354,7 +397,7 @@ function fromConfig(
           const verdict = evaluate(composeGate(null, item.trigger ?? null), zoneFacts)
           if (!verdict.applies) continue
           seen.add(item.id)
-          push({ kind: 'pin', zoneId: null, pinId: pin.pin_id }, item, `component:${type}`, where, verdict)
+          push({ kind: 'pin', zoneId: null, pinId: pin.pin_id }, item, `component:${type}`, where, whereLabel, verdict)
         }
       }
     }
@@ -367,7 +410,7 @@ function fromConfig(
     if (!inScope(item, imp.visit_kind)) continue
     const verdict = evaluate(composeGate(null, item.trigger ?? null), facts.visit)
     if (!verdict.applies) continue
-    push({ kind: 'session', zoneId: null, pinId: null }, item, 'session', 'this visit', verdict)
+    push({ kind: 'session', zoneId: null, pinId: null }, item, 'session', 'this visit', null, verdict)
   }
 
   return out

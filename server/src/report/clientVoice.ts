@@ -97,6 +97,14 @@ export interface ClientRow {
   text: string
   label: GapLabel
   /**
+   * False when the item's name has not been through the design session.
+   *
+   * The row still renders — a human signs the sentence — but the editor shows
+   * the mark, so nobody adopts a colleague's first draft as house style by not
+   * noticing it was one.
+   */
+  nameRatified: boolean
+  /**
    * What we will do, or what we need, where there is something to say. A row
    * that names an absence and nothing else leaves the reader with a task they
    * were not given.
@@ -126,13 +134,17 @@ export function clientRow(item: CarriedItem, describe: DescribeItem, labels: NaL
    */
   if (item.status === 'proposed') return null
 
-  const what = describe(item.itemId)
+  const named = describe(item.itemId)
   // No plain-language name for this item means we cannot say it plainly. The row
   // is withheld from the client render and surfaces on the desk instead, where
   // somebody can write one. Rendering the id would be the §2 failure exactly.
-  if (!what) return null
+  if (!named) return null
+  const what = named.text
 
-  const where = item.scope.kind === 'session' ? null : item.where
+  // The client-safe label, never the desk display. A zone nobody labelled has
+  // no client-facing name for its room, and the sentence composes without one —
+  // "the living-space" is config vocabulary in a homeowner's document.
+  const where = item.scope.kind === 'session' ? null : item.whereLabel
 
   if (item.reason === 'not-reached') {
     return {
@@ -140,6 +152,7 @@ export function clientRow(item: CarriedItem, describe: DescribeItem, labels: NaL
       // Nothing was recorded at all, so there is no reason to look up. *We did
       // not inspect it* is the true statement and the schema's default says so.
       label: labels.labelFor(null),
+      nameRatified: named.ratified,
       next: 'It is on the list for the next visit.',
     }
   }
@@ -152,6 +165,7 @@ export function clientRow(item: CarriedItem, describe: DescribeItem, labels: NaL
     return {
       text: where ? `${what} — in ${where} — could not be reached on this visit.` : `${what} could not be reached on this visit.`,
       label: 'not-accessible',
+      nameRatified: named.ratified,
       next: 'We will need access to it next time.',
     }
   }
@@ -159,6 +173,7 @@ export function clientRow(item: CarriedItem, describe: DescribeItem, labels: NaL
   return {
     text: where ? `${what} — in ${where} — is carried forward to the next visit.` : `${what} is carried forward to the next visit.`,
     label: labels.labelFor(item.naReasonId),
+    nameRatified: named.ratified,
     next: 'No action is needed from you.',
   }
 }
@@ -170,6 +185,28 @@ export interface NaLabels {
 }
 
 /**
+ * What a checklist item is called when a homeowner reads it.
+ *
+ * **`ratified` is not decoration.** A name lands in a company-wide table keyed
+ * on the item id rather than on the property, because the name of a thing does
+ * not change between houses — which is exactly why one concierge's wording
+ * silently becoming every client's needs a gate. Written, usable, and marked
+ * until the design session confirms it: the same pattern as the golden set,
+ * where an unratified expectation gates nothing and summons somebody to look.
+ *
+ * **Usable, though.** The concierge who wrote it signs the sentence it appears
+ * in, and that signature is what makes it shippable for *that* report.
+ * Ratification is what makes it house style for everyone else's.
+ */
+export interface ItemName {
+  text: string
+  ratified: boolean
+  /** Who wrote it, for an unratified one. The editor shows this beside the row. */
+  writtenBy?: string
+  writtenAt?: string
+}
+
+/**
  * Item id to plain language.
  *
  * **Returning undefined is a supported answer** and means *withhold this row
@@ -177,7 +214,7 @@ export interface NaLabels {
  * for the same reason it is in an extraction prompt: a blank gets chased, a
  * wrong one gets believed.
  */
-export type DescribeItem = (itemId: string) => string | undefined
+export type DescribeItem = (itemId: string) => ItemName | undefined
 
 /**
  * Plain-language names, from `/schema/client-names-v1.json`.
@@ -218,14 +255,31 @@ export type DescribeItem = (itemId: string) => string | undefined
  * human writes one.
  */
 export function describeFromNames(names: Record<string, unknown>): DescribeItem {
-  const map = new Map<string, string>()
+  const map = new Map<string, ItemName>()
   const declared = (names as { names?: unknown }).names
   if (declared && typeof declared === 'object' && !Array.isArray(declared)) {
     for (const [id, value] of Object.entries(declared as Record<string, unknown>)) {
-      if (typeof value === 'string' && value.trim() !== '') map.set(id, value.trim())
+      // A name IN THE FILE is ratified by being there. The file is reviewed
+      // config; getting a name into it is the ratification. Names written
+      // inline in the editor live in `client_names` and carry their own flag.
+      if (typeof value === 'string' && value.trim() !== '') {
+        map.set(id, { text: value.trim(), ratified: true })
+      }
     }
   }
   return (itemId) => map.get(itemId)
+}
+
+/**
+ * Two sources, one lookup: the reviewed file, then anything written inline.
+ *
+ * **The file wins.** A ratified name is house style and an inline one is a
+ * proposal; letting the proposal shadow it would mean a text box quietly
+ * overriding a reviewed decision, which is the whole failure the gate exists
+ * for.
+ */
+export function mergeNames(file: DescribeItem, written: DescribeItem): DescribeItem {
+  return (itemId) => file(itemId) ?? written(itemId)
 }
 
 /**

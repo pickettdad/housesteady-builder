@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
@@ -1225,11 +1226,14 @@ describe('Increment 4 §8 — the client-facing boundary', () => {
     assert.equal(typeof table.version, 'string', 'versioned like every other config file here')
     assert.ok(table.names && typeof table.names === 'object', 'a plain map, so a human can read what a client will')
 
+    // The FILENAME, not the words. `/api/client-names` is a route path and a
+    // scan matching the substring reports the API surface as a second reader of
+    // the config file — which is how the first version of this failed.
     const offenders = sourceFiles(serverSrc)
       .filter((f) => !f.endsWith(join('report', 'names.ts')))
-      .filter((f) => /client-names/.test(codeOf(f)))
+      .filter((f) => /client-names-v1\.json/.test(codeOf(f)))
       .map((f) => f.replace(repoRoot, ''))
-    assert.deepEqual(offenders, [], 'one loader reads it; nothing else writes to it')
+    assert.deepEqual(offenders, [], 'one loader reads the file; nothing else opens it')
   })
 
   /**
@@ -1260,5 +1264,155 @@ describe('Increment 4 §8 — the client-facing boundary', () => {
     const versions = [...registry.slice(open, close).matchAll(/version:\s*(\w+)/g)].map((m) => m[1])
     assert.deepEqual(versions, ['V3'],
       'accepting a v4 export with a v3-shaped adapter loses everything v4 added, silently')
+  })
+})
+
+describe('Increment 4 §5 — the editor, and the brand it renders under', () => {
+  /**
+   * §5 — *"editing wording does not edit evidence."*
+   *
+   * A reworded row is an overlay over the composed sentence, never a change to
+   * `{ what, why }`. §2's boundary has to hold through the editor as well as
+   * through the render, and the structural form of that is: nothing that writes
+   * an editorial decision may write to the table the parts live in.
+   */
+  it('gives the editor no write path into a carried item', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(join(serverSrc, 'report'))) {
+      const code = codeOf(file)
+      for (const forbidden of ['UPDATE audit_carried_items', 'DELETE FROM audit_carried_items',
+        'UPDATE audit_slots', 'INSERT INTO audit_carried_items']) {
+        if (code.includes(forbidden)) offenders.push(`${file.replace(repoRoot, '')}: ${forbidden}`)
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'a rewording is a layer over the sentence; the parts stay as the producer wrote them')
+  })
+
+  /** Append-only, like every other decision log here. A correction adds a layer. */
+  it('never updates or deletes an editorial decision', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(serverSrc)) {
+      const code = codeOf(file)
+      for (const table of ['report_row_edits', 'client_names']) {
+        if (new RegExp(`UPDATE\\s+${table}\\b`, 'i').test(code)) offenders.push(`UPDATE ${table} in ${file.replace(repoRoot, '')}`)
+        if (new RegExp(`DELETE\\s+FROM\\s+${table}\\b`, 'i').test(code)) offenders.push(`DELETE ${table} in ${file.replace(repoRoot, '')}`)
+      }
+    }
+    assert.deepEqual(offenders, [],
+      '"why does this report not mention the attic" has to stay answerable, which a deleted row cannot do')
+  })
+
+  /**
+   * The ratification gate, structurally.
+   *
+   * A name written inline goes into a COMPANY-WIDE table, so one person's
+   * wording becomes everyone's. The gate is that nothing on the writing path can
+   * set `ratified_at` — the person confirming a name is deliberately not the
+   * person at the editor, and a route that could do both would collapse them.
+   */
+  it('lets nothing on the write path ratify a name', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(serverSrc)) {
+      const code = codeOf(file)
+      // Any INSERT or UPDATE putting a non-NULL value into ratified_at.
+      for (const m of code.matchAll(/ratified_at\s*=\s*([^\s,)]+)/g)) {
+        if (m[1] !== 'NULL') offenders.push(`${file.replace(repoRoot, '')}: sets ratified_at = ${m[1]}`)
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'written, usable, and marked until the design session confirms it — the same gate as the golden set')
+
+    const names = readFileSync(join(serverSrc, 'report', 'names.ts'), 'utf8')
+    const insert = names.slice(names.indexOf('INSERT INTO client_names'))
+    assert.match(insert.slice(0, 400), /NULL, NULL/, 'the insert hardcodes both ratification columns to NULL')
+  })
+
+  /**
+   * The media affordance is an affordance, not a filter.
+   *
+   * **This is the mitigation that let the field side decline per-item evidence
+   * capture**, and it only works if a person sees every row. A water-heater pin
+   * with a wide shot and a nameplate but no drain-pan photo must still speak up
+   * about the drain pan — which is the row that most needed saying.
+   */
+  it('never filters a report row on whether its pin has media', () => {
+    const draft = codeOf(join(serverSrc, 'report', 'draft.ts'))
+    // A filter would look like a media count deciding whether a row survives.
+    for (const shape of [/\.filter\([^)]*media/, /if\s*\([^)]*media[^)]*\)\s*continue/, /media[^\n]*\?\s*rows\.push/]) {
+      assert.ok(!shape.test(draft),
+        'presence of media says nothing about whether THIS item was captured; gating on it silences the row that mattered')
+    }
+  })
+
+  /**
+   * Brand Guide §04 — *"Redraw, retype, or approximate the mark — the vial and
+   * geometry reproduce from asset files only."*
+   *
+   * **A rule nobody can check by looking at a rendered page.** A mark 3% off is a
+   * mark that looks right. So the delivered files are checksummed and the scan
+   * asserts they are byte-identical to what was delivered — because the way an
+   * approximation gets in is not somebody deciding to make one, it is somebody
+   * editing a file in place.
+   *
+   * Same class of failure as the approximated name, and invisible in the same way.
+   */
+  it('keeps every brand asset byte-identical to what was delivered', () => {
+    const manifest = JSON.parse(readFileSync(join(repoRoot, 'brand', 'assets.json'), 'utf8')) as {
+      source: { file: string; sha256: string }
+      files: Record<string, string>
+    }
+
+    const zip = readFileSync(join(repoRoot, 'brand', manifest.source.file))
+    assert.equal(createHash('sha256').update(zip).digest('hex'), manifest.source.sha256,
+      'the delivered archive is the evidence; a changed one means the extracted files cannot be trusted')
+
+    const mismatches: string[] = []
+    for (const [rel, expected] of Object.entries(manifest.files)) {
+      const bytes = readFileSync(join(repoRoot, 'brand', rel))
+      const got = createHash('sha256').update(bytes).digest('hex')
+      if (got !== expected) mismatches.push(rel)
+    }
+    assert.deepEqual(mismatches, [], 'an asset edited in place is how an approximated mark ships')
+    assert.ok(Object.keys(manifest.files).length >= 15, 'every delivered file is accounted for')
+  })
+
+  /**
+   * And nothing draws its own mark.
+   *
+   * The vector master is inlined from `assets/svg/housesteady-mark.svg` or there
+   * is no mark. An `<svg>` with a `<path>` in a render path is somebody
+   * reproducing the geometry by hand, which §04's first line forbids by name.
+   */
+  it('lets no render path draw a mark of its own', () => {
+    const offenders: string[] = []
+    const roots = [serverSrc, join(repoRoot, 'web', 'src')]
+    for (const root of roots) {
+      for (const file of sourceFiles(root)) {
+        const code = codeOf(file)
+        // A path element with real geometry in it. The brand mark is the only
+        // thing in this product shaped like that.
+        if (/<path\s[^>]*\bd=["'][Mm]\s*[\d.]/.test(code)) {
+          offenders.push(`${file.replace(repoRoot, '')}: draws vector geometry`)
+        }
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'the mark reproduces from asset files only — a redrawn one looks right and is wrong')
+  })
+
+  /** The palette is one set of values, and the render does not invent a sixth. */
+  it('keeps the render palette to what the brand guide declares', () => {
+    const manifest = JSON.parse(readFileSync(join(repoRoot, 'brand', 'assets.json'), 'utf8')) as {
+      palette: Record<string, string>
+    }
+    const declared = new Set(
+      Object.entries(manifest.palette)
+        .filter(([k]) => k !== 'note')
+        .map(([, v]) => v.toUpperCase()),
+    )
+    assert.ok(declared.has('#15223B') && declared.has('#BE8A3D'),
+      'navy and brass are the two the guide names first')
+    assert.equal(declared.size, 5, 'five colours, and a sixth is a brand decision rather than a code one')
   })
 })

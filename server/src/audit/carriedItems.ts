@@ -84,7 +84,12 @@ export interface CarriedItem {
   status: string | null
   origin: ActiveItem['origin']
   dueSince: ActiveItem['dueSince']
+  /** Desk display. May name a zone type; never reaches a client. */
   where: string
+  /** Client-safe, or null. See `ActiveItem.whereLabel`. */
+  whereLabel: string | null
+  /** What the checklist asked, in the config's words. Desk-facing; never a name. */
+  itemText: string | null
   /** False when a fail-open decision put the item in the active set at all. */
   certain: boolean
   unrecognised: string[]
@@ -212,6 +217,8 @@ export function carriedItems(args: {
       origin: item.origin,
       dueSince: item.dueSince,
       where: item.where,
+      whereLabel: item.whereLabel,
+      itemText: item.itemText,
       certain: item.certain,
       unrecognised: item.unrecognised,
     })

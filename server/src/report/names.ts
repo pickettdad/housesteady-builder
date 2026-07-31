@@ -20,8 +20,10 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadSchema, schemaRoot, type LoadedSchema } from '../audit/schema.js'
-import type { DescribeItem, GapLabel } from './clientVoice.js'
-import { describeFromNames } from './clientVoice.js'
+import type { Db } from '../db/index.js'
+import { newId, now } from '../db/index.js'
+import type { DescribeItem, GapLabel, ItemName } from './clientVoice.js'
+import { describeFromNames, mergeNames } from './clientVoice.js'
 
 export interface ClientNames {
   version: string
@@ -46,6 +48,88 @@ export function loadClientNames(path = join(schemaRoot, 'client-names-v1.json'))
     describe: describeFromNames(raw),
     declared: Object.values(names).filter((v) => typeof v === 'string' && v.trim() !== '').length,
   }
+}
+
+/**
+ * Names written inline in the editor — company-wide, and unratified until confirmed.
+ *
+ * **The gate exists because the table is company-wide.** A name is keyed on the
+ * item id rather than on the property, because the name of a thing does not
+ * change between houses — which is precisely why one person's first draft
+ * silently becoming everyone's needs to be visible. Same pattern as the golden
+ * set: written, usable, and marked until the design session confirms it.
+ *
+ * **The file wins over an inline name.** A ratified name is house style; an
+ * inline one is a proposal. Letting the proposal shadow it would be a text box
+ * quietly overriding a reviewed decision.
+ */
+export function writtenNames(db: Db): DescribeItem {
+  const rows = db
+    .prepare(
+      `SELECT item_id, name, actor_id, ratified_at, created_at FROM client_names ORDER BY seq`,
+    )
+    .all() as { item_id: string; name: string; actor_id: string; ratified_at: string | null; created_at: string }[]
+
+  // Latest wins per item. Append-only in, one answer out — a rewrite is a new
+  // row and the old one stays, so *what did this say in March* is answerable.
+  const latest = new Map<string, ItemName>()
+  for (const r of rows) {
+    latest.set(r.item_id, {
+      text: r.name,
+      ratified: r.ratified_at !== null,
+      writtenBy: r.actor_id,
+      writtenAt: r.created_at,
+    })
+  }
+  return (itemId) => latest.get(itemId)
+}
+
+/** Write a name from the editor. Unratified by construction — nothing here sets `ratified_at`. */
+export function writeName(args: {
+  db: Db
+  itemId: string
+  name: string
+  actorId: string
+  propertyId?: string | null
+}): string {
+  const id = newId()
+  const at = now()
+  const next = (args.db
+    .prepare('SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM client_names')
+    .get() as { n: number }).n
+  args.db
+    .prepare(
+      `INSERT INTO client_names (id, item_id, name, actor_id, property_id, ratified_at, ratified_by, seq, created_at)
+       VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
+    )
+    .run(id, args.itemId, args.name.trim(), args.actorId, args.propertyId ?? null, next, at)
+  return id
+}
+
+/**
+ * Every unratified name, for whoever is doing the confirming.
+ *
+ * **Never summon a human to a blank space** — CLAUDE.md §9. A ratification queue
+ * that says *"3 names await review"* and nothing else makes somebody go and find
+ * them. This carries the wording, who wrote it, when, and which house they were
+ * looking at, because that context is what makes a name judgeable.
+ */
+export function unratifiedNames(db: Db): {
+  id: string; itemId: string; name: string; actorId: string; propertyId: string | null; at: string
+}[] {
+  return (db
+    .prepare(
+      `SELECT n.id, n.item_id, n.name, n.actor_id, n.property_id, n.created_at
+         FROM client_names n
+        WHERE n.ratified_at IS NULL
+          AND n.seq = (SELECT MAX(m.seq) FROM client_names m WHERE m.item_id = n.item_id)
+        ORDER BY n.seq DESC`,
+    )
+    .all() as { id: string; item_id: string; name: string; actor_id: string; property_id: string | null; created_at: string }[])
+    .map((r) => ({
+      id: r.id, itemId: r.item_id, name: r.name, actorId: r.actor_id,
+      propertyId: r.property_id, at: r.created_at,
+    }))
 }
 
 /**
@@ -100,4 +184,16 @@ export function naLabelMap(schema: LoadedSchema = loadSchema()): NaLabelMap {
     isDefaulted: (reason) => reason === null || !(reason in declared),
     declared,
   }
+}
+
+/**
+ * The lookup the whole report uses: the reviewed file, then anything written inline.
+ *
+ * One call site, so nothing can accidentally consult only half of it — a
+ * composer reading the file alone would withhold rows a concierge has already
+ * named, and one reading the database alone would let a proposal shadow house
+ * style.
+ */
+export function describeItems(db: Db, file = loadClientNames()): DescribeItem {
+  return mergeNames(file.describe, writtenNames(db))
 }

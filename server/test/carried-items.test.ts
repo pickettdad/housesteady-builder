@@ -277,9 +277,9 @@ describe('the client-facing composer', () => {
         parts: { what: 'wh.nameplate in the utility room', why: 'Not accessible today' },
         status: null, origin: 'computed',
         dueSince: { importId: 'i1', visitId: 'v1', at: '2026-07-30' },
-        where: 'the utility room', certain: true, unrecognised: [],
+        where: 'the utility room', whereLabel: 'the utility room', itemText: null, certain: true, unrecognised: [],
       },
-      () => 'The water heater data plate',
+      () => ({ text: 'The water heater data plate', ratified: true }),
       LABELS,
     )
     assert.equal(row!.text, 'The water heater data plate — in the utility room — could not be reached on this visit.')
@@ -294,9 +294,9 @@ describe('the client-facing composer', () => {
         parts: { what: 'x.y in the roof', why: 'Waiting on weather' },
         status: null, origin: 'computed',
         dueSince: { importId: 'i1', visitId: 'v1', at: '2026-07-30' },
-        where: 'the roof', certain: true, unrecognised: [],
+        where: 'the roof', whereLabel: 'the roof', itemText: null, certain: true, unrecognised: [],
       },
-      () => 'The roof edge',
+      () => ({ text: 'The roof edge', ratified: true }),
       LABELS,
     )
     assert.equal(row!.label, 'not-inspected',
@@ -309,7 +309,7 @@ describe('the client-facing composer', () => {
       reason: 'not-reached', naReasonId: null, column: 'missing-from-us' as const,
       parts: { what: 'zzz.unknown in the attic' }, status: null, origin: 'computed' as const,
       dueSince: { importId: 'i1', visitId: 'v1', at: '2026-07-30' },
-      where: 'the attic', certain: true, unrecognised: [],
+      where: 'the attic', whereLabel: 'the attic', itemText: null, certain: true, unrecognised: [],
     }
     assert.equal(clientRow(item, () => undefined, LABELS), null)
     const held = withheld([item], () => undefined)
@@ -323,11 +323,11 @@ describe('the client-facing composer', () => {
       reason: 'not-reached', naReasonId: null, column: 'missing-from-us' as const,
       parts: { what: 'wh.nameplate on the water heater' }, status: 'proposed', origin: 'received' as const,
       dueSince: { importId: 'i1', visitId: 'v1', at: '2026-07-30' },
-      where: 'the water heater', certain: true, unrecognised: [],
+      where: 'the water heater', whereLabel: 'the water heater', itemText: null, certain: true, unrecognised: [],
     }
-    assert.equal(clientRow(item, () => 'The water heater data plate', LABELS), null,
+    assert.equal(clientRow(item, () => ({ text: 'The water heater data plate', ratified: true }), LABELS), null,
       'a photograph is sitting on the pin — telling the client we did not capture it would be false')
-    assert.match(withheld([item], () => 'The water heater data plate')[0]!.because, /awaiting confirmation/)
+    assert.match(withheld([item], () => ({ text: 'The water heater data plate', ratified: true }))[0]!.because, /awaiting confirmation/)
   })
 })
 
@@ -438,7 +438,7 @@ describe('the client-facing name table', () => {
       reason: 'not-reached', naReasonId: null, column: 'missing-from-us' as const,
       parts: { what: 'wet.fan in the ensuite' }, status: null, origin: 'computed' as const,
       dueSince: { importId: 'i1', visitId: 'v1', at: '2026-07-30' },
-      where: 'the ensuite', certain: true, unrecognised: [],
+      where: 'the ensuite', whereLabel: 'the ensuite', itemText: null, certain: true, unrecognised: [],
     }
     const named = describeFromNames({ names: { 'wet.fan': 'The exhaust fan' } })
     const row = clientRow(item, named, naLabelMap())

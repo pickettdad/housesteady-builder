@@ -556,6 +556,44 @@ export interface CarriedItem {
 export const api = {
   listProperties: () => req<Property[]>('/api/properties'),
 
+  /** The gap report draft. A projection of the audit plus the edit log, never a stored document. */
+  gapReport: (propertyId: string) => req<Draft>(`/api/properties/${propertyId}/report`),
+
+  /** One editorial decision. Append-only — the server never updates a row. */
+  editReportRow: (propertyId: string, rowKey: string, kind: string, payload?: Record<string, unknown>) =>
+    req<{ id: string }>(`/api/properties/${propertyId}/report/rows/${encodeURIComponent(rowKey)}/${kind}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload ?? {}),
+    }),
+
+  /** §1d — a row the concierge types. Provenance `human-entered`, always. */
+  addReportRow: (propertyId: string, text: string, column: string) =>
+    req<{ rowKey: string }>(`/api/properties/${propertyId}/report/rows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, column }),
+    }),
+
+  reportRowTrail: (propertyId: string, rowKey: string) =>
+    req<{ kind: string; actorId: string; at: string }[]>(
+      `/api/properties/${propertyId}/report/rows/${encodeURIComponent(rowKey)}/trail`,
+    ),
+
+  /**
+   * A client-facing name, written inline.
+   *
+   * Company-wide the moment it is written, and unratified until the design
+   * session confirms it — the server's insert hardcodes NULL, so this call
+   * cannot ratify anything.
+   */
+  writeClientName: (itemId: string, name: string, propertyId?: string) =>
+    req<{ id: string; ratified: boolean }>('/api/client-names', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId, name, propertyId }),
+    }),
+
   /** §1i — the audit is PROPERTY-scoped. A re-run is a new run, never an update. */
   runAudit: (propertyId: string, visitId?: string | null) =>
     req<AuditRun>(`/api/properties/${propertyId}/audit`, {
@@ -748,3 +786,72 @@ export const fmtBytes = (n: number): string => {
 
 export const fmtTime = (s: string | null | undefined): string =>
   s ? new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—'
+
+// ------------------------------------------------- the gap report editor (§5)
+
+/** What a row's presence rests on. §1d — visible in the record, not only in the render. */
+export type RowProvenance = 'evidence-bound' | 'human-entered'
+
+export interface DraftRow {
+  rowKey: string
+  column: string
+  /**
+   * Why it landed in that column, in a sentence rather than a rule id.
+   *
+   * §5: a misclassified row should be visible AS misclassified. A concierge can
+   * disagree with "this is ours because a checklist item in the ensuite has no
+   * answer"; nobody can disagree with `rule-3`.
+   */
+  columnBecause: string
+  provenance: RowProvenance
+  text: string
+  reworded: boolean
+  /** What the composer wrote, kept beside a rewording so the change is visible. */
+  composed: string | null
+  included: boolean
+  source?: {
+    itemId: string
+    scopeKind: string
+    zoneId: string | null
+    pinId: string | null
+    where: string
+    reason: string
+    /** Untouched by any rewording — §2's boundary holds through the editor. */
+    parts: { what: string; why?: string }
+    /**
+     * What the checklist asked, in the config's own words. **Desk-facing.**
+     *
+     * Shown beside the naming box so the person writing has something to
+     * translate rather than something to invent. It is emphatically NOT a
+     * client-facing name — reading it as one is Amendment 1 §C's failure.
+     */
+    itemText: string | null
+  }
+  /** False when the item's client-facing name has not been through the design session. */
+  nameRatified: boolean
+  /**
+   * What the pin or room this row points at is holding.
+   *
+   * **A row affordance, never a filter.** Presence of media says nothing about
+   * whether THIS item was captured, and gating rows on it would silence the row
+   * that most needed saying.
+   */
+  media: {
+    ofKind: { kind: string; count: number; bytes: number }[]
+    total: number
+    recent: { mediaId: string; kind: string; capturedAt: string | null }[]
+  } | null
+  withheldBecause?: string
+  actor?: string
+  at?: string
+}
+
+export interface Draft {
+  propertyId: string
+  auditRunId: string | null
+  rows: DraftRow[]
+  columns: { id: string; title: string; rows: DraftRow[] }[]
+  /** Rows the client render cannot carry, with the reason. Never silently dropped. */
+  withheld: DraftRow[]
+  unratifiedNames: { id: string; itemId: string; name: string; actorId: string; at: string }[]
+}

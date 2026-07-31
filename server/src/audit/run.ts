@@ -381,14 +381,15 @@ export function runAudit(args: {
     const insCarried = db.prepare(
       `INSERT INTO audit_carried_items (audit_run_id, scope_kind, scope_zone_id, scope_pin_id,
          item_id, reason, na_reason_id, column_id, parts, due_since_import_id, due_since_at,
-         origin, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         origin, status, where_desk, where_label, item_text, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     for (const item of stream.carried.items) {
       insCarried.run(
         runId, item.scope.kind, item.scope.zoneId, item.scope.pinId, item.itemId,
         item.reason, item.naReasonId, item.column, JSON.stringify(item.parts),
-        item.dueSince.importId, item.dueSince.at, item.origin, item.status, at,
+        item.dueSince.importId, item.dueSince.at, item.origin, item.status,
+        item.where, item.whereLabel, item.itemText, at,
       )
     }
   })()
