@@ -221,6 +221,87 @@ like the thing I was scanning for."** Sometimes the answer is a coincidence of s
 Sometimes the pattern recognised something real that nobody had named yet, which is what a
 scan is for.
 
+### 9. A document asserting a checked state must carry the check, not the claim
+
+*(Added 2026-07-31. Ratified by the owner, who supplied two of the three instances.)*
+
+**A sentence that says "checked" is a sentence about the past.** It was true when somebody
+ran the check. Everything after that is a claim wearing the clothes of a verified fact, and
+the reader cannot tell the difference — which is the whole problem, because the reader is
+usually the person who wrote it.
+
+**Three instances this session, all written as intent and read afterwards as fact:**
+
+| Where | Claimed | Actually |
+|---|---|---|
+| `docs/archive/README.md` | *"No code path, no test, and no live document references anything in this directory"* | **four** live citations pointed at the archived AI Assist Plan by name — `CLAUDE.md` §9, `prompts/README.md`, and two build specs |
+| `Note_Verbatim-Extraction` | *"ratified by the owner during Increment 2b"* | recorded, never verified. Corrected in place to the real date |
+| the session handoff | *"20 of 41 slots carry a label"* | not 20 |
+
+**The second half of the rule matters as much as the first**, and it is the part that is
+easy to get wrong: *carrying a check that itself needs maintaining only moves the problem.*
+A hand-written list of the things to check goes stale exactly the way the claim did. **The
+check must take its inputs from the artifact it is checking.**
+
+The archive README's fix is the shape. Not a list of filenames to grep for — the filenames
+*are* the directory:
+
+```sh
+ls docs/archive/HouseSteady_*.md | xargs -n1 basename | sed 's/\.md$//' \
+  | xargs -I{} git grep -n {} -- ':!docs/archive'
+```
+
+Add a file to the archive and the check covers it without anyone remembering to say so.
+
+#### 9a · The third instance is worse than a wrong number, and that is the lesson
+
+The correction to the handoff was *"which is 19 of 41."* **Counted here, from the schema,
+there are three defensible answers and the claim states which reading it uses in none of
+them:**
+
+| Reading | Count |
+|---|---|
+| slots **declaring** `defaultLabel` | **19** |
+| slots declaring a **non-null** one | **18** |
+| declaring it as **`null`** — `s1.response-procedures` | **1** |
+
+`s1.response-procedures` is a `coverage` slot fed from the template library. Its
+`defaultLabel: null` is a **deliberate statement that no honesty label applies** to content
+the builder writes — not an omission. So *declared-and-null* and *never-declared* are
+different things here, which is the **fifth** time that distinction has decided something
+in this repo, after declared-and-false in the trigger evaluator, typed/stub/undeclared for
+component types, the verbatim zone-attribute map, and `since`'s four bases.
+
+**So a corrected number is not a carried check.** 20 → 19 fixes the arithmetic and leaves
+the shape intact: a bare count, no stated reading, nothing that re-derives it. The rule
+wants the reading named and the number produced:
+
+```sh
+python3 - <<'EOF'
+import json
+d = json.load(open("schema/binder-schema-v1.json"))
+slots = [s for sec in d["sections"] for s in sec.get("slots", [])]
+declared = [s for s in slots if "defaultLabel" in s]
+print(f"{len(slots)} slots · {len(declared)} declare defaultLabel · "
+      f"{sum(1 for s in declared if s['defaultLabel'] is not None)} declare a non-null one")
+EOF
+```
+
+Output as of 2026-07-31: `41 slots · 19 declare defaultLabel · 18 declare a non-null one`.
+**That line is output, not prose**, and the command above it is why anyone can tell.
+
+#### What it caught immediately
+
+`Slot.defaultLabel` was typed `string | undefined` in `server/src/audit/schema.ts` while the
+shipped schema holds a `null`. Nothing reads it yet, so nothing is broken — and the first
+thing that does read it would have had `null` narrowed away by the type and would have
+treated a deliberate *no label applies* as *nobody said*. Retyped `string | null`, with a
+doctrine scan holding it.
+
+**Distinct from rule 2**, which is about a check naming the evidence behind *its own*
+verdict. This is about a **document** asserting a state of the world it does not re-derive,
+and the failure is slower: rule 2's check is at least still running.
+
 ---
 
 ## Consequences already in the code

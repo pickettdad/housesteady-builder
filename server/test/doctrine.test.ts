@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -1816,5 +1817,114 @@ describe('Increment 4 §3 — the session plan is session data, never config', (
     assert.match(decls, /\bsince:\s*string \| null/, 'the date is nullable, which is what makes the rest necessary')
     assert.match(decls, /\bsinceBasis:\s*SinceBasis/, 'and which of four nulls it is')
     assert.match(decls, /\bsinceNote:\s*string/, 'and why, in words a receiver does not have to interpret')
+  })
+})
+
+/**
+ * Verification Discipline rule 9 — **a document asserting a checked state must
+ * carry the check, not the claim.**
+ *
+ * The rule arrived from three prose claims that had gone stale, and it came with
+ * a second half that is easy to lose: *carrying a check that itself needs
+ * maintaining only moves the problem.* So these scans take their inputs from the
+ * artifact rather than from a list somebody has to remember to update.
+ */
+describe('rule 9 — checks that re-derive rather than remember', () => {
+  /**
+   * **A `defaultLabel` of `null` is a value, not an absence.**
+   *
+   * Rule 9's third instance was a count — *"20 of 41 slots carry a label"* — and
+   * re-deriving it produced **three** defensible answers, because one slot
+   * declares the key as `null`. `s1.response-procedures` is fed from the
+   * template library: the builder writes the content, so no honesty label
+   * applies, and saying so is a statement rather than an omission.
+   *
+   * Nothing reads the field yet. That is exactly when to fix the type — the
+   * first reader would have had `null` narrowed away and would have treated
+   * *no label applies* as *nobody said*. Fifth instance of the distinction.
+   */
+  it('types a declared-null default label as a value rather than an absence', () => {
+    const declared = codeOf(join(serverSrc, 'audit', 'schema.ts'))
+    assert.match(declared, /defaultLabel\?:\s*string \| null/,
+      'the shipped schema holds a null; a `string | undefined` type narrows it away')
+
+    // And the schema really does hold one, so this scan is about live data
+    // rather than a hypothetical. Read from the file, not asserted as a number.
+    const schema = JSON.parse(
+      readFileSync(join(repoRoot, 'schema', 'binder-schema-v1.json'), 'utf8'),
+    ) as { sections: { slots?: { id: string; defaultLabel?: string | null }[] }[] }
+    const slots = schema.sections.flatMap((s) => s.slots ?? [])
+    const nulls = slots.filter((s) => 'defaultLabel' in s && s.defaultLabel === null)
+    assert.ok(nulls.length > 0,
+      'if no slot declares a null label any more, this scan has nothing to hold — say so and remove it')
+  })
+
+  /**
+   * **Nothing reads `defaultLabel` for truthiness.**
+   *
+   * The durable half. A count is a fact about today's schema; *no reader may
+   * collapse declared-null into never-declared* is a fact about the code, and it
+   * is the one that survives a schema edit.
+   */
+  it('lets nothing test a default label for truthiness', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(serverSrc)) {
+      const code = codeOf(file)
+      // `if (slot.defaultLabel)`, `x.defaultLabel ? a : b`, `defaultLabel &&` —
+      // every shape that reads a declared null as though the key were absent.
+      //
+      // **`?:` and `?.` are excluded, and rule 8 is why.** The first version of
+      // this pattern fired on `defaultLabel?: string | null` — the optional
+      // PROPERTY marker in the type declaration it was written to protect. Read
+      // first: no defect underneath, the pattern simply cannot tell an optional
+      // property from a ternary without looking at what follows the `?`. So it
+      // looks. `??` is also fine: it is the explicit-default idiom, not a
+      // truthiness test, and it treats null and undefined alike by design.
+      for (const m of code.matchAll(/defaultLabel\s*(\?(?![:.?])|&&)/g)) {
+        offenders.push(`${file.replace(repoRoot, '')}: ${m[0].trim()}`)
+      }
+      if (/if\s*\([^)]*\bdefaultLabel\b[^)]*\)/.test(code)) {
+        offenders.push(`${file.replace(repoRoot, '')}: truthiness test on defaultLabel`)
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'a slot that declares `defaultLabel: null` said something; absence said nothing')
+  })
+
+  /**
+   * **The archive README's claim carries its own grep.**
+   *
+   * Rule 9's first instance: *"nothing references anything in this directory"*
+   * was false for four live citations. The fix was not a corrected sentence — it
+   * was a check whose inputs are the directory listing, so archiving a file
+   * extends the check without anyone remembering to.
+   *
+   * This scan is that same check, run in CI rather than by hand.
+   */
+  it('holds the archive README\'s claim that nothing outside it cites the archive', () => {
+    const archive = join(repoRoot, 'docs', 'archive')
+    const archived = readdirSync(archive)
+      .filter((f) => f.endsWith('.md') && f !== 'README.md')
+      .map((f) => f.replace(/\.md$/, ''))
+    assert.ok(archived.length > 0, 'nothing is archived, so this scan proves nothing')
+
+    // Every tracked file except the archive itself. `git ls-files` rather than a
+    // hand-written directory list — same reason as above.
+    const tracked = execFileSync('git', ['ls-files'], { cwd: repoRoot, encoding: 'utf8' })
+      .split('\n')
+      .filter((f) => f && !f.startsWith('docs/archive/'))
+
+    const offenders: string[] = []
+    for (const file of tracked) {
+      let body: string
+      try {
+        body = readFileSync(join(repoRoot, file), 'utf8')
+      } catch {
+        continue // binary or unreadable — nothing to cite from
+      }
+      for (const name of archived) if (body.includes(name)) offenders.push(`${file} cites ${name}`)
+    }
+    assert.deepEqual(offenders, [],
+      'the archive README says nothing outside it references the archive; this is that sentence, executable')
   })
 })
