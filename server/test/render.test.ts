@@ -49,11 +49,67 @@ describe('grouping', () => {
     assert.equal(ours.groups.length, 2)
     const unanswered = ours.groups.find((g) => g.reason === 'not-reached')!
     assert.equal(unanswered.items.length, 19)
-    assert.equal(unanswered.frame, 'In the ensuite, we were not able to cover:')
+    assert.equal(unanswered.frame, 'In the ensuite, we did not cover:')
 
     const deferred = ours.groups.find((g) => g.reason === 'deferred')!
     assert.equal(deferred.items.length, 1)
     assert.equal(deferred.frame, 'We have held these over to the next visit:')
+  })
+
+  /**
+   * **The three corrections, pinned — each is a claim the data does not support.**
+   *
+   * `not-reached` may not say *we were not able to cover*: that claims we tried
+   * and were blocked, which is the not-accessible claim made over not-inspected
+   * data. Amendment 1 §A3's asymmetry, arriving through the frame instead of
+   * through the label.
+   */
+  it('never lets a not-reached frame claim we tried and were blocked', async () => {
+    const { db, propertyId } = await ready()
+    const groups = sign(db, propertyId).columns.flatMap((c) => c.groups)
+    for (const g of groups.filter((x) => x.reason === 'not-reached')) {
+      assert.ok(!/not able|could not|unable/i.test(g.frame),
+        `"${g.frame}" claims an obstruction the record does not carry`)
+    }
+  })
+
+  /**
+   * And `no-access` IS the place that wording is true.
+   *
+   * There was no frame for it at all, because the reference export produced
+   * nineteen not-reached and one deferred and this reason never fired — a frame
+   * nobody wrote because nothing exercised it. So the test supplies the locked
+   * crawlspace the export does not have.
+   */
+  it('says we were not able to reach, for the one reason where that is true', async () => {
+    const { db, propertyId } = await ready()
+    db.prepare(
+      `INSERT INTO audit_carried_items (audit_run_id, scope_kind, scope_zone_id, scope_pin_id,
+        item_id, reason, na_reason_id, column_id, parts, origin, where_desk, where_label, created_at)
+       SELECT audit_run_id, 'zone', 'z-crawl', NULL, 'int.surfaces', 'no-access', 'no-access',
+              'missing-from-us', parts, 'computed', 'crawlspace', 'crawlspace', created_at
+         FROM audit_carried_items LIMIT 1`,
+    ).run()
+
+    const g = sign(db, propertyId).columns.flatMap((c) => c.groups).find((x) => x.reason === 'no-access')!
+    assert.equal(g.frame, 'In the crawlspace, we were not able to reach:')
+    assert.equal(g.next, 'We will try again on the next visit.')
+    assert.equal(g.label, 'not-accessible', 'and the label agrees with the frame')
+  })
+
+  /**
+   * A deferral has no closer.
+   *
+   * *"No action is needed from you"* is false the moment the deferral depends on
+   * the client — held until the well record turns up. The opener stands alone
+   * rather than guessing which kind of deferral this was.
+   */
+  it('gives a deferral no closer, because it cannot know whose it is', async () => {
+    const { db, propertyId } = await ready()
+    const deferred = sign(db, propertyId).columns.flatMap((c) => c.groups)
+      .find((g) => g.reason === 'deferred')!
+    assert.equal(deferred.next, undefined)
+    assert.ok(!/no action/i.test(deferred.frame))
   })
 
   /**

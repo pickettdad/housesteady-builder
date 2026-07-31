@@ -1582,3 +1582,102 @@ describe('Increment 4 §8 — nothing renders client-facing without a signature'
     assert.ok(Object.keys(file.frames.byReason).length > 0, 'and the reasons the export produces are written')
   })
 })
+
+describe('Increment 4 §3 — the session plan is session data, never config', () => {
+  /**
+   * §3: *"It rides into the field app as its own import artifact, never touches
+   * the generated config or its hash."*
+   *
+   * A plan that modified the config would make the config a function of what the
+   * builder thinks, which is exactly backwards: the config is the field's
+   * declaration of what a visit asks, and the plan is one visit's starting state.
+   */
+  it('gives the plan no write path into a config snapshot', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(join(serverSrc, 'plan'))) {
+      const code = codeOf(file)
+      for (const forbidden of ['INSERT INTO config_snapshots', 'UPDATE config_snapshots',
+        'DELETE FROM config_snapshots', 'config_hash']) {
+        if (code.includes(forbidden)) offenders.push(`${file.replace(repoRoot, '')}: ${forbidden}`)
+      }
+    }
+    assert.deepEqual(offenders, [], 'the plan reads the config; it never writes one')
+  })
+
+  /**
+   * **A recorded false is a decision; an absent attribute is not.**
+   *
+   * The whole of §3a turns on this, and the mistake is one line: filtering the
+   * attribute map to truthy values. That makes a bedroom recorded
+   * `sleeping: false` identical to a room nobody was asked about, and visit two
+   * cannot tell *"we established there is none"* from *"nobody has considered
+   * it."* Same distinction as declared-and-false in the trigger evaluator.
+   */
+  it('never filters a zone attribute map to its true values', () => {
+    const plan = codeOf(join(serverSrc, 'plan', 'sessionPlan.ts'))
+    for (const shape of [
+      /filter\(\[[^\]]*\]\)\s*=>\s*v\)/,
+      /\.filter\(\(\[, v\]\) => v\)/,
+      /if \(!value\) continue/,
+      /Boolean\)/,
+    ]) {
+      assert.ok(!shape.test(plan),
+        'a recorded false has to survive the round trip, or a decision arrives as an absence')
+    }
+    // And the positive form: both booleans are admitted.
+    assert.match(plan, /typeof value === 'boolean'/,
+      'the test is whether it IS a boolean, not whether it is true')
+  })
+
+  /**
+   * Every payload section says why it is empty.
+   *
+   * Verification Discipline rule 7 at the payload level: three of five sections
+   * are empty on the reference export, and an empty section is identical whether
+   * the mechanism works and found nothing or was never built. A plan that only
+   * emitted arrays would be indistinguishable from an unimplemented one.
+   */
+  it('makes every payload section report why it is empty', () => {
+    const plan = readFileSync(join(serverSrc, 'plan', 'sessionPlan.ts'), 'utf8')
+    const iface = plan.slice(plan.indexOf('sections: {'), plan.indexOf('warnings: string[]'))
+    const declared = [...iface.matchAll(/^\s{4}(\w+): SectionReport$/gm)].map((m) => m[1])
+    assert.ok(declared.length >= 6, `every section carries a report, found ${declared.join(', ')}`)
+
+    // And a SectionReport is a count AND a sentence — a bare count is the thing
+    // this exists to prevent.
+    assert.match(plan, /interface SectionReport \{[\s\S]*?count: number[\s\S]*?note: string/,
+      'a count alone cannot say whether the mechanism ran')
+  })
+
+  /**
+   * The naming trap, per §3.
+   *
+   * `src/engine/plan.ts` in the FIELD repo exports `SessionPlan` and
+   * `compilePlan` and is the v1 slot-model plan compiler — unrelated to this.
+   * Two things with one name is how somebody eventually binds to the wrong one.
+   */
+  it('does not borrow the field repo\'s plan-compiler vocabulary', () => {
+    const offenders = sourceFiles(join(serverSrc, 'plan'))
+      .filter((f) => /\bcompilePlan\b/.test(codeOf(f)))
+      .map((f) => f.replace(repoRoot, ''))
+    assert.deepEqual(offenders, [], 'compilePlan means something else in the field repo')
+  })
+
+  /**
+   * §B3 — the unit shot and the nameplate shot stay distinct.
+   *
+   * A prior unit photograph is a comparison POSITION: the same object from the
+   * same angle, month after month. Falling back to "the most recent photo on
+   * this pin" when no `.unit` item declares one would conflate the two
+   * canonical photographs the spec keeps apart — and would be the
+   * always-present-fallback failure a third time, in the artifact that rides
+   * back into the field.
+   */
+  it('resolves a prior unit photograph only through a declared .unit item', () => {
+    const plan = codeOf(join(serverSrc, 'plan', 'sessionPlan.ts'))
+    const resolve = plan.slice(plan.indexOf('const candidates'), plan.indexOf('return {\n      pinId'))
+    assert.match(resolve, /candidates/, 'the item ids come from the config')
+    assert.ok(!/\?\?\s*media\b|else\s*\{[^}]*most recent/i.test(resolve),
+      'no fallback to an arbitrary photograph when the config declares no comparison position')
+  })
+})
