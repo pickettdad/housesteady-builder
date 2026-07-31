@@ -1179,6 +1179,60 @@ describe('Increment 4 §8 — the client-facing boundary', () => {
   })
 
   /**
+   * Amendment 1 §C — the client-facing name never comes from the field config.
+   *
+   * **This scan exists because the mistake it forbids was shipped and measured.**
+   * An earlier `describeFromConfig` read each checklist item's `text` as its
+   * client-facing name. Every one of the 266 items in the reference config has
+   * one, so the withholding rule never fired — and the strings are instructions
+   * written for a concierge standing in the room:
+   *
+   * > Windows operated, locked, latched; seal-fog noted — pin defects
+   *
+   * Four contain the word *issue*, which House Style §7 bans outright.
+   * Thirty-four use *pin* as a verb. Two carry markdown asterisks.
+   *
+   * **The general shape is what makes it worth a scan rather than a test.** A
+   * fallback whose input is always present is not a fallback — it is the only
+   * path, and it never announces itself. A behavioural test would have read
+   * green throughout.
+   */
+  it('never lets the client-facing name come from the field config', () => {
+    const CONFIG_KEYS = ['baseLists', 'zoneLists', 'componentLists', 'sessionItems', 'snapshot']
+    const offenders: string[] = []
+    for (const file of reportFiles()) {
+      const code = codeOf(file)
+      for (const key of CONFIG_KEYS) {
+        if (new RegExp(`\\b${key}\\b`).test(code)) {
+          offenders.push(`${file.replace(repoRoot, '')}: reads ${key}`)
+        }
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'the config\'s item text is an instruction for the concierge; a name for a client is a different thing a human writes')
+  })
+
+  /**
+   * And the names table stays a table — never generated, never derived.
+   *
+   * §9's third guard, one artifact over: a suggestion sitting in the input box
+   * makes acceptance the default and rejection work. A generated name in this
+   * file would be ratified by the first person who did not look.
+   */
+  it('keeps the client-name table declarative', () => {
+    const raw = readFileSync(join(repoRoot, 'schema', 'client-names-v1.json'), 'utf8')
+    const table = JSON.parse(raw) as { names?: Record<string, unknown>; version?: string }
+    assert.equal(typeof table.version, 'string', 'versioned like every other config file here')
+    assert.ok(table.names && typeof table.names === 'object', 'a plain map, so a human can read what a client will')
+
+    const offenders = sourceFiles(serverSrc)
+      .filter((f) => !f.endsWith(join('report', 'names.ts')))
+      .filter((f) => /client-names/.test(codeOf(f)))
+      .map((f) => f.replace(repoRoot, ''))
+    assert.deepEqual(offenders, [], 'one loader reads it; nothing else writes to it')
+  })
+
+  /**
    * §3c — no v4 adapter is registered, and that is load-bearing.
    *
    * A partial v4 adapter would make the import path ACCEPT a real v4 export and

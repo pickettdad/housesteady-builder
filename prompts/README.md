@@ -12,6 +12,24 @@ against.
 | `nameplate_extract` | Make · model · serial · capacity · install date, each independently `unknown`. | fast |
 | `photo_routing` | Does this room photograph belong to a pin in that room? Usually not. | fast |
 | `pin_type` | Which of the config's component types is this untyped pin? | fast |
+| `house-style` | **Not a task — an input to every drafting task.** The writing standard for everything a client reads. | — |
+
+**`house-style/v001.md` is House Style v1.1**, and the two numbers are different things
+on purpose. The directory's `vNNN` is a **sequence**, because this loader's rule is that
+versions must sort and a document version like `1.10` would sort before `1.9`. The
+document's own version is assigned by the design session and lives in its status line.
+Recorded here so the correspondence is answerable without opening the file:
+
+| Prompt version | Document version | Date |
+|---|---|---|
+| `house-style/v001.md` | House Style **v1.1** | 2026-07-27 |
+
+**It is a prompt input rather than a prompt**, which is the reason it sits at the top of
+its own directory with no task beside it. Its §11 requires exactly what this directory
+provides: *"a change to it is a change to the voice of every binder produced afterwards —
+so it runs against the golden set before it ships."* Nothing calls it alone; every
+drafting prompt is written against it, and the lint in the render path enforces the part
+of it that is checkable.
 
 **Wording lives here; per-call data does not.** The candidate pins for a room and the
 component types for an import are sent as their own block beside the prompt, never

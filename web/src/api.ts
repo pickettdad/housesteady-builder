@@ -516,6 +516,21 @@ export interface AuditRun {
     warnings: string[]
   }
   statusDisagreements: { itemId: string; scopeKey: string; declared: string; derived: string }[]
+  /**
+   * Amendment 1 §C — how much of the stream can actually be written for a client.
+   *
+   * **Withholding is the safe branch**, so a report withholding all of itself
+   * looks identical to one working perfectly. These are the numbers that tell
+   * them apart. Today `namesDeclared` is 0 and `renderable` is 0: naming the
+   * checklist items in HouseSteady's voice is a content pass that has not run.
+   */
+  clientCoverage: {
+    total: number
+    renderable: number
+    withheld: number
+    reasons: { itemId: string; because: string }[]
+    namesDeclared: number
+  }
 }
 
 /** One carried item. Mirrors `audit_carried_items` — §1b. */

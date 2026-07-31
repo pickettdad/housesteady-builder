@@ -1,1255 +1,1265 @@
 {
- "schemaId": "binder-schema",
- "version": "1.0.0",
- "date": "2026-07-27",
- "sourceDocument": "HouseSteady_Home-Binder_Master-Spec_v1_2026-07-20",
- "designDocument": "HouseSteady_Binder-Schema_v1-1_2026-07-27",
- "note": "The vocabulary: every slot the Master Spec defines. Which slots are REQUIRED is a separate file (profiles/*.json) because that changes for business reasons, not technical ones. Coarse first: sections a Baseline populates carry full slot detail; the rest carry kind and source so the engine can be built against the whole shape. Content passes continue.",
- "honestyLabels": [
-  "observed",
-  "measured",
-  "documented",
-  "reported-by-homeowner",
-  "inferred",
-  "not-inspected",
-  "not-accessible",
-  "specialist-assessment-recommended"
- ],
- "labelRules": {
-  "neverUpgraded": true,
-  "note": "A label can never be upgraded by a later step. Acceptance means a human agreed with the sentence, not that the fact changed origin. 'documented' requires a cited record."
- },
- "slotKinds": {
-  "fixed": "One value. Complete when present or explicitly unknown.",
-  "record-set": "Repeating records. Complete when every entity implied by the property's own triggers has a record.",
-  "coverage": "A defined list; each item present | confirmed-absent | not-found. Complete when every applicable item has a state.",
-  "derived": "Computed from other sections. Never independently missing.",
-  "narrative": "Free prose, unbounded. Never 'complete' \u2014 only empty or started. Never appears in a gap report."
- },
- "triggerGrammar": {
-  "always": "always applies",
-  "flag": "a property flag id, e.g. property.well",
-  "any": "any(a, b, ...)",
-  "all": "all(a, b, ...)",
-  "not": "not(a)",
-  "note": "Evaluated by the shared trigger evaluator. Flags come from the session's flags[], the config snapshot's propertyFlags, and the intake form's services block. The same evaluator serves maintenance-schedule-v1."
- },
- "sections": [
-  {
-   "id": "s1",
-   "number": 1,
-   "title": "Emergency sheet & shutoff map",
-   "layer": "quick",
-   "slots": [
-    {
-     "id": "s1.shutoff-map",
-     "kind": "coverage",
-     "title": "Shutoff & control map",
-     "sources": [
-      "field.pin.layer:shutoffs"
-     ],
-     "defaultLabel": "observed",
-     "itemRule": "The locating-photo requirement is a field item, never a builder check: wm.wide, gs.wide, ft.wide, pnl.wide, sp.unit ('photographed wide enough to find it'), and the 23 `.unit` items. Bind to them.",
-     "items": [
-      {
-       "id": "main-water",
-       "label": "Main interior water shutoff",
-       "appliesWhen": "always",
-       "binding": {
-        "pinnedBy": "utl.main-shutoff",
-        "componentType": "water-main",
-        "viaItems": [
-         "wm.wide",
-         "wm.type",
-         "wm.operate"
-        ]
-       }
+  "schemaId": "binder-schema",
+  "version": "1.0.0",
+  "date": "2026-07-27",
+  "sourceDocument": "HouseSteady_Home-Binder_Master-Spec_v1_2026-07-20",
+  "designDocument": "HouseSteady_Binder-Schema_v1-1_2026-07-27",
+  "note": "The vocabulary: every slot the Master Spec defines. Which slots are REQUIRED is a separate file (profiles/*.json) because that changes for business reasons, not technical ones. Coarse first: sections a Baseline populates carry full slot detail; the rest carry kind and source so the engine can be built against the whole shape. Content passes continue.",
+  "honestyLabels": [
+    "observed",
+    "measured",
+    "documented",
+    "reported-by-homeowner",
+    "inferred",
+    "not-inspected",
+    "not-accessible",
+    "specialist-assessment-recommended"
+  ],
+  "labelRules": {
+    "neverUpgraded": true,
+    "note": "A label can never be upgraded by a later step. Acceptance means a human agreed with the sentence, not that the fact changed origin. 'documented' requires a cited record.",
+    "naReasonLabels": {
+      "note": "Which honesty label an `na` reason reads as IN A CLIENT'S DOCUMENT. Increment 4 Amendment 1 §B. This lives here rather than in the field config because an honesty label is a claim the BINDER makes about what kind of knowing a statement rests on. The field app makes no such claim — it records that a concierge chose a reason. Deciding that `no-access` reads as Not accessible TO A HOMEOWNER is a binder-voice decision, and pushing it into the field config would put a downstream concern on a session that cannot validate it.",
+      "default": "not-inspected",
+      "defaultNote": "An unmapped reason is NOT an error. It defaults to `not-inspected` and is reported, never refused. The asymmetry is the whole point: 'we did not inspect it' is true of every gap in the report, while 'we could not reach it' additionally claims we tried and were blocked. A reason defaulting to `not-accessible` would put a claim about the visit into a client's document that nobody made. Fail open, in the honest direction.",
+      "scopeNote": "Only the honesty CLASS comes from here. Membership in the gap list still comes from the config's own `feedsGapList` boolean, and the row's words still come from the config's own `label`. A fifth gap-feeding reason therefore needs no code change and no entry here — it feeds the list, speaks in its own label, and reads as not-inspected until the design session decides it earns otherwise.",
+      "map": {
+        "no-access": "not-accessible"
       },
-      {
-       "id": "curb-stop",
-       "label": "Municipal curb stop",
-       "appliesWhen": "property.municipal_water",
-       "binding": {
-        "pinnedBy": "sit.curbstop",
-        "componentType": "curb-stop",
-        "viaItems": [],
-        "note": "Now its own site pin (G8 closed in v1.5). `wm.curbstop` retired in v1.5 \u2014 a redefinition, so the id does not carry over. Table F lineage: successors `cs.photo`, `cs.access`, `cs.key`."
-       }
-      },
-      {
-       "id": "well-pump-breaker",
-       "label": "Well pump breaker",
-       "appliesWhen": "property.well",
-       "binding": {
-        "pinnedBy": "sit.wellhead",
-        "componentType": "well-pressure-tank",
-        "viaItems": [
-         "wpt.breaker"
-        ]
-       }
-      },
-      {
-       "id": "pressure-system-shutoff",
-       "label": "Pressure-system shutoff",
-       "appliesWhen": "property.well",
-       "binding": {
-        "componentType": "well-pressure-tank",
-        "viaItems": [
-         "wpt.settings"
-        ]
-       }
-      },
-      {
-       "id": "gas-meter-shutoff",
-       "label": "Gas meter & shutoff",
-       "appliesWhen": "property.gas",
-       "binding": {
-        "pinnedBy": "utl.gas-shutoff",
-        "componentType": "gas-shutoff",
-        "viaItems": [
-         "gs.wide",
-         "gs.access"
-        ]
-       }
-      },
-      {
-       "id": "propane-tank-valves",
-       "label": "Propane tank & appliance valves",
-       "appliesWhen": "property.propane",
-       "binding": {
-        "pinnedBy": "utl.fuel-tank",
-        "componentType": "fuel-tank",
-        "viaItems": [
-         "ft.wide",
-         "ft.lines"
-        ],
-        "partial": "v1.6 candidate \u2014 propane appliance valves covered only generically by fuel-tank"
-       }
-      },
-      {
-       "id": "oil-tank-shutoff",
-       "label": "Oil tank shutoff",
-       "appliesWhen": "property.oil",
-       "binding": {
-        "pinnedBy": "utl.fuel-tank",
-        "componentType": "fuel-tank",
-        "viaItems": [
-         "ft.wide",
-         "ft.lines"
-        ],
-        "partial": "v1.6 candidate \u2014 oil-tank shutoff covered only generically"
-       }
-      },
-      {
-       "id": "main-electrical-disconnect",
-       "label": "Main electrical disconnect",
-       "appliesWhen": "always",
-       "binding": {
-        "pinnedBy": "utl.panel",
-        "componentType": "electrical-panel",
-        "viaItems": [
-         "pnl.wide",
-         "pnl.service"
-        ],
-        "partial": "v1.6 candidate \u2014 a separate main disconnect, where it exists apart from the panel, has no item"
-       }
-      },
-      {
-       "id": "panel-location-directory",
-       "label": "Panel location & directory",
-       "appliesWhen": "always",
-       "binding": {
-        "pinnedBy": "utl.panel",
-        "componentType": "electrical-panel",
-        "viaItems": [
-         "pnl.wide",
-         "pnl.directory"
-        ]
-       }
-      },
-      {
-       "id": "generator-transfer-switch",
-       "label": "Generator transfer switch",
-       "appliesWhen": "property.generator",
-       "binding": {
-        "componentType": "generator",
-        "viaItems": [
-         "gen.transfer",
-         "gen.unit"
-        ]
-       }
-      },
-      {
-       "id": "solar-battery-disconnect",
-       "label": "Solar / battery disconnects",
-       "appliesWhen": "property.solar",
-       "binding": {
-        "componentType": "solar-inverter",
-        "viaItems": [
-         "sol.unit"
-        ],
-        "note": "Stub filled in v1.5 \u2014 carries its \u00a71 disconnect"
-       }
-      },
-      {
-       "id": "furnace-emergency-switch",
-       "label": "Furnace emergency switch",
-       "appliesWhen": "pin.furnace",
-       "binding": {
-        "componentType": "furnace",
-        "viaItems": [
-         "fur.switch",
-         "fur.unit"
-        ]
-       }
-      },
-      {
-       "id": "boiler-shutoffs",
-       "label": "Boiler shutoffs",
-       "appliesWhen": "pin.boiler",
-       "binding": {
-        "componentType": "boiler",
-        "viaItems": [
-         "blr.switch",
-         "blr.unit"
-        ],
-        "note": "blr.switch added in v1.5 \u2014 found while closing G1-G8"
-       }
-      },
-      {
-       "id": "water-heater-shutoff",
-       "label": "Water heater shutoff \u2014 water and fuel/power",
-       "appliesWhen": "always",
-       "binding": {
-        "pinnedBy": "utl.water-heater",
-        "componentType": "water-heater",
-        "viaItems": [
-         "wh.shutoff",
-         "wh.unit"
-        ],
-        "note": "wh.shutoff added in v1.5 \u2014 covers water shutoff and fuel/power isolation in one item (G1)"
-       }
-      },
-      {
-       "id": "sump-breaker-discharge",
-       "label": "Sump pump breaker & discharge point",
-       "appliesWhen": "pin.sump-pump",
-       "binding": {
-        "pinnedBy": "utl.sump",
-        "componentType": "sump-pump",
-        "viaItems": [
-         "sp.breaker",
-         "sp.discharge",
-         "sp.unit"
-        ],
-        "note": "sp.breaker added in v1.5"
-       }
-      },
-      {
-       "id": "sewage-ejector-septic-alarm",
-       "label": "Sewage ejector / septic pump alarm",
-       "appliesWhen": "any(property.septic, pin.septic-alarm)",
-       "binding": {
-        "pinnedBy": "utl.septic-alarm",
-        "componentType": "septic-alarm",
-        "viaItems": [],
-        "note": "New component type in v1.5 (G5) \u2014 the panel is at the house, the lids are in the yard. Two positions, two pins."
-       }
-      },
-      {
-       "id": "hose-bibs",
-       "label": "Individual hose-bib shutoffs",
-       "appliesWhen": "always",
-       "binding": {
-        "pinnedBy": "elv.hose-bibs",
-        "componentType": "hose-bib",
-        "viaItems": []
-       }
-      },
-      {
-       "id": "irrigation-shutoff",
-       "label": "Irrigation shutoff",
-       "appliesWhen": "pin.irrigation-backflow",
-       "binding": {
-        "componentType": "irrigation-backflow",
-        "viaItems": [
-         "irr.unit"
-        ],
-        "note": "Stub filled in v1.5"
-       }
-      },
-      {
-       "id": "fireplace-gas-valve",
-       "label": "Fireplace gas valve",
-       "appliesWhen": "pin.fireplace",
-       "binding": {
-        "pinnedBy": "liv.fireplace",
-        "componentType": "fireplace",
-        "viaItems": [
-         "fp.gas-valve",
-         "fp.unit"
-        ]
-       }
-      },
-      {
-       "id": "pool-spa-disconnect",
-       "label": "Pool / spa electrical disconnect",
-       "appliesWhen": "property.pool",
-       "binding": {
-        "componentType": "pool-equipment",
-        "viaItems": [
-         "pol.unit"
-        ],
-        "note": "Stub filled in v1.5; also carries the barrier check as a life-safety action"
-       }
-      },
-      {
-       "id": "drains-cleanouts-backwater",
-       "label": "Floor drains, cleanouts, backwater valve location",
-       "appliesWhen": "always",
-       "binding": {
-        "pinnedBy": "utl.floor-drain|utl.cleanout|utl.backwater",
-        "componentType": "floor-drain|cleanout|backwater-valve",
-        "viaItems": []
-       }
-      }
-     ],
-     "bindingRule": "RECONCILED against Checklist Master v1.6.2. **The field checklist already declares the binding.** 36 items carry `satisfy: pin <type>` \u2014 utl.main-shutoff is literally 'Main water shutoff pinned, photographed wide, tagged'. So a \u00a71 item binds by `pinnedBy` (the field item id that requires the pin) plus `viaItems` (the component items carrying the shutoff detail). Where no zone item pins it, componentType alone is the binding. **Do not re-derive which component satisfies which \u00a71 entry \u2014 the field master owns that, and \u00a71 is now its standing acceptance test.**",
-     "zoneIndependence": "**Resolved in master v1.6.2 \u2014 this was the largest defect found since G1.** The `utl.*` mechanical items previously lived in the `utility` zone list, so a house with its mechanicals in an open basement corner produced an **empty shutoff map** if the concierge created a `basement` zone. Now: every mechanical item lives in **`mechanical-base`**, inherited by all 13 zone types and gated at list level on **`zone.has_mechanicals`**. Zone type is a labelling convenience; the attribute drives content. **All ids carried through the move** \u2014 base went 33\u219257 and zone 76\u219252, 109 both sides, so 'moved, not duplicated' is verifiable. **\u00a71 binding by item id is therefore unaffected.**",
-     "sessionAttestation": "`ses.shutoff-map` (session, core, action) \u2014 a human attestation that the \u00a71 map is complete house-wide, every entry pinned or explicitly recorded absent. **The builder audits the same thing independently. When the two disagree, surface it** \u2014 one is wrong and neither is authoritative over the other."
-    },
-    {
-     "id": "s1.response-procedures",
-     "kind": "coverage",
-     "title": "Plain-language response procedures",
-     "sources": [
-      "template",
-      "trigger-set"
-     ],
-     "defaultLabel": null,
-     "itemsFrom": "template-library",
-     "note": "One card each. The applicable set is trigger-driven: no septic alarm card for a house on municipal sewer."
-    },
-    {
-     "id": "s1.emergency-contacts",
-     "kind": "coverage",
-     "title": "Emergency contacts",
-     "sources": [
-      "s17.vendor-directory",
-      "intake.contacts"
-     ],
-     "defaultLabel": "reported-by-homeowner"
+      "recorded": "Whether `deferred` should eventually carry a label of its own is recorded, not specced. It defaults to not-inspected today, which is true, and its reason line already says 'Deferred to visit two'. Revisit with the slot mapping, not before."
     }
-   ]
   },
-  {
-   "id": "s2",
-   "number": 2,
-   "title": "Home dashboard",
-   "layer": "quick",
-   "slots": [
-    {
-     "id": "s2.property-summary",
-     "kind": "derived",
-     "sources": [
-      "s4",
-      "s7"
-     ]
-    },
-    {
-     "id": "s2.top-items",
-     "kind": "derived",
-     "sources": [
-      "s10.concerns"
-     ],
-     "note": "Ranking is human judgement (Class D). The slot is derived; the order is not."
-    },
-    {
-     "id": "s2.tests-in-flight",
-     "kind": "derived",
-     "sources": [
-      "s13"
-     ],
-     "rule": "In-flight rule: renders with deployment record, status, and expected completion. Never omitted, never shown as done."
-    },
-    {
-     "id": "s2.services-due",
-     "kind": "derived",
-     "sources": [
-      "s15"
-     ]
-    },
-    {
-     "id": "s2.missing-records",
-     "kind": "derived",
-     "sources": [
-      "s5"
-     ]
-    },
-    {
-     "id": "s2.next-review",
-     "kind": "fixed",
-     "sources": [
-      "human"
-     ]
-    }
-   ],
-   "statusCategories": [
-    "immediate",
-    "priority",
-    "plan",
-    "monitor",
-    "routine",
-    "investigate"
-   ],
-   "statusNote": "'monitor' is permitted: it takes a component or measurement as its object, never a home, household, person, or the service. 'recheck' remains an available alternative label."
+  "slotKinds": {
+    "fixed": "One value. Complete when present or explicitly unknown.",
+    "record-set": "Repeating records. Complete when every entity implied by the property's own triggers has a record.",
+    "coverage": "A defined list; each item present | confirmed-absent | not-found. Complete when every applicable item has a state.",
+    "derived": "Computed from other sections. Never independently missing.",
+    "narrative": "Free prose, unbounded. Never 'complete' — only empty or started. Never appears in a gap report."
   },
-  {
-   "id": "s3",
-   "number": 3,
-   "title": "This-year calendar",
-   "layer": "quick",
-   "slots": [
-    {
-     "id": "s3.calendar",
-     "kind": "derived",
-     "sources": [
-      "s15"
-     ]
-    }
-   ]
+  "triggerGrammar": {
+    "always": "always applies",
+    "flag": "a property flag id, e.g. property.well",
+    "any": "any(a, b, ...)",
+    "all": "all(a, b, ...)",
+    "not": "not(a)",
+    "note": "Evaluated by the shared trigger evaluator. Flags come from the session's flags[], the config snapshot's propertyFlags, and the intake form's services block. The same evaluator serves maintenance-schedule-v1."
   },
-  {
-   "id": "s4",
-   "number": 4,
-   "title": "Property profile & site plan",
-   "tab": "A",
-   "slots": [
+  "sections": [
     {
-     "id": "s4.profile",
-     "kind": "fixed",
-     "sources": [
-      "intake.property-basics"
-     ],
-     "defaultLabel": "reported-by-homeowner"
-    },
-    {
-     "id": "s4.site-plan",
-     "kind": "coverage",
-     "sources": [
-      "field.zone:site",
-      "field.zone:elevation"
-     ],
-     "defaultLabel": "observed",
-     "blocked": "Exterior and site zones are not yet exercised by any export; they use a photo-only canvas rather than a floor plan."
-    },
-    {
-     "id": "s4.regulatory-overlay",
-     "kind": "coverage",
-     "sources": [
-      "research"
-     ],
-     "defaultLabel": "documented"
-    }
-   ]
-  },
-  {
-   "id": "s5",
-   "number": 5,
-   "title": "Documents index & vault list",
-   "tab": "A",
-   "slots": [
-    {
-     "id": "s5.index",
-     "kind": "coverage",
-     "title": "Master document list",
-     "sources": [
-      "intake.tier3",
-      "documents.received"
-     ],
-     "itemStates": [
-      "held-physical",
-      "held-digital",
-      "missing-requested",
-      "unobtainable"
-     ],
-     "itemRequires": [
-      "state",
-      "originLocation"
-     ],
-     "rule": "Missing is labelled missing. Nothing is reconstructed by guesswork (Master Spec \u00a75, verbatim).",
-     "feeds": "gap-report.missing-from-you"
-    }
-   ]
-  },
-  {
-   "id": "s6",
-   "number": 6,
-   "title": "Household & occupancy profile",
-   "tab": "A",
-   "slots": [
-    {
-     "id": "s6.profile",
-     "kind": "fixed",
-     "sources": [
-      "intake.tier2",
-      "intake.occupancy"
-     ],
-     "defaultLabel": "reported-by-homeowner",
-     "exclusions": "No sensitive medical, financial, or credential data (Design principle 5)."
-    }
-   ]
-  },
-  {
-   "id": "s7",
-   "number": 7,
-   "title": "Systems inventory",
-   "tab": "B",
-   "slots": [
-    {
-     "id": "s7.components",
-     "kind": "record-set",
-     "title": "Component records",
-     "keyedBy": "field-minted uuid",
-     "expectationSource": "property triggers + intake services block",
-     "sources": [
-      "field.pin",
-      "ai.nameplate-extraction",
-      "documents",
-      "intake"
-     ],
-     "recordFields": [
-      {
-       "id": "group",
-       "source": "field.pin.type",
-       "label": "observed"
-      },
-      {
-       "id": "location",
-       "source": "field.zone+anchor",
-       "label": "observed"
-      },
-      {
-       "id": "area-served",
-       "source": "desk",
-       "label": "observed"
-      },
-      {
-       "id": "make",
-       "source": "ai.nameplate-extraction",
-       "label": "observed",
-       "requiresHumanAccept": true
-      },
-      {
-       "id": "model",
-       "source": "ai.nameplate-extraction",
-       "label": "observed",
-       "requiresHumanAccept": true
-      },
-      {
-       "id": "serial",
-       "source": "ai.nameplate-extraction",
-       "label": "observed",
-       "requiresHumanAccept": true
-      },
-      {
-       "id": "fuel-capacity",
-       "source": "ai.nameplate-extraction",
-       "label": "observed",
-       "requiresHumanAccept": true
-      },
-      {
-       "id": "install-date",
-       "source": "documents|ai.serial-decode",
-       "label": "documented|inferred",
-       "rule": "Never decoded without an inferred label. Unknown stays unknown."
-      },
-      {
-       "id": "warranty",
-       "source": "documents",
-       "label": "documented",
-       "feeds": "s11"
-      },
-      {
-       "id": "consumables",
-       "source": "field",
-       "label": "observed",
-       "feeds": "s9"
-      },
-      {
-       "id": "normal-settings",
-       "source": "intake|desk",
-       "feeds": "s8"
-      },
-      {
-       "id": "shutoff-ref",
-       "source": "s1"
-      },
-      {
-       "id": "known-defects",
-       "source": "s10.concerns"
-      },
-      {
-       "id": "planning-horizon",
-       "source": "human",
-       "neverAI": true
-      },
-      {
-       "id": "replacement-allowance",
-       "source": "human",
-       "neverAI": true,
-       "rule": "A planning window, never a quote and never a date."
-      },
-      {
-       "id": "last-next-service",
-       "source": "documents",
-       "label": "documented"
-      },
-      {
-       "id": "unit-photo",
-       "source": "field.item:.unit",
-       "label": "observed",
-       "rule": "The object-level comparison position. Distinct from the nameplate photo; never conflated."
-      },
-      {
-       "id": "nameplate-photo",
-       "source": "field",
-       "label": "observed"
-      }
-     ],
-     "removedField": {
-      "id": "condition",
-      "reason": "Removed 2026-07-27 (Binder Schema C2). A component's condition picture is its check history plus its open concerns. The record may carry a recommended action; it may never carry a judgement of state."
-     },
-     "completeWhen": "every component implied by triggers and intake services has a record; every record has a unit photo, a location, and either identity fields or an explicit unknown",
-     "expectedComponents": [
-      {
-       "when": "always",
-       "components": [
-        "electrical-panel",
-        "water-heater",
-        "water-shutoff-main"
-       ]
-      },
-      {
-       "when": "property.well",
-       "components": [
-        "wellhead",
-        "well-pump",
-        "well-pressure-system"
-       ]
-      },
-      {
-       "when": "property.septic",
-       "components": [
-        "septic-tank",
-        "septic-bed"
-       ]
-      },
-      {
-       "when": "pin.water-treatment",
-       "components": [
-        "water-softener",
-        "uv-sterilizer",
-        "sediment-filter"
-       ]
-      },
-      {
-       "when": "pin.furnace",
-       "components": [
-        "furnace"
-       ]
-      },
-      {
-       "when": "pin.boiler",
-       "components": [
-        "boiler"
-       ]
-      },
-      {
-       "when": "pin.heat-pump",
-       "components": [
-        "heat-pump"
-       ]
-      },
-      {
-       "when": "pin.heat-pump",
-       "components": [
-        "air-conditioner"
-       ]
-      },
-      {
-       "when": "pin.hrv-erv",
-       "components": [
-        "hrv"
-       ]
-      },
-      {
-       "when": "pin.sump-pump",
-       "components": [
-        "sump-pump"
-       ]
-      },
-      {
-       "when": "property.generator",
-       "components": [
-        "generator",
-        "generator-transfer-switch"
-       ]
-      },
-      {
-       "when": "property.propane",
-       "components": [
-        "propane-tank"
-       ]
-      },
-      {
-       "when": "property.oil",
-       "components": [
-        "oil-tank"
-       ]
-      },
-      {
-       "when": "property.wood_heat",
-       "components": [
-        "wood-appliance",
-        "chimney"
-       ]
-      },
-      {
-       "when": "pin.fireplace",
-       "components": [
-        "gas-fireplace"
-       ]
-      },
-      {
-       "when": "property.pool",
-       "components": [
-        "pool-equipment"
-       ]
-      },
-      {
-       "when": "property.solar",
-       "components": [
-        "solar-array",
-        "solar-inverter"
-       ]
-      },
-      {
-       "when": "property.solar",
-       "components": [
-        "battery-storage"
-       ]
-      },
-      {
-       "when": "property.ev",
-       "components": [
-        "ev-charger"
-       ]
-      },
-      {
-       "when": "pin.irrigation-backflow",
-       "components": [
-        "irrigation-controller"
-       ]
-      }
-     ],
-     "expectationRule": "The expectation set is the union of components for every trigger that evaluates true, plus anything the intake services block names. A component present but not expected is fine and is recorded. A component expected but absent is a gap. Component type names are reconciled against the field config's componentLists (48 types, verified 2026-07-27)."
-    }
-   ]
-  },
-  {
-   "id": "s8",
-   "number": 8,
-   "title": "How this house runs \u2014 quirks, habits & settings",
-   "tab": "B",
-   "slots": [
-    {
-     "id": "s8.quirks",
-     "kind": "narrative",
-     "sources": [
-      "intake.quirks",
-      "field.notes",
-      "field.chats",
-      "desk.memory-notes"
-     ],
-     "reportsAs": [
-      "empty",
-      "started"
-     ],
-     "neverGaps": true,
-     "note": "Never complete by design \u2014 a house always has one more quirk. The desk memory notes from the fresh pass land here."
-    }
-   ]
-  },
-  {
-   "id": "s9",
-   "number": 9,
-   "title": "Finishes, spares & consumables register",
-   "tab": "B",
-   "slots": [
-    {
-     "id": "s9.consumables",
-     "kind": "coverage",
-     "sources": [
-      "field",
-      "s7.consumables"
-     ],
-     "defaultLabel": "observed"
-    },
-    {
-     "id": "s9.finishes",
-     "kind": "coverage",
-     "sources": [
-      "intake",
-      "documents"
-     ],
-     "defaultLabel": "reported-by-homeowner"
-    }
-   ]
-  },
-  {
-   "id": "s10",
-   "number": 10,
-   "title": "Baseline condition assessment",
-   "tab": "B",
-   "slots": [
-    {
-     "id": "s10.findings",
-     "kind": "record-set",
-     "title": "Findings",
-     "sources": [
-      "field.check:fail",
-      "field.na:recordsFinding",
-      "field.pin.flag",
-      "desk.raised",
-      "documents",
-      "lab"
-     ],
-     "note": "Findings are substantive observations. Not every finding is a problem. Confirmed absences are findings that stay facts and land in s7 or s12.",
-     "promotion": {
-      "toConcern": "A finding promoted to tracked status.",
-      "automatic": [
-       "field.check:fail"
-      ],
-      "never": [
-       "field.na:none-present"
-      ],
-      "byHuman": [
-       "desk.raised",
-       "documents",
-       "lab"
+      "id": "s1",
+      "number": 1,
+      "title": "Emergency sheet & shutoff map",
+      "layer": "quick",
+      "slots": [
+        {
+          "id": "s1.shutoff-map",
+          "kind": "coverage",
+          "title": "Shutoff & control map",
+          "sources": [
+            "field.pin.layer:shutoffs"
+          ],
+          "defaultLabel": "observed",
+          "itemRule": "The locating-photo requirement is a field item, never a builder check: wm.wide, gs.wide, ft.wide, pnl.wide, sp.unit ('photographed wide enough to find it'), and the 23 `.unit` items. Bind to them.",
+          "items": [
+            {
+              "id": "main-water",
+              "label": "Main interior water shutoff",
+              "appliesWhen": "always",
+              "binding": {
+                "pinnedBy": "utl.main-shutoff",
+                "componentType": "water-main",
+                "viaItems": [
+                  "wm.wide",
+                  "wm.type",
+                  "wm.operate"
+                ]
+              }
+            },
+            {
+              "id": "curb-stop",
+              "label": "Municipal curb stop",
+              "appliesWhen": "property.municipal_water",
+              "binding": {
+                "pinnedBy": "sit.curbstop",
+                "componentType": "curb-stop",
+                "viaItems": [],
+                "note": "Now its own site pin (G8 closed in v1.5). `wm.curbstop` retired in v1.5 — a redefinition, so the id does not carry over. Table F lineage: successors `cs.photo`, `cs.access`, `cs.key`."
+              }
+            },
+            {
+              "id": "well-pump-breaker",
+              "label": "Well pump breaker",
+              "appliesWhen": "property.well",
+              "binding": {
+                "pinnedBy": "sit.wellhead",
+                "componentType": "well-pressure-tank",
+                "viaItems": [
+                  "wpt.breaker"
+                ]
+              }
+            },
+            {
+              "id": "pressure-system-shutoff",
+              "label": "Pressure-system shutoff",
+              "appliesWhen": "property.well",
+              "binding": {
+                "componentType": "well-pressure-tank",
+                "viaItems": [
+                  "wpt.settings"
+                ]
+              }
+            },
+            {
+              "id": "gas-meter-shutoff",
+              "label": "Gas meter & shutoff",
+              "appliesWhen": "property.gas",
+              "binding": {
+                "pinnedBy": "utl.gas-shutoff",
+                "componentType": "gas-shutoff",
+                "viaItems": [
+                  "gs.wide",
+                  "gs.access"
+                ]
+              }
+            },
+            {
+              "id": "propane-tank-valves",
+              "label": "Propane tank & appliance valves",
+              "appliesWhen": "property.propane",
+              "binding": {
+                "pinnedBy": "utl.fuel-tank",
+                "componentType": "fuel-tank",
+                "viaItems": [
+                  "ft.wide",
+                  "ft.lines"
+                ],
+                "partial": "v1.6 candidate — propane appliance valves covered only generically by fuel-tank"
+              }
+            },
+            {
+              "id": "oil-tank-shutoff",
+              "label": "Oil tank shutoff",
+              "appliesWhen": "property.oil",
+              "binding": {
+                "pinnedBy": "utl.fuel-tank",
+                "componentType": "fuel-tank",
+                "viaItems": [
+                  "ft.wide",
+                  "ft.lines"
+                ],
+                "partial": "v1.6 candidate — oil-tank shutoff covered only generically"
+              }
+            },
+            {
+              "id": "main-electrical-disconnect",
+              "label": "Main electrical disconnect",
+              "appliesWhen": "always",
+              "binding": {
+                "pinnedBy": "utl.panel",
+                "componentType": "electrical-panel",
+                "viaItems": [
+                  "pnl.wide",
+                  "pnl.service"
+                ],
+                "partial": "v1.6 candidate — a separate main disconnect, where it exists apart from the panel, has no item"
+              }
+            },
+            {
+              "id": "panel-location-directory",
+              "label": "Panel location & directory",
+              "appliesWhen": "always",
+              "binding": {
+                "pinnedBy": "utl.panel",
+                "componentType": "electrical-panel",
+                "viaItems": [
+                  "pnl.wide",
+                  "pnl.directory"
+                ]
+              }
+            },
+            {
+              "id": "generator-transfer-switch",
+              "label": "Generator transfer switch",
+              "appliesWhen": "property.generator",
+              "binding": {
+                "componentType": "generator",
+                "viaItems": [
+                  "gen.transfer",
+                  "gen.unit"
+                ]
+              }
+            },
+            {
+              "id": "solar-battery-disconnect",
+              "label": "Solar / battery disconnects",
+              "appliesWhen": "property.solar",
+              "binding": {
+                "componentType": "solar-inverter",
+                "viaItems": [
+                  "sol.unit"
+                ],
+                "note": "Stub filled in v1.5 — carries its §1 disconnect"
+              }
+            },
+            {
+              "id": "furnace-emergency-switch",
+              "label": "Furnace emergency switch",
+              "appliesWhen": "pin.furnace",
+              "binding": {
+                "componentType": "furnace",
+                "viaItems": [
+                  "fur.switch",
+                  "fur.unit"
+                ]
+              }
+            },
+            {
+              "id": "boiler-shutoffs",
+              "label": "Boiler shutoffs",
+              "appliesWhen": "pin.boiler",
+              "binding": {
+                "componentType": "boiler",
+                "viaItems": [
+                  "blr.switch",
+                  "blr.unit"
+                ],
+                "note": "blr.switch added in v1.5 — found while closing G1-G8"
+              }
+            },
+            {
+              "id": "water-heater-shutoff",
+              "label": "Water heater shutoff — water and fuel/power",
+              "appliesWhen": "always",
+              "binding": {
+                "pinnedBy": "utl.water-heater",
+                "componentType": "water-heater",
+                "viaItems": [
+                  "wh.shutoff",
+                  "wh.unit"
+                ],
+                "note": "wh.shutoff added in v1.5 — covers water shutoff and fuel/power isolation in one item (G1)"
+              }
+            },
+            {
+              "id": "sump-breaker-discharge",
+              "label": "Sump pump breaker & discharge point",
+              "appliesWhen": "pin.sump-pump",
+              "binding": {
+                "pinnedBy": "utl.sump",
+                "componentType": "sump-pump",
+                "viaItems": [
+                  "sp.breaker",
+                  "sp.discharge",
+                  "sp.unit"
+                ],
+                "note": "sp.breaker added in v1.5"
+              }
+            },
+            {
+              "id": "sewage-ejector-septic-alarm",
+              "label": "Sewage ejector / septic pump alarm",
+              "appliesWhen": "any(property.septic, pin.septic-alarm)",
+              "binding": {
+                "pinnedBy": "utl.septic-alarm",
+                "componentType": "septic-alarm",
+                "viaItems": [],
+                "note": "New component type in v1.5 (G5) — the panel is at the house, the lids are in the yard. Two positions, two pins."
+              }
+            },
+            {
+              "id": "hose-bibs",
+              "label": "Individual hose-bib shutoffs",
+              "appliesWhen": "always",
+              "binding": {
+                "pinnedBy": "elv.hose-bibs",
+                "componentType": "hose-bib",
+                "viaItems": []
+              }
+            },
+            {
+              "id": "irrigation-shutoff",
+              "label": "Irrigation shutoff",
+              "appliesWhen": "pin.irrigation-backflow",
+              "binding": {
+                "componentType": "irrigation-backflow",
+                "viaItems": [
+                  "irr.unit"
+                ],
+                "note": "Stub filled in v1.5"
+              }
+            },
+            {
+              "id": "fireplace-gas-valve",
+              "label": "Fireplace gas valve",
+              "appliesWhen": "pin.fireplace",
+              "binding": {
+                "pinnedBy": "liv.fireplace",
+                "componentType": "fireplace",
+                "viaItems": [
+                  "fp.gas-valve",
+                  "fp.unit"
+                ]
+              }
+            },
+            {
+              "id": "pool-spa-disconnect",
+              "label": "Pool / spa electrical disconnect",
+              "appliesWhen": "property.pool",
+              "binding": {
+                "componentType": "pool-equipment",
+                "viaItems": [
+                  "pol.unit"
+                ],
+                "note": "Stub filled in v1.5; also carries the barrier check as a life-safety action"
+              }
+            },
+            {
+              "id": "drains-cleanouts-backwater",
+              "label": "Floor drains, cleanouts, backwater valve location",
+              "appliesWhen": "always",
+              "binding": {
+                "pinnedBy": "utl.floor-drain|utl.cleanout|utl.backwater",
+                "componentType": "floor-drain|cleanout|backwater-valve",
+                "viaItems": []
+              }
+            }
+          ],
+          "bindingRule": "RECONCILED against Checklist Master v1.6.2. **The field checklist already declares the binding.** 36 items carry `satisfy: pin <type>` — utl.main-shutoff is literally 'Main water shutoff pinned, photographed wide, tagged'. So a §1 item binds by `pinnedBy` (the field item id that requires the pin) plus `viaItems` (the component items carrying the shutoff detail). Where no zone item pins it, componentType alone is the binding. **Do not re-derive which component satisfies which §1 entry — the field master owns that, and §1 is now its standing acceptance test.**",
+          "zoneIndependence": "**Resolved in master v1.6.2 — this was the largest defect found since G1.** The `utl.*` mechanical items previously lived in the `utility` zone list, so a house with its mechanicals in an open basement corner produced an **empty shutoff map** if the concierge created a `basement` zone. Now: every mechanical item lives in **`mechanical-base`**, inherited by all 13 zone types and gated at list level on **`zone.has_mechanicals`**. Zone type is a labelling convenience; the attribute drives content. **All ids carried through the move** — base went 33→57 and zone 76→52, 109 both sides, so 'moved, not duplicated' is verifiable. **§1 binding by item id is therefore unaffected.**",
+          "sessionAttestation": "`ses.shutoff-map` (session, core, action) — a human attestation that the §1 map is complete house-wide, every entry pinned or explicitly recorded absent. **The builder audits the same thing independently. When the two disagree, surface it** — one is wrong and neither is authoritative over the other."
+        },
+        {
+          "id": "s1.response-procedures",
+          "kind": "coverage",
+          "title": "Plain-language response procedures",
+          "sources": [
+            "template",
+            "trigger-set"
+          ],
+          "defaultLabel": null,
+          "itemsFrom": "template-library",
+          "note": "One card each. The applicable set is trigger-driven: no septic alarm card for a house on municipal sewer."
+        },
+        {
+          "id": "s1.emergency-contacts",
+          "kind": "coverage",
+          "title": "Emergency contacts",
+          "sources": [
+            "s17.vendor-directory",
+            "intake.contacts"
+          ],
+          "defaultLabel": "reported-by-homeowner"
+        }
       ]
-     }
     },
     {
-     "id": "s10.concerns",
-     "kind": "record-set",
-     "title": "Concerns \u2014 the tracked subset",
-     "recordFields": [
-      "location",
-      "photograph",
-      "what-was-observed",
-      "why-it-matters",
-      "active-suspected-historical",
-      "recommended-action",
-      "appropriate-trade",
-      "urgency",
-      "further-investigation-needed",
-      "planning-cost-range",
-      "target-date",
-      "status",
-      "completion-evidence"
-     ],
-     "aiMayDraft": [
-      "what-was-observed",
-      "why-it-matters"
-     ],
-     "neverAI": [
-      "urgency",
-      "planning-cost-range",
-      "recommended-action"
-     ],
-     "specificityRule": {
-      "isCompletenessRule": true,
-      "requires": [
-       "measurement",
-       "cadence",
-       "namedEscalationTrigger"
+      "id": "s2",
+      "number": 2,
+      "title": "Home dashboard",
+      "layer": "quick",
+      "slots": [
+        {
+          "id": "s2.property-summary",
+          "kind": "derived",
+          "sources": [
+            "s4",
+            "s7"
+          ]
+        },
+        {
+          "id": "s2.top-items",
+          "kind": "derived",
+          "sources": [
+            "s10.concerns"
+          ],
+          "note": "Ranking is human judgement (Class D). The slot is derived; the order is not."
+        },
+        {
+          "id": "s2.tests-in-flight",
+          "kind": "derived",
+          "sources": [
+            "s13"
+          ],
+          "rule": "In-flight rule: renders with deployment record, status, and expected completion. Never omitted, never shown as done."
+        },
+        {
+          "id": "s2.services-due",
+          "kind": "derived",
+          "sources": [
+            "s15"
+          ]
+        },
+        {
+          "id": "s2.missing-records",
+          "kind": "derived",
+          "sources": [
+            "s5"
+          ]
+        },
+        {
+          "id": "s2.next-review",
+          "kind": "fixed",
+          "sources": [
+            "human"
+          ]
+        }
       ],
-      "appliesWhen": "the concern carries a watch schedule",
-      "note": "A concern that says only 'watch this' fails the slot. Master Spec's own example: photograph and measure the horizontal crack, north basement wall, every April and October; current max width 1.5 mm; refer to a structural engineer if it widens, leaks, displaces, or exterior movement appears."
-     },
-     "completeWhen": "every concern links to a task, a project, or a watch schedule \u2014 nothing floats"
-    }
-   ]
-  },
-  {
-   "id": "s11",
-   "number": 11,
-   "title": "Warranty & lifespan register",
-   "tab": "B",
-   "slots": [
-    {
-     "id": "s11.warranties",
-     "kind": "record-set",
-     "sources": [
-      "documents"
-     ],
-     "defaultLabel": "documented",
-     "includes": "Tarion milestones (1-yr, 2-yr, 7-yr major structural) for homes under 7 years \u2014 missed windows are unrecoverable."
+      "statusCategories": [
+        "immediate",
+        "priority",
+        "plan",
+        "monitor",
+        "routine",
+        "investigate"
+      ],
+      "statusNote": "'monitor' is permitted: it takes a component or measurement as its object, never a home, household, person, or the service. 'recheck' remains an available alternative label."
     },
     {
-     "id": "s11.lifespans",
-     "kind": "derived",
-     "sources": [
-      "reference:lifespans-v1"
-     ],
-     "defaultLabel": "inferred",
-     "rule": "Typical service-life windows, never predictions. Cited to the reference file wherever used."
-    }
-   ]
-  },
-  {
-   "id": "s12",
-   "number": 12,
-   "title": "Life-safety record & escape plan",
-   "tab": "C",
-   "slots": [
-    {
-     "id": "s12.alarms",
-     "kind": "coverage",
-     "sources": [
-      "field.pin:alarm",
-      "field.check:alarm-coverage",
-      "intake.install-dates"
-     ],
-     "defaultLabel": "observed",
-     "completeWhen": "every sleeping area and every level has an alarm state",
-     "bindsTo": [
-      "smoke-alarm",
-      "co-alarm",
-      "combination-alarm"
-     ]
+      "id": "s3",
+      "number": 3,
+      "title": "This-year calendar",
+      "layer": "quick",
+      "slots": [
+        {
+          "id": "s3.calendar",
+          "kind": "derived",
+          "sources": [
+            "s15"
+          ]
+        }
+      ]
     },
     {
-     "id": "s12.egress",
-     "kind": "coverage",
-     "sources": [
-      "field.check:egress"
-     ],
-     "defaultLabel": "observed"
+      "id": "s4",
+      "number": 4,
+      "title": "Property profile & site plan",
+      "tab": "A",
+      "slots": [
+        {
+          "id": "s4.profile",
+          "kind": "fixed",
+          "sources": [
+            "intake.property-basics"
+          ],
+          "defaultLabel": "reported-by-homeowner"
+        },
+        {
+          "id": "s4.site-plan",
+          "kind": "coverage",
+          "sources": [
+            "field.zone:site",
+            "field.zone:elevation"
+          ],
+          "defaultLabel": "observed",
+          "blocked": "Exterior and site zones are not yet exercised by any export; they use a photo-only canvas rather than a floor plan."
+        },
+        {
+          "id": "s4.regulatory-overlay",
+          "kind": "coverage",
+          "sources": [
+            "research"
+          ],
+          "defaultLabel": "documented"
+        }
+      ]
     },
     {
-     "id": "s12.other",
-     "kind": "coverage",
-     "sources": [
-      "field"
-     ],
-     "defaultLabel": "observed",
-     "covers": [
-      "extinguishers",
-      "radon-system",
-      "pool-barrier",
-      "fuel-storage"
-     ]
-    }
-   ]
-  },
-  {
-   "id": "s13",
-   "number": 13,
-   "title": "Testing & environmental program",
-   "tab": "C",
-   "slots": [
-    {
-     "id": "s13.tests",
-     "kind": "record-set",
-     "expectationSource": "property triggers",
-     "sources": [
-      "field.sample",
-      "lab.result"
-     ],
-     "defaultLabel": "measured",
-     "inFlightRule": "A test underway renders with its deployment record, status, and expected completion. Never omitted, never shown as done.",
-     "lateResults": "Re-enter as new evidence and produce a new dated edition with a changelog."
-    }
-   ]
-  },
-  {
-   "id": "s14",
-   "number": 14,
-   "title": "Insurance & risk file",
-   "tab": "C",
-   "slots": [
-    {
-     "id": "s14.requirements",
-     "kind": "record-set",
-     "sources": [
-      "documents.policy"
-     ],
-     "defaultLabel": "documented"
-    }
-   ]
-  },
-  {
-   "id": "s15",
-   "number": 15,
-   "title": "Maintenance system & checklist library",
-   "tab": "D",
-   "slots": [
-    {
-     "id": "s15.default-schedule",
-     "kind": "derived",
-     "sources": [
-      "reference:maintenance-schedule-v1"
-     ]
+      "id": "s5",
+      "number": 5,
+      "title": "Documents index & vault list",
+      "tab": "A",
+      "slots": [
+        {
+          "id": "s5.index",
+          "kind": "coverage",
+          "title": "Master document list",
+          "sources": [
+            "intake.tier3",
+            "documents.received"
+          ],
+          "itemStates": [
+            "held-physical",
+            "held-digital",
+            "missing-requested",
+            "unobtainable"
+          ],
+          "itemRequires": [
+            "state",
+            "originLocation"
+          ],
+          "rule": "Missing is labelled missing. Nothing is reconstructed by guesswork (Master Spec §5, verbatim).",
+          "feeds": "gap-report.missing-from-you"
+        }
+      ]
     },
     {
-     "id": "s15.custom-schedule",
-     "kind": "derived",
-     "sources": [
-      "reference:maintenance-schedule-v1",
-      "property.triggers",
-      "s7.components"
-     ],
-     "note": "Generated by the trigger engine \u2014 the same evaluator this schema uses for slot applicability. Rules, not AI."
+      "id": "s6",
+      "number": 6,
+      "title": "Household & occupancy profile",
+      "tab": "A",
+      "slots": [
+        {
+          "id": "s6.profile",
+          "kind": "fixed",
+          "sources": [
+            "intake.tier2",
+            "intake.occupancy"
+          ],
+          "defaultLabel": "reported-by-homeowner",
+          "exclusions": "No sensitive medical, financial, or credential data (Design principle 5)."
+        }
+      ]
     },
     {
-     "id": "s15.owner-pro-split",
-     "kind": "derived",
-     "sources": [
-      "s15.custom-schedule",
-      "intake.diy-appetite"
-     ]
+      "id": "s7",
+      "number": 7,
+      "title": "Systems inventory",
+      "tab": "B",
+      "slots": [
+        {
+          "id": "s7.components",
+          "kind": "record-set",
+          "title": "Component records",
+          "keyedBy": "field-minted uuid",
+          "expectationSource": "property triggers + intake services block",
+          "sources": [
+            "field.pin",
+            "ai.nameplate-extraction",
+            "documents",
+            "intake"
+          ],
+          "recordFields": [
+            {
+              "id": "group",
+              "source": "field.pin.type",
+              "label": "observed"
+            },
+            {
+              "id": "location",
+              "source": "field.zone+anchor",
+              "label": "observed"
+            },
+            {
+              "id": "area-served",
+              "source": "desk",
+              "label": "observed"
+            },
+            {
+              "id": "make",
+              "source": "ai.nameplate-extraction",
+              "label": "observed",
+              "requiresHumanAccept": true
+            },
+            {
+              "id": "model",
+              "source": "ai.nameplate-extraction",
+              "label": "observed",
+              "requiresHumanAccept": true
+            },
+            {
+              "id": "serial",
+              "source": "ai.nameplate-extraction",
+              "label": "observed",
+              "requiresHumanAccept": true
+            },
+            {
+              "id": "fuel-capacity",
+              "source": "ai.nameplate-extraction",
+              "label": "observed",
+              "requiresHumanAccept": true
+            },
+            {
+              "id": "install-date",
+              "source": "documents|ai.serial-decode",
+              "label": "documented|inferred",
+              "rule": "Never decoded without an inferred label. Unknown stays unknown."
+            },
+            {
+              "id": "warranty",
+              "source": "documents",
+              "label": "documented",
+              "feeds": "s11"
+            },
+            {
+              "id": "consumables",
+              "source": "field",
+              "label": "observed",
+              "feeds": "s9"
+            },
+            {
+              "id": "normal-settings",
+              "source": "intake|desk",
+              "feeds": "s8"
+            },
+            {
+              "id": "shutoff-ref",
+              "source": "s1"
+            },
+            {
+              "id": "known-defects",
+              "source": "s10.concerns"
+            },
+            {
+              "id": "planning-horizon",
+              "source": "human",
+              "neverAI": true
+            },
+            {
+              "id": "replacement-allowance",
+              "source": "human",
+              "neverAI": true,
+              "rule": "A planning window, never a quote and never a date."
+            },
+            {
+              "id": "last-next-service",
+              "source": "documents",
+              "label": "documented"
+            },
+            {
+              "id": "unit-photo",
+              "source": "field.item:.unit",
+              "label": "observed",
+              "rule": "The object-level comparison position. Distinct from the nameplate photo; never conflated."
+            },
+            {
+              "id": "nameplate-photo",
+              "source": "field",
+              "label": "observed"
+            }
+          ],
+          "removedField": {
+            "id": "condition",
+            "reason": "Removed 2026-07-27 (Binder Schema C2). A component's condition picture is its check history plus its open concerns. The record may carry a recommended action; it may never carry a judgement of state."
+          },
+          "completeWhen": "every component implied by triggers and intake services has a record; every record has a unit photo, a location, and either identity fields or an explicit unknown",
+          "expectedComponents": [
+            {
+              "when": "always",
+              "components": [
+                "electrical-panel",
+                "water-heater",
+                "water-shutoff-main"
+              ]
+            },
+            {
+              "when": "property.well",
+              "components": [
+                "wellhead",
+                "well-pump",
+                "well-pressure-system"
+              ]
+            },
+            {
+              "when": "property.septic",
+              "components": [
+                "septic-tank",
+                "septic-bed"
+              ]
+            },
+            {
+              "when": "pin.water-treatment",
+              "components": [
+                "water-softener",
+                "uv-sterilizer",
+                "sediment-filter"
+              ]
+            },
+            {
+              "when": "pin.furnace",
+              "components": [
+                "furnace"
+              ]
+            },
+            {
+              "when": "pin.boiler",
+              "components": [
+                "boiler"
+              ]
+            },
+            {
+              "when": "pin.heat-pump",
+              "components": [
+                "heat-pump"
+              ]
+            },
+            {
+              "when": "pin.heat-pump",
+              "components": [
+                "air-conditioner"
+              ]
+            },
+            {
+              "when": "pin.hrv-erv",
+              "components": [
+                "hrv"
+              ]
+            },
+            {
+              "when": "pin.sump-pump",
+              "components": [
+                "sump-pump"
+              ]
+            },
+            {
+              "when": "property.generator",
+              "components": [
+                "generator",
+                "generator-transfer-switch"
+              ]
+            },
+            {
+              "when": "property.propane",
+              "components": [
+                "propane-tank"
+              ]
+            },
+            {
+              "when": "property.oil",
+              "components": [
+                "oil-tank"
+              ]
+            },
+            {
+              "when": "property.wood_heat",
+              "components": [
+                "wood-appliance",
+                "chimney"
+              ]
+            },
+            {
+              "when": "pin.fireplace",
+              "components": [
+                "gas-fireplace"
+              ]
+            },
+            {
+              "when": "property.pool",
+              "components": [
+                "pool-equipment"
+              ]
+            },
+            {
+              "when": "property.solar",
+              "components": [
+                "solar-array",
+                "solar-inverter"
+              ]
+            },
+            {
+              "when": "property.solar",
+              "components": [
+                "battery-storage"
+              ]
+            },
+            {
+              "when": "property.ev",
+              "components": [
+                "ev-charger"
+              ]
+            },
+            {
+              "when": "pin.irrigation-backflow",
+              "components": [
+                "irrigation-controller"
+              ]
+            }
+          ],
+          "expectationRule": "The expectation set is the union of components for every trigger that evaluates true, plus anything the intake services block names. A component present but not expected is fine and is recorded. A component expected but absent is a gap. Component type names are reconciled against the field config's componentLists (48 types, verified 2026-07-27)."
+        }
+      ]
     },
     {
-     "id": "s15.both-realities",
-     "kind": "derived",
-     "rule": "The achievable owner routine and the full professional standard sit in the same binder, clearly labelled. The gap between them speaks for itself."
-    }
-   ]
-  },
-  {
-   "id": "s16",
-   "number": 16,
-   "title": "Seasonal & absence procedures",
-   "tab": "D",
-   "slots": [
-    {
-     "id": "s16.procedures",
-     "kind": "narrative",
-     "sources": [
-      "intake.vacancy",
-      "s14.requirements",
-      "human"
-     ]
-    }
-   ]
-  },
-  {
-   "id": "s17",
-   "number": 17,
-   "title": "Vendor & service directory",
-   "tab": "D",
-   "slots": [
-    {
-     "id": "s17.directory",
-     "kind": "record-set",
-     "sources": [
-      "business-data"
-     ],
-     "note": "Not house data. Written once, reused across clients."
-    }
-   ]
-  },
-  {
-   "id": "s18",
-   "number": 18,
-   "title": "Repair & project register",
-   "tab": "E",
-   "slots": [
-    {
-     "id": "s18.projects",
-     "kind": "record-set",
-     "sources": [
-      "s10.concerns"
-     ],
-     "note": "NOT a new entity. The same concerns later in their life \u2014 coordination, quotes, trades, verification. Modelling separately would split one lifecycle across two systems."
-    }
-   ]
-  },
-  {
-   "id": "s19",
-   "number": 19,
-   "title": "Ten-year capital plan & reserve",
-   "tab": "E",
-   "slots": [
-    {
-     "id": "s19.replacement-windows",
-     "kind": "derived",
-     "sources": [
-      "s7.components",
-      "s11.lifespans"
-     ],
-     "defaultLabel": "inferred",
-     "dependsOn": "install dates \u2014 from documents or serial decoding. Without them this slot cannot be produced for most components."
+      "id": "s8",
+      "number": 8,
+      "title": "How this house runs — quirks, habits & settings",
+      "tab": "B",
+      "slots": [
+        {
+          "id": "s8.quirks",
+          "kind": "narrative",
+          "sources": [
+            "intake.quirks",
+            "field.notes",
+            "field.chats",
+            "desk.memory-notes"
+          ],
+          "reportsAs": [
+            "empty",
+            "started"
+          ],
+          "neverGaps": true,
+          "note": "Never complete by design — a house always has one more quirk. The desk memory notes from the fresh pass land here."
+        }
+      ]
     },
     {
-     "id": "s19.reserve-figure",
-     "kind": "fixed",
-     "sources": [
-      "human"
-     ],
-     "neverAI": true
-    }
-   ]
-  },
-  {
-   "id": "s20",
-   "number": 20,
-   "title": "Utility & performance history",
-   "tab": "E",
-   "slots": [
+      "id": "s9",
+      "number": 9,
+      "title": "Finishes, spares & consumables register",
+      "tab": "B",
+      "slots": [
+        {
+          "id": "s9.consumables",
+          "kind": "coverage",
+          "sources": [
+            "field",
+            "s7.consumables"
+          ],
+          "defaultLabel": "observed"
+        },
+        {
+          "id": "s9.finishes",
+          "kind": "coverage",
+          "sources": [
+            "intake",
+            "documents"
+          ],
+          "defaultLabel": "reported-by-homeowner"
+        }
+      ]
+    },
     {
-     "id": "s20.readings",
-     "kind": "record-set",
-     "sources": [
-      "client-data"
-     ],
-     "defaultLabel": "documented"
-    }
-   ]
-  },
-  {
-   "id": "s21",
-   "number": 21,
-   "title": "Programs, rebates & grants register",
-   "tab": "E",
-   "slots": [
+      "id": "s10",
+      "number": 10,
+      "title": "Baseline condition assessment",
+      "tab": "B",
+      "slots": [
+        {
+          "id": "s10.findings",
+          "kind": "record-set",
+          "title": "Findings",
+          "sources": [
+            "field.check:fail",
+            "field.na:recordsFinding",
+            "field.pin.flag",
+            "desk.raised",
+            "documents",
+            "lab"
+          ],
+          "note": "Findings are substantive observations. Not every finding is a problem. Confirmed absences are findings that stay facts and land in s7 or s12.",
+          "promotion": {
+            "toConcern": "A finding promoted to tracked status.",
+            "automatic": [
+              "field.check:fail"
+            ],
+            "never": [
+              "field.na:none-present"
+            ],
+            "byHuman": [
+              "desk.raised",
+              "documents",
+              "lab"
+            ]
+          }
+        },
+        {
+          "id": "s10.concerns",
+          "kind": "record-set",
+          "title": "Concerns — the tracked subset",
+          "recordFields": [
+            "location",
+            "photograph",
+            "what-was-observed",
+            "why-it-matters",
+            "active-suspected-historical",
+            "recommended-action",
+            "appropriate-trade",
+            "urgency",
+            "further-investigation-needed",
+            "planning-cost-range",
+            "target-date",
+            "status",
+            "completion-evidence"
+          ],
+          "aiMayDraft": [
+            "what-was-observed",
+            "why-it-matters"
+          ],
+          "neverAI": [
+            "urgency",
+            "planning-cost-range",
+            "recommended-action"
+          ],
+          "specificityRule": {
+            "isCompletenessRule": true,
+            "requires": [
+              "measurement",
+              "cadence",
+              "namedEscalationTrigger"
+            ],
+            "appliesWhen": "the concern carries a watch schedule",
+            "note": "A concern that says only 'watch this' fails the slot. Master Spec's own example: photograph and measure the horizontal crack, north basement wall, every April and October; current max width 1.5 mm; refer to a structural engineer if it widens, leaks, displaces, or exterior movement appears."
+          },
+          "completeWhen": "every concern links to a task, a project, or a watch schedule — nothing floats"
+        }
+      ]
+    },
     {
-     "id": "s21.programs",
-     "kind": "record-set",
-     "sources": [
-      "research"
-     ],
-     "defaultLabel": "documented",
-     "itemRequires": [
-      "verifiedDate"
-     ],
-     "rule": "Every program carries the date it was verified current beside the claim."
-    }
-   ]
-  },
-  {
-   "id": "s22",
-   "number": 22,
-   "title": "Livability & long-term suitability review",
-   "tab": "E",
-   "slots": [
+      "id": "s11",
+      "number": 11,
+      "title": "Warranty & lifespan register",
+      "tab": "B",
+      "slots": [
+        {
+          "id": "s11.warranties",
+          "kind": "record-set",
+          "sources": [
+            "documents"
+          ],
+          "defaultLabel": "documented",
+          "includes": "Tarion milestones (1-yr, 2-yr, 7-yr major structural) for homes under 7 years — missed windows are unrecoverable."
+        },
+        {
+          "id": "s11.lifespans",
+          "kind": "derived",
+          "sources": [
+            "reference:lifespans-v1"
+          ],
+          "defaultLabel": "inferred",
+          "rule": "Typical service-life windows, never predictions. Cited to the reference file wherever used."
+        }
+      ]
+    },
     {
-     "id": "s22.review",
-     "kind": "narrative",
-     "sources": [
-      "intake.horizon",
-      "s6",
-      "human"
-     ]
-    }
-   ]
-  },
-  {
-   "id": "s23",
-   "number": 23,
-   "title": "Property-transfer / continuity package",
-   "tab": "E",
-   "slots": [
+      "id": "s12",
+      "number": 12,
+      "title": "Life-safety record & escape plan",
+      "tab": "C",
+      "slots": [
+        {
+          "id": "s12.alarms",
+          "kind": "coverage",
+          "sources": [
+            "field.pin:alarm",
+            "field.check:alarm-coverage",
+            "intake.install-dates"
+          ],
+          "defaultLabel": "observed",
+          "completeWhen": "every sleeping area and every level has an alarm state",
+          "bindsTo": [
+            "smoke-alarm",
+            "co-alarm",
+            "combination-alarm"
+          ]
+        },
+        {
+          "id": "s12.egress",
+          "kind": "coverage",
+          "sources": [
+            "field.check:egress"
+          ],
+          "defaultLabel": "observed"
+        },
+        {
+          "id": "s12.other",
+          "kind": "coverage",
+          "sources": [
+            "field"
+          ],
+          "defaultLabel": "observed",
+          "covers": [
+            "extinguishers",
+            "radon-system",
+            "pool-barrier",
+            "fuel-storage"
+          ]
+        }
+      ]
+    },
     {
-     "id": "s23.package",
-     "kind": "derived",
-     "sources": [
-      "edition"
-     ],
-     "note": "An export of a named dated edition. 'Which binder did the buyer receive' must always have an answer."
+      "id": "s13",
+      "number": 13,
+      "title": "Testing & environmental program",
+      "tab": "C",
+      "slots": [
+        {
+          "id": "s13.tests",
+          "kind": "record-set",
+          "expectationSource": "property triggers",
+          "sources": [
+            "field.sample",
+            "lab.result"
+          ],
+          "defaultLabel": "measured",
+          "inFlightRule": "A test underway renders with its deployment record, status, and expected completion. Never omitted, never shown as done.",
+          "lateResults": "Re-enter as new evidence and produce a new dated edition with a changelog."
+        }
+      ]
+    },
+    {
+      "id": "s14",
+      "number": 14,
+      "title": "Insurance & risk file",
+      "tab": "C",
+      "slots": [
+        {
+          "id": "s14.requirements",
+          "kind": "record-set",
+          "sources": [
+            "documents.policy"
+          ],
+          "defaultLabel": "documented"
+        }
+      ]
+    },
+    {
+      "id": "s15",
+      "number": 15,
+      "title": "Maintenance system & checklist library",
+      "tab": "D",
+      "slots": [
+        {
+          "id": "s15.default-schedule",
+          "kind": "derived",
+          "sources": [
+            "reference:maintenance-schedule-v1"
+          ]
+        },
+        {
+          "id": "s15.custom-schedule",
+          "kind": "derived",
+          "sources": [
+            "reference:maintenance-schedule-v1",
+            "property.triggers",
+            "s7.components"
+          ],
+          "note": "Generated by the trigger engine — the same evaluator this schema uses for slot applicability. Rules, not AI."
+        },
+        {
+          "id": "s15.owner-pro-split",
+          "kind": "derived",
+          "sources": [
+            "s15.custom-schedule",
+            "intake.diy-appetite"
+          ]
+        },
+        {
+          "id": "s15.both-realities",
+          "kind": "derived",
+          "rule": "The achievable owner routine and the full professional standard sit in the same binder, clearly labelled. The gap between them speaks for itself."
+        }
+      ]
+    },
+    {
+      "id": "s16",
+      "number": 16,
+      "title": "Seasonal & absence procedures",
+      "tab": "D",
+      "slots": [
+        {
+          "id": "s16.procedures",
+          "kind": "narrative",
+          "sources": [
+            "intake.vacancy",
+            "s14.requirements",
+            "human"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s17",
+      "number": 17,
+      "title": "Vendor & service directory",
+      "tab": "D",
+      "slots": [
+        {
+          "id": "s17.directory",
+          "kind": "record-set",
+          "sources": [
+            "business-data"
+          ],
+          "note": "Not house data. Written once, reused across clients."
+        }
+      ]
+    },
+    {
+      "id": "s18",
+      "number": 18,
+      "title": "Repair & project register",
+      "tab": "E",
+      "slots": [
+        {
+          "id": "s18.projects",
+          "kind": "record-set",
+          "sources": [
+            "s10.concerns"
+          ],
+          "note": "NOT a new entity. The same concerns later in their life — coordination, quotes, trades, verification. Modelling separately would split one lifecycle across two systems."
+        }
+      ]
+    },
+    {
+      "id": "s19",
+      "number": 19,
+      "title": "Ten-year capital plan & reserve",
+      "tab": "E",
+      "slots": [
+        {
+          "id": "s19.replacement-windows",
+          "kind": "derived",
+          "sources": [
+            "s7.components",
+            "s11.lifespans"
+          ],
+          "defaultLabel": "inferred",
+          "dependsOn": "install dates — from documents or serial decoding. Without them this slot cannot be produced for most components."
+        },
+        {
+          "id": "s19.reserve-figure",
+          "kind": "fixed",
+          "sources": [
+            "human"
+          ],
+          "neverAI": true
+        }
+      ]
+    },
+    {
+      "id": "s20",
+      "number": 20,
+      "title": "Utility & performance history",
+      "tab": "E",
+      "slots": [
+        {
+          "id": "s20.readings",
+          "kind": "record-set",
+          "sources": [
+            "client-data"
+          ],
+          "defaultLabel": "documented"
+        }
+      ]
+    },
+    {
+      "id": "s21",
+      "number": 21,
+      "title": "Programs, rebates & grants register",
+      "tab": "E",
+      "slots": [
+        {
+          "id": "s21.programs",
+          "kind": "record-set",
+          "sources": [
+            "research"
+          ],
+          "defaultLabel": "documented",
+          "itemRequires": [
+            "verifiedDate"
+          ],
+          "rule": "Every program carries the date it was verified current beside the claim."
+        }
+      ]
+    },
+    {
+      "id": "s22",
+      "number": 22,
+      "title": "Livability & long-term suitability review",
+      "tab": "E",
+      "slots": [
+        {
+          "id": "s22.review",
+          "kind": "narrative",
+          "sources": [
+            "intake.horizon",
+            "s6",
+            "human"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s23",
+      "number": 23,
+      "title": "Property-transfer / continuity package",
+      "tab": "E",
+      "slots": [
+        {
+          "id": "s23.package",
+          "kind": "derived",
+          "sources": [
+            "edition"
+          ],
+          "note": "An export of a named dated edition. 'Which binder did the buyer receive' must always have an answer."
+        }
+      ]
     }
-   ]
-  }
- ],
- "componentInheritance": {
-  "water-softener": "water-treatment",
-  "sediment-filter": "water-treatment",
-  "uv-sterilizer": "water-treatment",
-  "reverse-osmosis": "water-treatment",
-  "appliance-refrigerator": "appliance",
-  "appliance-dishwasher": "appliance",
-  "appliance-range": "appliance",
-  "appliance-range-hood": "appliance",
-  "appliance-washer": "appliance",
-  "appliance-dryer": "appliance",
-  "appliance-microwave": "appliance"
- },
- "inheritanceRule": "Declared in the master as ``### `child` \u2014 inherits `parent` ``; the child's rendered list is the parent's items followed by its own, and ids stay globally unique. **A binding target matches a type OR any descendant** \u2014 a water-softener pin satisfies a water-treatment expectation. 11 relations as of v1.5.1.",
- "triggerVocabularyRule": "RECONCILED against Checklist Master v1.6.2 \u00a73. FOUR namespaces: `property.*` (Table A, now 17 flags, declared at intake before the visit) \u00b7 `zone.*` (Table B) \u00b7 `pin.*` (a pin of this type in THIS zone \u2014 zone-scoped strictly, rejected by the validator at session scope) \u00b7 `house.*` (v1.6 \u2014 a pin of this type ANYWHERE in this visit). **Neither pin nor house is a superset of the other:** the zone form under-fires a house question, the house form over-fires a zone one. Maintenance-schedule conditions are house-scoped. `answer.*` is permanently absent from the field config and belongs to the builder \u2014 see \u00a7answerConditions.",
- "componentVocabularyRule": "RECONCILED 2026-07-27 against Checklist Master v1.6.2 \u2014 58 component types, 11 inheritance relations, 23 `.unit` items. **Table F asserts nothing retired in v1.6.x.** Ten stubs excluded from expectations: ev-charger, cistern, elevator-lift, outbuilding, radon-fan, backflow-preventer, boiler-zone-valve, appliance-freezer, iron-filter. `dock` is filled (was a stub actively referenced by `sit.shoreline`).",
- "answerConditions": "**Conditions on a recorded value are the builder's, permanently.** The field app cannot evaluate half the inputs \u2014 a radon result arrives three months later, a permit date comes from a document. So the builder holds every answer (field, lab, document), evaluates the condition, and emits the resulting item as a carried item in the session plan. No new field machinery; it uses the round trip that already exists. Form: `answer.<itemId> <op> <value>` \u2014 `answer.utl.drain-material-id in (clay, orangeburg)` for the \u00a713 sewer-camera trigger, `answer.fc.width > 5`. **Choice option values are therefore the builder's condition vocabulary: renaming or removing one is a breaking change here, not a content edit** (master \u00a79).",
- "listGateRule": "v1.6.2 dialect: a list heading may carry `\u2014 gated on <ref>`, conditioning every item in it. Where an item also has a trigger cell, the effective condition is **allOf(list gate, item trigger)** \u2014 the cell's own `|` stays anyOf internally. **The evaluator must compose both**, or every Fuel item (`has_mechanicals` AND `property.gas`) fires in every zone.",
- "retirementLineage": "Master Table F records retired id, version, successors and reason as structured data. **Software must not use it to join a series** \u2014 a retired id stays a discontinuity. Read it only to show a person where a broken series continued.",
- "stubTypes": [
-  "ev-charger",
-  "cistern",
-  "elevator-lift",
-  "outbuilding",
-  "radon-fan",
-  "backflow-preventer",
-  "boiler-zone-valve",
-  "appliance-freezer",
-  "iron-filter"
- ],
- "triggerVocabulary": {
-  "property": [
-   "property.ev",
-   "property.flat_roof",
-   "property.gas",
-   "property.generator",
-   "property.municipal_sewer",
-   "property.municipal_water",
-   "property.oil",
-   "property.pool",
-   "property.pre_1990",
-   "property.propane",
-   "property.seasonal_vacancy",
-   "property.secondary_suite",
-   "property.septic",
-   "property.solar",
-   "property.waterfront",
-   "property.well",
-   "property.wood_heat"
   ],
-  "house": [],
-  "zone": [
-   "zone.has_mechanicals"
+  "componentInheritance": {
+    "water-softener": "water-treatment",
+    "sediment-filter": "water-treatment",
+    "uv-sterilizer": "water-treatment",
+    "reverse-osmosis": "water-treatment",
+    "appliance-refrigerator": "appliance",
+    "appliance-dishwasher": "appliance",
+    "appliance-range": "appliance",
+    "appliance-range-hood": "appliance",
+    "appliance-washer": "appliance",
+    "appliance-dryer": "appliance",
+    "appliance-microwave": "appliance"
+  },
+  "inheritanceRule": "Declared in the master as ``### `child` — inherits `parent` ``; the child's rendered list is the parent's items followed by its own, and ids stay globally unique. **A binding target matches a type OR any descendant** — a water-softener pin satisfies a water-treatment expectation. 11 relations as of v1.5.1.",
+  "triggerVocabularyRule": "RECONCILED against Checklist Master v1.6.2 §3. FOUR namespaces: `property.*` (Table A, now 17 flags, declared at intake before the visit) · `zone.*` (Table B) · `pin.*` (a pin of this type in THIS zone — zone-scoped strictly, rejected by the validator at session scope) · `house.*` (v1.6 — a pin of this type ANYWHERE in this visit). **Neither pin nor house is a superset of the other:** the zone form under-fires a house question, the house form over-fires a zone one. Maintenance-schedule conditions are house-scoped. `answer.*` is permanently absent from the field config and belongs to the builder — see §answerConditions.",
+  "componentVocabularyRule": "RECONCILED 2026-07-27 against Checklist Master v1.6.2 — 58 component types, 11 inheritance relations, 23 `.unit` items. **Table F asserts nothing retired in v1.6.x.** Ten stubs excluded from expectations: ev-charger, cistern, elevator-lift, outbuilding, radon-fan, backflow-preventer, boiler-zone-valve, appliance-freezer, iron-filter. `dock` is filled (was a stub actively referenced by `sit.shoreline`).",
+  "answerConditions": "**Conditions on a recorded value are the builder's, permanently.** The field app cannot evaluate half the inputs — a radon result arrives three months later, a permit date comes from a document. So the builder holds every answer (field, lab, document), evaluates the condition, and emits the resulting item as a carried item in the session plan. No new field machinery; it uses the round trip that already exists. Form: `answer.<itemId> <op> <value>` — `answer.utl.drain-material-id in (clay, orangeburg)` for the §13 sewer-camera trigger, `answer.fc.width > 5`. **Choice option values are therefore the builder's condition vocabulary: renaming or removing one is a breaking change here, not a content edit** (master §9).",
+  "listGateRule": "v1.6.2 dialect: a list heading may carry `— gated on <ref>`, conditioning every item in it. Where an item also has a trigger cell, the effective condition is **allOf(list gate, item trigger)** — the cell's own `|` stays anyOf internally. **The evaluator must compose both**, or every Fuel item (`has_mechanicals` AND `property.gas`) fires in every zone.",
+  "retirementLineage": "Master Table F records retired id, version, successors and reason as structured data. **Software must not use it to join a series** — a retired id stays a discontinuity. Read it only to show a person where a broken series continued.",
+  "stubTypes": [
+    "ev-charger",
+    "cistern",
+    "elevator-lift",
+    "outbuilding",
+    "radon-fan",
+    "backflow-preventer",
+    "boiler-zone-valve",
+    "appliance-freezer",
+    "iron-filter"
   ],
-  "answer": [
-   "answer.fc.width",
-   "answer.utl.drain-material-id"
-  ],
-  "pin": [
-   "pin.boiler",
-   "pin.fireplace",
-   "pin.furnace",
-   "pin.heat-pump",
-   "pin.hrv-erv",
-   "pin.irrigation-backflow",
-   "pin.septic-alarm",
-   "pin.sump-pump",
-   "pin.water-treatment"
-  ]
- },
- "vocabularyCrossCheckRule": "Every trigger referenced must appear in `triggerVocabulary` under its own namespace, and `property.*` must match Checklist Master Table A exactly. `house.*` and `pin.*` must name a declared component type; `zone.*` a Table B attribute. **Validate against the master's declared vocabulary, not only internal consistency** \u2014 a transformation applied uniformly to ids and to every reference leaves everything agreeing with everything and everything wrong. **Every trigger used must be declared; a declared flag need not be used. The component-type half is evaluated per import against that import's own config snapshot \u2014 never against a checked-in copy, which goes stale and produces false positives. Fail open on an unrecognised name.**",
- "reconciledAgainst": "CHECKLIST-MASTER v1.11 (2026-07-28). 409 items, 61 component types (plus 9 stubs with ids reserved and no items), 8 retirement-lineage rows.",
- "tableI_provenance": "v1.9\u2013v1.11 Table I: any value transcribed from a physical artifact names the photo item that captures it. **The builder must carry the declaration, not just the value.** A value whose source photo item resolved `na / none-present` is **unverifiable** and must stay distinguishable from a verified one at every layer \u2014 including a fleet or registry view. Provenance is **co-visibility on the same pin**, resolved across component inheritance, not global existence of the item.",
- "parsingWarning": "**Escaped pipes.** Table cells use `\\|` inside choice and multi-alternative pin values \u2014 `choice (ball\\|gate\\|other)`, `pin \\`comparison-position\\|dock\\``. A naive cell split drops every such row silently: it cost this schema a phantom 'stale id' report and a month of a wrong item count. Neutralise `\\|` before splitting. Field's v1.7 rule bans markdown emphasis in parsed cells for the same class of reason.",
- "countingNote": "**61 typed component headings, not 62.** Section 7's final `###` is `Stubs (ids reserved; items TBD)` \u2014 a section heading, not a type. Caught by Builder Code. Same class as the escaped-pipe bug and their four false findings: **a boundary assumed rather than located.** Counting rule for anyone re-deriving this: bound section 7 at `## 8`, take `###` headings carrying a backticked id, count the child only on `\u2014 inherits` lines, and treat `smoke-alarm / co-alarm` as two. Stubs have no headings of their own.",
- "dualSourcedFacts": "**A slot may declare `preferredLabel`, and it needs more machinery than first claimed.** Some facts arrive from two sources with different honesty labels \u2014 electrical service size is `Reported` at intake and `Observed` in the field. Neither overwrites the other, and **the discrepancy is a first-class output**: an owner reporting 200A on a 100A panel is carrying a renovation assumption worth more than either number alone.\n\n**CORRECTION (2026-07-29): the overlay model does not already do this.** Overlays hold a *history* of values resolving to one current value by recency. Two simultaneously-valid values from different sources is a different shape \u2014 **value-per-source, resolved by declared preference rather than by time.** That is a schema addition, not existing machinery, and the earlier claim otherwise was asserted without checking.\n\n**Precedence cannot be a fixed order.** For a current-state question an observation beats a document; for a historical one the document wins, because nobody watched it happen. So the slot declares it: `preferredLabel: observed` on electrical service, `preferredLabel: documented` on install date. Generalises to year built (intake vs permit), roof age (intake vs invoice).",
- "technologySection": "**A technology inventory takes its own section rather than a \u00a77 subsection. One reason, not two.**\n\n**\u00a77's expectation set is trigger-derived; technology's is not derivable at all** \u2014 there are no `property.*` flags for a printer, and the intake question sets none. So `expectationSource: \"session-attestation\"`, satisfied by a session-close coverage item. A new value on an existing field, not a new slot kind.\n\n**A transfer-package argument was previously given here and is withdrawn.** Master Spec \u00a723 is an explicit **inclusion** list \u2014 systems inventory, service history, permits, test results, transferable warranties, capital plan. Technology is not on it, so exclusion is already the default and there is nothing to filter. *(Also: \u00a723 has three audiences \u2014 a buyer, an executor or family member, a new caretaker or service \u2014 not two.)*\n\n**Required:** make \u00b7 model \u00b7 location \u00b7 how it connects \u00b7 a label photograph or a declared unverifiable. **Required on network equipment:** owned-or-rented \u2014 the one field that changes who the client phones. **Optional:** serial \u00b7 age \u00b7 known issues. **Upstream device as free text**, never a modelled topology.\n\n**The moveables list is a separate slot that can never be complete** \u2014 a household acquires a phone next month. Narrative treatment for gap purposes, structured for querying, `Reported by homeowner`. **How the list arrives is provenance, not design** \u2014 a written list, an emailed list, the client reading it out, a recording. Only the audio route carries transcription and extraction in its chain.\n\n**No transcript-versus-pins reconciliation is specified.** An earlier version described one, using televisions as the example \u2014 but the inspection sees televisions, and **moveables are precisely what the inspection cannot see**, so there is largely nothing to reconcile. The general rule stands and needs no mechanism: a claim in a recording is checked against the rest of the binder like any other claim."
+  "triggerVocabulary": {
+    "property": [
+      "property.ev",
+      "property.flat_roof",
+      "property.gas",
+      "property.generator",
+      "property.municipal_sewer",
+      "property.municipal_water",
+      "property.oil",
+      "property.pool",
+      "property.pre_1990",
+      "property.propane",
+      "property.seasonal_vacancy",
+      "property.secondary_suite",
+      "property.septic",
+      "property.solar",
+      "property.waterfront",
+      "property.well",
+      "property.wood_heat"
+    ],
+    "house": [],
+    "zone": [
+      "zone.has_mechanicals"
+    ],
+    "answer": [
+      "answer.fc.width",
+      "answer.utl.drain-material-id"
+    ],
+    "pin": [
+      "pin.boiler",
+      "pin.fireplace",
+      "pin.furnace",
+      "pin.heat-pump",
+      "pin.hrv-erv",
+      "pin.irrigation-backflow",
+      "pin.septic-alarm",
+      "pin.sump-pump",
+      "pin.water-treatment"
+    ]
+  },
+  "vocabularyCrossCheckRule": "Every trigger referenced must appear in `triggerVocabulary` under its own namespace, and `property.*` must match Checklist Master Table A exactly. `house.*` and `pin.*` must name a declared component type; `zone.*` a Table B attribute. **Validate against the master's declared vocabulary, not only internal consistency** — a transformation applied uniformly to ids and to every reference leaves everything agreeing with everything and everything wrong. **Every trigger used must be declared; a declared flag need not be used. The component-type half is evaluated per import against that import's own config snapshot — never against a checked-in copy, which goes stale and produces false positives. Fail open on an unrecognised name.**",
+  "reconciledAgainst": "CHECKLIST-MASTER v1.11 (2026-07-28). 409 items, 61 component types (plus 9 stubs with ids reserved and no items), 8 retirement-lineage rows.",
+  "tableI_provenance": "v1.9–v1.11 Table I: any value transcribed from a physical artifact names the photo item that captures it. **The builder must carry the declaration, not just the value.** A value whose source photo item resolved `na / none-present` is **unverifiable** and must stay distinguishable from a verified one at every layer — including a fleet or registry view. Provenance is **co-visibility on the same pin**, resolved across component inheritance, not global existence of the item.",
+  "parsingWarning": "**Escaped pipes.** Table cells use `\\|` inside choice and multi-alternative pin values — `choice (ball\\|gate\\|other)`, `pin \\`comparison-position\\|dock\\``. A naive cell split drops every such row silently: it cost this schema a phantom 'stale id' report and a month of a wrong item count. Neutralise `\\|` before splitting. Field's v1.7 rule bans markdown emphasis in parsed cells for the same class of reason.",
+  "countingNote": "**61 typed component headings, not 62.** Section 7's final `###` is `Stubs (ids reserved; items TBD)` — a section heading, not a type. Caught by Builder Code. Same class as the escaped-pipe bug and their four false findings: **a boundary assumed rather than located.** Counting rule for anyone re-deriving this: bound section 7 at `## 8`, take `###` headings carrying a backticked id, count the child only on `— inherits` lines, and treat `smoke-alarm / co-alarm` as two. Stubs have no headings of their own.",
+  "dualSourcedFacts": "**A slot may declare `preferredLabel`, and it needs more machinery than first claimed.** Some facts arrive from two sources with different honesty labels — electrical service size is `Reported` at intake and `Observed` in the field. Neither overwrites the other, and **the discrepancy is a first-class output**: an owner reporting 200A on a 100A panel is carrying a renovation assumption worth more than either number alone.\n\n**CORRECTION (2026-07-29): the overlay model does not already do this.** Overlays hold a *history* of values resolving to one current value by recency. Two simultaneously-valid values from different sources is a different shape — **value-per-source, resolved by declared preference rather than by time.** That is a schema addition, not existing machinery, and the earlier claim otherwise was asserted without checking.\n\n**Precedence cannot be a fixed order.** For a current-state question an observation beats a document; for a historical one the document wins, because nobody watched it happen. So the slot declares it: `preferredLabel: observed` on electrical service, `preferredLabel: documented` on install date. Generalises to year built (intake vs permit), roof age (intake vs invoice).",
+  "technologySection": "**A technology inventory takes its own section rather than a §7 subsection. One reason, not two.**\n\n**§7's expectation set is trigger-derived; technology's is not derivable at all** — there are no `property.*` flags for a printer, and the intake question sets none. So `expectationSource: \"session-attestation\"`, satisfied by a session-close coverage item. A new value on an existing field, not a new slot kind.\n\n**A transfer-package argument was previously given here and is withdrawn.** Master Spec §23 is an explicit **inclusion** list — systems inventory, service history, permits, test results, transferable warranties, capital plan. Technology is not on it, so exclusion is already the default and there is nothing to filter. *(Also: §23 has three audiences — a buyer, an executor or family member, a new caretaker or service — not two.)*\n\n**Required:** make · model · location · how it connects · a label photograph or a declared unverifiable. **Required on network equipment:** owned-or-rented — the one field that changes who the client phones. **Optional:** serial · age · known issues. **Upstream device as free text**, never a modelled topology.\n\n**The moveables list is a separate slot that can never be complete** — a household acquires a phone next month. Narrative treatment for gap purposes, structured for querying, `Reported by homeowner`. **How the list arrives is provenance, not design** — a written list, an emailed list, the client reading it out, a recording. Only the audio route carries transcription and extraction in its chain.\n\n**No transcript-versus-pins reconciliation is specified.** An earlier version described one, using televisions as the example — but the inspection sees televisions, and **moveables are precisely what the inspection cannot see**, so there is largely nothing to reconcile. The general rule stands and needs no mechanism: a claim in a recording is checked against the rest of the binder like any other claim."
 }
