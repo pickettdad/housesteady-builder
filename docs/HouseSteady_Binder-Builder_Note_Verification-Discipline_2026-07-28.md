@@ -302,6 +302,47 @@ doctrine scan holding it.
 verdict. This is about a **document** asserting a state of the world it does not re-derive,
 and the failure is slower: rule 2's check is at least still running.
 
+#### 9b · Every new scan is negative-tested when it is written
+
+*(Adopted 2026-07-31.)*
+
+**A scan that has never failed is a claim about a checked state**, which is rule 9 one
+level up. So: plant the thing it forbids, confirm it fires, remove the plant. It takes a
+minute at the moment of writing, when the offending shape is already in your head.
+
+Two of this session's scans needed it and one of them earned it twice over:
+
+- the archive-citation scan passes on a clean tree, so *passing* proves nothing until you
+  have seen it go red. Planted a citation of an archived filename — it fired. Removed it.
+- the `defaultLabel` truthiness scan fired on `defaultLabel?: string | null`, **the
+  optional-property marker in the declaration it exists to protect.** That is rule 8, and
+  it surfaced at write time only because the scan was being exercised rather than merely
+  added.
+
+**Not retroactive.** The existing scans are not worth going back through; the cost is real
+and the returns fall off sharply once a scan has been reviewed once.
+
+#### 9c · The CI log was expected to answer this and does not — which is itself the finding
+
+The reasonable hope was that CI history already knows which scans have ever fired, making
+retroactive testing unnecessary. **Checked, and it does not.** Every run since the workflow
+landed:
+
+| | |
+|---|---|
+| Runs | **55** |
+| Failures | **0** |
+| Cancelled (superseded by concurrency) | 1 |
+
+**Green since the first run, so no scan has ever fired in CI.** Not because none of them
+work — three fired *this session* — but because every failure was caught and fixed locally
+before the push. **CI records the state after fixing, never the fixing**, so its log is a
+record of what was true at merge and says nothing about what was ever caught.
+
+That is not an argument for anything elaborate. It is the reason 9b is the only mechanism
+actually available: the cheaper alternative was checked, and it is empty. *(One look, not a
+project — and the look is done, so nobody needs to repeat it.)*
+
 ---
 
 ## Consequences already in the code
