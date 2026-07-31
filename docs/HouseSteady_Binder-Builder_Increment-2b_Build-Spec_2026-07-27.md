@@ -1,7 +1,7 @@
 # Binder Builder — Increment 2b Build Spec: The First Assists
 
 **Date:** 2026-07-27
-**Read first:** `CLAUDE.md` (§7 the concierge is not an inspector, §9 AI assist) · `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1_2026-07-25.md` · `/docs/HouseSteady_Binder-Builder_Increment-2a_Build-Spec_v2_2026-07-27.md` (the screen this lands in).
+**Read first:** `CLAUDE.md` (§7 the concierge is not an inspector, §9 AI assist) · `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1-1_2026-07-31.md` · `/docs/HouseSteady_Binder-Builder_Increment-2a_Build-Spec_v2_2026-07-27.md` (the screen this lands in).
 **Scope:** the first four AI assists, into the fresh pass screen that already exists. Nothing client-facing. Nothing that assembles a binder.
 
 **Why these four first:** they are high-volume, cheap, structured, and a wrong answer is obvious and harmless. They prove the queue, the prompt library, the provenance record, and the abstention discipline on work where nothing reaches a client. Every later AI feature inherits that machinery.

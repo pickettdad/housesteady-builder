@@ -29,7 +29,7 @@ const sign = (db: Db, propertyId: string) =>
     clientNames: { version: NAMES.version, hash: NAMES.hash },
     houseStyleVersion: 'house-style/v001',
     property: { label: 'A house', address: '14 Dundas Street West' },
-    visitDate: '2026-07-24',
+    walkedDate: '2026-07-24',
   })
 
 /**
@@ -251,7 +251,7 @@ describe('the house style lint', () => {
         clientNames: { version: NAMES.version, hash: NAMES.hash },
         houseStyleVersion: 'house-style/v001',
         property: { label: 'A house', address: '14 Dundas Street West' },
-        visitDate: null,
+        walkedDate: null,
       }),
       (e: unknown) => e instanceof HouseStyleRefused && e.violations.some((v) => v.where === 'the signature line'),
     )

@@ -104,7 +104,7 @@ Triage UI · verification overlays · inbox assignment actions · canvas renderi
 
 ## 8. Forward compatibility — the AI provenance table
 
-No AI logic in this increment. **One table, created empty**, so the shape exists before Increment 2 writes to it and no migration is needed later. See `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1_2026-07-25.md`.
+No AI logic in this increment. **One table, created empty**, so the shape exists before Increment 2 writes to it and no migration is needed later. See `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1-1_2026-07-31.md`.
 
 - `ai_generations` — id, property_id, visit_id, import_id, **task** (nameplate_extract | photo_route | transcribe | pin_type_suggest | slot_bind | draft_row | lint | …), **target_kind** + **target_id** (what it was about), **model**, **prompt_id**, **prompt_version**, **prompt_hash**, input_refs (JSON — the media/pin/item ids fed in), output (JSON or TEXT), **abstained** (0/1), confidence (nullable), input_tokens, output_tokens, cost_estimate, created_at, **human_decision** (pending | accepted | edited | discarded), human_decided_at, human_note
 

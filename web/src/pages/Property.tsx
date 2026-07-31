@@ -6,7 +6,7 @@ export function PropertyPage({ id }: { id: string }) {
   const [property, setProperty] = useState<Property | null>(null)
   const [visits, setVisits] = useState<Visit[]>([])
   const [kind, setKind] = useState('baseline')
-  const [visitDate, setVisitDate] = useState('')
+  const [plannedDate, setPlannedDate] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refusal, setRefusal] = useState<Check[] | null>(null)
@@ -26,8 +26,8 @@ export function PropertyPage({ id }: { id: string }) {
   const addVisit = async () => {
     setError(null)
     try {
-      await api.createVisit(id, kind, visitDate)
-      setVisitDate('')
+      await api.createVisit(id, kind, plannedDate)
+      setPlannedDate('')
       await load()
     } catch (e) {
       setError((e as Error).message)
@@ -88,7 +88,7 @@ export function PropertyPage({ id }: { id: string }) {
             <option value="monthly">Monthly</option>
             <option value="other">Other</option>
           </select>
-          <input type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
+          <input type="date" value={plannedDate} onChange={(e) => setPlannedDate(e.target.value)} />
           <button onClick={addVisit}>Add visit</button>
         </div>
         <div className="hint">
@@ -122,7 +122,8 @@ export function PropertyPage({ id }: { id: string }) {
           <thead>
             <tr>
               <th>Visit</th>
-              <th>Date</th>
+              {/* "Date" was the column doing two jobs. This is the typed one. */}
+              <th>Planned</th>
               <th>Created</th>
               <th>Import</th>
             </tr>
@@ -131,7 +132,7 @@ export function PropertyPage({ id }: { id: string }) {
             {visits.map((v) => (
               <tr key={v.id}>
                 <td style={{ textTransform: 'capitalize' }}><strong>{v.kind}</strong></td>
-                <td className="muted">{v.visit_date ?? '—'}</td>
+                <td className="muted">{v.planned_date ?? '—'}</td>
                 <td className="muted small">{fmtTime(v.created_at)}</td>
                 <td>
                   {v.latest_import_id ? (

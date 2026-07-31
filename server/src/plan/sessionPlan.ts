@@ -381,13 +381,13 @@ export function buildSessionPlan(args: {
   const scoped = scopedResolutions(db, propertyId)
   const { carried } = carriedItems({ evidence, active, resolutions: scoped })
   // When each visit's walk began, from the manifest. One query rather than one
-  // per gap. NOT the hand-typed visit date — see `walkedAt.ts` for why.
+  // per gap. NOT the hand-typed planned date — see `walkedAt.ts` for why.
   const walks = walkedAtByVisit(db, propertyId)
   for (const [visitId, walk] of walks) {
-    if (!walk.disagreesWithTyped) continue
+    if (!walk.disagreesWithPlanned) continue
     warnings.push(
-      `visit ${visitId} carries a typed date of ${walk.disagreesWithTyped.typed}, and the session it ` +
-        `imported began ${walk.disagreesWithTyped.evidence}. The plan sends the evidence; the ` +
+      `visit ${visitId} carries a planned date of ${walk.disagreesWithPlanned.planned}, and the session ` +
+        `it imported began ${walk.disagreesWithPlanned.walked}. The plan sends the evidence; the ` +
         'disagreement is reported rather than silently preferred.',
     )
   }
@@ -468,13 +468,22 @@ export function buildSessionPlan(args: {
    * unmet vocabulary — preserved, counted, marked, not treated as a monitor.
    *
    * **`fine` is deliberately not added here.** The Manifest Contract is the
-   * governing document for this seam and this repo does not fork it: *"if
-   * something about it seems wrong, say so and stop — the owner routes the change
-   * to the Field team."* Adding a value read out of the field's source would make
-   * this repo depend on a source it does not hold. **The Contract needs a third
-   * value; when it has one, this list gets it.** Until then the fail-open path
-   * does exactly what it is for, and the session-plan contract §9 says so in
-   * advance so the warning is not read as a fault.
+   * governing document for this seam — its source of truth is `PLAN-STAGE-1` §7
+   * in the field repo — and this repo does not fork it: *"if something about it
+   * seems wrong, say so and stop — the owner routes the change to the Field
+   * team."* Adding a value read out of the field's source would make this repo
+   * depend on a source it does not hold.
+   *
+   * **And the Contract needs more than a third value.** `monitor` and `fine`
+   * both retire at v4, so a contract listing three today would go stale by
+   * design. The request is the full versioned form: v3 vocabulary is
+   * `fine | monitor | issue`; `monitor` and `fine` retire at v4; **archived v3
+   * exports carry all three forever**, because retirement changes what a new
+   * export may contain and does not reach backwards into one already written.
+   *
+   * When the Contract carries that, this list takes it — **versioned the same
+   * way**, so a v3 import and a v4 import are each read against the vocabulary of
+   * their own manifest version. Session-plan contract §9b is the request.
    */
   const KNOWN_FLAGS = ['monitor', 'issue']
 

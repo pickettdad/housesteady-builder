@@ -69,7 +69,7 @@ export function makePropertyAndVisit(
     actorId,
   )
   db.prepare(
-    `INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at, actor_id, performed_by)
+    `INSERT INTO visits (id, property_id, kind, planned_date, notes, created_at, actor_id, performed_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(visitId, propertyId, opts.kind ?? 'baseline', null, null, now(), actorId, actorId)
   return { propertyId, visitId }
@@ -78,7 +78,7 @@ export function makePropertyAndVisit(
 export function addVisit(db: Db, propertyId: string, kind = 'baseline', actorId = TEST_OPERATOR): string {
   const visitId = newId()
   db.prepare(
-    `INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at, actor_id, performed_by)
+    `INSERT INTO visits (id, property_id, kind, planned_date, notes, created_at, actor_id, performed_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(visitId, propertyId, kind, null, null, now(), actorId, actorId)
   return visitId

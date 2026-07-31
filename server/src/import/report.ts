@@ -305,7 +305,12 @@ export function buildReport(db: Db, importId: string) {
     visit: {
       id: visit?.id as string,
       kind: visit?.kind as string,
-      visitDate: (visit?.visit_date as string | null) ?? null,
+      // Two dates, two names. What somebody typed when the visit was created,
+      // and what this import's own manifest says about when the walk began.
+      // The report is where a disagreement between them should be visible, so
+      // both are carried and neither stands in for the other.
+      plannedDate: (visit?.planned_date as string | null) ?? null,
+      walkedDate: (meta?.started_at as string | null)?.slice(0, 10) ?? null,
     },
     session: {
       sessionId: (meta?.session_id as string | null) ?? null,

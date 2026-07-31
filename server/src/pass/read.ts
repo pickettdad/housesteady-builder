@@ -11,6 +11,7 @@
  * is what makes v4 a new adapter rather than a rewrite of this screen.
  */
 
+import { walkedAt } from '../audit/walkedAt.js'
 import type { Db } from '../db/index.js'
 import { resolutionKey } from '../overlay/fields.js'
 import { entityKey, type EntityState } from '../overlay/model.js'
@@ -263,7 +264,19 @@ export interface PassZone {
 }
 
 export interface PassModel {
-  visit: { id: string; kind: string; visitDate: string | null; propertyId: string }
+  /**
+   * **Two dates, two names.** `plannedDate` is what somebody typed when the
+   * visit was created and is not evidence; `walkedDate` is the manifest's own
+   * session start. They can disagree, and the desk is entitled to see both —
+   * what it is not entitled to is one field that might be either.
+   */
+  visit: {
+    id: string
+    kind: string
+    plannedDate: string | null
+    walkedDate: string | null
+    propertyId: string
+  }
   property: { id: string; label: string }
   import: { id: string; mediaMode: string; importedAt: string } | null
   pass: {
@@ -360,9 +373,10 @@ const photoTile = (
 /** Everything the pass screen needs, for one visit. */
 export function buildPass(db: Db, visitId: string): PassModel | null {
   const visit = db.prepare('SELECT * FROM visits WHERE id = ?').get(visitId) as
-    | { id: string; property_id: string; kind: string; visit_date: string | null }
+    | { id: string; property_id: string; kind: string; planned_date: string | null }
     | undefined
   if (!visit) return null
+  const walked = walkedAt(db, visitId)
 
   const property = db.prepare('SELECT id, label FROM properties WHERE id = ?').get(visit.property_id) as {
     id: string
@@ -377,7 +391,13 @@ export function buildPass(db: Db, visitId: string): PassModel | null {
     | undefined
 
   const base: PassModel = {
-    visit: { id: visit.id, kind: visit.kind, visitDate: visit.visit_date, propertyId: visit.property_id },
+    visit: {
+      id: visit.id,
+      kind: visit.kind,
+      plannedDate: visit.planned_date,
+      walkedDate: walked.date,
+      propertyId: visit.property_id,
+    },
     property: { id: property.id, label: property.label },
     import: null,
     pass: passRow

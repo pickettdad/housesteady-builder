@@ -189,23 +189,24 @@ describe('the payload', () => {
    * **`since` reads the manifest, not the hand-typed field — and this is the one
    * that had already gone wrong in a client's document.**
    *
-   * `visits.visit_date` comes from a request body and **no import path writes
+   * `visits.planned_date` comes from a request body and **no import path writes
    * it.** The first signed edition rendered *"visited 2026-07-24"* against a
    * session that began 2026-07-25T16:55Z, because a seed script typed a date
-   * nothing checked.
+   * nothing checked. Migration 015 renamed the column so the two facts have two
+   * names as well as two accessors.
    */
-  it('reads the session start, not the typed visit date', async () => {
+  it('reads the session start, not the typed planned date', async () => {
     const db = freshDb()
     const ids = makePropertyAndVisit(db)
-    // A typed date that disagrees with the manifest, exactly as happened.
-    db.prepare('UPDATE visits SET visit_date = ? WHERE id = ?').run('2026-07-24', ids.visitId)
+    // A planned date that disagrees with the manifest, exactly as happened.
+    db.prepare('UPDATE visits SET planned_date = ? WHERE id = ?').run('2026-07-24', ids.visitId)
     await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     runAudit({ db, propertyId: ids.propertyId, visitId: ids.visitId, visitKind: 'baseline', actorId: TEST_OPERATOR })
 
     const p = plan(db, ids.propertyId)
     assert.ok(p.carriedGaps.every((g) => g.since === '2026-07-25'),
-      'the session began on the 25th; the typed 24th is not evidence')
-    assert.ok(p.warnings.some((w) => /typed date of 2026-07-24/.test(w) && /began 2026-07-25/.test(w)),
+      'the session began on the 25th; the planned 24th is not evidence')
+    assert.ok(p.warnings.some((w) => /planned date of 2026-07-24/.test(w) && /began 2026-07-25/.test(w)),
       'and the disagreement is reported rather than silently preferred')
   })
 
