@@ -327,6 +327,28 @@ export function persistImport(input: PersistInput): string {
       )
     })
 
+    // --------------------------------------------------------- active items
+    //
+    // §3c — the field's own answer to "which items were ever due", stored
+    // verbatim and marked `received`. Empty on every v3 export, in which case
+    // the audit computes the set and writes `computed` rows instead.
+    //
+    // Nothing is filtered here. An active item naming a zone or pin this import
+    // does not carry is a real divergence between the two apps and must reach a
+    // person as a divergence, not vanish into a WHERE clause.
+    const insActive = db.prepare(
+      `INSERT OR IGNORE INTO active_items (import_id, property_id, visit_id, scope_kind,
+        scope_zone_id, scope_pin_id, item_id, item_group, status, origin, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'received', ?)`,
+    )
+    for (const a of c.activeItems) {
+      if (!a.itemId || !a.scopeKind) continue
+      insActive.run(
+        importId, propertyId, visitId, a.scopeKind,
+        a.scopeZoneId, a.scopePinId, a.itemId, a.group, a.status, ts,
+      )
+    }
+
     // ---------------------------------------------------------------- events
     const insEvent = db.prepare(
       `INSERT INTO events (import_id, event_id, seq, type, at, event_schema_version, source,

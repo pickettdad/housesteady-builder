@@ -54,6 +54,51 @@ export interface VisitFacts {
    * shape is here to be filled rather than retrofitted.
    */
   disagreements: { flag: string; sessionSays: boolean; intakeSays: boolean }[]
+  /** Anything the fact assembly could not settle. Surfaced, never absorbed. */
+  warnings: string[]
+}
+
+/**
+ * Zone attributes that default true for a zone type — Increment 4 §3c.
+ *
+ * A zone attribute may declare `defaultsTrueFor: [zoneType, …]`, meaning it is
+ * true of that kind of room unless the record says otherwise. Without it, an
+ * attribute nobody ticked reads as false and every item gated on it silently
+ * stops being due.
+ *
+ * **UNEXERCISED, and it says so.** The reference export carries field config
+ * v1.2.1, whose `zoneAttributes[]` declare `id`, `label` and `askAtCreation` and
+ * no defaults at all. So this branch has never run against real data, and the
+ * warning below exists so the first config that uses it announces itself rather
+ * than quietly taking a path nobody has checked. The zone-audit oracle (§1h.1)
+ * is what would catch a wrong implementation: it compares this engine's
+ * applicability against the field app's own numbers on every closed zone.
+ *
+ * **An explicit `false` in the record wins.** A default is what to believe in the
+ * absence of an answer, and a recorded `false` is an answer.
+ */
+function defaultedAttributes(
+  snapshot: Record<string, unknown>,
+  zoneType: string | null,
+  recorded: Record<string, unknown>,
+): { held: Set<string>; used: string[] } {
+  const held = new Set<string>()
+  const used: string[] = []
+  if (!zoneType) return { held, used }
+
+  const declared = snapshot.zoneAttributes
+  if (!Array.isArray(declared)) return { held, used }
+
+  for (const entry of declared as Record<string, unknown>[]) {
+    const id = typeof entry.id === 'string' ? entry.id : null
+    const defaults = Array.isArray(entry.defaultsTrueFor) ? (entry.defaultsTrueFor as unknown[]) : null
+    if (!id || !defaults) continue
+    if (!defaults.includes(zoneType)) continue
+    if (Object.prototype.hasOwnProperty.call(recorded, id)) continue
+    held.add(id)
+    used.push(`${id} on ${zoneType}`)
+  }
+  return { held, used }
 }
 
 /**
@@ -118,14 +163,22 @@ export function factsForImport(db: Db, importId: string): VisitFacts {
 
   const byZone = new Map<string, FactSet>()
   const zoneRows = db
-    .prepare('SELECT zone_id, attributes FROM zones WHERE import_id = ?')
-    .all(importId) as { zone_id: string; attributes: string | null }[]
+    .prepare('SELECT zone_id, type, attributes FROM zones WHERE import_id = ?')
+    .all(importId) as { zone_id: string; type: string | null; attributes: string | null }[]
+
+  const warnings: string[] = []
+  const defaultsUsed: string[] = []
 
   for (const z of zoneRows) {
     const attrs = parse<Record<string, unknown>>(z.attributes, {})
     // An attribute present and false is a confident no. Only truthy values
     // become facts; the vocabulary carries the rest.
     const held = new Set(Object.entries(attrs).filter(([, v]) => v === true).map(([k]) => k))
+
+    const defaulted = defaultedAttributes(snapshot, z.type, attrs)
+    for (const id of defaulted.held) held.add(id)
+    defaultsUsed.push(...defaulted.used)
+
     byZone.set(z.zone_id, {
       ...base,
       zone: held,
@@ -133,5 +186,13 @@ export function factsForImport(db: Db, importId: string): VisitFacts {
     })
   }
 
-  return { snapshot, graph, visit, byZone, disagreements: [] }
+  if (defaultsUsed.length > 0) {
+    warnings.push(
+      `zone attribute defaults were applied for the first time in this repo — ${[...new Set(defaultsUsed)].join(', ')}. ` +
+        '`defaultsTrueFor` is absent from the v1.2.1 reference config, so this path has never run against a real ' +
+        'export. The zone-audit oracle compares applicability against the field app on every closed zone; check it.',
+    )
+  }
+
+  return { snapshot, graph, visit, byZone, disagreements: [], warnings }
 }

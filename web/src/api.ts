@@ -500,6 +500,42 @@ export interface AuditRun {
     }
   }
   contributions: Record<string, { visitId: string | null; importId: string; at: string }>
+  /**
+   * §1b — the field-checklist gap stream. **A separate output from `gaps`.**
+   *
+   * `gaps` is binder-slot completeness; this is which checklist item, in which
+   * room, was never answered. On the reference export `gaps` carries none of
+   * these twenty. The two are never added together and never rendered under one
+   * heading.
+   */
+  carried: {
+    items: CarriedItem[]
+    /** The derivation, named. "19 of 19 applicable items in ensuite have no answer." */
+    evidence: string[]
+    byScope: { zone: number; pin: number; session: number; other: number }
+    warnings: string[]
+  }
+  statusDisagreements: { itemId: string; scopeKey: string; declared: string; derived: string }[]
+}
+
+/** One carried item. Mirrors `audit_carried_items` — §1b. */
+export interface CarriedItem {
+  scope: { kind: string; zoneId: string | null; pinId: string | null }
+  itemId: string
+  tier: string
+  /** `not-reached`, or the config's own na reason id, verbatim. Open vocabulary. */
+  reason: string
+  naReasonId: string | null
+  column: 'missing-from-you' | 'missing-from-us' | 'triggered-flags'
+  /** Structured, never a composed sentence — §2a. Two composers read these. */
+  parts: { what: string; why?: string }
+  /** §1c — `proposed` means evidence is on the pin awaiting one confirming tap. */
+  status: string | null
+  origin: 'received' | 'computed'
+  dueSince: { importId: string; visitId: string | null; at: string }
+  where: string
+  certain: boolean
+  unrecognised: string[]
 }
 
 export const api = {

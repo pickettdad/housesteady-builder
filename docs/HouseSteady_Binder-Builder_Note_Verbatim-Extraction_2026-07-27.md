@@ -1,7 +1,7 @@
 # Note — extraction is verbatim; normalisation happens at query time
 
 **Date:** 2026-07-27
-**Status:** ratified by the owner during Increment 2b
+**Status:** **ratified by the owner 2026-07-30.** *(An earlier line said "during Increment 2b" — the rule is unchanged; the date was wrong.)*
 **Binds:** the extraction prompts, the golden set, and the equipment registry when it is built
 
 ---

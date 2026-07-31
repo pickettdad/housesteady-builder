@@ -1,8 +1,8 @@
 # Transcription — the options, and what each one costs you
 
 **Date:** 2026-07-29
-**Status:** **a report, not a recommendation.** Increment 2b §6 says *"Code investigates what is actually available and reports options with trade-offs. It does not pick."* This document does not pick.
-**Decides nothing.** When you choose, the choice is added to `HouseSteady_Binder-Builder_AI-Processing-Decision_2026-07-27.md` §5, which is currently holding the space open.
+**Status:** **a report, not a recommendation** — and the decision it fed has since been made. Increment 2b §6 says *"Code investigates what is actually available and reports options with trade-offs. It does not pick."* This document does not pick, and did not.
+**DECIDED 2026-07-29 — a cloud transcription vendor.** The choice is recorded in `HouseSteady_Binder-Builder_AI-Processing-Decision_2026-07-27.md` §5, which is the authority; this note is the reasoning behind it, kept for when the decision is revisited. **Read it as a record, not as an open question.** Its §4 obligations survive the decision and are carried by §5.4.
 **Read alongside:** AI Processing Decision §5 · Backup Decision §2.3 · `CLAUDE.md` §14.
 
 ---

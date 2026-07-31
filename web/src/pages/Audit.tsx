@@ -21,7 +21,7 @@
  */
 
 import { Fragment, useEffect, useState } from 'react'
-import { api, fmtTime, type AuditRun, type AuditSlot } from '../api.js'
+import { api, fmtTime, type AuditRun, type AuditSlot, type CarriedItem } from '../api.js'
 
 const STATE_LABEL: Record<string, string> = {
   complete: 'complete',
@@ -211,8 +211,102 @@ export function AuditView({ propertyId }: { propertyId: string }) {
         )}
       </section>
 
+      <CarriedItems run={run} />
+
       <BindingReport run={run} />
     </>
+  )
+}
+
+/**
+ * §1b — the field-checklist gap stream, in its own card and never merged above.
+ *
+ * **The two lists answer different questions and must not be added together.**
+ * The gap list above is binder-slot completeness. This is which checklist item,
+ * in which room, was never answered — and on the reference export the list above
+ * carries none of these twenty. That was §1a's whole point: two correct rules
+ * producing a false picture, where `na / no-access` resolves the SLOT correctly
+ * while leaving a GAP nobody can see.
+ *
+ * **This is the desk view, in the desk's vocabulary.** Item ids and na reason
+ * ids belong here — the concierge needs to click through to the item. The
+ * client-facing composer is a different reader with a different register, and
+ * a scan keeps the two from borrowing each other's sentences.
+ */
+function CarriedItems({ run }: { run: AuditRun }) {
+  const [showAll, setShowAll] = useState(false)
+  const { carried } = run
+  const byWhere = new Map<string, CarriedItem[]>()
+  for (const item of carried.items) {
+    const list = byWhere.get(item.where) ?? []
+    list.push(item)
+    byWhere.set(item.where, list)
+  }
+
+  return (
+    <section className="card">
+      <h3>
+        Carried items <span className="muted small">— checklist items with no answer</span>
+      </h3>
+
+      {/* The derivation, always visible. A bare "20" cannot be checked by the
+          person reading it; "19 of 19 applicable items in ensuite" can be, and an
+          implausible result reads as implausible. */}
+      <ul className="muted small">
+        {carried.evidence.map((line, i) => <li key={i}>{line}</li>)}
+      </ul>
+
+      {carried.items.length === 0 ? (
+        <p className="muted">Every applicable item on this property has an answer.</p>
+      ) : (
+        <>
+          <p className="small">
+            {carried.byScope.zone} in rooms · {carried.byScope.pin} on equipment ·{' '}
+            {carried.byScope.session} at close-out
+            {carried.byScope.other > 0 && <> · {carried.byScope.other} in a scope this builder has not met</>}
+          </p>
+          {[...byWhere].map(([where, items]) => (
+            <div key={where}>
+              <h4>
+                {where} <span className="muted small">({items.length})</span>
+              </h4>
+              <ul className="gaps">
+                {(showAll ? items : items.slice(0, 6)).map((item) => (
+                  <li key={`${item.scope.kind}:${item.scope.zoneId ?? item.scope.pinId ?? ''}/${item.itemId}`}>
+                    <code>{item.itemId}</code>{' '}
+                    <span className="muted small">
+                      {item.tier === 'core' ? 'core' : 'standard'} · {item.parts.why}
+                    </span>
+                    {/* §1c — an unconfirmed photograph is not the same as an
+                        untouched item, and it must never read as one. */}
+                    {item.status === 'proposed' && (
+                      <span className="pill"> evidence on the pin, unconfirmed</span>
+                    )}
+                    {/* Where the claim that this was ever due came from. A locally
+                        computed "was due" must not pass as the field app's own answer. */}
+                    {item.origin === 'computed' && <span className="muted small"> · due-ness computed here</span>}
+                    {!item.certain && (
+                      <span className="muted small"> · applies only because {item.unrecognised.join(', ')} is undeclared</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {!showAll && items.length > 6 && (
+                <button className="link" onClick={() => setShowAll(true)}>
+                  show all {items.length}
+                </button>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+
+      {carried.warnings.length > 0 && (
+        <ul className="warnings">
+          {carried.warnings.map((w, i) => <li key={i}>{w}</li>)}
+        </ul>
+      )}
+    </section>
   )
 }
 
