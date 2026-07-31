@@ -42,6 +42,34 @@ describe('zone attributes as decided', () => {
   })
 
   /**
+   * `unanswered`, not `neverAsked` — the word was claiming a history the
+   * derivation does not have.
+   *
+   * The list is today's `zoneAttributes[]` minus what the zone recorded, so an
+   * attribute added to the config between visits appears here. That is correct
+   * for the purpose — nobody has answered it and somebody should — and it is
+   * exactly what *never* would misdescribe.
+   */
+  it('names the field for what it is: unanswered as of this plan, not never asked', async () => {
+    const { db, propertyId } = await walked()
+    const zone = plan(db, propertyId).zones[0]!
+    assert.ok('unanswered' in zone)
+    assert.ok(!('neverAsked' in zone),
+      'a historical quantifier on a current fact is the same failure as "we were not able to cover"')
+
+    // The derivation follows the config, which is the behaviour the name has to
+    // describe: add an attribute to the vocabulary and it becomes unanswered.
+    const snap = JSON.parse(
+      (db.prepare('SELECT snapshot FROM config_snapshots LIMIT 1').get() as { snapshot: string }).snapshot,
+    ) as Record<string, unknown>
+    ;(snap.zoneAttributes as unknown[]).push({ id: 'has_mechanicals', label: 'Mechanicals', askAtCreation: true })
+    db.prepare('UPDATE config_snapshots SET snapshot = ?').run(JSON.stringify(snap))
+
+    assert.ok(plan(db, propertyId).zones.every((z) => z.unanswered.includes('has_mechanicals')),
+      'an attribute the config gains between visits is unanswered, and should be asked')
+  })
+
+  /**
    * **The trap inside "carry the attributes."**
    *
    * A recorded `false` is a decision — somebody was asked and said no. An absent
@@ -60,8 +88,8 @@ describe('zone attributes as decided', () => {
 
     assert.equal(bedroom.attributes.sleeping, false, 'decided — somebody said no')
     assert.ok(!('has_plumbing' in bedroom.attributes), 'never asked — askAtCreation is false for it')
-    assert.deepEqual(bedroom.neverAsked, ['exterior_wall', 'has_plumbing'],
-      'and the never-asked ones are named rather than merely absent')
+    assert.deepEqual(bedroom.unanswered, ['exterior_wall', 'has_plumbing'],
+      'and the unanswered ones are named rather than merely absent')
   })
 
   /**
@@ -109,8 +137,13 @@ describe('zone attributes as decided', () => {
       (db.prepare('SELECT snapshot FROM config_snapshots LIMIT 1').get() as { snapshot: string }).snapshot,
     ) as { zoneAttributes: unknown; zoneTypes: unknown[] }
 
+    // THE NUMBER IS A RANGE ACROSS VERSIONS. Field Code reports twelve of
+    // thirteen reading master v1.11; this measures thirteen of thirteen on
+    // v1.2.1, where the key is absent entirely. Both are true of the version
+    // they were read from, and citing one figure reads as a contradiction to
+    // whoever finds it next.
     assert.ok(!JSON.stringify(snapshot.zoneAttributes).includes('defaultsTrueFor'),
-      'if this ever declares defaults, the failure changes shape and this test should be read again')
+      'v1.2.1 declares no defaults at all — if this ever changes, the range moves and the doc should say so')
     assert.equal((snapshot.zoneTypes as unknown[]).length, 13)
     assert.ok(plan(db, propertyId).zones.length > 0, 'and the plan carries the decisions instead')
   })
@@ -144,7 +177,60 @@ describe('the payload', () => {
     assert.equal(gaps.filter((g) => g.reason === 'deferred').length, 1)
     // Scope travels, because the same item id in two rooms is two gaps.
     assert.ok(gaps.every((g) => g.scopeKind === 'zone' ? g.zoneId !== null : true))
-    assert.ok(gaps.every((g) => g.since !== ''), '"open since the baseline" has to stay sayable')
+    // `since` is the VISIT DATE. An import timestamp has no meaning in the
+    // field — this export was visited on the 24th and imported later — and one
+    // field standing for two facts is how a zone `type` ended up doing a
+    // nickname's job.
+    assert.ok(gaps.every((g) => typeof g.sinceImportedAt === 'string' && g.sinceImportedAt !== ''))
+  })
+
+  it('sends the visit date as `since`, and the import timestamp under its own name', async () => {
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db)
+    db.prepare('UPDATE visits SET visit_date = ? WHERE id = ?').run('2026-07-24', ids.visitId)
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    runAudit({ db, propertyId: ids.propertyId, visitId: ids.visitId, visitKind: 'baseline', actorId: TEST_OPERATOR })
+
+    const gaps = plan(db, ids.propertyId).carriedGaps
+    assert.ok(gaps.every((g) => g.since === '2026-07-24'), 'what the field can say out loud')
+    assert.ok(gaps.every((g) => g.sinceImportedAt !== '2026-07-24'), 'and a different fact, named separately')
+  })
+
+  it('sends a null `since` rather than falling back, when the visit has no date', async () => {
+    const { db, propertyId } = await walked()
+    // The helper creates visits with no date, which is the honest case here.
+    const p = plan(db, propertyId)
+    assert.ok(p.carriedGaps.every((g) => g.since === null))
+    assert.ok(p.carriedGaps.every((g) => g.sinceImportedAt !== null))
+    assert.match(p.sections.carriedGaps.note, /carry no `since` because the visit .* has no date recorded/)
+    assert.match(p.sections.carriedGaps.note, /not defaulted to the import timestamp/)
+  })
+
+  /**
+   * Observed Addendum §5 — preserve, display, count, mark unrecognised.
+   *
+   * **Silently ignoring a flag this builder does not act on is none of those.**
+   * It is the safe branch that never announces itself, which is rule 7 in one
+   * line of filtering.
+   */
+  it('counts every flag value present, including ones it does not act on', async () => {
+    const { db, propertyId } = await walked()
+    const note = plan(db, propertyId).sections.monitorsDue.note
+    // This export carries two pins flagged `issue` and none flagged `monitor`.
+    assert.match(note, /flags on live pins: 2 issue/,
+      'a flag this build does not treat as a monitor is still counted and displayed')
+  })
+
+  it('marks a flag value it has never met, rather than dropping it', async () => {
+    const { db, propertyId } = await walked()
+    db.prepare("UPDATE pins SET flag = 'watch-list' WHERE flag = 'issue'").run()
+
+    const p = plan(db, propertyId)
+    assert.match(p.sections.monitorsDue.note, /does not recognise \(watch-list\)/)
+    assert.match(p.sections.monitorsDue.note, /not treated as monitors/)
+    assert.ok(p.warnings.some((w) => /watch-list \(2\)/.test(w) && /not dropped/.test(w)),
+      'preserved, displayed, counted, marked — "ignored" is none of those')
+    assert.equal(p.monitorsDue.length, 0, 'and still not a monitor, because nobody said it was')
   })
 
   it('distinguishes "found none" from "cannot be expressed by this config"', async () => {

@@ -16,10 +16,13 @@
  * > default. The mechanical checklist is empty on visit two, and an empty
  * > checklist reads as already handled.
  *
- * **Measured against the reference config, and it is worse than the spec says.**
- * `defaultsTrueFor` appears nowhere in field config v1.2.1, so **thirteen of
- * thirteen zone types have no default for anything.** An attribute that arrives
- * absent has nothing to fall through to at all.
+ * **The number is a range across versions, and citing one figure reads as a
+ * contradiction to whoever finds it next.** Field Code reports **twelve of
+ * thirteen** zone types with no default, reading master v1.11. Measured here on
+ * field config v1.2.1, `defaultsTrueFor` appears nowhere at all, so it is
+ * **thirteen of thirteen**. Both are true of the version they were read from,
+ * and the honest statement is *between twelve and thirteen of thirteen, and none
+ * at all on the config this repo can actually read.*
  *
  * Three items are gated on a zone attribute in this config — `liv.egress` on
  * `zone.sleeping`, `bsm.finished-behind` on `zone.finished`, `cir.stairs-rails`
@@ -45,7 +48,10 @@
  * third time this distinction has decided a design here.
  *
  * So the plan carries **the recorded map verbatim, falses included**, and names
- * the never-asked attributes separately.
+ * the unanswered attributes separately — `unanswered` rather than `neverAsked`,
+ * because *never* is a historical quantifier on a current fact and the list is
+ * derived from today's config. Same correction as *"we were not able to
+ * cover"*: a word claiming more than the data supports.
  *
  * ---
  *
@@ -88,8 +94,22 @@ export interface PlanZone {
    * nobody has been asked.
    */
   attributes: Record<string, boolean>
-  /** Which of the config's declared attributes this zone has no answer for. */
-  neverAsked: string[]
+  /**
+   * Attributes this config declares that this zone has no recorded answer for,
+   * **as of this plan.**
+   *
+   * **Deliberately not `neverAsked`, and the rename is the same correction as
+   * *"we were not able to cover."*** *Never* is a historical quantifier on a
+   * current fact: this list is derived from today's `zoneAttributes[]` minus
+   * what the zone recorded, so it changes when the config changes. An attribute
+   * added between visits appears here — correctly, because nobody has answered
+   * it and somebody should — and calling that *never asked* would claim a
+   * history the derivation does not have.
+   *
+   * The derivation is right for the purpose. The word was claiming more than it
+   * supports.
+   */
+  unanswered: string[]
 }
 
 export interface PlanObject {
@@ -113,8 +133,24 @@ export interface PlanGap {
   itemId: string
   /** `not-reached`, or the config's own na reason id. Verbatim. */
   reason: string
-  /** The visit that first made it due — "open since the baseline" stays sayable. */
-  since: string
+  /**
+   * The DATE OF THE VISIT that first made this due — what the field can say out
+   * loud: *"open since your March visit."*
+   *
+   * **Null when that visit carries no date**, and it does not fall back to the
+   * import timestamp. One field standing for two facts is how a zone `type`
+   * ended up doing a nickname's job, and a field the receiver has to guess the
+   * meaning of is worse than a null it can see.
+   */
+  since: string | null
+  /**
+   * When the import that first made it due was read.
+   *
+   * A different fact, named separately. It has no meaning in the field — this
+   * export was visited on the 24th and imported on the 31st — and it is here
+   * because it is the ordering key this repo actually sorts on.
+   */
+  sinceImportedAt: string
 }
 
 /**
@@ -253,7 +289,7 @@ export function buildSessionPlan(args: {
       label: row.label,
       type: row.type,
       attributes,
-      neverAsked: [...declaredAttributes].filter((a) => !(a in attributes)).sort(),
+      unanswered: [...declaredAttributes].filter((a) => !(a in attributes)).sort(),
     })
   }
   const zones = [...byZone.values()]
@@ -298,14 +334,23 @@ export function buildSessionPlan(args: {
   const active = activeItemSet(db, propertyId)
   const scoped = scopedResolutions(db, propertyId)
   const { carried } = carriedItems({ evidence, active, resolutions: scoped })
+  // The visit date for each visit that first made something due. Looked up
+  // once: a query per gap would be twenty queries for two answers.
+  const visitDates = new Map(
+    (db.prepare('SELECT id, visit_date FROM visits WHERE property_id = ?').all(propertyId) as
+      { id: string; visit_date: string | null }[]).map((v) => [v.id, v.visit_date]),
+  )
+
   const carriedGaps: PlanGap[] = carried.items.map((item) => ({
     scopeKind: item.scope.kind,
     zoneId: item.scope.zoneId,
     pinId: item.scope.pinId,
     itemId: item.itemId,
     reason: item.reason,
-    since: item.dueSince.at,
+    since: item.dueSince.visitId ? visitDates.get(item.dueSince.visitId) ?? null : null,
+    sinceImportedAt: item.dueSince.at,
   }))
+  const undated = carriedGaps.filter((g) => g.since === null).length
 
   // -------------------------------------------------------------- monitors
   //
@@ -315,6 +360,34 @@ export function buildSessionPlan(args: {
   const monitorsDue = evidence.pins
     .filter((p) => !p.retired && p.flag === 'monitor')
     .map((p) => ({ pinId: p.pinId, componentType: p.componentType, label: p.freeformLabel }))
+
+  /**
+   * Every flag value present, counted — Observed Addendum §5.
+   *
+   * **Silently ignoring a flag this builder does not act on is not fail-open.**
+   * The rule is preserve, display, count, mark unrecognised, and *ignored* is
+   * none of those — it is the safe branch that never announces itself, which is
+   * rule 7 in one line of filtering.
+   *
+   * The pin `flag` has **no declared vocabulary in the config** — `propertyFlags`
+   * is a different thing entirely, house-level facts like `well`. So the two
+   * values this build knows come from the Manifest Contract rather than from
+   * data, and anything else is genuinely unmet vocabulary.
+   */
+  const flagCounts = new Map<string, number>()
+  for (const p of evidence.pins) {
+    if (p.retired || !p.flag) continue
+    flagCounts.set(p.flag, (flagCounts.get(p.flag) ?? 0) + 1)
+  }
+  const KNOWN_FLAGS = ['monitor', 'issue']
+  const unrecognisedFlags = [...flagCounts].filter(([f]) => !KNOWN_FLAGS.includes(f))
+  const flagsSeen = [...flagCounts].map(([f, n]) => `${n} ${f}`).join(' · ')
+  if (unrecognisedFlags.length > 0) {
+    warnings.push(
+      `pin flag value(s) this builder does not recognise: ${unrecognisedFlags.map(([f, n]) => `${f} (${n})`).join(', ')}. ` +
+        'Preserved and counted, not treated as monitors, and not dropped.',
+    )
+  }
 
   const comparisonPositionsDue = objects
     .filter((o) => o.priorUnitPhoto !== null)
@@ -371,14 +444,26 @@ export function buildSessionPlan(args: {
         count: carriedGaps.length,
         note: carriedGaps.length === 0
           ? 'every applicable item on this property has an answer'
-          : 'unanswered items and gap-feeding na, with the reason the config gave',
+          : `unanswered items and gap-feeding na, with the reason the config gave` +
+            (undated > 0
+              ? ` · ${undated} carry no \`since\` because the visit that made them due has no date recorded — ` +
+                'not defaulted to the import timestamp, which means something else'
+              : ''),
       },
       monitorsDue: {
         count: monitorsDue.length,
-        note: monitorsDue.length === 0
-          ? 'no live pin carries the monitor flag — the mechanism ran and found none, ' +
-            'which is not the same as it being unbuilt'
-          : 'pins the field flagged for monitoring',
+        note: [
+          monitorsDue.length === 0
+            ? 'no live pin carries the monitor flag — the mechanism ran and found none, ' +
+              'which is not the same as it being unbuilt'
+            : 'pins the field flagged for monitoring',
+          // Every flag value present, whether or not this build acts on it.
+          // Preserve, display, count — never ignore.
+          flagCounts.size > 0 ? `flags on live pins: ${flagsSeen}` : 'no live pin carries any flag',
+          unrecognisedFlags.length > 0
+            ? `${unrecognisedFlags.map(([f, n]) => `${n} pin(s) carry a flag this builder does not recognise (${f})`).join('; ')} — not treated as monitors`
+            : null,
+        ].filter(Boolean).join(' · '),
       },
       comparisonPositionsDue: {
         count: comparisonPositionsDue.length,

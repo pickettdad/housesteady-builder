@@ -1,6 +1,6 @@
 # Session Plan v0 — the contract
 
-**Date:** 2026-07-31
+**Date:** 2026-07-31 · revised same day with the design session's four answers
 **Emitted by:** the binder builder, at `GET /api/properties/:id/session-plan`
 **Consumed by:** nothing yet. `PLAN-STAGE-1` §7a and §7a-ii scope the field-side import in detail but it is not built.
 **Status:** **specified and emitting.** Increment 4 §3 says to emit as though no receiver exists, and that is the correct sequencing — the import cannot be built until something emits an artifact to build against. **This document is the thing to review before the receiver is written**, and the field session should disagree with it here rather than after both halves exist.
@@ -17,15 +17,24 @@
 
 **Naming trap.** `src/engine/plan.ts` in the field repo exports `SessionPlan` and `compilePlan`. **That is the v1 slot-model plan compiler and is unrelated to this.** Nothing here binds to it or mirrors its shape, and a scan keeps the word `compilePlan` out of this module — two things with one name is how somebody eventually binds to the wrong one.
 
+**It is a to-do list, not a diff.** There is deliberately no changelog between two plans. *Recorded, not specced:* if one is ever wanted, Design v1 §6's edition mechanism already does this for the binder and the pattern copies.
+
 ## 2. The failure it exists to prevent
 
 From Increment 4 §3a:
 
 > A concierge ticks `has_mechanicals` on the basement during the baseline. Visit two replays the zone as identity only. The attribute arrives absent, falls through to a default — and twelve of thirteen zone types have no default. The mechanical checklist is empty on visit two, and an empty checklist reads as already handled.
 
-**Measured against the reference config, and it is worse than that.** `defaultsTrueFor` appears nowhere in field config v1.2.1, so **thirteen of thirteen zone types have no default for anything.** An attribute arriving absent has nothing to fall through to at all.
+**The number is a range across versions, and citing one figure reads as a contradiction to whoever finds it next.**
 
-Three items in that config are gated on a zone attribute:
+| Read from | Zone types with no default |
+|---|---|
+| Master v1.11 *(Field Code)* | **12 of 13** |
+| Field config v1.2.1 *(measured here)* | **13 of 13** — `defaultsTrueFor` appears nowhere at all |
+
+Both are true of the version they were read from. The honest statement is *between twelve and thirteen of thirteen, and **none at all** on the config this repo can currently read* — which makes carrying the decisions the only mechanism available, not merely the better one.
+
+Three items in field config v1.2.1 are gated on a zone attribute, so the failure is demonstrable rather than hypothetical:
 
 | Item | Gate |
 |---|---|
@@ -45,7 +54,7 @@ The bedroom carries `sleeping: false` — somebody was asked at zone creation an
 
 An emitter that carries truthy keys only makes those two identical on the receiving end. Visit two then cannot tell *"we established there is no plumbing here"* from *"nobody has considered it."*
 
-So the plan carries **the recorded map verbatim, falses included**, and names the never-asked attributes separately in `neverAsked`. A doctrine scan forbids filtering the map to its true values.
+So the plan carries **the recorded map verbatim, falses included**, and names the rest in `unanswered`. A doctrine scan forbids filtering the map to its true values, and asserts the positive form — the test is `typeof value === 'boolean'`, not whether the value is true, which is the part that survives somebody optimising the payload later.
 
 *(Third time this distinction has decided a design here, after declared-and-false in the trigger evaluator and typed/stub/undeclared for component types.)*
 
@@ -75,7 +84,7 @@ So the plan carries **the recorded map verbatim, falses included**, and names th
     "label": "ensuite",
     "type": "bathroom",
     "attributes": { "finished": true, "sleeping": false, "has_stairs": false },
-    "neverAsked": ["exterior_wall", "has_plumbing"]
+    "unanswered": ["exterior_wall", "has_plumbing"]
   }],
 
   // Live typed pins, by uuid. Retired pins are not carried — a removed water
@@ -94,7 +103,8 @@ So the plan carries **the recorded map verbatim, falses included**, and names th
     "pinId": null,
     "itemId": "int.canvas",
     "reason": "not-reached",     // or the na reason id, e.g. `deferred`
-    "since": "…"                 // first made due — "open since the baseline"
+    "since": "2026-07-24",       // the VISIT DATE — see §7. Null if unrecorded.
+    "sinceImportedAt": "…"       // a different fact, named separately
   }],
 
   "monitorsDue": [{ "pinId": "…", "componentType": "…", "label": null }],
@@ -103,7 +113,7 @@ So the plan carries **the recorded map verbatim, falses included**, and names th
   // Recorded, not specced. Increment 5, gated on manifest v4.
   "openConcerns": [],
 
-  "sections": { /* see §7 */ },
+  "sections": { /* see §8 */ },
   "warnings": []
 }
 ```
@@ -122,7 +132,15 @@ A binder is a property's record and no separate binder entity exists in this bui
 
 **There is deliberately no fallback to "the most recent photo on this pin."** The two canonical photographs stay distinct — the **unit shot** (condition over time) and the **nameplate shot** (identity and age evidence, Manifest Contract §7b) — and inventing a comparison position from an arbitrary photograph would conflate them. A scan holds it.
 
-## 7. Every section says why it is empty
+## 7. Two fields the receiver must not conflate
+
+**`since` is the visit date.** *"Open since your March visit"* is what the field can say out loud. An import timestamp has no meaning there — the reference export was **visited on 2026-07-24 and imported on 2026-07-31**, and a receiver reading the wrong one would tell a client their gap opened a week after it did.
+
+**`sinceImportedAt` is the import timestamp**, under its own name. It is here because it is the ordering key this repo actually sorts on.
+
+**`since` is null when the visit carries no date, and does not fall back.** One field standing for two facts is how a zone `type` ended up doing a nickname's job. `sections.carriedGaps` reports how many are null and says explicitly that they were *not defaulted to the import timestamp*.
+
+## 8. Every section says why it is empty
 
 **Three of five sections are empty on the reference export**, and an empty section is identical whether the mechanism works and found nothing, was never built, or cannot be expressed by this config. That is Verification Discipline rule 7 at the payload level.
 
@@ -130,20 +148,26 @@ So `sections` carries a count **and a sentence** per section, and the sentence d
 
 | Section | On the reference export |
 |---|---|
-| `monitorsDue` | *"no live pin carries the monitor flag — the mechanism ran and found none, which is not the same as it being unbuilt"* |
+| `monitorsDue` | *"no live pin carries the monitor flag — the mechanism ran and found none, which is not the same as it being unbuilt · flags on live pins: 2 issue"* |
 | `comparisonPositionsDue` | *"this config declares no `.unit` items, so there is no comparison position to be due — unexercised rather than empty"* |
 | `openConcerns` | *"recorded, not specced — concerns are Increment 5 and gated on manifest v4"* |
 
 A count alone cannot say whether the mechanism ran. A scan asserts `SectionReport` carries both.
 
-## 8. What a receiver should push back on
+## 9. Pin flags — preserved, displayed, counted, marked
 
-Written down because the field session should disagree here rather than after both halves exist:
+`monitorsDue` carries pins the field flagged `monitor`. **Every other flag value is counted and reported rather than ignored**, because *ignored* is none of the four things Observed Addendum §5 requires — it is the safe branch that never announces itself.
 
-1. **`neverAsked` may be the wrong shape.** It is derived from the config's `zoneAttributes[]` minus what the zone recorded, so it changes when the config changes rather than describing what happened. A receiver that treats it as history will be wrong. It is a *current* statement: given today's vocabulary, these are unanswered.
-2. **`since` is an import timestamp, not a visit date.** The visit date is on the visit row and the plan does not carry it. If the field app wants to say *"open since your March visit"*, it needs the visit date and this does not send one.
-3. **Nothing here is versioned per zone or per object.** A receiver replaying a plan twice gets the same answer, but there is no changelog between two plans. If the field app wants *"what changed since the last plan"*, that is a second artifact rather than a field on this one.
-4. **`monitorsDue` reads the field's own `flag` vocabulary and does not interpret it.** This export carries `issue` and `monitor`; only `monitor` is taken. A third value would be ignored rather than guessed at, and the receiver should assume that.
+- **The pin `flag` has no declared vocabulary in the config.** `propertyFlags[]` is a different thing entirely: house-level facts like `well` and `municipal_sewer`. So the two values this build knows — `monitor` and `issue` — come from the Manifest Contract rather than from data, and anything else is genuinely unmet vocabulary.
+- `sections.monitorsDue` lists **every flag value present with its count**, whatever this build does with it.
+- A value this build has never met is additionally **named in `warnings`** and marked *not treated as a monitor* — preserved and counted, never dropped, and never guessed into being a monitor either.
+
+## 10. What a receiver should still push back on
+
+Two of the original four are now settled — `unanswered` was renamed and `since` became the visit date. These remain:
+
+1. **`unanswered` is a current statement, not history.** It is derived from today's `zoneAttributes[]` minus what the zone recorded, so an attribute the config gains between visits appears here. **That is intended** — nobody has answered it and somebody should — but a receiver that treats it as *"was never asked on any visit"* will be wrong. The name was corrected from `neverAsked` for exactly this reason: *never* is a historical quantifier on a current fact, the same failure as *"we were not able to cover."*
+2. **`monitorsDue` reads the field's `flag` vocabulary without interpreting it.** A third value is counted and reported, never guessed into being a monitor. If the field app expects a new flag to behave like one, it has to say so — the builder will not infer it.
 
 ---
 

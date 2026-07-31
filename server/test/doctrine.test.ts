@@ -1614,7 +1614,25 @@ describe('Increment 4 §3 — the session plan is session data, never config', (
    * it."* Same distinction as declared-and-false in the trigger evaluator.
    */
   it('never filters a zone attribute map to its true values', () => {
-    const plan = codeOf(join(serverSrc, 'plan', 'sessionPlan.ts'))
+    const source = codeOf(join(serverSrc, 'plan', 'sessionPlan.ts'))
+
+    /**
+     * **Scoped to the block that builds the map, not to the file.**
+     *
+     * The first version scanned the whole module for `filter(Boolean)` and fired
+     * on a line assembling a list of SENTENCES — nulls dropped from a note, not
+     * trues kept from an attribute map. Rule 8: read the finding first. There
+     * was no defect underneath, and the finding was that the check was asking
+     * its question of the wrong region.
+     *
+     * A scan that forbids a common idiom everywhere gets narrowed by whoever
+     * trips it next, and then it forbids nothing. Scoped, it keeps its teeth.
+     */
+    const start = source.indexOf('const attributes: Record<string, boolean>')
+    const end = source.indexOf('byZone.set(')
+    assert.ok(start > 0 && end > start, 'the attribute map is still built in one place')
+    const plan = source.slice(start, end)
+
     for (const shape of [
       /filter\(\[[^\]]*\]\)\s*=>\s*v\)/,
       /\.filter\(\(\[, v\]\) => v\)/,
