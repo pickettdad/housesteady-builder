@@ -65,6 +65,15 @@ export function PropertyPage({ id }: { id: string }) {
         <button className="ghost" onClick={() => go({ name: 'gap-report', id: property.id })}>
           Gap report
         </button>
+        {/* §3 — the return leg. No receiver exists yet, so this is a file to
+            look at and hand to the field session, not a thing that sends. */}
+        <a
+          className="ghost"
+          href={`/api/properties/${property.id}/session-plan?download`}
+          style={{ display: 'inline-block' }}
+        >
+          Session plan
+        </a>
         <button className="ghost" onClick={() => go({ name: 'audit', id: property.id })}>
           Audit the binder
         </button>

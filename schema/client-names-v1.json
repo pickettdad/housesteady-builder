@@ -1,6 +1,6 @@
 {
   "schemaId": "housesteady.client-names",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "date": "2026-07-30",
   "note": "What a checklist item is CALLED when a homeowner reads it. Increment 4 Amendment 1 §C. The first twenty were named against a real gap list rather than chosen from the config — the reference export's twenty carried items — and ratified by the owner 2026-07-30.",
   "ratification": {
@@ -24,33 +24,38 @@
   },
   "frames": {
     "note": "How a group of carried items is introduced to a client. Reason first, then room — because 'we could not reach it', 'we did not get to it' and 'we have held it over' are different statements and must not interleave. The frame carries once for the group; the items are a list of names underneath it.",
-    "status": "PROVISIONAL. Not part of the 2026-07-30 ratification, which covered the twenty names only. The `not-reached` pair is taken verbatim from the design session's own example. The other two are written to the same pattern and want the same review the names had.",
+    "status": "RATIFIED 2026-07-30, with three corrections from the design session after the first render. See `corrections` for what changed and why — each one is a claim the earlier wording made that the data did not support.",
     "whyDeclaredRatherThanComposed": "Twenty rows reading 'X — in ensuite — was not covered on this visit' is machine output, and House Style is what stands between us and that. Fixing it by generating a different sentence per row moves the problem; the frame has to be a written thing a person can read and change.",
     "default": {
-      "withRoom": "In the {room}, we were not able to cover:",
-      "withoutRoom": "We were not able to cover:",
-      "next": "These are on the list for the next visit."
+      "withRoom": "In the {room}, we did not cover:",
+      "withoutRoom": "We did not cover:",
+      "next": "These are on the list for the next visit.",
+      "note": "The default is the not-reached wording, because it is the claim that asserts least."
     },
     "byReason": {
       "not-reached": {
-        "withRoom": "In the {room}, we were not able to cover:",
-        "withoutRoom": "We were not able to cover:",
+        "withRoom": "In the {room}, we did not cover:",
+        "withoutRoom": "We did not cover:",
         "next": "These are on the list for the next visit."
       },
       "no-access": {
-        "withRoom": "In the {room}, we could not reach:",
-        "withoutRoom": "We could not reach:",
-        "next": "We will need access to these next time.",
-        "note": "The one distinction a homeowner can act on — a locked room is theirs to open. It is also the only reason the schema maps to `not-accessible`, because it is the only one that claims we tried and were blocked."
+        "withRoom": "In the {room}, we were not able to reach:",
+        "withoutRoom": "We were not able to reach:",
+        "next": "We will try again on the next visit.",
+        "note": "The one reason the schema maps to `not-accessible`, and the only frame that may say we tried and were blocked, because it is the only one where that is true. A locked crawlspace is also the one distinction a homeowner can act on."
       },
       "deferred": {
         "withRoom": "In the {room}, we have held these over to the next visit:",
         "withoutRoom": "We have held these over to the next visit:",
-        "next": "No action is needed from you.",
-        "note": "Deliberately not 'you asked us to hold it'. Deferring may be our decision or the client's, and the record does not say which — House Style §7's rule about never claiming what we did not do runs in both directions."
+        "note": "No closer, deliberately — see `corrections.deferredCloser`. And not 'you asked us to hold it': deferring may be our decision or the client's, and the record does not say which. House Style §7's rule about never claiming what we did not do runs in both directions."
       }
     },
-    "articleNote": "The frames carry 'the' because the field app's room labels are bare nouns — ensuite, bedroom, garage. 'In ensuite, we were not able to cover' is what the first render produced and it reads wrong. A label that already carries an article would read 'In the the ensuite'; that is visible in the render, and nothing renders unsigned, so a person sees it before a client does."
+    "articleNote": "The frames carry 'the' because the field app's room labels are bare nouns — ensuite, bedroom, garage. 'In ensuite, we were not able to cover' is what the first render produced and it reads wrong. A label that already carries an article would read 'In the the ensuite'; that is visible in the render, and nothing renders unsigned, so a person sees it before a client does.",
+    "corrections": {
+      "notReachedWording": "'we were not able to cover' claimed we tried and were blocked. That is the NOT-ACCESSIBLE claim made over NOT-INSPECTED data — the exact asymmetry Amendment 1 §A3 exists to hold, arriving through the frame instead of through the label. 'we did not cover' is what the record supports.",
+      "noAccessMissing": "There was no `no-access` frame at all, because the reference export produced nineteen not-reached and one deferred and the third reason never fired. A frame nobody wrote because nothing exercised it — the first locked crawlspace needs it, and it is the one place the blocked wording is finally true.",
+      "deferredCloser": "'No action is needed from you' dropped. A deferral can depend on the client — held until the well record turns up — and then it is false. The opener stands alone rather than guessing."
+    }
   },
   "whyNotTheConfigText": "Every one of this export's 266 items carries a `text` and NOT ONE of them is a name. They are checklist instructions written for the concierge standing in the room — 'Windows operated, locked, latched; seal-fog noted — pin defects'. Reading them as client-facing names does not withhold anything; it renders all of them. Four contain the word `issue`, which House Style §7 bans outright. Thirty-four use `pin` as a verb. Two carry markdown asterisks. Thirteen carry an em-dash the composer then wraps in more dashes. The measured version of the risk is in the PR that added this file.",
   "howAnAbsenceBehaves": "An item with no entry here is WITHHELD from the client render and reported as desk work, never rendered as its id. That is §2b's rule and it is now load-bearing rather than theoretical: today it withholds every row. The audit reports the withheld count beside the rendered one so the empty state is loud rather than invisible.",

@@ -18,6 +18,7 @@ import { latestRun, runAudit } from './audit/run.js'
 import { addManualRow, buildDraft, rowTrail, writeEdit, type EditKind } from './report/draft.js'
 import { HouseStyleRefused, rules as houseStyleRules } from './report/houseStyle.js'
 import { editionHtml, editions, RenderRefused, signEdition } from './report/render.js'
+import { buildSessionPlan } from './plan/sessionPlan.js'
 import { describeItems, loadClientNames, naLabelMap, supersededNames, unratifiedNames, writeName } from './report/names.js'
 import { SchemaRefused } from './audit/schema.js'
 import { newId, now, openDb } from './db/index.js'
@@ -927,6 +928,39 @@ app.get('/api/report/editions/:id.html', (req, res) => {
 
 /** What the lint enforces, so a refusal can be read against the rules. */
 app.get('/api/house-style/rules', (_req, res) => res.json(houseStyleRules()))
+
+// -------------------------------------------------------- session plan (§3)
+
+/**
+ * The return leg — what this repo sends back into the field app.
+ *
+ * **No receiver exists yet.** `PLAN-STAGE-1` §7a scopes the import but it is
+ * not built, so this emits as though nothing is listening, which is the correct
+ * sequencing: the import cannot be built until something emits an artifact to
+ * build against.
+ *
+ * Session data, never config — §3. It never touches the generated config or its
+ * hash, and its provenance says `system`.
+ */
+app.get('/api/properties/:id/session-plan', (req, res) => {
+  const property = db.prepare('SELECT id FROM properties WHERE id = ?').get(req.params.id) as
+    | { id: string }
+    | undefined
+  if (!property) return res.status(404).json({ error: 'No such property.' })
+
+  try {
+    const plan = buildSessionPlan({ db, propertyId: property.id, generatedBy: acting() })
+    // Served as a file, because that is what it is: an import artifact the field
+    // app will read, not a view this app renders.
+    if (req.query.download !== undefined) {
+      res.setHeader('Content-Disposition', `attachment; filename="session-plan-${property.id}.json"`)
+    }
+    res.type('json').send(JSON.stringify(plan, null, 2))
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    throw e
+  }
+})
 
 const port = Number(process.env.PORT ?? 5174)
 app.listen(port, () => console.log(`[api] http://localhost:${port}`))
