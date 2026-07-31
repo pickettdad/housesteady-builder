@@ -19,6 +19,8 @@ import { walkedAt } from './audit/walkedAt.js'
 import { addManualRow, buildDraft, rowTrail, writeEdit, type EditKind } from './report/draft.js'
 import { HouseStyleRefused, rules as houseStyleRules } from './report/houseStyle.js'
 import { editionHtml, editions, RenderRefused, signEdition } from './report/render.js'
+import { itemSeries } from './audit/itemSeries.js'
+import { deskWork, DeskWorkRefused, runningSpan, startWork, stopWork } from './desk/work.js'
 import { buildSessionPlan } from './plan/sessionPlan.js'
 import { describeItems, loadClientNames, naLabelMap, supersededNames, unratifiedNames, writeName } from './report/names.js'
 import { SchemaRefused } from './audit/schema.js'
@@ -974,6 +976,82 @@ app.get('/api/properties/:id/session-plan', (req, res) => {
     res.type('json').send(JSON.stringify(plan, null, 2))
   } catch (e) {
     if (operatorGuard(res, e)) return
+    throw e
+  }
+})
+
+// ------------------------------------------------------------- §4 · §1d
+//
+// The cross-visit series, with its discontinuities. **Internal only** — a
+// retired item id is a break in OUR record, not something the client did, and a
+// doctrine scan keeps this module out of the report path.
+app.get('/api/properties/:id/item-series', (req, res) => {
+  const property = db.prepare('SELECT id FROM properties WHERE id = ?').get(req.params.id) as
+    | { id: string }
+    | undefined
+  if (!property) return res.status(404).json({ error: 'No such property.' })
+
+  res.json(itemSeries({
+    db,
+    propertyId: property.id,
+    includeSingletons: req.query.all !== undefined,
+  }))
+})
+
+// ------------------------------------------------------------------ §7
+//
+// Desk-work timing. A pair of timestamps, per the spec — and deliberately no
+// aggregate: *"Recorded, not specced: what gets reported from it. Collect
+// first."*
+app.get('/api/properties/:id/desk-work', (req, res) => {
+  const property = db.prepare('SELECT id FROM properties WHERE id = ?').get(req.params.id) as
+    | { id: string }
+    | undefined
+  if (!property) return res.status(404).json({ error: 'No such property.' })
+
+  try {
+    res.json({ ...deskWork(db, property.id), mine: runningSpan(db, property.id, acting()) })
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    throw e
+  }
+})
+
+app.post('/api/properties/:id/desk-work/start', (req, res) => {
+  try {
+    const { span, alreadyRunning } = startWork({
+      db,
+      propertyId: req.params.id,
+      sectionId: String(req.body?.sectionId ?? ''),
+      actorId: acting(),
+      visitId: req.body?.visitId ?? null,
+      workClass: req.body?.workClass ?? null,
+    })
+    // 200 rather than 201 when it was already running: nothing was created, and
+    // a double-click must not read as a second span.
+    res.status(alreadyRunning ? 200 : 201).json({ span, alreadyRunning })
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    if (e instanceof DeskWorkRefused) {
+      return res.status(e.code === 'desk-work.no-property' ? 404 : 400).json({ error: e.message, code: e.code })
+    }
+    throw e
+  }
+})
+
+app.post('/api/desk-work/:spanId/stop', (req, res) => {
+  try {
+    res.json(stopWork({
+      db,
+      spanId: req.params.spanId,
+      note: req.body?.note ?? null,
+      workClass: req.body?.workClass ?? null,
+    }))
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    if (e instanceof DeskWorkRefused) {
+      return res.status(e.code === 'desk-work.no-span' ? 404 : 409).json({ error: e.message, code: e.code })
+    }
     throw e
   }
 })

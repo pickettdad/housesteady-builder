@@ -703,6 +703,11 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
       // reach rather than a distinction: `dated` and `undated` are single words
       // with no dot or hyphen, so this pattern cannot see them.
       'predates-record', 'no-visit',
+      // Increment 3 §1f — the only `answer.*` comparison operator whose name is
+      // a word rather than a symbol. Ours by construction: no config declares an
+      // operator, and this one is spelled hyphenated to match the repo's own
+      // vocabulary style rather than to dodge this scan.
+      'not-in',
     ])
 
     const offenders: string[] = []
@@ -1926,5 +1931,133 @@ describe('rule 9 — checks that re-derive rather than remember', () => {
     }
     assert.deepEqual(offenders, [],
       'the archive README says nothing outside it references the archive; this is that sentence, executable')
+  })
+})
+
+/**
+ * Increment 4 §4 and §7 — the two items claimed from Increment 3, and the desk
+ * timing that closes the increment.
+ */
+describe('Increment 4 §4 and §7', () => {
+  /**
+   * **§1d is internal only, and the spec says so in one sentence.**
+   *
+   * > A retired item id is a discontinuity in **our record**, not something the
+   * > client did or failed to do, and it must never reach the client-facing
+   * > report.
+   *
+   * A homeowner told *"this series ends because the checklist changed"* is being
+   * shown our filing problem as though it were a fact about their house.
+   */
+  it('keeps the discontinuity display out of every client-facing path', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(join(serverSrc, 'report')).concat(sourceFiles(join(serverSrc, 'plan')))) {
+      const code = codeOf(file)
+      if (/itemSeries|SeriesBreak|discontinuous/.test(code)) offenders.push(file.replace(repoRoot, ''))
+    }
+    assert.deepEqual(offenders, [],
+      'a retirement is a break in OUR record; a client is never shown it')
+  })
+
+  /**
+   * **A retirement's successors are `null`, never `[]`.**
+   *
+   * Table F lives in the Checklist Master, which is reference-only by doctrine —
+   * a scan already forbids any code path from reading it. So this repo cannot
+   * name a successor, and an empty array would say *there are none.* Rule 7 in
+   * the one place the input genuinely is always absent.
+   */
+  it('reports an unavailable lineage as unknown rather than as none', () => {
+    const code = readFileSync(join(serverSrc, 'audit', 'itemSeries.ts'), 'utf8')
+    const iface = code.slice(code.indexOf('export interface SeriesBreak'), code.indexOf('export interface ItemSeries'))
+    const decls = iface.replace(/\/\*[\s\S]*?\*\//g, '')
+
+    assert.match(decls, /successors:\s*string\[\] \| null/, 'null is a state the type has to allow')
+    assert.match(decls, /lineageAvailable:\s*boolean/, 'and the reason is said out loud beside it')
+    assert.ok(!/successors:\s*string\[\]\s*$/m.test(decls), 'a non-nullable array cannot say "unknown"')
+
+    // And nothing here reads the master, which is why the lineage is absent.
+    assert.ok(!/Checklist-Master|docs\/reference/.test(codeOf(join(serverSrc, 'audit', 'itemSeries.ts'))),
+      'the master is reference-only; that constraint is the reason for the null')
+  })
+
+  /**
+   * **§1f's comparison operators are a closed set** — the deliberate exception to
+   * fail-open.
+   *
+   * Vocabulary fails open because a word the builder has not met is still a word.
+   * An operator is structure: a condition using one nobody implemented cannot be
+   * evaluated in either direction, so it is refused loudly rather than skipped.
+   */
+  it('refuses an unimplemented comparison operator rather than failing open', () => {
+    const code = codeOf(join(serverSrc, 'audit', 'triggers.ts'))
+    const block = code.slice(code.indexOf('const op = COMPARE_OPS['), code.indexOf('const rest ='))
+    assert.match(block, /throw new ConditionRefused/,
+      'doctrine 7: fail open on vocabulary, fail CLOSED on structure')
+  })
+
+  /**
+   * **A recorded value that cannot be ordered is unknown, not false.**
+   *
+   * `"hairline" > 5` is `false` in JavaScript, and shipping that means a
+   * coercion rule deciding whether a crack is wide. The guard has to be a
+   * type check before the comparison, not a `catch` after it.
+   */
+  it('type-checks a value before ordering it', () => {
+    const code = codeOf(join(serverSrc, 'audit', 'triggers.ts'))
+    const compare = code.slice(code.indexOf('function compare('), code.indexOf('const sameValue ='))
+
+    const guard = compare.indexOf('uncomparable.push')
+    const ordering = compare.indexOf("case '>':")
+    assert.ok(guard > 0 && ordering > 0, 'both the guard and the ordering are present')
+    assert.ok(guard < ordering,
+      'the guard must return before any ordering runs, or JavaScript answers for it')
+
+    /**
+     * **Position is not enough, and negative-testing this scan is what showed
+     * it.** §9b: plant the violation and confirm it fires. Replacing the guard's
+     * condition with `if (false)` left the ordering intact, so the first version
+     * of this scan passed on a guard that could never run.
+     *
+     * So it now asserts the guard is LIVE: that its condition tests the type it
+     * exists to test, and that it returns unknown rather than falling through.
+     */
+    const condition = compare.slice(compare.lastIndexOf('if (', guard), guard)
+    assert.match(condition, /typeof/, 'the guard tests a type — a constant condition guards nothing')
+    assert.match(compare.slice(guard, ordering), /return 'unknown'/,
+      'and it returns unknown, rather than reporting and then ordering anyway')
+  })
+
+  /**
+   * **§7 collects and does not report.**
+   *
+   * > *Recorded, not specced:* what gets reported from it. Collect first.
+   *
+   * A total or a rate published now fixes the shape of the answer before the
+   * first ten houses have said what the question is — which is exactly why the
+   * effort map carries four work classes and no hour figures.
+   */
+  it('publishes no aggregate from the desk-work timings', () => {
+    const code = codeOf(join(serverSrc, 'desk', 'work.ts'))
+    const offenders = [...code.matchAll(/\b(totalMs|totalMinutes|averageMs|hourlyRate|reduce\s*\()/g)]
+      .map((m) => m[0])
+    assert.deepEqual(offenders, [],
+      '§7 says collect first; a number reported before anyone has said what it is for fixes the answer early')
+  })
+
+  /**
+   * **Nothing closes a running span on its own.**
+   *
+   * A guessed end time enters the pricing basis wearing the clothes of a measured
+   * one, and the whole reason to collect this is that it is measured.
+   */
+  it('never auto-closes a running desk-work span', () => {
+    const code = codeOf(join(serverSrc, 'desk', 'work.ts'))
+    const writes = [...code.matchAll(/UPDATE desk_work SET ended_at[^`']*/g)].map((m) => m[0])
+    assert.equal(writes.length, 1, 'exactly one place ends a span')
+    assert.match(writes[0]!, /WHERE id = \?/,
+      'by id, from an explicit stop — never a sweep over open spans')
+    assert.ok(!/ended_at IS NULL/.test(writes[0]!),
+      'a write targeting every open span is an auto-close by another name')
   })
 })
