@@ -1,0 +1,11 @@
+{
+  "schemaId": "housesteady.client-names",
+  "version": "1.0.0",
+  "date": "2026-07-30",
+  "note": "What a checklist item is CALLED when a homeowner reads it. Increment 4 Amendment 1 §C. This file is deliberately near-empty and its emptiness is the honest state, not a stub: naming 266 items in HouseSteady's voice is a content pass belonging to the design session, and a machine-generated approximation sitting in the field would make acceptance the default.",
+  "whyNotTheConfigText": "Every one of this export's 266 items carries a `text` and NOT ONE of them is a name. They are checklist instructions written for the concierge standing in the room — 'Windows operated, locked, latched; seal-fog noted — pin defects'. Reading them as client-facing names does not withhold anything; it renders all of them. Four contain the word `issue`, which House Style §7 bans outright. Thirty-four use `pin` as a verb. Two carry markdown asterisks. Thirteen carry an em-dash the composer then wraps in more dashes. The measured version of the risk is in the PR that added this file.",
+  "howAnAbsenceBehaves": "An item with no entry here is WITHHELD from the client render and reported as desk work, never rendered as its id. That is §2b's rule and it is now load-bearing rather than theoretical: today it withholds every row. The audit reports the withheld count beside the rendered one so the empty state is loud rather than invisible.",
+  "voice": "A name, not an instruction. What the thing IS, from the homeowner's side of the kitchen table — 'The bathroom exhaust fan', not 'Exhaust fan runs, tissue test passed, termination traced to exterior'. House Style §10: no jargon without its plain-language twin at first use. House Style §7's banned words apply here as they do everywhere a client reads.",
+  "authorship": "A human writes these and a human signs them. Doctrine 5 — AI may propose wording; nothing client-facing is AI-signed. §5's editor is where a concierge writes one inline for a row that needs it, and what they write lands here rather than on the property, because the name of a thing does not change between houses.",
+  "names": {}
+}

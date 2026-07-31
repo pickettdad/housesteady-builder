@@ -6,7 +6,8 @@ import { propertyEvidence } from '../src/audit/propertyEvidence.js'
 import { runAudit, type AuditResult } from '../src/audit/run.js'
 import type { Db } from '../src/db/index.js'
 import { runImport } from '../src/import/runImport.js'
-import { clientRow, describeFromConfig, withheld } from '../src/report/clientVoice.js'
+import { clientRow, coverage, describeFromNames, withheld } from '../src/report/clientVoice.js'
+import { loadClientNames, naLabelMap } from '../src/report/names.js'
 import { addVisit, freshDb, makePropertyAndVisit, readReference, readReferenceAsRewalk, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
@@ -220,18 +221,34 @@ describe('carrying across visits', () => {
 describe('the client-facing composer', () => {
   let db: Db
   let result: AuditResult
-  let describe_: ReturnType<typeof describeFromConfig>
+  const LABELS = naLabelMap()
+
+  /**
+   * Names invented FOR THE TEST, not read from anywhere.
+   *
+   * The shipped table is empty, so a test that used it would assert nothing —
+   * every row withheld, every loop body unentered, green. These are the names a
+   * content pass would write, supplied here so the composer is actually
+   * exercised.
+   */
+  const describe_ = describeFromNames({
+    names: {
+      'int.canvas': 'A wide photo set of the room',
+      'int.surfaces': 'The ceiling, walls and floor',
+      'wet.fan': 'The exhaust fan',
+      'ses.termination-reconcile': 'The vent terminations check',
+    },
+  })
 
   before(async () => {
     db = freshDb()
     const ids = makePropertyAndVisit(db)
     await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     result = runAudit({ db, propertyId: ids.propertyId, visitId: ids.visitId, visitKind: 'baseline', actorId: TEST_OPERATOR })
-    describe_ = describeFromConfig(propertyEvidence(db, ids.propertyId).snapshot)
   })
 
   it('never puts an item id, an na reason id or a provenance state into a client sentence', () => {
-    const rows = result.carried.items.map((i) => clientRow(i, describe_)).filter((r) => r !== null)
+    const rows = result.carried.items.map((i) => clientRow(i, describe_, LABELS)).filter((r) => r !== null)
     assert.ok(rows.length > 0, 'the reference export must produce client rows, or this asserts nothing')
 
     for (const row of rows) {
@@ -243,7 +260,7 @@ describe('the client-facing composer', () => {
   })
 
   it('carries only the two labels a gap row may carry', () => {
-    const rows = result.carried.items.map((i) => clientRow(i, describe_)).filter((r) => r !== null)
+    const rows = result.carried.items.map((i) => clientRow(i, describe_, LABELS)).filter((r) => r !== null)
     for (const row of rows) {
       assert.ok(row!.label === 'not-inspected' || row!.label === 'not-accessible',
         `a gap report asserts nothing about the house, and ${row!.label} would`)
@@ -263,6 +280,7 @@ describe('the client-facing composer', () => {
         where: 'the utility room', certain: true, unrecognised: [],
       },
       () => 'The water heater data plate',
+      LABELS,
     )
     assert.equal(row!.text, 'The water heater data plate — in the utility room — could not be reached on this visit.')
     assert.equal(row!.label, 'not-accessible')
@@ -279,6 +297,7 @@ describe('the client-facing composer', () => {
         where: 'the roof', certain: true, unrecognised: [],
       },
       () => 'The roof edge',
+      LABELS,
     )
     assert.equal(row!.label, 'not-inspected',
       '"we could not reach it" claims we tried and were blocked; an undeclared reason must not make that claim')
@@ -292,7 +311,7 @@ describe('the client-facing composer', () => {
       dueSince: { importId: 'i1', visitId: 'v1', at: '2026-07-30' },
       where: 'the attic', certain: true, unrecognised: [],
     }
-    assert.equal(clientRow(item, () => undefined), null)
+    assert.equal(clientRow(item, () => undefined, LABELS), null)
     const held = withheld([item], () => undefined)
     assert.equal(held.length, 1)
     assert.match(held[0]!.because, /no plain-language name/)
@@ -306,8 +325,150 @@ describe('the client-facing composer', () => {
       dueSince: { importId: 'i1', visitId: 'v1', at: '2026-07-30' },
       where: 'the water heater', certain: true, unrecognised: [],
     }
-    assert.equal(clientRow(item, () => 'The water heater data plate'), null,
+    assert.equal(clientRow(item, () => 'The water heater data plate', LABELS), null,
       'a photograph is sitting on the pin — telling the client we did not capture it would be false')
     assert.match(withheld([item], () => 'The water heater data plate')[0]!.because, /awaiting confirmation/)
+  })
+})
+
+/**
+ * Amendment 1 §C — the count, and the failure it found.
+ *
+ * The question was *how many of the checklist items have a plain-language,
+ * client-facing name*, asked because a report withholding most of itself looks
+ * identical to one working perfectly.
+ *
+ * **The answer came back from the other side.** Every item in the reference
+ * config carries `text`, so the version that read `text` as a name withheld
+ * NOTHING — it rendered concierge instructions verbatim into a client's
+ * document. These pin the measurement so the finding cannot quietly revert.
+ */
+describe('the client-facing name table', () => {
+  const configItems = (snapshot: Record<string, unknown>): { id: string; text?: string }[] => {
+    const out: { id: string; text?: string }[] = []
+    const seen = new Set<string>()
+    const collect = (items: unknown): void => {
+      if (!Array.isArray(items)) return
+      for (const i of items) {
+        const item = i as { id?: unknown; text?: unknown }
+        if (typeof item?.id === 'string' && !seen.has(item.id)) {
+          seen.add(item.id)
+          out.push({ id: item.id, text: typeof item.text === 'string' ? item.text : undefined })
+        }
+      }
+    }
+    for (const key of ['baseLists', 'zoneLists', 'componentLists']) {
+      const lists = snapshot[key]
+      if (Array.isArray(lists)) for (const e of lists) collect((e as { items?: unknown }).items)
+    }
+    collect(snapshot.sessionItems)
+    return out
+  }
+
+  let items: { id: string; text?: string }[]
+
+  before(async () => {
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db)
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    items = configItems(propertyEvidence(db, ids.propertyId).snapshot)
+  })
+
+  it('measures the config: every item has text, and none of it is a name', () => {
+    assert.equal(items.length, 266,
+      'the export\'s config v1.2.1 declares 266 unique item ids — not the 409 the spec cites, which is a master-side count')
+    assert.equal(items.filter((i) => i.text && i.text.trim() !== '').length, 266,
+      'coverage of `text` is total, which is exactly why reading it as a name never abstained')
+  })
+
+  /**
+   * The specific unshippable strings, named.
+   *
+   * Not a stylistic complaint. Each of these breaks a rule that is written down:
+   * House Style §7 bans *issue* outright, §3 bans judgement words, and `pin` as
+   * a verb is the field app's internal vocabulary in a homeowner's document.
+   */
+  it('would have shipped House Style violations verbatim', () => {
+    const withText = items.filter((i) => i.text)
+    const matching = (re: RegExp): string[] => withText.filter((i) => re.test(i.text!)).map((i) => i.id)
+
+    assert.equal(matching(/\bissues?\b/i).length, 4,
+      'House Style §7: "issue" asserts a defect and never appears in anything a client reads')
+    assert.equal(matching(/\bpin(ned|s|ning)?\b/i).length, 34, 'the field app\'s own verb')
+    assert.equal(matching(/\*\*/).length, 2, 'markdown emphasis, which would render as literal asterisks')
+    assert.equal(matching(/[—–]/).length, 13,
+      'each of these would then be wrapped in the composer\'s own dashes')
+  })
+
+  it('ships a names table that is empty, and says so rather than reading the config', () => {
+    const names = loadClientNames()
+    assert.equal(names.declared, 0,
+      'naming 266 items in HouseSteady\'s voice is a content pass, and an approximation would make acceptance the default')
+    assert.ok(names.hash.length === 64, 'content-hashed like every other config file here')
+    for (const item of items.slice(0, 20)) {
+      assert.equal(names.describe(item.id), undefined,
+        `${item.id} must have no name until a human writes one — the config's text is an instruction, not a name`)
+    }
+  })
+
+  /**
+   * The consequence, made loud.
+   *
+   * Withholding is the safe branch and today it fires on everything. A run that
+   * did not report the count would look identical to one where the report was
+   * working — which is the whole shape of failure §C was written to catch.
+   */
+  it('reports how much of the report can actually be written', async () => {
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db)
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const run = runAudit({ db, propertyId: ids.propertyId, visitId: ids.visitId, visitKind: 'baseline', actorId: TEST_OPERATOR })
+
+    assert.equal(run.clientCoverage.total, 20)
+    assert.equal(run.clientCoverage.renderable, 0)
+    assert.equal(run.clientCoverage.withheld, 20)
+    assert.equal(run.clientCoverage.namesDeclared, 0)
+    assert.ok(run.warnings.some((w) => /declares no names at all/.test(w)),
+      'the empty state has to arrive as a warning, not as an empty list nobody queries')
+  })
+
+  it('renders a row once a human has written the name', () => {
+    const item = {
+      scope: { kind: 'zone' as const, zoneId: 'z1', pinId: null }, itemId: 'wet.fan', tier: 'core',
+      reason: 'not-reached', naReasonId: null, column: 'missing-from-us' as const,
+      parts: { what: 'wet.fan in the ensuite' }, status: null, origin: 'computed' as const,
+      dueSince: { importId: 'i1', visitId: 'v1', at: '2026-07-30' },
+      where: 'the ensuite', certain: true, unrecognised: [],
+    }
+    const named = describeFromNames({ names: { 'wet.fan': 'The exhaust fan' } })
+    const row = clientRow(item, named, naLabelMap())
+    assert.equal(row!.text, 'The exhaust fan — in the ensuite — was not covered on this visit.')
+
+    const c = coverage([item], named, 1)
+    assert.deepEqual({ total: c.total, renderable: c.renderable, withheld: c.withheld }, { total: 1, renderable: 1, withheld: 0 })
+  })
+})
+
+/** Amendment 1 §B — the mapping moved to the Binder Schema, and reads from there. */
+describe('the na-reason honesty-label mapping', () => {
+  it('comes from the schema, not from a literal beside the composer', () => {
+    const labels = naLabelMap()
+    assert.deepEqual(labels.declared, { 'no-access': 'not-accessible' })
+    assert.equal(labels.labelFor('no-access'), 'not-accessible')
+  })
+
+  it('defaults an unmapped reason to not-inspected, and reports that it defaulted', () => {
+    const labels = naLabelMap()
+    assert.equal(labels.labelFor('weather-window'), 'not-inspected',
+      '"we could not reach it" claims we tried and were blocked; nothing declared that here')
+    assert.equal(labels.isDefaulted('weather-window'), true)
+    assert.equal(labels.isDefaulted('no-access'), false)
+  })
+
+  it('leaves deferred on the default, which is true today', () => {
+    const labels = naLabelMap()
+    assert.equal(labels.labelFor('deferred'), 'not-inspected')
+    assert.equal(labels.isDefaulted('deferred'), true,
+      'whether deferred earns a label of its own is recorded, not specced — revisit with the slot mapping')
   })
 })

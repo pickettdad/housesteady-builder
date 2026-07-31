@@ -146,11 +146,11 @@ session's.*
 | **Baseline Profile & Effort Map v1 (2026-07-27)** | Answers D1. Send with the Schema at Increment 3. Effort columns for the mock run. |
 | **Increment 3 Build Spec + `binder-schema-v1.json` + `baseline-v1.json`** | **Send together when 2b lands.** The two JSON files go to `/schema/` and `/schema/profiles/`. |
 | **`maintenance-schedule-v1.json` + its design note** | Goes to `/schema/reference/` with the same batch. Increment 3 builds only its *evaluator*; the schedule renders at Increment 6. |
-| **House Style v1 (2026-07-27)** | Goes to `/prompts/house-style.md` as a versioned prompt input. **Send with 2b's golden-set work** — it is the standard the drafting prompts are written against. Also the concierge writing-training document. |
+| **House Style v1.1 (2026-07-27)** | **In the repo 2026-07-30**, at `/prompts/house-style/v1.1.md` — the version is in the path, not the filename, because `/prompts/README.md` requires identity to come from the path and the file's own §11 requires it to be versioned and hashed. Also the concierge writing-training document. *(Was listed as v1; the document's status line said v1.1 all along.)* |
 | Home Binder Master Spec v1 | **Source document, no longer the operative authority.** The Schema governs where they disagree. Still holds the checklist library (§15) and the regional appendix, which the Schema does not touch. |
 | Client Intake Form v1 | Input #2. Needed at Increment 3 — the audit's expectation set derives from its services block. |
 | Baseline Inspection Process v1 | Phase 11 is the gap-report spec. Needed at Increment 4. |
-| Brand Guide + logo assets | **Needed at Increment 4** — the gap report is client-facing from its first render. |
+| Brand Guide + logo assets | **Guide in the repo 2026-07-30**, at `/docs/reference/HouseSteady_Brand-Guide_v1_2026-07-17.html` — authoring reference, and a doctrine scan keeps `/docs/reference/` unread by any code path. The render carries its own tokens, citing the guide. **Logo asset files have not arrived**; `HouseSteady_Brand-Assets.zip` is named in §05 of the guide and is what the render needs for a mark it must not redraw. |
 | Launch Brief v1 (2026-07-24) | **Spent.** It was the design session's agenda; the design is done. Retire it. |
 
 ---
