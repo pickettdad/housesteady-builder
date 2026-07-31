@@ -64,7 +64,10 @@ export interface DraftRow {
     scopeKind: string
     zoneId: string | null
     pinId: string | null
+    /** Desk display. May name a zone type; never reaches a client. */
     where: string
+    /** Client-safe, or null. What the render composes a location from. */
+    whereLabel: string | null
     reason: string
     /** The structured parts, untouched by any rewording. */
     parts: { what: string; why?: string }
@@ -273,7 +276,7 @@ export function buildDraft(args: {
       included: edit?.included ?? true,
       source: {
         itemId: item.item_id, scopeKind: item.scope_kind, zoneId: item.scope_zone_id,
-        pinId: item.scope_pin_id, where, reason: item.reason, parts, itemText: item.item_text,
+        pinId: item.scope_pin_id, where, whereLabel, reason: item.reason, parts, itemText: item.item_text,
       },
       nameRatified: named?.ratified ?? false,
       media: mediaFor(db, propertyId, item.scope_pin_id, item.scope_zone_id),

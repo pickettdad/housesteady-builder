@@ -16,7 +16,9 @@ import { startDrain } from './ai/worker.js'
 import type { ColumnId } from './audit/carriedItems.js'
 import { latestRun, runAudit } from './audit/run.js'
 import { addManualRow, buildDraft, rowTrail, writeEdit, type EditKind } from './report/draft.js'
-import { describeItems, naLabelMap, supersededNames, unratifiedNames, writeName } from './report/names.js'
+import { HouseStyleRefused, rules as houseStyleRules } from './report/houseStyle.js'
+import { editionHtml, editions, RenderRefused, signEdition } from './report/render.js'
+import { describeItems, loadClientNames, naLabelMap, supersededNames, unratifiedNames, writeName } from './report/names.js'
 import { SchemaRefused } from './audit/schema.js'
 import { newId, now, openDb } from './db/index.js'
 import {
@@ -850,6 +852,81 @@ app.post('/api/client-names', (req, res) => {
     throw e
   }
 })
+
+// ------------------------------------------------- signing and rendering (§6)
+
+/**
+ * Sign the gap report, which is the only way client-facing HTML comes to exist.
+ *
+ * **The signature is the render gate, not a step after it.** There is no
+ * `POST /render` beside this — a render that could happen without a signer is a
+ * render that will, and §0.1 makes that a non-negotiable rather than a habit.
+ *
+ * The House Style lint runs inside the composition and REFUSES on violation, so
+ * the response can carry the reasons back to the person who typed them.
+ */
+app.post('/api/properties/:id/report/sign', (req, res) => {
+  const property = db.prepare('SELECT id, label, address FROM properties WHERE id = ?').get(req.params.id) as
+    | { id: string; label: string; address: string | null }
+    | undefined
+  if (!property) return res.status(404).json({ error: 'No such property.' })
+
+  const names = loadClientNames()
+  // The id is what the foreign key stores; the name is what a homeowner reads.
+  // Two facts about the same person, and the first render conflated them.
+  const signer = acting()
+  const signerName = (db.prepare('SELECT display_name FROM operators WHERE id = ?').get(signer) as
+    | { display_name: string }
+    | undefined)?.display_name
+  const visit = db
+    .prepare('SELECT visit_date FROM visits WHERE property_id = ? ORDER BY created_at DESC LIMIT 1')
+    .get(property.id) as { visit_date: string | null } | undefined
+
+  try {
+    const edition = signEdition({
+      db,
+      propertyId: property.id,
+      draft: buildDraft({ db, propertyId: property.id, describe: describeItems(db, names), labels: naLabelMap() }),
+      describe: describeItems(db, names),
+      labels: naLabelMap(),
+      frames: names.frames,
+      // Who is putting their name to it. From server configuration like every
+      // other actor — a browser naming its own signer is an unverifiable claim,
+      // and a signature on an unverifiable claim is not a signature.
+      signedBy: signer,
+      signedByName: signerName ?? signer,
+      clientNames: { version: names.version, hash: names.hash },
+      houseStyleVersion: 'house-style/v001',
+      property: { label: property.label, address: property.address },
+      visitDate: visit?.visit_date ?? null,
+    })
+    // The bytes are not in the response. They are the deliverable and they live
+    // in the record; this says what was signed and where to read it.
+    res.status(201).json({ ...edition, html: undefined })
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    if (e instanceof HouseStyleRefused) {
+      return res.status(422).json({ error: e.message, code: 'house-style', violations: e.violations })
+    }
+    if (e instanceof RenderRefused) return res.status(409).json({ error: e.message, code: e.code })
+    throw e
+  }
+})
+
+/** Every edition, newest first. Nothing is ever replaced — Design v1 §6. */
+app.get('/api/properties/:id/report/editions', (req, res) => {
+  res.json(editions(db, req.params.id))
+})
+
+/** One edition's stored bytes. What was actually sent, never a re-render. */
+app.get('/api/report/editions/:id.html', (req, res) => {
+  const html = editionHtml(db, req.params.id)
+  if (!html) return res.status(404).send('No such edition.')
+  res.type('html').send(html)
+})
+
+/** What the lint enforces, so a refusal can be read against the rules. */
+app.get('/api/house-style/rules', (_req, res) => res.json(houseStyleRules()))
 
 const port = Number(process.env.PORT ?? 5174)
 app.listen(port, () => console.log(`[api] http://localhost:${port}`))

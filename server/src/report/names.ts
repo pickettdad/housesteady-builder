@@ -22,15 +22,48 @@ import { join } from 'node:path'
 import { loadSchema, schemaRoot, type LoadedSchema } from '../audit/schema.js'
 import type { Db } from '../db/index.js'
 import { newId, now } from '../db/index.js'
-import type { DescribeItem, GapLabel, ItemName } from './clientVoice.js'
+import type { DescribeItem, Frame, Frames, GapLabel, ItemName } from './clientVoice.js'
 import { describeFromNames, mergeNames } from './clientVoice.js'
 
 export interface ClientNames {
   version: string
   hash: string
   describe: DescribeItem
-  /** How many names are declared. Reported, because today it is zero. */
+  /** How many names are declared. */
   declared: number
+  /** How a group of carried items is introduced. Declared, never generated. */
+  frames: Frames
+}
+
+/**
+ * The declared group frames, with a fallback that is honest rather than clever.
+ *
+ * A file with no `frames` block gets one default frame and every group speaks
+ * with it. That is a duller document, not a wrong one — and the alternative,
+ * generating a frame per reason, would put client-facing wording back in code
+ * where nobody reviews it.
+ */
+const framesOf = (raw: Record<string, unknown>): Frames => {
+  const block = raw.frames && typeof raw.frames === 'object' ? (raw.frames as Record<string, unknown>) : {}
+  const one = (v: unknown): Frame | null => {
+    const f = v as Frame | undefined
+    return f && typeof f.withRoom === 'string' && typeof f.withoutRoom === 'string' ? f : null
+  }
+  const byReason: Record<string, Frame> = {}
+  const declared = block.byReason
+  if (declared && typeof declared === 'object') {
+    for (const [reason, value] of Object.entries(declared as Record<string, unknown>)) {
+      const f = one(value)
+      if (f) byReason[reason] = f
+    }
+  }
+  return {
+    default: one(block.default) ?? {
+      withRoom: 'In {room}, we were not able to cover:',
+      withoutRoom: 'We were not able to cover:',
+    },
+    byReason,
+  }
 }
 
 export function loadClientNames(path = join(schemaRoot, 'client-names-v1.json')): ClientNames {
@@ -47,6 +80,7 @@ export function loadClientNames(path = join(schemaRoot, 'client-names-v1.json'))
     hash: createHash('sha256').update(text).digest('hex'),
     describe: describeFromNames(raw),
     declared: Object.values(names).filter((v) => typeof v === 'string' && v.trim() !== '').length,
+    frames: framesOf(raw),
   }
 }
 

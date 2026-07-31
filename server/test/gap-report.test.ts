@@ -20,10 +20,14 @@ const LABELS = naLabelMap()
  * removed. So the tests that exercise the withheld path hand in an empty file
  * and the tests that exercise the named path hand in the names they need.
  */
-const NO_NAMES = { version: '0.0.0', hash: 'test', declared: 0, describe: () => undefined }
+const NO_NAMES = {
+  version: '0.0.0', hash: 'test', declared: 0, describe: () => undefined,
+  frames: { default: { withRoom: 'In {room}, we were not able to cover:', withoutRoom: 'We were not able to cover:' }, byReason: {} },
+}
 
 const namesOf = (names: Record<string, string>) => ({
-  version: 'test', hash: 'test', declared: Object.keys(names).length,
+  ...NO_NAMES,
+  version: 'test', declared: Object.keys(names).length,
   describe: (id: string) => (names[id] ? { text: names[id]!, ratified: true } : undefined),
 })
 
