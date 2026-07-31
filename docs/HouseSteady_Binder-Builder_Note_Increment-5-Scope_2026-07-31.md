@@ -34,6 +34,35 @@ The three are not equally hard, and the difference is worth having in front of w
 - **Findings** is the expensive one. `issue` currently feeds the condition assessment, which is client-facing, and CLAUDE.md §5 keeps findings and concerns as **separate streams that must never be collapsed**. Re-sourcing findings *from* concerns without merging the two is the part that needs designing rather than porting.
 - **Layer derivation** is the one most likely to be forgotten, because nothing about it is visible in a gap report.
 
+## The design question underneath findings — the owner's reading
+
+*(Added 2026-07-31. **Recorded, not specced.** Nothing is built from it.)*
+
+The expensive stream has one question under it, and it has only two shapes:
+
+> **At v4, does opening a concern record a finding, or are they independent acts?**
+>
+> - **Independent**, and a visit produces a concern with no finding while the condition assessment goes quiet on something real.
+> - **Coupled**, and they are collapsed — which CLAUDE.md §5 forbids outright.
+
+**The owner's reading, which stands unless a later version of this note changes it:**
+
+> **A concern is opened FROM a finding and carries a reference to it.** The finding is the
+> observation at a moment; the concern is the decision to track it over time. **Linked,
+> never merged** — which keeps both streams and gives the condition assessment its source
+> back once `issue` retires.
+
+Two things that follow, and they are the reason this is worth recording before the spec:
+
+- **The link is a field on the concern, not a shared identity.** One finding may open one
+  concern; a concern observed on four visits accumulates four findings and stays one
+  concern. That is the same asymmetry as object-to-concern in the ratified model, one level
+  down.
+- **A finding with no concern is ordinary and must stay ordinary.** CLAUDE.md §5: *"finding
+  does not mean problem"* — confirmed absences are findings. Most findings never become
+  concerns, and a design that makes the concern the primary record would quietly demote
+  them.
+
 ## What is NOT being decided here
 
 - **No schema, no tables, no API.** The register's shape is Increment 5's spec to write.
