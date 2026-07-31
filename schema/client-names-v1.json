@@ -1,11 +1,63 @@
 {
   "schemaId": "housesteady.client-names",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "date": "2026-07-30",
-  "note": "What a checklist item is CALLED when a homeowner reads it. Increment 4 Amendment 1 §C. This file is deliberately near-empty and its emptiness is the honest state, not a stub: naming 266 items in HouseSteady's voice is a content pass belonging to the design session, and a machine-generated approximation sitting in the field would make acceptance the default.",
+  "note": "What a checklist item is CALLED when a homeowner reads it. Increment 4 Amendment 1 §C. The first twenty were named against a real gap list rather than chosen from the config — the reference export's twenty carried items — and ratified by the owner 2026-07-30.",
+  "ratification": {
+    "note": "Every name in `names` is ratified. A name that is not here yet may exist as an unratified proposal in the `client_names` table, written inline in the editor; this file wins over that table, and promoting a proposal means writing it here.",
+    "ratifiedBy": "owner",
+    "ratifiedAt": "2026-07-30",
+    "draftedBy": "design session",
+    "source": "the twenty carried items on the reference export (housesteady-019f9a33), field config v1.2.1",
+    "scope": "These twenty were named against a real gap list rather than chosen from the config. Nineteen are the ensuite's not-reached items; one is the close-out deferral. The int.* and wet.* entries come from the base interior and wet-room lists, so they recur in every room and every wet room respectively."
+  },
+  "rules": {
+    "note": "The standard the next tranche is written against. A client-facing name is a NOUN PHRASE FOR THE THING. The sentence around it carries what we did or did not do.",
+    "test": "Does it read correctly inside the sentence the composer builds? 'We were not able to inspect under-sink plumbing' works. 'We were not able to inspect every sink cabinet opened and inspected while water runs' is the failure this exists to prevent.",
+    "prohibitions": [
+      "No verbs of our activity — the item text is written for a concierge standing in a room, in the imperative. None of that survives.",
+      "No judgement words — suspect, defects, failures. House Style §3.",
+      "No internal vocabulary — pin as a verb, issue, zone types, item ids.",
+      "No instruction syntax — semicolons, slashes, parentheticals about how to capture.",
+      "No false precision — 'Under-sink plumbing' beats 'Under-sink supply and drain connections', which claims a scope the row may not have covered."
+    ]
+  },
   "whyNotTheConfigText": "Every one of this export's 266 items carries a `text` and NOT ONE of them is a name. They are checklist instructions written for the concierge standing in the room — 'Windows operated, locked, latched; seal-fog noted — pin defects'. Reading them as client-facing names does not withhold anything; it renders all of them. Four contain the word `issue`, which House Style §7 bans outright. Thirty-four use `pin` as a verb. Two carry markdown asterisks. Thirteen carry an em-dash the composer then wraps in more dashes. The measured version of the risk is in the PR that added this file.",
   "howAnAbsenceBehaves": "An item with no entry here is WITHHELD from the client render and reported as desk work, never rendered as its id. That is §2b's rule and it is now load-bearing rather than theoretical: today it withholds every row. The audit reports the withheld count beside the rendered one so the empty state is loud rather than invisible.",
   "voice": "A name, not an instruction. What the thing IS, from the homeowner's side of the kitchen table — 'The bathroom exhaust fan', not 'Exhaust fan runs, tissue test passed, termination traced to exterior'. House Style §10: no jargon without its plain-language twin at first use. House Style §7's banned words apply here as they do everywhere a client reads.",
   "authorship": "A human writes these and a human signs them. Doctrine 5 — AI may propose wording; nothing client-facing is AI-signed. §5's editor is where a concierge writes one inline for a row that needs it, and what they write lands here rather than on the property, because the name of a thing does not change between houses.",
-  "names": {}
+  "names": {
+    "bth.fan-vs-window": "Bathroom ventilation",
+    "bth.toilet-secure": "Toilet mounting and base",
+    "bth.tub-surround": "Tub and shower enclosure",
+    "int.alarms": "Smoke and carbon monoxide alarms",
+    "int.canvas": "Room photographs",
+    "int.doors": "Door operation",
+    "int.lighting": "Lighting and switches",
+    "int.moisture-suspect": "Moisture readings",
+    "int.owner-quirks": "Items you flagged in this room",
+    "int.receptacles": "Electrical outlets and GFCI protection",
+    "int.registers": "Heating and cooling registers",
+    "int.surfaces": "Ceiling, wall and floor surfaces",
+    "int.windows": "Window operation and seals",
+    "ses.termination-reconcile": "Outside exhaust vents",
+    "wet.caulk-grout": "Caulk and grout",
+    "wet.drain-speed": "Drain flow",
+    "wet.fan": "Exhaust fan operation and venting",
+    "wet.supply-stops": "Fixture shutoff valves",
+    "wet.surround-moisture": "Tub and shower surround moisture",
+    "wet.under-sink": "Under-sink plumbing"
+  },
+  "notes": {
+    "bth.fan-vs-window": "Deliberately distinct from wet.fan. This one asks whether the room is adequately ventilated at all, which a window can satisfy. Both can appear in one list.",
+    "int.alarms": "Config text carries a parenthetical about photographing manufacture dates. An instruction about capture, not part of the name.",
+    "int.canvas": "About our record rather than their house — we did not get wide photographs of the room. Kept in because 'Missing from us' is exactly the column for things we owe.",
+    "int.moisture-suspect": "'Suspect' dropped as a judgement word. The row's reason line carries the conditionality.",
+    "int.owner-quirks": "PROVISIONAL. Reads correctly when the owner flagged something and oddly when they did not. Watch it in the first real report — it may want the reason line doing more work, or it may be the first genuine case for the editor's inline override.",
+    "int.receptacles": "Config text ends 'pin failures as issues' — banned word plus internal verb in one string.",
+    "int.windows": "Config text ends 'pin defects' — same failure.",
+    "wet.fan": "Deliberately distinct from bth.fan-vs-window. This one is about the fan running and where it terminates.",
+    "wet.surround-moisture": "Paired with int.moisture-suspect; kept separable because one is a whole-room check and one is a specific surface.",
+    "wet.under-sink": "Config text carries literal markdown asterisks and a conditional instruction. Both dropped."
+  }
 }

@@ -11,6 +11,22 @@ import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir, TES
 
 const LABELS = naLabelMap()
 
+/**
+ * An EMPTY names file, supplied by the test.
+ *
+ * The shipped `client-names-v1.json` now carries the ratified twenty, which is
+ * the point of it — but a test that reads it is testing today's content rather
+ * than the mechanism, and would flip meaning the next time a name is added or
+ * removed. So the tests that exercise the withheld path hand in an empty file
+ * and the tests that exercise the named path hand in the names they need.
+ */
+const NO_NAMES = { version: '0.0.0', hash: 'test', declared: 0, describe: () => undefined }
+
+const namesOf = (names: Record<string, string>) => ({
+  version: 'test', hash: 'test', declared: Object.keys(names).length,
+  describe: (id: string) => (names[id] ? { text: names[id]!, ratified: true } : undefined),
+})
+
 async function audited(): Promise<{ db: Db; propertyId: string }> {
   const db = freshDb()
   const ids = makePropertyAndVisit(db)
@@ -19,8 +35,13 @@ async function audited(): Promise<{ db: Db; propertyId: string }> {
   return { db, propertyId: ids.propertyId }
 }
 
+/** The draft as it stands with the SHIPPED names file — twenty ratified. */
 const draftOf = (db: Db, propertyId: string) =>
   buildDraft({ db, propertyId, describe: describeItems(db), labels: LABELS })
+
+/** The draft with nothing named, which is what exercises the withheld path. */
+const unnamedDraftOf = (db: Db, propertyId: string) =>
+  buildDraft({ db, propertyId, describe: describeItems(db, NO_NAMES), labels: LABELS })
 
 /**
  * §1d — "Missing from you" ships, and ships honestly.
@@ -69,7 +90,7 @@ describe('the editor', () => {
   it('rewords without touching the evidence', async () => {
     const { db, propertyId } = await audited()
     const before = draftOf(db, propertyId)
-    const target = before.rows[0] ?? before.withheld[0]!
+    const target = before.rows[0]!
     const parts = JSON.stringify(target.source!.parts)
 
     writeEdit({
@@ -91,7 +112,6 @@ describe('the editor', () => {
 
   it('keeps the composed original beside a rewording', async () => {
     const { db, propertyId } = await audited()
-    writeName({ db, itemId: 'int.canvas', name: 'A wide photo set of the room', actorId: TEST_OPERATOR })
     const row = draftOf(db, propertyId).rows.find((r) => r.source?.itemId === 'int.canvas')!
     assert.ok(row.composed, 'the composer wrote a sentence')
 
@@ -104,7 +124,6 @@ describe('the editor', () => {
 
   it('toggles a row out and back, keeping both decisions in the record', async () => {
     const { db, propertyId } = await audited()
-    writeName({ db, itemId: 'int.canvas', name: 'A wide photo set of the room', actorId: TEST_OPERATOR })
     const row = draftOf(db, propertyId).rows.find((r) => r.source?.itemId === 'int.canvas')!
     assert.equal(row.included, true, 'a gap the client should hear about is the default')
 
@@ -128,7 +147,7 @@ describe('the editor', () => {
    */
   it('says why each row is in the column it is in, for both reasons', async () => {
     const { db, propertyId } = await audited()
-    const withheld = draftOf(db, propertyId).withheld
+    const withheld = draftOf(db, propertyId).rows
 
     const unanswered = withheld.find((r) => r.source?.reason === 'not-reached')!
     assert.match(unanswered.columnBecause, /has no answer, so it is ours to carry/)
@@ -147,7 +166,6 @@ describe('the editor', () => {
 
   it('survives a re-run of the audit', async () => {
     const { db, propertyId } = await audited()
-    writeName({ db, itemId: 'int.canvas', name: 'A wide photo set of the room', actorId: TEST_OPERATOR })
     const row = draftOf(db, propertyId).rows.find((r) => r.source?.itemId === 'int.canvas')!
     writeEdit({ db, propertyId, rowKey: row.rowKey, kind: 'exclude', actorId: TEST_OPERATOR })
 
@@ -161,12 +179,12 @@ describe('the editor', () => {
 
   it('preserves an edit kind it does not understand rather than dropping it', async () => {
     const { db, propertyId } = await audited()
-    const row = draftOf(db, propertyId).withheld[0]!
+    const row = draftOf(db, propertyId).rows[0]!
     // A kind from a future build. Fail open on vocabulary: it is still a
     // decision somebody made, and the row must not vanish because of it.
     writeEdit({ db, propertyId, rowKey: row.rowKey, kind: 'endorse' as never, actorId: TEST_OPERATOR })
     const after = draftOf(db, propertyId)
-    assert.ok(after.withheld.some((r) => r.rowKey === row.rowKey), 'the row is still there')
+    assert.ok(after.rows.some((r) => r.rowKey === row.rowKey), 'the row is still there')
     assert.equal(rowTrail(db, propertyId, row.rowKey).length, 1, 'and the edit is still in the log')
   })
 })
@@ -180,7 +198,7 @@ describe('the editor', () => {
 describe('media on the row', () => {
   it('shows what the pin or room holds, broken out by kind', async () => {
     const { db, propertyId } = await audited()
-    const withMedia = draftOf(db, propertyId).withheld.filter((r) => r.media && r.media.total > 0)
+    const withMedia = draftOf(db, propertyId).rows.filter((r) => r.media && r.media.total > 0)
     assert.ok(withMedia.length > 0, 'the reference export has a zone holding 28 photos, so this asserts something')
 
     for (const row of withMedia) {
@@ -222,13 +240,16 @@ describe('media on the row', () => {
 describe('inline naming', () => {
   it('makes a withheld row renderable, and marks the name unratified', async () => {
     const { db, propertyId } = await audited()
-    const before = draftOf(db, propertyId)
-    assert.equal(before.rows.length, 0, 'nothing is named yet, so nothing can be written')
+    // Against an EMPTY file, so this exercises the mechanism rather than the
+    // twenty that happen to be ratified today.
+    const empty = () => buildDraft({ db, propertyId, describe: describeItems(db, NO_NAMES), labels: LABELS })
+    const before = empty()
+    assert.equal(before.rows.length, 0, 'nothing named, so nothing can be written')
     assert.equal(before.withheld.length, 20)
 
     writeName({ db, itemId: 'int.canvas', name: 'A wide photo set of the room', actorId: TEST_OPERATOR, propertyId })
 
-    const after = draftOf(db, propertyId)
+    const after = empty()
     assert.equal(after.rows.length, 1)
     const row = after.rows[0]!
     assert.match(row.text, /A wide photo set of the room/)
@@ -241,7 +262,7 @@ describe('inline naming', () => {
     const { db, propertyId } = await audited()
     writeName({ db, itemId: 'int.canvas', name: 'A wide photo set of the room', actorId: TEST_OPERATOR, propertyId })
 
-    const pending = unratifiedNames(db)
+    const pending = unratifiedNames(db, NO_NAMES)
     assert.equal(pending.length, 1)
     // Never summon a human to a blank space — the wording, who wrote it, when,
     // and which house they were looking at.
@@ -255,10 +276,7 @@ describe('inline naming', () => {
     const { db, propertyId } = await audited()
     writeName({ db, itemId: 'int.canvas', name: 'Whatever I typed', actorId: TEST_OPERATOR })
 
-    const file = {
-      version: '1.0.0', hash: 'x', declared: 1,
-      describe: (id: string) => (id === 'int.canvas' ? { text: 'The room photo set', ratified: true } : undefined),
-    }
+    const file = namesOf({ 'int.canvas': 'The room photo set' })
     const row = buildDraft({ db, propertyId, describe: describeItems(db, file), labels: LABELS })
       .rows.find((r) => r.source?.itemId === 'int.canvas')!
 
@@ -272,7 +290,7 @@ describe('inline naming', () => {
     writeName({ db, itemId: 'int.canvas', name: 'First attempt', actorId: TEST_OPERATOR })
     writeName({ db, itemId: 'int.canvas', name: 'Second attempt', actorId: TEST_OPERATOR })
 
-    const row = draftOf(db, propertyId).rows.find((r) => r.source?.itemId === 'int.canvas')!
+    const row = unnamedDraftOf(db, propertyId).rows.find((r) => r.source?.itemId === 'int.canvas')!
     assert.match(row.text, /Second attempt/)
     const rows = db.prepare('SELECT name FROM client_names WHERE item_id = ? ORDER BY seq').all('int.canvas')
     assert.equal(rows.length, 2, 'append-only — what this said in March survives into September')
@@ -295,7 +313,6 @@ describe('where a row says it is', () => {
     // when that is a config type rather than a name somebody wrote.
     db.prepare('UPDATE zones SET label = NULL').run()
     runAudit({ db, propertyId, visitKind: 'baseline', actorId: TEST_OPERATOR })
-    writeName({ db, itemId: 'int.canvas', name: 'A wide photo set of the room', actorId: TEST_OPERATOR })
 
     const row = draftOf(db, propertyId).rows.find((r) => r.source?.itemId === 'int.canvas')!
     assert.ok(!/bathroom|living-space/.test(row.text),
