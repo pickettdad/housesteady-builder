@@ -182,7 +182,7 @@ describe('the payload', () => {
     assert.equal(gaps.filter((g) => g.reason === 'deferred').length, 1)
     // Scope travels, because the same item id in two rooms is two gaps.
     assert.ok(gaps.every((g) => g.scopeKind === 'zone' ? g.zoneId !== null : true))
-    assert.ok(gaps.every((g) => typeof g.sinceImportedAt === 'string' && g.sinceImportedAt !== ''))
+    assert.ok(gaps.every((g) => typeof g.firstDueImportedAt === 'string' && g.firstDueImportedAt !== ''))
   })
 
   /**
@@ -235,7 +235,7 @@ describe('the payload', () => {
     db.prepare('UPDATE session_meta SET started_at = NULL').run()
     const p = plan(db, propertyId)
     assert.ok(p.carriedGaps.every((g) => g.since === null))
-    assert.ok(p.carriedGaps.every((g) => g.sinceImportedAt !== null))
+    assert.ok(p.carriedGaps.every((g) => g.firstDueImportedAt !== null))
     assert.match(p.sections.carriedGaps.note, /no import for the visit that made them due records a session start/)
     assert.match(p.sections.carriedGaps.note, /not defaulted to the import timestamp/)
   })
@@ -246,6 +246,11 @@ describe('the payload', () => {
    * Design record §1 retires `monitor` at v4. *"The mechanism ran and found
    * none"* is then true and misleading — it reads as *nothing is being watched*
    * when the truth is *the word is gone.* Three states, not two.
+   *
+   * **The successor is settled and the sentence now says it.** Field Code: at
+   * Increment 5 this section is re-sourced as a query over this repo's own open
+   * concerns with no field input, so the flag is not replaced by another flag —
+   * the section stops reading a flag. The problem dissolves rather than defers.
    */
   it('says the vocabulary may be retired, rather than reporting a confident empty', async () => {
     const { db, propertyId } = await walked()
@@ -254,7 +259,8 @@ describe('the payload', () => {
     db.prepare('UPDATE imports SET manifest_schema_version = 4').run()
     const note = plan(db, propertyId).sections.monitorsDue.note
     assert.match(note, /retires\s+the `monitor` flag/)
-    assert.match(note, /open question with the field session/)
+    assert.match(note, /re-sourced as a query over this repo's own open concerns/)
+    assert.match(note, /the section stops reading a flag/)
     assert.ok(!/found none/.test(note), 'the confident empty must not survive alongside it')
   })
 
