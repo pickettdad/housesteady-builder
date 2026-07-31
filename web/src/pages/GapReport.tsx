@@ -28,15 +28,18 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { api, type Draft, type DraftRow } from '../api.js'
+import { api, type Draft, type DraftRow, type Edition, type Violation } from '../api.js'
 
 export function GapReportView({ propertyId }: { propertyId: string }) {
   const [draft, setDraft] = useState<Draft | null>(null)
+  const [editions, setEditions] = useState<Edition[]>([])
+  const [violations, setViolations] = useState<Violation[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(() => {
     api.gapReport(propertyId).then(setDraft).catch((e: Error) => setError(e.message))
+    api.editions(propertyId).then(setEditions).catch(() => setEditions([]))
   }, [propertyId])
 
   useEffect(load, [load])
@@ -78,6 +81,63 @@ export function GapReportView({ propertyId }: { propertyId: string }) {
           {draft.rows.filter((r) => r.included).length} row(s) in · {draft.rows.filter((r) => !r.included).length} held
           back · {draft.withheld.length} cannot be written yet
         </p>
+
+        {/* §6 — the signature IS the render gate. There is no render button
+            beside this one, because a render that can happen without a signer is
+            a render that will. */}
+        <p>
+          <button
+            disabled={busy}
+            onClick={() => {
+              setViolations(null)
+              setBusy(true)
+              api.signReport(propertyId)
+                .then(() => { setError(null); load() })
+                .catch((e: Error & { violations?: Violation[] }) => {
+                  if (e.violations) setViolations(e.violations)
+                  else setError(e.message)
+                })
+                .finally(() => setBusy(false))
+            }}
+          >
+            Sign and render
+          </button>{' '}
+          <span className="muted small">
+            signing says “I observed this, and this description matches what I saw” — it does not
+            certify an assessment
+          </span>
+        </p>
+
+        {/* The lint runs IN the render path, so a refusal names what a person
+            typed and why the standard forbids it — never a rule number. */}
+        {violations && (
+          <div className="warnings">
+            <p><strong>Not signed.</strong> House Style stops this going to a client:</p>
+            <ul>
+              {violations.map((v, i) => (
+                <li key={i}>
+                  <strong>{v.rule}</strong> — “{v.found}” in {v.where}
+                  <div className="muted small">{v.because}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {editions.length > 0 && (
+          <p className="muted small">
+            {editions.map((e) => (
+              <span key={e.id}>
+                <a href={api.editionUrl(e.id)} target="_blank" rel="noreferrer">
+                  Edition {e.number}
+                </a>{' '}
+                — signed by {e.signedBy} on {e.signedAt.slice(0, 10)}
+                {e.withheld.length > 0 && <> · {e.withheld.length} held out</>}
+                <br />
+              </span>
+            ))}
+          </p>
+        )}
       </section>
 
       {draft.columns.map((column) => (

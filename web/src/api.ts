@@ -575,6 +575,19 @@ export const api = {
       body: JSON.stringify({ text, column }),
     }),
 
+  /**
+   * Sign the report — the only way client-facing HTML comes to exist.
+   *
+   * There is deliberately no `render` call beside this. A render that can happen
+   * without a signer is a render that will.
+   */
+  signReport: (propertyId: string) =>
+    req<Edition>(`/api/properties/${propertyId}/report/sign`, { method: 'POST' }),
+
+  editions: (propertyId: string) => req<Edition[]>(`/api/properties/${propertyId}/report/editions`),
+
+  editionUrl: (id: string) => `/api/report/editions/${id}.html`,
+
   reportRowTrail: (propertyId: string, rowKey: string) =>
     req<{ kind: string; actorId: string; at: string }[]>(
       `/api/properties/${propertyId}/report/rows/${encodeURIComponent(rowKey)}/trail`,
@@ -815,6 +828,8 @@ export interface DraftRow {
     zoneId: string | null
     pinId: string | null
     where: string
+    /** Client-safe, or null — the location the render composes from. */
+    whereLabel: string | null
     reason: string
     /** Untouched by any rewording — §2's boundary holds through the editor. */
     parts: { what: string; why?: string }
@@ -866,4 +881,45 @@ export interface Draft {
    * a high rewrite rate.
    */
   supersededNames: { itemId: string; proposed: string; ratified: string; actorId: string; at: string }[]
+}
+
+/** A House Style violation, with the rule's own reason. §6, gate two. */
+export interface Violation {
+  rule: string
+  found: string
+  where: string
+  because: string
+}
+
+/**
+ * A signed edition — Design v1 §6.
+ *
+ * **The bytes are the deliverable.** A second edition does not replace the
+ * first; a client asking in September what their July report said gets the July
+ * bytes rather than a re-render against today's names and today's audit.
+ */
+export interface Edition {
+  id: string
+  number: number
+  propertyId: string
+  auditRunId: string
+  signedBy: string
+  signedAt: string
+  contentHash: string
+  columns: {
+    id: string
+    title: string
+    groups: {
+      reason: string
+      where: string | null
+      frame: string
+      label: string
+      items: { itemId: string; name: string; nameRatified: boolean }[]
+      next?: string
+    }[]
+    typed: string[]
+    media: { where: string; summary: string }[]
+  }[]
+  /** Rows held out, with the reason. Never dropped silently — doctrine 6. */
+  withheld: { itemId: string; because: string }[]
 }

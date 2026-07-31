@@ -355,3 +355,122 @@ export function describeCoverage(c: ClientCoverage): string[] {
   }
   return lines
 }
+
+
+// ------------------------------------------------------- grouping (§5, render)
+
+/**
+ * **Twenty rows of the same sentence shape is machine output, and House Style is
+ * what stands between us and that.**
+ *
+ * The first render produced this, twenty times:
+ *
+ * > Under-sink plumbing — in ensuite — was not covered on this visit.
+ * > Window operation and seals — in ensuite — was not covered on this visit.
+ * > Bathroom ventilation — in ensuite — was not covered on this visit.
+ *
+ * The names were doing their job; the frame was the problem. So the frame
+ * carries **once per group** and the items become a list underneath it.
+ *
+ * **Reason first, then room.** *"We could not reach it"*, *"we did not get to
+ * it"* and *"we have held it over"* are different statements and must not
+ * interleave. On the reference export all nineteen collapse into one group; on a
+ * real house there is a mix, and the grouping is what keeps those statements
+ * separate rather than blurred into one.
+ *
+ * **Grouped on the reason itself, not on the honesty label.** Two na reasons can
+ * both read as `not-inspected` and still be different things to say. The label
+ * says what kind of knowing this is; the reason says what happened.
+ */
+export interface ClientGroup {
+  /** `not-reached`, or the na reason id. The grouping key, and the frame's key. */
+  reason: string
+  /** The room, client-safe. Null where the group is not about a room. */
+  where: string | null
+  /** The sentence that introduces the list. From declared frames, never generated. */
+  frame: string
+  label: GapLabel
+  items: { itemId: string; name: string; nameRatified: boolean }[]
+  next?: string
+}
+
+/** One reason's declared frames. See `client-names-v1.json`. */
+export interface Frame {
+  withRoom: string
+  withoutRoom: string
+  next?: string
+}
+
+export interface Frames {
+  default: Frame
+  byReason: Record<string, Frame>
+}
+
+/**
+ * Carried rows to client-facing groups.
+ *
+ * **Reads structured parts and declared frames. Never an internal sentence** —
+ * §2a holds here exactly as it holds for a single row, and grouping is where it
+ * would be most tempting to break, because a group sentence looks like something
+ * you could assemble from the row sentences.
+ */
+export function clientGroups(
+  rows: CarriedItem[],
+  describe: DescribeItem,
+  labels: NaLabels,
+  frames: Frames,
+): ClientGroup[] {
+  const groups = new Map<string, ClientGroup>()
+
+  for (const row of rows) {
+    // §1c — an unconfirmed photograph is our desk work, not the client's.
+    if (row.status === 'proposed') continue
+    const named = describe(row.itemId)
+    // No name, no row. Never the id — §2b, and it is the same rule here.
+    if (!named) continue
+
+    const where = row.scope.kind === 'session' ? null : row.whereLabel
+    const key = `${row.reason}\u0000${where ?? ''}`
+
+    let group = groups.get(key)
+    if (!group) {
+      const frame = frames.byReason[row.reason] ?? frames.default
+      group = {
+        reason: row.reason,
+        where,
+        // The declared template with its one slot filled. A template with a
+        // named slot rather than a sentence assembled here, so the wording lives
+        // in reviewed config and a person can change it without touching code.
+        frame: where ? frame.withRoom.split('{room}').join(where) : frame.withoutRoom,
+        label: labels.labelFor(row.naReasonId),
+        items: [],
+        next: frame.next,
+      }
+      groups.set(key, group)
+    }
+    group.items.push({ itemId: row.itemId, name: named.text, nameRatified: named.ratified })
+  }
+
+  for (const group of groups.values()) {
+    group.items.sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  /**
+   * Ordered by reason, then room — and the reason order is the frames' own.
+   *
+   * A declaration order rather than alphabetical, because *"we could not reach"*
+   * and *"we did not get to"* are not equally weighted and the file is where
+   * that judgement belongs.
+   */
+  const reasonOrder = Object.keys(frames.byReason)
+  const rank = (r: string): number => {
+    const i = reasonOrder.indexOf(r)
+    // A reason the frames do not declare sorts last rather than first: it takes
+    // the default wording, and a group nobody has written words for should not
+    // open the document.
+    return i === -1 ? reasonOrder.length : i
+  }
+  return [...groups.values()].sort(
+    (a, b) => rank(a.reason) - rank(b.reason) || (a.where ?? '').localeCompare(b.where ?? ''),
+  )
+}

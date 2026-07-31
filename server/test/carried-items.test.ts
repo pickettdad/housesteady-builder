@@ -496,7 +496,10 @@ describe('the client-facing name table', () => {
     assert.equal(run.clientCoverage.namesDeclared, 20)
 
     // And the withheld path, on an empty file, still says so loudly.
-    const empty = { version: '0', hash: 'x', declared: 0, describe: () => undefined }
+    const empty = {
+      version: '0', hash: 'x', declared: 0, describe: () => undefined,
+      frames: { default: { withRoom: 'In {room}:', withoutRoom: 'We were not able to cover:' }, byReason: {} },
+    }
     const bare = runAudit({
       db, propertyId: ids.propertyId, visitId: ids.visitId, visitKind: 'baseline',
       actorId: TEST_OPERATOR, clientNames: empty,

@@ -1049,6 +1049,27 @@ describe('Increment 4 §8 — the client-facing boundary', () => {
     ]
     const offenders: string[] = []
     for (const file of reportFiles()) {
+      /**
+       * `render.ts` is exempt BY NAME, alone, and covered another way.
+       *
+       * Its `document()` builds the page from a multi-line template literal with
+       * template literals nested inside its interpolations. **A regex cannot
+       * tokenise that** — quote pairing goes wrong at the first nested backtick
+       * and the scanner reports function bodies as string contents, which is
+       * what it did.
+       *
+       * Rule 8 says read the finding rather than narrow the check. The finding
+       * here is about the scanner, not the code: there is no way to answer this
+       * question with a regex, so the honest move is to answer it somewhere that
+       * can. **`render.test.ts` asserts the RENDERED BODY carries no item id, no
+       * na reason and no operator id** — a stronger check than this one, because
+       * it reads output rather than source.
+       *
+       * The assertion below keeps the exemption honest: if that behavioural
+       * check ever disappears, this fails rather than quietly covering nothing.
+       */
+      if (file.endsWith(join('report', 'render.ts'))) continue
+
       const code = codeOf(file)
       /**
        * ONE left-to-right pass over string literals, and both checks ride on it.
@@ -1072,21 +1093,62 @@ describe('Increment 4 §8 — the client-facing boundary', () => {
       for (const m of code.matchAll(/`(?:[^`\\]|\\.)*`|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g)) {
         const literal = m[0]!
         const inner = literal.slice(1, -1)
-        // A bare enum literal is a comparison — how the code does its job. One
-        // embedded in a sentence, with whitespace beside it, is prose headed for
-        // a page a client reads.
-        if (!/\s/.test(inner)) continue
+        /**
+         * Is this PROSE, or is it a key?
+         *
+         * A bare enum literal is a comparison; one embedded in a sentence is
+         * prose headed for a page a client reads. The first version tested the
+         * raw source for whitespace — and a map key like
+         * `${'${'}row.reason}\u0000${'${'}where ?? ''}` has whitespace inside its
+         * EXPRESSIONS, so it read as prose and got reported as a client sentence.
+         *
+         * So: strip the interpolations first, then require two actual words in
+         * what is left. A key strips to a separator and stops being prose; a
+         * sentence strips to a sentence.
+         */
+        const stripped = inner.replace(/\$\{[^}]*\}/g, ' ')
+        if (!/[A-Za-z]\s+[A-Za-z]/.test(stripped)) continue
         for (const word of BANNED) {
           if (inner.includes(word)) offenders.push(`${file.replace(repoRoot, '')}: ${literal.slice(0, 70)}`)
         }
-        // Item ids have a shape: two-to-four lowercase letters, a dot, a slug.
-        if (/\b[a-z]{2,4}\.[a-z][a-z-]+\b/.test(inner)) {
+        /**
+         * Two checks, because a template literal holds two different things.
+         *
+         * **The literal text** may contain a hardcoded item id — that is the
+         * original failure. **An interpolation** may inject one at runtime, and
+         * that is a different question the same pattern cannot answer: `${'${'}item.name}`
+         * is a ratified client name and `${'${'}zone.type}` is config vocabulary, and
+         * they are identical in shape.
+         *
+         * The first version tested the raw source of both together, so every
+         * template interpolating any property tripped it. Rule 8 says read the
+         * finding before narrowing the check — and reading it the FIRST time
+         * found a zone type reaching a client sentence. Reading it the second
+         * time found this: the check was conflating two questions. So it now
+         * asks both, separately and precisely.
+         */
+        if (/\b[a-z]{2,4}\.[a-z][a-z-]+\b/.test(stripped)) {
           offenders.push(`${file.replace(repoRoot, '')}: item id in prose — ${inner.slice(0, 70)}`)
+        }
+        for (const m of inner.matchAll(/\$\{([^}]*)\}/g)) {
+          const expr = m[1]!.trim()
+          // Fields that carry internal vocabulary by construction. A client
+          // sentence interpolating any of these is §2b's failure at runtime,
+          // which no literal-text check can see.
+          if (/\.(itemId|item_id|reason|naReasonId|na_reason_id|scopeKind|scope_kind|componentType|component_type|type|rowKey|origin|status)$/.test(expr)) {
+            offenders.push(`${file.replace(repoRoot, '')}: interpolates ${expr} into prose — ${inner.slice(0, 60)}`)
+          }
         }
       }
     }
     assert.deepEqual(offenders, [],
       'a homeowner learns nothing from an item id except that we discuss their house in a language they do not speak')
+
+    // The cover for render.ts's exemption. An exemption whose replacement check
+    // has quietly gone is an exemption covering nothing.
+    const renderTest = readFileSync(join(repoRoot, 'server', 'test', 'render.test.ts'), 'utf8')
+    assert.match(renderTest, /puts no item id, na reason or operator id into the document/,
+      'render.ts is exempt from the source scan because it is covered by a check on its output')
   })
 
   /**
@@ -1414,5 +1476,109 @@ describe('Increment 4 §5 — the editor, and the brand it renders under', () =>
     assert.ok(declared.has('#15223B') && declared.has('#BE8A3D'),
       'navy and brass are the two the guide names first')
     assert.equal(declared.size, 5, 'five colours, and a sixth is a brand decision rather than a code one')
+  })
+})
+
+describe('Increment 4 §8 — nothing renders client-facing without a signature', () => {
+  /**
+   * **Scan five, and it is a shape rather than a behaviour.**
+   *
+   * §0.1: *"the signature is the render gate, not a step after it."* A
+   * behavioural test can only check that today's call sites pass a signer. The
+   * structural claim is stronger and is what this asserts: **there is exactly
+   * one function in this repo that produces client-facing HTML, and it takes a
+   * signer as a required argument.**
+   *
+   * Not `render()` with a `signed` flag — a flag can be passed wrong. Not
+   * `render()` beside `sign()` — two functions can be called in the wrong order,
+   * and the wrong order is the one that ships an unsigned document.
+   */
+  it('lets exactly one function compose client-facing HTML, and it requires a signer', () => {
+    const render = readFileSync(join(serverSrc, 'report', 'render.ts'), 'utf8')
+
+    // The document function is private; only signEdition is exported from it.
+    const exported = [...render.matchAll(/^export (?:function|const) (\w+)/gm)].map((m) => m[1])
+    assert.deepEqual(exported.sort(), ['editionHtml', 'editions', 'signEdition'],
+      'signEdition composes; the other two read back what it stored')
+
+    // And it cannot be called without somebody putting their name to it.
+    const signature = render.slice(render.indexOf('export function signEdition'))
+    assert.match(signature.slice(0, 1400), /signedBy: string/, 'a signer is a required argument, not an option')
+    assert.match(signature.slice(0, 1400), /signedByName: string/,
+      'and the NAME as well as the id — an operator id in a client\'s document is internal vocabulary')
+
+    // Nothing else anywhere composes a document. `<!doctype` is the tell.
+    const offenders = sourceFiles(serverSrc)
+      .filter((f) => !f.endsWith(join('report', 'render.ts')))
+      .filter((f) => /<!doctype|<html/i.test(codeOf(f)))
+      .map((f) => f.replace(repoRoot, ''))
+    assert.deepEqual(offenders, [],
+      'a second composer is a second path to an unsigned document')
+  })
+
+  /**
+   * **The lint runs in the render path, not in a test.**
+   *
+   * House Style §11 and Increment 4 §6 both say where it goes, and the placement
+   * is the whole requirement: a lint in a test checks the sentences a test
+   * happens to build, and the sentence that reaches a client is the one a
+   * concierge typed into a box on a Friday afternoon.
+   */
+  it('runs the house style lint inside the composition, before anything is stored', () => {
+    const render = readFileSync(join(serverSrc, 'report', 'render.ts'), 'utf8')
+    const compose = render.indexOf('const columns: EditionColumn[]')
+    const linted = render.indexOf('const violations: Violation[]')
+    const refused = render.indexOf('throw new HouseStyleRefused')
+    const stored = render.indexOf('INSERT INTO report_editions')
+
+    assert.ok(compose > 0 && linted > compose, 'the lint reads what was composed')
+    assert.ok(refused > linted && stored > refused,
+      'and refuses BEFORE the insert — a refused render must leave no half-edition behind')
+
+    // The rules live with the standard, not scattered through the composer.
+    const offenders = sourceFiles(join(serverSrc, 'report'))
+      .filter((f) => !f.endsWith(join('report', 'houseStyle.ts')))
+      .filter((f) => /\bissues\?\\b|severity adjective/i.test(codeOf(f)))
+      .map((f) => f.replace(repoRoot, ''))
+    assert.deepEqual(offenders, [], 'one place declares what House Style forbids')
+  })
+
+  /**
+   * An edition's bytes are never rewritten.
+   *
+   * Design v1 §6 — a delivered binder is a dated snapshot. Late results produce
+   * a NEW edition, because *what did we actually send them* has to be answerable
+   * and a re-render against today's names answers a different question.
+   */
+  it('never updates or deletes an edition', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(serverSrc)) {
+      const code = codeOf(file)
+      if (/UPDATE\s+report_editions\b/i.test(code)) offenders.push(`UPDATE in ${file.replace(repoRoot, '')}`)
+      if (/DELETE\s+FROM\s+report_editions\b/i.test(code)) offenders.push(`DELETE in ${file.replace(repoRoot, '')}`)
+    }
+    assert.deepEqual(offenders, [], 'edition 2 does not replace edition 1')
+  })
+
+  /**
+   * The client-facing frames are declared, not generated.
+   *
+   * Fixing twenty identical sentences by generating a different one per row
+   * would move the problem rather than solve it. The frame has to be a written
+   * thing a person can read and change, which means it lives in reviewed config.
+   */
+  it('composes group frames from declared templates rather than building sentences', () => {
+    const voice = codeOf(join(serverSrc, 'report', 'clientVoice.ts'))
+    const groups = voice.slice(voice.indexOf('export function clientGroups'))
+    assert.match(groups, /frames\.byReason\[[^\]]+\] \?\? frames\.default/,
+      'the frame is looked up, with a declared fallback')
+    assert.match(groups, /\.split\('\{room\}'\)\.join\(where\)/,
+      'and filled by substitution into a declared template, not assembled here')
+
+    const file = JSON.parse(readFileSync(join(repoRoot, 'schema', 'client-names-v1.json'), 'utf8')) as {
+      frames: { default: unknown; byReason: Record<string, unknown> }
+    }
+    assert.ok(file.frames.default, 'a default frame exists, so an unmapped reason still speaks')
+    assert.ok(Object.keys(file.frames.byReason).length > 0, 'and the reasons the export produces are written')
   })
 })
