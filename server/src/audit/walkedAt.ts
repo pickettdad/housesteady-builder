@@ -3,10 +3,10 @@
  *
  * ---
  *
- * **`visits.visit_date` is hand-typed and nothing checks it.**
+ * **The planned date is hand-typed and nothing checks it.**
  *
- * `POST /api/properties/:id/visits` takes `req.body.visitDate ?? null`, and **no
- * import path writes that column at all.** It is a free-text field a person
+ * `POST /api/properties/:id/visits` takes `req.body.plannedDate ?? null`, and
+ * **no import path writes that column at all.** It is a free-text field a person
  * fills in, and it can disagree with the evidence without anything noticing.
  *
  * **It did.** The reference session ran `startedAt 2026-07-25T16:55:14Z` and the
@@ -17,6 +17,19 @@
  *
  * So: **anything that tells a client or the field app when we were in the house
  * reads the manifest, not the typed field.** A doctrine scan holds it.
+ *
+ * ---
+ *
+ * **The column was called `visit_date`, and the rename is half the fix.**
+ *
+ * Routing every reader through this module stops anyone picking the wrong date
+ * today; it leaves a column named `visit_date` holding something that is not the
+ * visit date. One field standing for two facts has cost this repo three times —
+ * a zone `type` doing a nickname's job, `sinceImportedAt` describing a different
+ * import than `since`, and this. Each time the fix was a name.
+ *
+ * Migration 015 renames it `planned_date`. **Two facts, two names, and no reader
+ * able to pick the wrong one.**
  *
  * ---
  *
@@ -33,7 +46,7 @@
  *
  * ---
  *
- * **The typed field is not deleted, and it is not wrong to have.** A visit
+ * **The planned date is not deleted, and it is not wrong to have.** A visit
  * booked for next Tuesday genuinely has a date and no manifest. It is simply
  * not evidence, so nothing client-facing may read it.
  */
@@ -46,13 +59,13 @@ export interface Walked {
   /** The date part, for a sentence a person reads. */
   date: string | null
   /**
-   * Set when the hand-typed `visits.visit_date` disagrees with the evidence.
+   * Set when the hand-typed `visits.planned_date` disagrees with the evidence.
    *
    * **Reported rather than silently preferred.** The two are different claims —
-   * one is what somebody typed, the other is what the field app recorded — and
+   * one is what somebody planned, the other is what the field app recorded — and
    * a disagreement is a fact about the record that somebody should see.
    */
-  disagreesWithTyped?: { typed: string; evidence: string }
+  disagreesWithPlanned?: { planned: string; walked: string }
 }
 
 /**
@@ -73,39 +86,53 @@ export function walkedAt(db: Db, visitId: string): Walked {
   const startedAt = row?.started_at ?? null
   const date = startedAt ? startedAt.slice(0, 10) : null
 
-  const typed = (db.prepare('SELECT visit_date FROM visits WHERE id = ?').get(visitId) as
-    | { visit_date: string | null }
-    | undefined)?.visit_date ?? null
+  const planned = (db.prepare('SELECT planned_date FROM visits WHERE id = ?').get(visitId) as
+    | { planned_date: string | null }
+    | undefined)?.planned_date ?? null
 
   return {
     startedAt,
     date,
-    disagreesWithTyped: typed && date && typed.slice(0, 10) !== date
-      ? { typed, evidence: date }
+    disagreesWithPlanned: planned && date && planned.slice(0, 10) !== date
+      ? { planned, walked: date }
       : undefined,
   }
+}
+
+/**
+ * What a person typed, under its own name.
+ *
+ * **The only accessor for it, and it is deliberately not on `Walked`.** A caller
+ * wanting the planned date has to ask for the planned date; there is no shape
+ * here where reaching for one and getting the other is possible.
+ */
+export function plannedDate(db: Db, visitId: string): string | null {
+  const row = db.prepare('SELECT planned_date FROM visits WHERE id = ?').get(visitId) as
+    | { planned_date: string | null }
+    | undefined
+  return row?.planned_date ?? null
 }
 
 /** The same, for every visit on a property. One query rather than one per gap. */
 export function walkedAtByVisit(db: Db, propertyId: string): Map<string, Walked> {
   const rows = db
     .prepare(
-      `SELECT i.visit_id, MIN(s.started_at) AS started_at, v.visit_date
+      `SELECT i.visit_id, MIN(s.started_at) AS started_at, v.planned_date
          FROM session_meta s
          JOIN imports i ON i.id = s.import_id
          JOIN visits v ON v.id = i.visit_id
         WHERE i.property_id = ? AND s.started_at IS NOT NULL
         GROUP BY i.visit_id`,
     )
-    .all(propertyId) as { visit_id: string; started_at: string; visit_date: string | null }[]
+    .all(propertyId) as { visit_id: string; started_at: string; planned_date: string | null }[]
 
   return new Map(rows.map((r) => {
     const date = r.started_at.slice(0, 10)
     return [r.visit_id, {
       startedAt: r.started_at,
       date,
-      disagreesWithTyped: r.visit_date && r.visit_date.slice(0, 10) !== date
-        ? { typed: r.visit_date, evidence: date }
+      disagreesWithPlanned: r.planned_date && r.planned_date.slice(0, 10) !== date
+        ? { planned: r.planned_date, walked: date }
         : undefined,
     }]
   }))

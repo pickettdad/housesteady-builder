@@ -11,7 +11,8 @@ export interface Visit {
   id: string
   property_id: string
   kind: string
-  visit_date: string | null
+  /** What somebody typed when the visit was created. Not evidence — see `walkedAt`. */
+  planned_date: string | null
   notes: string | null
   created_at: string
   import_count?: number
@@ -37,7 +38,7 @@ export interface ImportReport {
     config: { id: string | null; version: string | null; hash: string | null }
   }
   property: { id: string; label: string; address: string | null }
-  visit: { id: string; kind: string; visitDate: string | null }
+  visit: { id: string; kind: string; plannedDate: string | null; walkedDate: string | null }
   session: {
     sessionId: string | null
     propertyLabel: string | null
@@ -271,7 +272,7 @@ export interface NaReason {
 }
 
 export interface PassModel {
-  visit: { id: string; kind: string; visitDate: string | null; propertyId: string }
+  visit: { id: string; kind: string; plannedDate: string | null; walkedDate: string | null; propertyId: string }
   property: { id: string; label: string }
   import: { id: string; mediaMode: string; importedAt: string } | null
   pass: {
@@ -624,11 +625,11 @@ export const api = {
 
   getProperty: (id: string) => req<{ property: Property; visits: Visit[] }>(`/api/properties/${id}`),
 
-  createVisit: (propertyId: string, kind: string, visitDate: string) =>
+  createVisit: (propertyId: string, kind: string, plannedDate: string) =>
     req<Visit>(`/api/properties/${propertyId}/visits`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind, visitDate: visitDate || null }),
+      body: JSON.stringify({ kind, plannedDate: plannedDate || null }),
     }),
 
   /**

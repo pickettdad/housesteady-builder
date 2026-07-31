@@ -1,0 +1,39 @@
+-- `visits.visit_date` becomes `visits.planned_date`, and the rename IS the fix.
+--
+-- WHY A RENAME AND NOT AN ACCESSOR. Routing every reader through `walkedAt()`
+-- would stop anyone picking the wrong date today, and would leave a column named
+-- `visit_date` holding something that is not the visit date. That is one field
+-- standing for two facts, which has now cost this repo three times:
+--
+--   * a zone `type` doing a nickname's job, and reaching a client sentence as
+--     "the living-space"
+--   * `sinceImportedAt` describing a different import than `since`, once `since`
+--     stopped meaning first-ever-due
+--   * this column, which put "visited 2026-07-24" into a signed client document
+--     against a session that began 2026-07-25T16:55Z
+--
+-- Each time the fix was a NAME rather than an accessor. So both: no reader can
+-- pick the wrong date, and the two facts have two names.
+--
+-- WHAT EACH NAME MEANS NOW.
+--
+--   `planned_date`  — what a person typed. Filled from `req.body.plannedDate` at
+--                     POST /api/properties/:id/visits and written NOWHERE else.
+--                     A visit booked for next Tuesday genuinely has one and no
+--                     manifest, so the column is not deleted and is not wrong to
+--                     have. It is simply not evidence.
+--
+--   the walked date — `session_meta.started_at`, resolved by `walkedAt()`. The
+--                     manifest's own record of when the walk began. Not
+--                     `completed_at`, which moves when a session is reopened.
+--
+-- Nothing client-facing or field-facing reads `planned_date`. A doctrine scan
+-- holds it, and the scan now also forbids the OLD name anywhere at all, so a
+-- reintroduced `visit_date` fails rather than quietly starting the cycle again.
+--
+-- SAFE IN PLACE. RENAME COLUMN preserves the data and rewrites the references
+-- SQLite tracks itself; nothing in this schema indexes, views or triggers on the
+-- column, so there is nothing else to update. The default wrapped transaction is
+-- correct here — no table rebuild, so no `PRAGMA foreign_keys=off`.
+
+ALTER TABLE visits RENAME COLUMN visit_date TO planned_date;

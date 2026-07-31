@@ -93,7 +93,14 @@ export function ImportReportView({ id }: { id: string }) {
               <th>Visit</th>
               <td style={{ textTransform: 'capitalize' }}>
                 {r.visit.kind}
-                {r.visit.visitDate ? ` · ${r.visit.visitDate}` : ''}
+                {/* Two dates, two names — and the disagreement between them is
+                    exactly what an import report is for. `walked` is the
+                    manifest's own session start; `planned` is what somebody
+                    typed. Neither is shown as the other. */}
+                {r.visit.walkedDate ? ` · walked ${r.visit.walkedDate}` : ''}
+                {r.visit.plannedDate && r.visit.plannedDate !== r.visit.walkedDate
+                  ? ` · planned ${r.visit.plannedDate}`
+                  : ''}
               </td>
             </tr>
             <tr>

@@ -250,7 +250,7 @@ function record(visits: { kind: string; startedAt: string | null; importedAt: st
     const visitId = `v${i + 1}`
     const importId = `i${i + 1}`
     db.prepare(
-      `INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at, actor_id, performed_by)
+      `INSERT INTO visits (id, property_id, kind, planned_date, notes, created_at, actor_id, performed_by)
        VALUES (?, ?, ?, NULL, NULL, ?, ?, ?)`,
     ).run(visitId, propertyId, v.kind, now(), TEST_OPERATOR, TEST_OPERATOR)
     db.prepare(

@@ -1,11 +1,11 @@
 # Binder Builder — AI Assist Plan (v1.1)
 
 **Date:** 2026-07-25
-**Version:** v1.1 · 2026-07-30 — v1 (2026-07-25) with the supersession banner below. The Increment 3 row is superseded; the rest stands unchanged.
+**Version:** v1.1 · 2026-07-31 — v1 (2026-07-25) with the supersession banner below. The Increment 3 row is superseded; the rest stands unchanged.
 **Why this exists:** the binder builder is where a visit becomes a document. Doing that well by hand is slow; doing it *consistently* by hand across several concierges is impossible. AI assist is the standardization layer. This document specifies where it is used, how it is kept honest, and how it is built.
 **Governing doctrine:** `CLAUDE.md` §4 — AI drafts, a human writes. Nothing client-facing is AI-signed. Nothing renders until a human signs it.
 
-> ## ⚠ PARTLY SUPERSEDED — 2026-07-30
+> ## ⚠ PARTLY SUPERSEDED — 2026-07-31
 >
 > **Its Increment 3 row places AI in the audit engine. That is no longer the design.**
 >

@@ -353,10 +353,16 @@ export function checkPinIdentityAcrossVisits(db: Db, propertyId: string, c: Cano
   const prior = db
     .prepare(
       `SELECT p.pin_id, p.number, p.type_kind, p.component_type, p.freeform_label, p.nickname,
-              p.zone_id, z.label AS zone_label, v.kind AS visit_kind, v.visit_date
+              p.zone_id, z.label AS zone_label, v.kind AS visit_kind, sm.started_at
        FROM pins p
        JOIN visits v ON v.id = p.visit_id
        LEFT JOIN zones z ON z.zone_id = p.zone_id AND z.import_id = p.import_id
+       -- The WALK, not the planned date. This sentence names a day to somebody
+       -- who will go and check it, and visits.planned_date is hand-typed and
+       -- unchecked — it can name a day nobody was in the house. Joined on the
+       -- pin's own import rather than on the visit, because the import IS the
+       -- walk on which this pin was last recorded.
+       LEFT JOIN session_meta sm ON sm.import_id = p.import_id
        WHERE p.property_id = ?
        ORDER BY p.created_at DESC`,
     )
@@ -370,7 +376,7 @@ export function checkPinIdentityAcrossVisits(db: Db, propertyId: string, c: Cano
     zone_id: string | null
     zone_label: string | null
     visit_kind: string
-    visit_date: string | null
+    started_at: string | null
   }[]
 
   if (prior.length === 0) return checks
@@ -419,7 +425,10 @@ export function checkPinIdentityAcrossVisits(db: Db, propertyId: string, c: Cano
         message:
           `The same pin (${p.pinId}, shown as ${p.number ?? 'no number'} this visit) describes something ` +
           `different than it did on this property's ${was.visit_kind} visit` +
-          `${was.visit_date ? ` of ${was.visit_date}` : ''}: ${changes.join('; ')}. ` +
+          // No date rather than the planned one, where the manifest carries no
+          // session start. An unnamed visit sends somebody looking; a wrong date
+          // sends them to the wrong day and looks authoritative doing it.
+          `${was.started_at ? ` of ${was.started_at.slice(0, 10)}` : ''}: ${changes.join('; ')}. ` +
           `The uuid is what ties a thing to itself across years, so if these are genuinely two different ` +
           `things, the history recorded under this id now covers both.`,
         detail: { pinId: p.pinId, changes },

@@ -7,7 +7,27 @@ needs, and a deleted file cannot answer it.
 
 **Nothing here is authoritative. Nothing reads it.** No code path, no test, and no live
 document references anything in this directory — checked at the time of archiving, and
-re-checked 2026-07-30.
+re-checked 2026-07-31.
+
+> **This claim was false between 2026-07-30 and 2026-07-31, and how it went false is worth
+> keeping.** When `AI-Assist-Plan_v1_2026-07-25` was archived, **four live citations still
+> pointed at it by its dated filename** — `CLAUDE.md` §9, `prompts/README.md`, and two
+> build specs. The line above was written as a statement of intent and read afterwards as
+> a statement of fact, and nothing re-derived it. All four now cite
+> `..._AI-Assist-Plan_v1-1_2026-07-31.md`.
+>
+> Same class as the dates below: **a fact checked once and carried across a boundary as
+> though it were still checked.** The lesson is not "check again" — it is that a claim
+> about the whole repo belongs to a grep, and this one had none behind it.
+> This is that grep, and it takes the names from the directory rather than from memory:
+>
+> ```sh
+> ls docs/archive/HouseSteady_*.md | xargs -n1 basename | sed 's/\.md$//' \
+>   | xargs -I{} git grep -n {} -- ':!docs/archive'
+> ```
+>
+> It returns nothing as of 2026-07-31. A hand-written list of names to check would have
+> gone stale the same way the claim did.
 
 **Who cites the Observed Addendum, and by what name.** Two places name it by dated
 filename, and both were moved from `_2026-07-25` to `_2026-07-27` in the same commit that
@@ -28,7 +48,7 @@ What was true is that no citation still points at the archived copy — a differ
 | `Increment-1_Build-Spec_v3.1_2026-07-25` | `Increment-1_Build-Spec_v3.4_2026-07-26` | Versioned manifest adapters and the identity check arrived between the two. |
 | `Increment-2a_Build-Spec_2026-07-26` | `Increment-2a_Build-Spec_v2_2026-07-27` | The overlay layer's second pass — room-photo counting moved when a photo is attached. |
 | `Manifest-Contract_v3_Observed-Addendum_2026-07-25` | `..._Observed-Addendum_2026-07-27` | §1–§7 unchanged. Adds a status blockquote marking §8's question list partly stale, and a fifth §8 question — pin identity across visits, which records that pin *numbers* are session-scoped and the longitudinal join is blocked on the session plan rather than merely unbuilt. |
-| `Binder-Builder_AI-Assist-Plan_v1_2026-07-25` | `..._AI-Assist-Plan_v1.1_2026-07-30` | Same document with a supersession banner: **its Increment 3 row placed AI in the audit engine and that is no longer the design.** §1a made slot binding deterministic — the audit reads the config's own declarations rather than inferring them. Everything else stands, including the standardization argument, versioned prompts, the provenance table and abstention as a valid output. |
+| `Binder-Builder_AI-Assist-Plan_v1_2026-07-25` | `..._AI-Assist-Plan_v1-1_2026-07-31` | Same document with a supersession banner: **its Increment 3 row placed AI in the audit engine and that is no longer the design.** §1a made slot binding deterministic — the audit reads the config's own declarations rather than inferring them. Everything else stands, including the standardization argument, versioned prompts, the provenance table and abstention as a valid output. |
 
 **If you archive something else, add a row.** A directory of files with no account of why
 they are here is a slightly tidier version of the problem it was meant to solve.

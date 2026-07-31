@@ -79,5 +79,5 @@ the same discipline one level up. At one concierge the binder's voice is whateve
 concierge's voice is that day; at five, without this, clients receive documents that read
 like different companies. The house style lives in these files, not in anyone's head.
 
-See `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1_2026-07-25.md` for the full plan
+See `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1-1_2026-07-31.md` for the full plan
 and `CLAUDE.md` §7 for the governing doctrine.

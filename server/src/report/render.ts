@@ -134,7 +134,16 @@ export function signEdition(args: {
   houseStyleVersion: string
   /** Property label and address for the header. From the property row. */
   property: { label: string; address: string | null }
-  visitDate: string | null
+  /**
+   * When the house was walked, from the manifest's session start.
+   *
+   * **Named `walkedDate` and not `visitDate`, and the name is load-bearing.**
+   * A parameter called `visitDate` invites a caller to pass `visits.planned_date`
+   * — which is exactly what put *"visited 2026-07-24"* into the first signed
+   * edition against a session that began on the 25th. The caller resolves this
+   * through `walkedAt()`; nothing else may reach the render.
+   */
+  walkedDate: string | null
 }): Edition {
   const { db, propertyId, draft, describe, labels, frames, signedBy } = args
 
@@ -205,7 +214,7 @@ export function signEdition(args: {
   const html = document({
     columns,
     property: args.property,
-    visitDate: args.visitDate,
+    walkedDate: args.walkedDate,
     signedBy: args.signedByName,
     signedAt: now(),
     number,
@@ -298,7 +307,7 @@ const esc = (s: string): string =>
 function document(args: {
   columns: EditionColumn[]
   property: { label: string; address: string | null }
-  visitDate: string | null
+  walkedDate: string | null
   signedBy: string
   signedAt: string
   number: number
@@ -358,7 +367,7 @@ function document(args: {
 <header>
   <img src="${b.lockup}" alt="HouseSteady — Home Concierge">
   <div class="meta"><b>Gap report</b>${esc(args.property.address ?? args.property.label)}${
-    args.visitDate ? ` · visited ${esc(args.visitDate)}` : ''
+    args.walkedDate ? ` · visited ${esc(args.walkedDate)}` : ''
   }<br>Edition ${args.number}</div>
 </header>
 ${body}

@@ -290,6 +290,20 @@ So `sections` carries a count **and a sentence** per section, and the sentence d
 - `sections.monitorsDue` lists **every flag value present with its count**, whatever this build does with it.
 - A value this build has never met is additionally **named in `warnings`** and marked *not treated as a monitor*.
 
+### 9b · The change request going to the field session, in full
+
+`fine` is **deliberately not added to `KNOWN_FLAGS`.** That list is sourced from the Manifest Contract, whose source of truth is **`PLAN-STAGE-1` §7 in the field repo**, and adding a value read out of the field's source would make this repo depend on a source it does not hold. `CLAUDE.md` §2: *"if something about it seems wrong, say so and stop — the owner routes the change to the Field team."*
+
+**And a contract listing three values today would go stale by design**, because `monitor` and `fine` both retire at v4. So the request is not "add `fine`" — it is the full form, versioned:
+
+> **Pin `flag` vocabulary.**
+>
+> - **At manifest v3:** `fine` · `monitor` · `issue`. All three settable in the shipping app.
+> - **At manifest v4:** `monitor` and `fine` retire. What remains is stated by the field session, not inferred here.
+> - **Archived v3 exports carry all three forever.** Retirement changes what a new export may contain; it does not reach backwards into one already written. A reader of a 2026 manifest in 2031 needs the 2026 vocabulary to be documented, and the only place that can live is the contract.
+
+**When the Contract carries that, `KNOWN_FLAGS` takes it** — versioned the same way, so a v3 import and a v4 import are each read against the vocabulary of their own manifest version. Until then the fail-open path runs and this document is the advance notice.
+
 ### 9a · `monitorsDue` is re-sourced at Increment 5, and the problem dissolves rather than defers
 
 **Design record §1 retires `monitor` and `fine` at v4.** The previous revision of this document left that as an open question — *what a monitor becomes under the ratified model* — with a third-state sentence covering the gap. **Field Code has answered it, and the answer is better than a successor vocabulary:**
@@ -311,7 +325,7 @@ So `sections` carries a count **and a sentence** per section, and the sentence d
 
 1. **Whether the three desk-facing `visit_date` read sites get pointed at `walkedAt()`** (§7d). Not built — outside the current slice, and the owner's call. One of the three renders the typed date into a sentence.
 2. **`monitorsDue` reads the field's `flag` vocabulary without interpreting it** until Increment 5 re-sources it. A value this build has not met is counted and reported, never guessed into being a monitor. If the field app expects a new flag to behave like one, it has to say so — the builder will not infer it.
-3. **`fine` will surface as unmet vocabulary the first time it is tapped** (§9). Expected, correct, and written down here so it is not read as a fault.
+3. **`fine` will surface as unmet vocabulary the first time it is tapped** (§9). Expected, correct, and written down here so it is not read as a fault. **The change request is §9b** — the full versioned form, not a third value, because a contract listing three today goes stale at v4.
 
 ---
 

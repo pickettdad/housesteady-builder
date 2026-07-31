@@ -233,9 +233,9 @@ app.post('/api/properties/:id/visits', (req, res) => {
   // records who booked it.
   const performedBy = req.body?.performedBy ? resolveOperator(db, String(req.body.performedBy)).id : null
   db.prepare(
-    `INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at, actor_id, performed_by)
+    `INSERT INTO visits (id, property_id, kind, planned_date, notes, created_at, actor_id, performed_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(id, req.params.id, kind, req.body?.visitDate ?? null, req.body?.notes ?? null, now(),
+  ).run(id, req.params.id, kind, req.body?.plannedDate ?? null, req.body?.notes ?? null, now(),
         acting(), performedBy)
   res.status(201).json(db.prepare('SELECT * FROM visits WHERE id = ?').get(id))
 })
@@ -882,13 +882,17 @@ app.post('/api/properties/:id/report/sign', (req, res) => {
     | undefined)?.display_name
   /**
    * When the house was walked, **from the manifest** — not the hand-typed
-   * `visits.visit_date`.
+   * `visits.planned_date`.
    *
    * That column is filled from a request body and no import path writes it, so
    * it can disagree with the evidence. It did: the first signed edition rendered
    * *"visited 2026-07-24"* against a session that began 2026-07-25T16:55Z. A
    * client-facing document must not carry an unchecked claim about when we were
    * in their house.
+   *
+   * Migration 015 renamed the column so the two facts have two names, and the
+   * render parameter is `walkedDate` for the same reason — a parameter called
+   * `visitDate` invites exactly the value that must never reach it.
    */
   const visit = db
     .prepare('SELECT id FROM visits WHERE property_id = ? ORDER BY created_at DESC LIMIT 1')
@@ -911,7 +915,7 @@ app.post('/api/properties/:id/report/sign', (req, res) => {
       clientNames: { version: names.version, hash: names.hash },
       houseStyleVersion: 'house-style/v001',
       property: { label: property.label, address: property.address },
-      visitDate: walked?.date ?? null,
+      walkedDate: walked?.date ?? null,
     })
     // The bytes are not in the response. They are the deliverable and they live
     // in the record; this says what was signed and where to read it.

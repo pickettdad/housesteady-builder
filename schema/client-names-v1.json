@@ -1,15 +1,16 @@
 {
   "schemaId": "housesteady.client-names",
-  "version": "1.3.0",
-  "date": "2026-07-30",
-  "note": "What a checklist item is CALLED when a homeowner reads it. Increment 4 Amendment 1 §C. The first twenty were named against a real gap list rather than chosen from the config — the reference export's twenty carried items — and ratified by the owner 2026-07-30.",
+  "version": "1.3.1",
+  "date": "2026-07-31",
+  "note": "What a checklist item is CALLED when a homeowner reads it. Increment 4 Amendment 1 §C. The first twenty were named against a real gap list rather than chosen from the config — the reference export's twenty carried items — and ratified by the owner 2026-07-31.",
   "ratification": {
     "note": "Every name in `names` is ratified. A name that is not here yet may exist as an unratified proposal in the `client_names` table, written inline in the editor; this file wins over that table, and promoting a proposal means writing it here.",
     "ratifiedBy": "owner",
-    "ratifiedAt": "2026-07-30",
+    "ratifiedAt": "2026-07-31",
     "draftedBy": "design session",
     "source": "the twenty carried items on the reference export (housesteady-019f9a33), field config v1.2.1",
-    "scope": "These twenty were named against a real gap list rather than chosen from the config. Nineteen are the ensuite's not-reached items; one is the close-out deferral. The int.* and wet.* entries come from the base interior and wet-room lists, so they recur in every room and every wet room respectively."
+    "scope": "These twenty were named against a real gap list rather than chosen from the config. Nineteen are the ensuite's not-reached items; one is the close-out deferral. The int.* and wet.* entries come from the base interior and wet-room lists, so they recur in every room and every wet room respectively.",
+    "dateCorrection": "1.3.1 corrects the date only. 1.3.0 recorded 2026-07-30 for a ratification that happened on the 31st — a session handoff's date carried forward without being re-checked. No name changed; the version moved so two files with different hashes do not both claim 1.3.0. It is corrected rather than left because this one is a factual claim about a person and a day."
   },
   "rules": {
     "note": "The standard the next tranche is written against. A client-facing name is a NOUN PHRASE FOR THE THING. The sentence around it carries what we did or did not do.",
@@ -24,7 +25,7 @@
   },
   "frames": {
     "note": "How a group of carried items is introduced to a client. Reason first, then room — because 'we could not reach it', 'we did not get to it' and 'we have held it over' are different statements and must not interleave. The frame carries once for the group; the items are a list of names underneath it.",
-    "status": "RATIFIED 2026-07-30, with three corrections from the design session after the first render. See `corrections` for what changed and why — each one is a claim the earlier wording made that the data did not support.",
+    "status": "RATIFIED 2026-07-31, with three corrections from the design session after the first render. See `corrections` for what changed and why — each one is a claim the earlier wording made that the data did not support.",
     "whyDeclaredRatherThanComposed": "Twenty rows reading 'X — in ensuite — was not covered on this visit' is machine output, and House Style is what stands between us and that. Fixing it by generating a different sentence per row moves the problem; the frame has to be a written thing a person can read and change.",
     "default": {
       "withRoom": "In the {room}, we did not cover:",

@@ -56,7 +56,13 @@ p.lede { color: var(--ink-soft); margin: 0 0 22px; }
   margin-bottom: 16px;
 }
 
-button {
+/*
+  `a.ghost` is here because the session-plan link is an anchor — it downloads a
+  file, and a button that navigates is the wrong element. Without it the anchor
+  keeps the browser's blue underline and sits between two styled buttons looking
+  like a different kind of thing. Caught in a screenshot, not in a test.
+*/
+button, a.ghost {
   font: inherit;
   padding: 7px 14px;
   border-radius: 5px;
@@ -65,7 +71,8 @@ button {
   color: #fff;
   cursor: pointer;
 }
-button.ghost { background: transparent; color: var(--accent); }
+a.ghost { text-decoration: none; }
+button.ghost, a.ghost { background: transparent; color: var(--accent); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 input[type="text"], input[type="date"], select {

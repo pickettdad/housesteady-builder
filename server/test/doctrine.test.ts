@@ -1684,23 +1684,41 @@ describe('Increment 4 §3 — the session plan is session data, never config', (
    * Two things with one name is how somebody eventually binds to the wrong one.
    */
   /**
-   * **Nothing client-facing reads the hand-typed visit date.**
+   * **Nothing client-facing reads the hand-typed planned date.**
    *
-   * `visits.visit_date` comes from a request body and no import path writes it,
-   * so it can disagree with the evidence — and it did: the first signed edition
-   * rendered *"visited 2026-07-24"* against a session that began
+   * `visits.planned_date` comes from a request body and no import path writes
+   * it, so it can disagree with the evidence — and it did: the first signed
+   * edition rendered *"visited 2026-07-24"* against a session that began
    * 2026-07-25T16:55Z, because a seed script typed a date nothing checked.
    *
    * The column stays, because a visit booked for next Tuesday genuinely has a
    * date and no manifest. It is simply not evidence.
+   *
+   * **Migration 015 renamed it from `visit_date`, and this scan now holds the
+   * name too.** Routing readers through `walkedAt()` stops anyone picking the
+   * wrong date today and leaves a column named `visit_date` holding something
+   * that is not the visit date — one field standing for two facts, which is the
+   * shape that has cost this repo three times (a zone `type` doing a nickname's
+   * job, `sinceImportedAt` describing a different import than `since`, and this).
+   * So the old name is forbidden **everywhere**, not only under `report/` and
+   * `plan/`: a reintroduced `visit_date` fails here rather than quietly starting
+   * the cycle again.
    */
   it('never lets a client-facing or field-facing date come from the typed field', () => {
     const offenders: string[] = []
     for (const file of sourceFiles(join(serverSrc, 'report')).concat(sourceFiles(join(serverSrc, 'plan')))) {
-      if (/\bvisit_date\b/.test(codeOf(file))) offenders.push(file.replace(repoRoot, ''))
+      if (/\bplanned_date\b|\bplannedDate\b/.test(codeOf(file))) offenders.push(file.replace(repoRoot, ''))
     }
     assert.deepEqual(offenders, [],
       'a client-facing document must not carry an unchecked claim about when we were in their house')
+
+    // The old name is gone from the source entirely. A migration is the record
+    // of the rename and may name it; nothing else may.
+    const revived = sourceFiles(serverSrc)
+      .filter((f) => !f.endsWith('.sql') && /\bvisit_date\b|\bvisitDate\b/.test(codeOf(f)))
+      .map((f) => f.replace(repoRoot, ''))
+    assert.deepEqual(revived, [],
+      'one field standing for two facts is the shape this rename removed; the old name does not come back')
 
     // And the one place that resolves it reads the session start, not the last
     // completion — a reopened session has more than one completion.

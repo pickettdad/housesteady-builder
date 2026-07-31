@@ -138,7 +138,7 @@ AI is not a convenience feature here. At one concierge the binder sounds like on
   - **The suggestion is shown, never pre-filled.** A guess sitting in the input box makes acceptance the default and rejection work. That inverts the burden and is how a wrong value gets ratified.
 - **Never AI:** priorities, the reserve figure, what to tell a client about a safety risk, anything constituting advice.
 
-Full plan, including which task lands in which increment: `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1_2026-07-25.md`.
+Full plan, including which task lands in which increment: `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1-1_2026-07-31.md`.
 
 ## 10. Design decisions already made (don't relitigate; ask if they seem wrong)
 
