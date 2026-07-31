@@ -14,6 +14,7 @@
  */
 
 import type { Db } from '../db/index.js'
+import { answersForProperty } from './answers.js'
 import { componentGraph, type ComponentGraph } from './components.js'
 import { noFacts, type FactSet } from './triggers.js'
 
@@ -56,6 +57,15 @@ export interface VisitFacts {
   disagreements: { flag: string; sessionSays: boolean; intakeSays: boolean }[]
   /** Anything the fact assembly could not settle. Surfaced, never absorbed. */
   warnings: string[]
+  /**
+   * §1f — what the recorded-value reader found, and what it did not.
+   *
+   * Null only where the import has no property, which the schema allows.
+   * Otherwise always present, including when it found nothing: *no item records
+   * a value*, *none has been answered*, and *the reader is looking in the wrong
+   * place* are three different facts behind one empty map.
+   */
+  answers: import('./answers.js').Answers | null
 }
 
 /**
@@ -150,13 +160,27 @@ export function factsForImport(db: Db, importId: string): VisitFacts {
     }
   }
 
+  /**
+   * §1f — recorded values, for `answer.*` conditions.
+   *
+   * **Property-scoped, not import-scoped, and deliberately.** A radon result
+   * arrives three months after the walk and a permit date comes from a document;
+   * an answer that only counted within its own import would make the whole class
+   * useless, since the late arrivals are the reason the builder owns it. The
+   * property's whole record is the answer set.
+   */
+  const propertyId = (db.prepare('SELECT property_id FROM imports WHERE id = ?').get(importId) as
+    | { property_id: string }
+    | undefined)?.property_id
+  const recorded = propertyId ? answersForProperty(db, propertyId) : null
+
   const base = {
     property,
     propertyVocabulary,
     zoneVocabulary,
     componentVocabulary,
     pinsAnywhere,
-    answers: new Map<string, unknown>(),
+    answers: recorded?.values ?? new Map<string, unknown>(),
   }
 
   const visit: FactSet = { ...noFacts(), ...base }
@@ -194,5 +218,9 @@ export function factsForImport(db: Db, importId: string): VisitFacts {
     )
   }
 
-  return { snapshot, graph, visit, byZone, disagreements: [], warnings }
+  // §1f's reader reports whether it found anything and why not. Carried up
+  // rather than swallowed: an empty answer set is three different facts.
+  if (recorded) warnings.push(...recorded.warnings)
+
+  return { snapshot, graph, visit, byZone, disagreements: [], warnings, answers: recorded }
 }

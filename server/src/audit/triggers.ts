@@ -86,8 +86,28 @@ export type Node =
   | { kind: 'any'; of: Node[] }
   | { kind: 'all'; of: Node[] }
   | { kind: 'not'; of: Node }
+  | { kind: 'compare'; ref: string; op: CompareOp; values: (string | number)[] }
 
-const NODE_KINDS = new Set(['always', 'ref', 'any', 'all', 'not'])
+const NODE_KINDS = new Set(['always', 'ref', 'any', 'all', 'not', 'compare'])
+
+/**
+ * §1f's operators. A closed set, and deliberately the exception to fail-open.
+ *
+ * Vocabulary fails open because a word the builder has not met is still a word.
+ * **An operator is structure**, and a condition using one nobody implemented
+ * cannot be evaluated in either direction — doctrine 7's second half, refuse
+ * loudly.
+ */
+export type CompareOp = 'in' | 'not-in' | '=' | '!=' | '>' | '>=' | '<' | '<='
+
+const COMPARE_OPS: Record<string, CompareOp> = {
+  in: 'in', 'not in': 'not-in',
+  '=': '=', '==': '=', '!=': '!=', '<>': '!=',
+  '>': '>', '>=': '>=', '<': '<', '<=': '<=',
+}
+
+/** True where the operator only makes sense against a number. */
+const NUMERIC: ReadonlySet<CompareOp> = new Set<CompareOp>(['>', '>=', '<', '<='])
 
 /**
  * Is this already a parsed tree?
@@ -101,6 +121,7 @@ const isNode = (o: Record<string, unknown>): boolean => {
   if (o.kind === 'always') return true
   if (o.kind === 'ref') return typeof o.ref === 'string'
   if (o.kind === 'not') return o.of !== undefined && !Array.isArray(o.of)
+  if (o.kind === 'compare') return typeof o.ref === 'string' && Array.isArray(o.values)
   return Array.isArray(o.of)
 }
 
@@ -171,6 +192,18 @@ function parseText(raw: string): Node {
     const word = text.slice(start, at).trim()
 
     skip()
+    /**
+     * **The comparison branch runs BEFORE the operator branch, and the order is
+     * load-bearing.**
+     *
+     * `answer.x in (clay, orangeburg)` reads up to the paren, so the word is
+     * `answer.x in` and the next character is `(` — which looks exactly like
+     * `any(...)` to the branch below. Checking for whitespace inside the word
+     * first is what tells a comparison from an operator call, and getting the
+     * order wrong refuses every `in` condition with *"in is not an operator."*
+     */
+    if (/\s/.test(word)) return comparison(word)
+
     if (text[at] === '(') {
       at++ // the paren
       const args: Node[] = []
@@ -196,7 +229,63 @@ function parseText(raw: string): Node {
 
     if (word === '' ) throw new ConditionRefused(`Missing operand in ${JSON.stringify(raw)}.`, raw)
     if (word === 'always') return { kind: 'always' }
+
     return { kind: 'ref', ref: word }
+  }
+
+  /**
+   * §1f — `answer.<itemId> <op> <value>`.
+   *
+   * The term is whatever ran up to the next paren or comma, so a comparison
+   * arrives here whole: `answer.fc.width > 5`. Split on whitespace rather than
+   * on the operator, because **an item id contains dots and may contain
+   * hyphens** — `answer.utl.drain-material-id` — and a regex hunting for `>` or
+   * `<` inside the whole string finds them in places they are not operators.
+   * Locate every boundary; never assume one.
+   */
+  const comparison = (word: string): Node => {
+    const parts = word.split(/\s+/)
+    {
+      const ref = parts[0]!
+      const opText = parts.length >= 3 && `${parts[1]} ${parts[2]}` in COMPARE_OPS
+        ? `${parts[1]} ${parts[2]}`   // `not in`
+        : parts[1]!
+      const op = COMPARE_OPS[opText]
+      if (!op) {
+        throw new ConditionRefused(
+          `"${opText}" is not a comparison operator. The set is ${Object.keys(COMPARE_OPS).join(', ')}.`,
+          raw,
+        )
+      }
+      const rest = parts.slice(opText.includes(' ') ? 3 : 2).join(' ').trim()
+
+      // `in (a, b)` — the tokenizer stopped at the paren, so read the list here.
+      if (op === 'in' || op === 'not-in') {
+        if (rest !== '') {
+          throw new ConditionRefused(`"${op}" takes a parenthesised list: ${ref} in (a, b).`, raw)
+        }
+        skip()
+        if (text[at] !== '(') throw new ConditionRefused(`"${op}" takes a parenthesised list.`, raw)
+        at++
+        const values: (string | number)[] = []
+        for (;;) {
+          skip()
+          const from = at
+          while (at < text.length && !'(),'.includes(text[at]!)) at++
+          const value = text.slice(from, at).trim()
+          if (value === '') throw new ConditionRefused(`Empty value in "${ref} ${op} (...)".`, raw)
+          values.push(literal(value))
+          skip()
+          if (text[at] === ',') { at++; continue }
+          if (text[at] === ')') { at++; break }
+          throw new ConditionRefused(`Expected "," or ")" in "${ref} ${op} (...)".`, raw)
+        }
+        return { kind: 'compare', ref, op, values }
+      }
+
+      if (rest === '') throw new ConditionRefused(`"${ref} ${opText}" has no value to compare against.`, raw)
+      return { kind: 'compare', ref, op, values: [literal(rest)] }
+    }
   }
 
   const node = parseNode()
@@ -205,6 +294,21 @@ function parseText(raw: string): Node {
     throw new ConditionRefused(`Trailing input after the condition: ${JSON.stringify(text.slice(at))}.`, raw)
   }
   return node
+}
+
+/**
+ * A bare value from a condition: a number where it is one, a string otherwise.
+ *
+ * **Quotes are stripped and nothing else is coerced.** `5` is the number five;
+ * `clay` is the string clay; `05` stays the string `05`, because a `choice`
+ * option id that happens to look numeric is still an id, and turning it into 5
+ * would make it compare equal to `5.0`.
+ */
+function literal(raw: string): string | number {
+  const text = raw.replace(/^["']|["']$/g, '').trim()
+  // Strict: an optional sign, digits, an optional single decimal part. Not
+  // `parseFloat`, which reads "5mm" as 5 and would silently drop a unit.
+  return /^-?\d+(\.\d+)?$/.test(text) ? Number(text) : text
 }
 
 // -------------------------------------------------------------- the evaluation
@@ -230,12 +334,37 @@ export interface Verdict {
   unrecognised: string[]
   /** Every id that was recognised and consulted, for the explicability record. */
   consulted: string[]
+  /**
+   * §1f — a comparison that could not be made, and why.
+   *
+   * **Distinct from `unrecognised`, and rule 6 is the reason.** Unrecognised
+   * says *the builder has not met this word.* This says *the value is here and
+   * the comparison is undefined against it* — `answer.fc.width > 5` where the
+   * recorded width is the string `"hairline"`. JavaScript answers that `false`
+   * without complaint, which would silently decide a crack is not wide.
+   *
+   * Both resolve to unknown and both fail open. They send a person to different
+   * places, so they are different fields.
+   */
+  uncomparable: string[]
+  /**
+   * Every `choice` option value a condition compared against.
+   *
+   * §1f: *"the master's `choice` option values are now this repo's condition
+   * vocabulary. Renaming or removing an option is a breaking change here, not a
+   * content edit."* A caller holding the config can check these against what it
+   * declares; the evaluator cannot, because it is standalone by doctrine and
+   * reads no config.
+   */
+  compared: string[]
 }
 
 export function evaluate(condition: unknown, facts: FactSet): Verdict {
   const node = parseCondition(condition)
   const unrecognised: string[] = []
   const consulted: string[] = []
+  const uncomparable: string[] = []
+  const compared: string[] = []
 
   const walk = (n: Node): Tri => {
     switch (n.kind) {
@@ -243,6 +372,8 @@ export function evaluate(condition: unknown, facts: FactSet): Verdict {
         return true
       case 'ref':
         return lookup(n.ref, facts, unrecognised, consulted)
+      case 'compare':
+        return compare(n, facts, unrecognised, consulted, uncomparable, compared)
       case 'not': {
         const v = walk(n.of)
         return v === 'unknown' ? 'unknown' : !v
@@ -266,8 +397,97 @@ export function evaluate(condition: unknown, facts: FactSet): Verdict {
     certain: value !== 'unknown',
     unrecognised: [...new Set(unrecognised)].sort(),
     consulted: [...new Set(consulted)].sort(),
+    uncomparable: [...new Set(uncomparable)].sort(),
+    compared: [...new Set(compared)].sort(),
   }
 }
+
+/**
+ * §1f — one comparison against a recorded answer.
+ *
+ * **Three outcomes, and the middle one is the point.** The answer is recorded and
+ * comparable → true or false. The answer is not recorded at all → unknown, which
+ * is honest: a radon result that arrives in three months has not said *no*. The
+ * answer is recorded and the comparison is undefined against it → unknown, and
+ * reported as `uncomparable` rather than folded in with the first.
+ *
+ * The last is the one that would otherwise ship silently. `"hairline" > 5` is
+ * `false` in JavaScript and reads as *the crack is not over 5mm*, which is a
+ * decision about a house made by a coercion rule.
+ */
+function compare(
+  n: { ref: string; op: CompareOp; values: (string | number)[] },
+  facts: FactSet,
+  unrecognised: string[],
+  consulted: string[],
+  uncomparable: string[],
+  compared: string[],
+): Tri {
+  const dot = n.ref.indexOf('.')
+  const namespace = dot < 0 ? '' : n.ref.slice(0, dot)
+  const name = dot < 0 ? n.ref : n.ref.slice(dot + 1)
+
+  // Only `answer.*` carries values. A comparison against a flag is a category
+  // error — `property.gas > 5` asks a boolean how big it is — and it is refused
+  // as structure rather than answered.
+  if (namespace !== 'answer') {
+    throw new ConditionRefused(
+      `Only \`answer.*\` conditions compare against a value; "${n.ref}" is \`${namespace || 'no namespace'}\`.`,
+      n.ref,
+    )
+  }
+
+  for (const v of n.values) if (typeof v === 'string') compared.push(v)
+
+  if (!facts.answers.has(name)) {
+    // Not recorded YET. §1f exists because half these inputs arrive late.
+    unrecognised.push(n.ref)
+    return 'unknown'
+  }
+  consulted.push(n.ref)
+  const held = facts.answers.get(name)
+
+  if (n.op === 'in' || n.op === 'not-in') {
+    // Compared as written. A `choice` option id is a string, and `05` matching
+    // `5` because both became numbers is the failure `literal` avoids.
+    const hit = n.values.some((v) => sameValue(v, held))
+    return n.op === 'in' ? hit : !hit
+  }
+
+  if (n.op === '=' || n.op === '!=') {
+    const hit = sameValue(n.values[0]!, held)
+    return n.op === '=' ? hit : !hit
+  }
+
+  // Numeric from here. A recorded value that is not a number cannot be ordered
+  // against one, and coercing it is how a string decides a threshold.
+  const target = n.values[0]
+  const actual = typeof held === 'number' ? held : typeof held === 'string' && /^-?\d+(\.\d+)?$/.test(held.trim())
+    ? Number(held)
+    : null
+  if (actual === null || typeof target !== 'number') {
+    uncomparable.push(`${n.ref} ${n.op} ${String(target)} — recorded value is ${JSON.stringify(held)}`)
+    return 'unknown'
+  }
+  switch (n.op) {
+    case '>': return actual > target
+    case '>=': return actual >= target
+    case '<': return actual < target
+    case '<=': return actual <= target
+  }
+}
+
+/**
+ * Equality that does not coerce across types, with one deliberate exception.
+ *
+ * A recorded number 5 and a written `5` are the same value — `literal` already
+ * read the written one as a number, so both sides are numbers and this is plain
+ * equality. A recorded string `"5"` against a written `5` is **not** treated as
+ * equal: the master's option ids are strings, and a config that writes `5` when
+ * it means the option `"5"` is a config to fix.
+ */
+const sameValue = (written: string | number, held: unknown): boolean =>
+  typeof held === typeof written && held === written
 
 /**
  * One reference, in one namespace.

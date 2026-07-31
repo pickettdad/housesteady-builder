@@ -27,6 +27,8 @@ import { freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR
 const ATTRIBUTED = [
   'properties', 'visits', 'imports', 'passes', 'pass_zone_opens', 'pass_events',
   'desk_media', 'ai_jobs', 'ai_generations', 'overlays',
+  // Increment 4 §7. An hour is only a pricing basis if you know whose.
+  'desk_work',
 ]
 
 describe('the operator registry', () => {
@@ -178,7 +180,7 @@ describe('every attributed row records who acted', () => {
    * specified are all refused identically — which is what "survives the next
    * feature" has to mean.
    */
-  it('refuses an unattributed insert on all ten tables', () => {
+  it('refuses an unattributed insert on every attributed table', () => {
     const triggers = new Set(
       (db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as { name: string }[])
         .map((r) => r.name),
