@@ -106,6 +106,16 @@ export interface DraftRow {
  * single total would stop meaning anything the month that lands.
  */
 export interface MediaSummary {
+  /**
+   * Whether this is a pin's media or a room's — and the two must not be worded
+   * alike.
+   *
+   * A zone-scoped row saying *"this pin holds 23 photos"* is false twice: it is
+   * a room, and the twenty-three are of the room rather than of the thing the
+   * row is about. The false version shipped in the first screenshot of this
+   * screen, on every one of nineteen rows.
+   */
+  ofWhat: 'pin' | 'room'
   ofKind: { kind: string; count: number; bytes: number }[]
   total: number
   /** The most recent few, so the reviewer can actually look. */
@@ -364,7 +374,8 @@ function mediaFor(db: Db, propertyId: string, pinId: string | null, zoneId: stri
           WHERE i.property_id = ? AND m.owner_zone_id = ? ORDER BY m.captured_at DESC`,
       ).all(propertyId, zoneId) as MediaRow[])
 
-  if (rows.length === 0) return { ofKind: [], total: 0, recent: [] }
+  const ofWhat = pinId ? 'pin' as const : 'room' as const
+  if (rows.length === 0) return { ofWhat, ofKind: [], total: 0, recent: [] }
 
   const byKind = new Map<string, { count: number; bytes: number }>()
   for (const r of rows) {
@@ -378,6 +389,7 @@ function mediaFor(db: Db, propertyId: string, pinId: string | null, zoneId: stri
   }
 
   return {
+    ofWhat,
     ofKind: [...byKind].map(([kind, v]) => ({ kind, ...v })).sort((a, b) => b.count - a.count),
     total: rows.length,
     recent: rows.slice(0, 6).map((r) => ({ mediaId: r.media_id, kind: r.kind ?? 'unknown', capturedAt: r.captured_at })),

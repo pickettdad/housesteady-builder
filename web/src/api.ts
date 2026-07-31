@@ -837,6 +837,8 @@ export interface DraftRow {
    * that most needed saying.
    */
   media: {
+    /** A pin's media or a room's. Worded differently, because they claim different things. */
+    ofWhat: 'pin' | 'room'
     ofKind: { kind: string; count: number; bytes: number }[]
     total: number
     recent: { mediaId: string; kind: string; capturedAt: string | null }[]
@@ -853,5 +855,15 @@ export interface Draft {
   columns: { id: string; title: string; rows: DraftRow[] }[]
   /** Rows the client render cannot carry, with the reason. Never silently dropped. */
   withheld: DraftRow[]
+  /** Written inline, still awaiting the design session. Empties when the file carries the item. */
   unratifiedNames: { id: string; itemId: string; name: string; actorId: string; at: string }[]
+  /**
+   * Proposals the ratified file has since settled, with both wordings.
+   *
+   * Read for a different reason than the queue: not work to do, but how the
+   * wording moved. **If these routinely differ a lot the fault is in the naming
+   * guidance, not in the concierge** — the same reading the house style takes of
+   * a high rewrite rate.
+   */
+  supersededNames: { itemId: string; proposed: string; ratified: string; actorId: string; at: string }[]
 }

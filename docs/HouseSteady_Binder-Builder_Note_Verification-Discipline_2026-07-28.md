@@ -187,6 +187,40 @@ This is rule 3 pointed at control flow rather than at data: *establish an indepe
 count before trusting a parse* becomes **establish which branch actually runs before
 trusting a design.**
 
+### 8. A scan that fires falsely has still fired — investigate what it caught before narrowing it
+
+*(Added 2026-07-31.)*
+
+**The reflex is to fix the check. The discipline is to read the finding first.**
+
+The instance. A new doctrine scan — *no client-facing string may contain an item id* —
+fired on `the ${zone.type}` inside a template literal in the report directory. That is a
+property access, not an item id, and the scan was matching the raw source text of an
+interpolation. **A false positive, and the obvious response was to narrow the pattern.**
+
+Reading it instead: `zone.type` holds config vocabulary — `living-space`, `utility`,
+`bathroom` — and that string was being composed into the location clause of a
+**client-facing sentence** for any room nobody had labelled. *"The living-space — was not
+covered on this visit."* Config vocabulary in a homeowner's document, which is the exact
+failure the scan's section exists to prevent, sitting in already-merged code and reached by
+a path no test covered.
+
+The fix was two registers rather than one: a desk display that may name a zone type, and a
+client-safe label that carries only what a person actually wrote. **And then the scan
+passed on its own terms**, because the offending template no longer lived in the
+client-facing directory at all — which is the tell that the finding was real. A narrowed
+pattern would have left the defect, the scan, and the false positive all in place.
+
+**Distinct from rule 5**, and worth keeping separate. Rule 5 is *fixing the symptom instead
+of the class* — the fix is real but too small. This is *fixing the check instead of reading
+the finding* — the fix is aimed at the wrong object entirely, and it destroys the evidence
+on its way past.
+
+**The working question is not "is this pattern too broad."** It is **"why did the code look
+like the thing I was scanning for."** Sometimes the answer is a coincidence of syntax.
+Sometimes the pattern recognised something real that nobody had named yet, which is what a
+scan is for.
+
 ---
 
 ## Consequences already in the code

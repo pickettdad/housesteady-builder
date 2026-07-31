@@ -113,6 +113,29 @@ export function GapReportView({ propertyId }: { propertyId: string }) {
         </section>
       )}
 
+      {draft.supersededNames.length > 0 && (
+        <section className="card">
+          <h3>
+            Names the design session settled differently{' '}
+            <span className="muted small">— what was written here, and what shipped</span>
+          </h3>
+          <ul className="gaps">
+            {draft.supersededNames.map((n) => (
+              <li key={n.itemId}>
+                <strong>{n.ratified}</strong>{' '}
+                <span className="muted small">
+                  ratified · written here as “{n.proposed}” by {n.actorId}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="muted small">
+            A pattern of large differences is a signal about the naming guidance rather than
+            about whoever wrote them.
+          </p>
+        </section>
+      )}
+
       {draft.unratifiedNames.length > 0 && (
         <section className="card">
           <h3>
@@ -251,10 +274,22 @@ function Row({
       {row.media && (
         <div className="muted small">
           {row.media.total === 0
-            ? 'nothing captured on this pin'
-            : `this pin holds ${row.media.ofKind.map((k) => `${k.count} ${k.kind}`).join(' · ')}`}
+            ? `nothing captured on this ${row.media.ofWhat}`
+            : `this ${row.media.ofWhat} holds ${row.media.ofKind
+                .map((k) => `${k.count} ${k.kind}${k.count === 1 ? '' : 's'}`)
+                .join(' · ')}`}
           {row.media.total > 0 && (
-            <> — <span className="muted">check before signing that this row is not about one of them</span></>
+            <>
+              {' — '}
+              <span className="muted">
+                {row.media.ofWhat === 'room'
+                  // A room's photographs say nothing about whether THIS item was
+                  // captured, and a sentence that blurs the two would turn the
+                  // affordance into false reassurance.
+                  ? 'photographs of the room, not of this item — check before signing'
+                  : 'check before signing that this row is not about one of them'}
+              </span>
+            </>
           )}
         </div>
       )}

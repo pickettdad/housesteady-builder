@@ -16,7 +16,7 @@ import { startDrain } from './ai/worker.js'
 import type { ColumnId } from './audit/carriedItems.js'
 import { latestRun, runAudit } from './audit/run.js'
 import { addManualRow, buildDraft, rowTrail, writeEdit, type EditKind } from './report/draft.js'
-import { describeItems, naLabelMap, unratifiedNames, writeName } from './report/names.js'
+import { describeItems, naLabelMap, supersededNames, unratifiedNames, writeName } from './report/names.js'
 import { SchemaRefused } from './audit/schema.js'
 import { newId, now, openDb } from './db/index.js'
 import {
@@ -765,7 +765,7 @@ app.get('/api/properties/:id/report', (req, res) => {
   const draft = buildDraft({
     db, propertyId: property.id, describe: describeItems(db), labels: naLabelMap(),
   })
-  res.json({ ...draft, unratifiedNames: unratifiedNames(db) })
+  res.json({ ...draft, unratifiedNames: unratifiedNames(db), supersededNames: supersededNames(db) })
 })
 
 /** One editorial decision. Append-only — nothing here updates or deletes a row. */

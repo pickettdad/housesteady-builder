@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { before, describe, it } from 'node:test'
 import { activeItemKey, activeItemSet, itemScopeKey } from '../src/audit/activeItems.js'
 import { carriedItems } from '../src/audit/carriedItems.js'
@@ -8,7 +10,7 @@ import type { Db } from '../src/db/index.js'
 import { runImport } from '../src/import/runImport.js'
 import { clientRow, coverage, describeFromNames, withheld } from '../src/report/clientVoice.js'
 import { loadClientNames, naLabelMap } from '../src/report/names.js'
-import { addVisit, freshDb, makePropertyAndVisit, readReference, readReferenceAsRewalk, scratchDir, TEST_OPERATOR } from './helpers.js'
+import { addVisit, freshDb, makePropertyAndVisit, readReference, readReferenceAsRewalk, repoRoot, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
  * §1a's twenty, and the derivation that produces it.
@@ -400,15 +402,76 @@ describe('the client-facing name table', () => {
       'each of these would then be wrapped in the composer\'s own dashes')
   })
 
-  it('ships a names table that is empty, and says so rather than reading the config', () => {
+  /**
+   * The twenty, ratified 2026-07-30 and installed.
+   *
+   * **Named against a real gap list rather than chosen from the config** — the
+   * reference export's twenty carried items. That ordering is the whole reason
+   * the content pass was worth waiting for: a name cannot be written well in the
+   * abstract, because *"Windows"* versus *"Window operation and seals"* depends
+   * on the sentence it lands in.
+   */
+  it('ships the ratified twenty, and nothing beyond them', () => {
     const names = loadClientNames()
-    assert.equal(names.declared, 0,
-      'naming 266 items in HouseSteady\'s voice is a content pass, and an approximation would make acceptance the default')
+    assert.equal(names.declared, 20)
     assert.ok(names.hash.length === 64, 'content-hashed like every other config file here')
-    for (const item of items.slice(0, 20)) {
-      assert.equal(names.describe(item.id), undefined,
-        `${item.id} must have no name until a human writes one — the config's text is an instruction, not a name`)
+
+    // Everything named is ratified BY BEING IN THE FILE. The file is reviewed
+    // config; getting a name into it is the ratification.
+    assert.deepEqual(names.describe('int.canvas'), { text: 'Room photographs', ratified: true })
+    assert.deepEqual(names.describe('wet.under-sink'), { text: 'Under-sink plumbing', ratified: true })
+
+    // And the other 246 still have none. The withholding path stays live, which
+    // is what stops the next tranche from being invented rather than written.
+    const unnamed = items.filter((i) => names.describe(i.id) === undefined)
+    assert.equal(unnamed.length, 246, 'the rest are still a content pass, not a fallback')
+  })
+
+  /**
+   * Every ratified name obeys the rules the design session wrote down with them.
+   *
+   * Asserted rather than trusted, because the whole point of the twenty is that
+   * the config's own text broke exactly these — and a twenty-first added by hand
+   * would break them the same way without anybody noticing.
+   */
+  it('holds every ratified name to the naming rules', () => {
+    const names = JSON.parse(
+      readFileSync(join(repoRoot, 'schema', 'client-names-v1.json'), 'utf8'),
+    ) as { names: Record<string, string> }
+
+    const offenders: string[] = []
+    for (const [id, name] of Object.entries(names.names)) {
+      if (/\bissues?\b/i.test(name)) offenders.push(`${id}: contains "issue" — House Style §7`)
+      if (/\b(suspect|defects?|failures?|serious|minor|major)\b/i.test(name)) offenders.push(`${id}: judgement word`)
+      if (/\bpin(ned|s|ning)?\b/i.test(name)) offenders.push(`${id}: "pin" as internal vocabulary`)
+      if (/[;/*]/.test(name)) offenders.push(`${id}: instruction syntax`)
+      if (/^(photograph|check|confirm|test|record|note|measure|open|run|verify|inspect)\b/i.test(name)) {
+        offenders.push(`${id}: a verb of our activity, not a noun phrase for the thing`)
+      }
+      if (/[a-z]{2,4}\.[a-z][a-z-]+/.test(name)) offenders.push(`${id}: an item id`)
     }
+    assert.deepEqual(offenders, [], 'a client-facing name is a noun phrase for the thing')
+  })
+
+  /**
+   * The test the design session wrote into the file: does it read correctly
+   * inside the sentence the composer builds?
+   */
+  it('reads correctly inside the composed sentence', () => {
+    const names = loadClientNames()
+    const row = clientRow(
+      {
+        scope: { kind: 'zone', zoneId: 'z1', pinId: null }, itemId: 'wet.under-sink', tier: 'core',
+        reason: 'not-reached', naReasonId: null, column: 'missing-from-us',
+        parts: { what: 'wet.under-sink in the ensuite' }, status: null, origin: 'computed',
+        dueSince: { importId: 'i1', visitId: 'v1', at: '2026-07-30' },
+        where: 'the ensuite', whereLabel: 'the ensuite', itemText: null, certain: true, unrecognised: [],
+      },
+      names.describe,
+      naLabelMap(),
+    )
+    assert.equal(row!.text, 'Under-sink plumbing — in the ensuite — was not covered on this visit.')
+    assert.equal(row!.nameRatified, true)
   })
 
   /**
@@ -424,11 +487,22 @@ describe('the client-facing name table', () => {
     await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
     const run = runAudit({ db, propertyId: ids.propertyId, visitId: ids.visitId, visitKind: 'baseline', actorId: TEST_OPERATOR })
 
+    // With the twenty ratified, all twenty are writable — which is what the
+    // content pass bought. The mechanism still reports both numbers, because a
+    // twenty-first item arriving unnamed has to be visible immediately.
     assert.equal(run.clientCoverage.total, 20)
-    assert.equal(run.clientCoverage.renderable, 0)
-    assert.equal(run.clientCoverage.withheld, 20)
-    assert.equal(run.clientCoverage.namesDeclared, 0)
-    assert.ok(run.warnings.some((w) => /declares no names at all/.test(w)),
+    assert.equal(run.clientCoverage.renderable, 20)
+    assert.equal(run.clientCoverage.withheld, 0)
+    assert.equal(run.clientCoverage.namesDeclared, 20)
+
+    // And the withheld path, on an empty file, still says so loudly.
+    const empty = { version: '0', hash: 'x', declared: 0, describe: () => undefined }
+    const bare = runAudit({
+      db, propertyId: ids.propertyId, visitId: ids.visitId, visitKind: 'baseline',
+      actorId: TEST_OPERATOR, clientNames: empty,
+    })
+    assert.equal(bare.clientCoverage.withheld, 20)
+    assert.ok(bare.warnings.some((w) => /declares no names at all/.test(w)),
       'the empty state has to arrive as a warning, not as an empty list nobody queries')
   })
 
