@@ -13,7 +13,10 @@ import { queueAssists } from './ai/tasks/index.js'
 import { PIN_TYPE_TASK } from './ai/tasks/pinType.js'
 import { ROUTING_TASK } from './ai/tasks/routing.js'
 import { startDrain } from './ai/worker.js'
+import type { ColumnId } from './audit/carriedItems.js'
 import { latestRun, runAudit } from './audit/run.js'
+import { addManualRow, buildDraft, rowTrail, writeEdit, type EditKind } from './report/draft.js'
+import { describeItems, naLabelMap, unratifiedNames, writeName } from './report/names.js'
 import { SchemaRefused } from './audit/schema.js'
 import { newId, now, openDb } from './db/index.js'
 import {
@@ -740,6 +743,112 @@ app.get('/api/visits/:id/media/:mediaId/thumb', async (req, res) => {
   }
   const media = findMedia(db, req.params.id, req.params.mediaId)
   sendResolution(res, await thumbnail(media, width))
+})
+
+// ---------------------------------------------------------- the gap report
+
+/**
+ * The gap report as an editable draft — Increment 4 §1d and §5.
+ *
+ * **Read is a projection, never a stored document.** The rows come from the
+ * latest audit run plus the append-only edit log, resolved on read. A stored
+ * draft would be a second copy of the audit's answer, free to drift from it the
+ * moment the audit re-runs — and the whole reason edits key on the row rather
+ * than on the run is that an editorial decision survives a re-run.
+ */
+app.get('/api/properties/:id/report', (req, res) => {
+  const property = db.prepare('SELECT id FROM properties WHERE id = ?').get(req.params.id) as
+    | { id: string }
+    | undefined
+  if (!property) return res.status(404).json({ error: 'No such property.' })
+
+  const draft = buildDraft({
+    db, propertyId: property.id, describe: describeItems(db), labels: naLabelMap(),
+  })
+  res.json({ ...draft, unratifiedNames: unratifiedNames(db) })
+})
+
+/** One editorial decision. Append-only — nothing here updates or deletes a row. */
+app.post('/api/properties/:id/report/rows/:rowKey/:kind', (req, res) => {
+  const property = db.prepare('SELECT id FROM properties WHERE id = ?').get(req.params.id) as
+    | { id: string }
+    | undefined
+  if (!property) return res.status(404).json({ error: 'No such property.' })
+
+  const kind = req.params.kind
+  if (!['include', 'exclude', 'reword', 'retire', 'column'].includes(kind)) {
+    return res.status(400).json({ error: `${kind} is not an edit this build makes.` })
+  }
+  if (kind === 'reword' && !String(req.body?.text ?? '').trim()) {
+    // An empty rewording would silently blank a row that had a sentence. The
+    // way to remove a row is to exclude it, which says so in the record.
+    return res.status(400).json({ error: 'A rewording needs words. To remove a row, exclude it.' })
+  }
+
+  try {
+    const id = writeEdit({
+      db, propertyId: property.id, rowKey: req.params.rowKey,
+      kind: kind as EditKind, payload: req.body ?? {}, actorId: acting(),
+    })
+    res.status(201).json({ id })
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    throw e
+  }
+})
+
+/** §1d — a row the concierge types. Provenance `human-entered`, always. */
+app.post('/api/properties/:id/report/rows', (req, res) => {
+  const property = db.prepare('SELECT id FROM properties WHERE id = ?').get(req.params.id) as
+    | { id: string }
+    | undefined
+  if (!property) return res.status(404).json({ error: 'No such property.' })
+
+  const text = String(req.body?.text ?? '').trim()
+  if (!text) return res.status(400).json({ error: 'A row needs words.' })
+
+  try {
+    const rowKey = addManualRow({
+      db, propertyId: property.id, text,
+      column: (req.body?.column as ColumnId) ?? 'missing-from-you',
+      actorId: acting(),
+    })
+    res.status(201).json({ rowKey })
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    throw e
+  }
+})
+
+/** Every edit made to one row, oldest first — §5's trace-back. */
+app.get('/api/properties/:id/report/rows/:rowKey/trail', (req, res) => {
+  res.json(rowTrail(db, req.params.id, req.params.rowKey))
+})
+
+/**
+ * A client-facing name, written inline — Amendment 1 §C plus the ratification gate.
+ *
+ * **Unratified by construction.** This route cannot set `ratified_at`; the
+ * insert hardcodes NULL. A name is company-wide the moment it is written, so it
+ * is usable here and marked everywhere until the design session confirms it —
+ * and confirming is deliberately not a route this app offers, because the
+ * person confirming is not the person at the editor.
+ */
+app.post('/api/client-names', (req, res) => {
+  const itemId = String(req.body?.itemId ?? '').trim()
+  const name = String(req.body?.name ?? '').trim()
+  if (!itemId || !name) return res.status(400).json({ error: 'A name needs an item and words.' })
+
+  try {
+    const id = writeName({
+      db, itemId, name, actorId: acting(),
+      propertyId: req.body?.propertyId ? String(req.body.propertyId) : null,
+    })
+    res.status(201).json({ id, ratified: false })
+  } catch (e) {
+    if (operatorGuard(res, e)) return
+    throw e
+  }
 })
 
 const port = Number(process.env.PORT ?? 5174)

@@ -17,6 +17,8 @@ import { newId, now } from '../db/index.js'
 import { activeItemKey, activeItemSet, type ItemScope } from './activeItems.js'
 import { bindProperty, type BindingReport, type ItemBinding } from './binding.js'
 import { carriedItems, type CarriedItems, type StatusCheck } from './carriedItems.js'
+import { coverage, describeCoverage, type ClientCoverage } from '../report/clientVoice.js'
+import { loadClientNames, type ClientNames } from '../report/names.js'
 import {
   assessItem, assessSlot, gapList, naReasonsOf, rollUp,
   type ItemAssessment, type SlotAssessment, type SlotEvidence,
@@ -55,6 +57,14 @@ export interface AuditResult {
   carried: CarriedItems
   /** §1c — where `activeItems[].status` and `resolutions[]` disagree. Reported, never resolved. */
   statusDisagreements: StatusCheck[]
+  /**
+   * Amendment 1 §C — how much of the stream can be written for a client.
+   *
+   * On the run rather than on the render, because withholding is the safe branch
+   * and a safe branch firing on everything is indistinguishable from one firing
+   * on nothing until somebody counts it.
+   */
+  clientCoverage: ClientCoverage
 }
 
 /**
@@ -154,6 +164,8 @@ export function runAudit(args: {
   actorId: string
   schema?: LoadedSchema
   profile?: LoadedProfile
+  /** The client-facing name table. Injectable so a test can hand it names. */
+  clientNames?: ClientNames
 }): AuditResult {
   const { db, propertyId, visitKind, actorId } = args
   const visitId = args.visitId ?? null
@@ -281,6 +293,21 @@ export function runAudit(args: {
   const scoped = scopedResolutions(db, propertyId)
   const stream = carriedItems({ evidence, active, resolutions: scoped })
   warnings.push(...stream.carried.warnings)
+
+  /**
+   * How much of this could actually be written for a client — Amendment 1 §C.
+   *
+   * **Computed on every run, not only when a report is rendered.** Withholding
+   * is the safe branch, and a safe branch that fires on everything looks exactly
+   * like one that fires on nothing. The count is what tells the two apart, so it
+   * belongs on the run rather than on the render — a number nobody sees until
+   * they open the report is a number nobody sees.
+   */
+  const names = args.clientNames ?? loadClientNames()
+  const clientCoverage = coverage(stream.carried.items, names.describe, names.declared)
+  if (clientCoverage.withheld > 0) {
+    warnings.push(...describeCoverage(clientCoverage))
+  }
   for (const d of stream.statusDisagreements) {
     warnings.push(
       `${d.itemId} at ${d.scopeKey}: the export's active-item status says ${d.declared}, ` +
@@ -354,14 +381,15 @@ export function runAudit(args: {
     const insCarried = db.prepare(
       `INSERT INTO audit_carried_items (audit_run_id, scope_kind, scope_zone_id, scope_pin_id,
          item_id, reason, na_reason_id, column_id, parts, due_since_import_id, due_since_at,
-         origin, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         origin, status, where_desk, where_label, item_text, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     for (const item of stream.carried.items) {
       insCarried.run(
         runId, item.scope.kind, item.scope.zoneId, item.scope.pinId, item.itemId,
         item.reason, item.naReasonId, item.column, JSON.stringify(item.parts),
-        item.dueSince.importId, item.dueSince.at, item.origin, item.status, at,
+        item.dueSince.importId, item.dueSince.at, item.origin, item.status,
+        item.where, item.whereLabel, item.itemText, at,
       )
     }
   })()
@@ -369,6 +397,7 @@ export function runAudit(args: {
   return {
     runId, provenance, slots, sections, gaps: gapList(slots), binding, warnings, triggerFacts,
     contributions, carried: stream.carried, statusDisagreements: stream.statusDisagreements,
+    clientCoverage,
   }
 }
 

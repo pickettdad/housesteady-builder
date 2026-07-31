@@ -153,6 +153,40 @@ In every case the two-state version reports the unknown case **as the safe one**
 exactly backwards: the unknown case is where confident wrongness lives. The third state is
 almost never expensive and is almost always where the honesty is.
 
+### 7. A fallback whose input is always present is not a fallback
+
+*(Added 2026-07-31.)*
+
+**It is the only path, and it never announces itself.**
+
+Three instances, and what makes them one rule is that all three produced **fluent,
+plausible output that no behavioural test could fail**:
+
+- **`proposed`.** Without the state, an item with a photograph sitting on its pin
+  unconfirmed is indistinguishable from an item nobody touched. The report reads *"we did
+  not capture this"* about a photograph we are holding — a correct-looking sentence about
+  a real item, wrong only in a way you have to already know to look for.
+- **The twenty.** Zone scope alone produces the reference export's twenty carried items,
+  because the other two scopes happen to be fully answered. A stream two-thirds unbuilt
+  passes a total-of-twenty check and stays silent until an export arrives with an
+  unanswered component item.
+- **The client-facing name.** The composer read each checklist item's `text` as its name,
+  with a withholding branch for items that had none. **All 266 items have one**, so the
+  branch never ran and the report rendered concierge instructions verbatim — *"Windows
+  operated, locked, latched; seal-fog noted — pin defects"*, four of them containing the
+  word *issue*, which House Style bans outright.
+
+**The tell is structural, not behavioural, which is why the check is a count.** In each
+case there is a branch written for the case where the input is missing, and the input is
+never missing — so the branch is dead code that reads as prudence, and the path that
+actually runs was never the one anybody reviewed. **Count how often the safe branch
+fires.** If it is zero, the safe branch is decoration; if it is everything, the mechanism
+is not doing what its name says. Both are invisible until counted.
+
+This is rule 3 pointed at control flow rather than at data: *establish an independent
+count before trusting a parse* becomes **establish which branch actually runs before
+trusting a design.**
+
 ---
 
 ## Consequences already in the code

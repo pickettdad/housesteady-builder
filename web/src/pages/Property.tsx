@@ -62,6 +62,9 @@ export function PropertyPage({ id }: { id: string }) {
         <h2>{property.label}</h2>
         {/* §1i — the audit belongs to the property, so the way into it does
             too. Putting it on a visit would suggest it evaluates one. */}
+        <button className="ghost" onClick={() => go({ name: 'gap-report', id: property.id })}>
+          Gap report
+        </button>
         <button className="ghost" onClick={() => go({ name: 'audit', id: property.id })}>
           Audit the binder
         </button>

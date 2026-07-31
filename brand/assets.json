@@ -1,0 +1,53 @@
+{
+  "note": "The delivered brand assets, and the checksums that prove the extracted files are the delivered ones. Brand Guide \u00a704: the mark reproduces from asset files only \u2014 never redrawn, retyped or approximated. A checksum here is what makes that assertable rather than asked for.",
+  "source": {
+    "file": "HouseSteady_Brand-Assets.zip",
+    "sha256": "25bc60013d99908fe812874227b6b94a814edca2c86ed15a06e6aaeb9d1b7e9c",
+    "delivered": "2026-07-17",
+    "guide": "docs/reference/HouseSteady_Brand-Guide_v1_2026-07-17.html"
+  },
+  "files": {
+    "assets/pdf/housesteady-brand-sheet.pdf": "abda76866229ddc253a3d40b04e60031a0ff65c23e2874ea114eefa48791828f",
+    "assets/pngs/housesteady-favicon_art-transparent_512.png": "d5a62df3365bcae1ed061aa86566543a62c11519f2f4b8493f438b133eba6701",
+    "assets/pngs/housesteady-favicon_tile_512.png": "c8f9b2e918bb473f32414f90ad55bdc7bd5c58f16c62580112c5bc5f9157bfd6",
+    "assets/pngs/housesteady-lockup_launch-quinte.png": "df77f845dc949566a0b5b2b28302605c2489b84f91fdf0d41978d149fe81612d",
+    "assets/pngs/housesteady-lockup_primary.png": "24a57ee3e3ae346f81e3350582cca7767374140918a6cd8ce1a5003ef6cab929",
+    "assets/pngs/housesteady-lockup_reversed-on-navy.png": "b2c2e3b692a0fb477f32b0694676c73a7468c2612fa1f1966d75cb31099f5a96",
+    "assets/pngs/housesteady-mark_black.png": "d698c532e455d5610abd03ead5ca758883a0d07beaf41c72280c257cd4d754e8",
+    "assets/pngs/housesteady-mark_colour.png": "e3832e8285f7bf1227cb55def4c6d069971fb320870a33238829fb7040ce8670",
+    "assets/pngs/housesteady-mark_navy-onecolour.png": "37c43db342119c145b2917b2de7184013dc787c9d542587d58d26abafe72de67",
+    "assets/pngs/housesteady-mark_reversed-for-dark.png": "19247629c4354a3e32d2903931bdf8755c5bdcbc0543bedfdaf2b4473bef2296",
+    "assets/pngs/housesteady-mark_white.png": "19b4a6d597f5bd8dcffc354c3001223085047b8818425315aa881be11bccf3f8",
+    "assets/pngs/housesteady-wordmark_black.png": "31fa6d2daf2a46ad8d38cdc805121974fba09c91bed8dd27e72be4b5edbb1567",
+    "assets/pngs/housesteady-wordmark_colour.png": "dc2b35cb6ec4abe93b287a172c7e586effcd85cf9a3d0c9d0b8469613e53db2f",
+    "assets/pngs/housesteady-wordmark_white.png": "25e4bc6b733d9e945e12b2bb5387c37b173937e9d27f799d21a33ef6fff6d6d0",
+    "assets/svg/housesteady-mark.svg": "4d3bba2b409fcbf06065763f984f973db333f06938e7e1748d8a243eeda3fdea"
+  },
+  "palette": {
+    "note": "Brand Guide \u00a703. Transcribed rather than parsed \u2014 the guide is a human document under a scan that forbids code reading it, and these five values are the render's own tokens. If they ever disagree with the guide, the guide wins and this is the bug.",
+    "navy": "#15223B",
+    "brass": "#BE8A3D",
+    "ivory": "#FBF8F2",
+    "evergreen": "#2C4A3D",
+    "ink": "#1B2334"
+  },
+  "typeRules": {
+    "note": "Brand Guide \u00a703.",
+    "headline": "Fraunces, SemiBold 600",
+    "body": "Public Sans",
+    "bodyMinimumPx": 16,
+    "brassIsAccentOnly": "Brass carries headlines and accents only \u2014 never body text."
+  },
+  "markRules": {
+    "note": "Brand Guide \u00a702 and \u00a704.",
+    "fullLockupMinimumWidthPx": 140,
+    "markAloneMinimumPx": 16,
+    "clearSpace": "A margin equal to the width of the mark's window block on all four sides. Nothing enters it.",
+    "never": [
+      "Redraw, retype, or approximate the mark",
+      "Stretch, rotate, outline, shadow, or gradient anything",
+      "Recolour outside the palette; never brass body text",
+      "Put the region in the mark \u2014 it lives in the descriptor"
+    ]
+  }
+}

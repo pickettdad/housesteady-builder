@@ -256,6 +256,21 @@ function CarriedItems({ run }: { run: AuditRun }) {
         {carried.evidence.map((line, i) => <li key={i}>{line}</li>)}
       </ul>
 
+      {/* Amendment 1 §C — how much of this could be written for a client.
+          On screen because withholding is the safe branch, and a report
+          withholding all of itself looks exactly like one working perfectly.
+          Today that is every row: the client-facing name table is empty, which
+          is a content pass rather than a fault in the report. */}
+      {carried.items.length > 0 && (
+        <p className={run.clientCoverage.renderable === 0 ? 'pill warn' : 'muted small'}>
+          {run.clientCoverage.renderable} of {run.clientCoverage.total} could be written for a client ·{' '}
+          {run.clientCoverage.withheld} withheld
+          {run.clientCoverage.namesDeclared === 0 && (
+            <> — no client-facing names are written yet, so every row is desk work</>
+          )}
+        </p>
+      )}
+
       {carried.items.length === 0 ? (
         <p className="muted">Every applicable item on this property has an answer.</p>
       ) : (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AuditView } from './pages/Audit.js'
+import { GapReportView } from './pages/GapReport.js'
 import { ImportReportView } from './pages/ImportReport.js'
 import { Properties } from './pages/Properties.js'
 import { PropertyPage } from './pages/Property.js'
@@ -13,6 +14,9 @@ export type View =
   // §1i — the audit is property-scoped, so its route is too. A visit-shaped URL
   // would invite a visit-shaped evaluation back in through the front door.
   | { name: 'audit'; id: string }
+  // Property-scoped for the same reason the audit is: the report is the
+  // property's outstanding list, not one visit's.
+  | { name: 'gap-report'; id: string }
 
 const parseHash = (): View => {
   const h = window.location.hash.replace(/^#\/?/, '')
@@ -21,6 +25,7 @@ const parseHash = (): View => {
   if (what === 'report' && id) return { name: 'report', id }
   if (what === 'pass' && id) return { name: 'pass', id }
   if (what === 'audit' && id) return { name: 'audit', id }
+  if (what === 'gap-report' && id) return { name: 'gap-report', id }
   return { name: 'properties' }
 }
 
@@ -56,6 +61,7 @@ export function App() {
         {view.name === 'report' && <ImportReportView id={view.id} />}
         {view.name === 'pass' && <PassView visitId={view.id} />}
         {view.name === 'audit' && <AuditView propertyId={view.id} />}
+        {view.name === 'gap-report' && <GapReportView propertyId={view.id} />}
       </div>
     </>
   )
