@@ -693,6 +693,15 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
       // nothing to quote. Every OTHER reason in that stream is the config's own
       // na reason id, passed through verbatim and deliberately absent from here.
       'missing-from-you', 'missing-from-us', 'triggered-flags', 'not-reached',
+      // Increment 4 §3 — why a gap's `since` is not a date. Ours because they
+      // describe the state of THIS repo's record, not the house: a run that
+      // reaches the earliest visit we hold, or an item whose import carries no
+      // visit at all. Nothing in any config could ever declare either.
+      //
+      // Two of the four bases are here and two are not, and that is the scan's
+      // reach rather than a distinction: `dated` and `undated` are single words
+      // with no dot or hyphen, so this pattern cannot see them.
+      'predates-record', 'no-visit',
     ])
 
     const offenders: string[] = []
@@ -1741,5 +1750,53 @@ describe('Increment 4 §3 — the session plan is session data, never config', (
     assert.match(resolve, /candidates/, 'the item ids come from the config')
     assert.ok(!/\?\?\s*media\b|else\s*\{[^}]*most recent/i.test(resolve),
       'no fallback to an arbitrary photograph when the config declares no comparison position')
+  })
+
+  /**
+   * §7 — **`since` is the run, and `dueSince` is not allowed to stand in for it.**
+   *
+   * This scan exists because the defect it forbids was shipped. `since` read
+   * `dueSince` — the import that FIRST made an item due — which is *the first
+   * time it was ever outstanding*, so an item satisfied on visit two and
+   * unanswered again on visit three was dated a year back when it was closed for
+   * eleven months of it.
+   *
+   * The two facts are both worth keeping and are both still here, which is
+   * exactly why a shape rule is needed rather than a behaviour test: they are one
+   * greppable token apart, and the next person to reach for a date has both in
+   * scope.
+   */
+  it('derives a gap\'s `since` from the run, never from the first time it was due', () => {
+    const plan = codeOf(join(serverSrc, 'plan', 'sessionPlan.ts'))
+    const emit = plan.slice(plan.indexOf('const carriedGaps: PlanGap[]'), plan.indexOf('const byBasis'))
+
+    assert.match(emit, /since:\s*run\?\./, 'the date comes from the run walk')
+    // `firstDueImportedAt` may read `dueSince` — that IS what it means. Nothing
+    // whose name is `since` may.
+    for (const m of emit.matchAll(/^\s*(since\w*):\s*(.+)$/gm)) {
+      const [, field, value] = m
+      if (field === 'sinceImportedAt') assert.fail('renamed to firstDueImportedAt — see §7c')
+      assert.ok(!/dueSince/.test(value!),
+        `${field} reads dueSince, which is the first time it was ever due and not the current run`)
+    }
+  })
+
+  /**
+   * §7b — **a nullable client-facing date carries the reason it is null.**
+   *
+   * Verification Discipline rule 7 as a shape. `since` is null for four
+   * different reasons and a receiver cannot tell them apart from the null: the
+   * run's visit has no session start, the run reaches a record that does not
+   * start at a baseline, or no visit ever had the item due. A bare nullable date
+   * is a fallback that cannot fail, which is how the old one survived.
+   */
+  it('pairs the plan\'s nullable date with a basis and a stated reason', () => {
+    const plan = readFileSync(join(serverSrc, 'plan', 'sessionPlan.ts'), 'utf8')
+    const iface = plan.slice(plan.indexOf('export interface PlanGap'), plan.indexOf('export interface SectionReport'))
+    const decls = iface.replace(/\/\*[\s\S]*?\*\//g, '')
+
+    assert.match(decls, /\bsince:\s*string \| null/, 'the date is nullable, which is what makes the rest necessary')
+    assert.match(decls, /\bsinceBasis:\s*SinceBasis/, 'and which of four nulls it is')
+    assert.match(decls, /\bsinceNote:\s*string/, 'and why, in words a receiver does not have to interpret')
   })
 })

@@ -96,6 +96,20 @@ export interface ActiveItem {
   origin: Origin
   /** The import that first made it due. */
   dueSince: { importId: string; visitId: string | null; at: string }
+  /**
+   * Every visit at which this item was due, in the order the imports were read.
+   *
+   * **`dueSince` cannot answer the question `since` actually asks.** It is the
+   * FIRST time an item was ever due, and the ruling on `since` is the first visit
+   * of the item's *current unbroken run* of being outstanding — an item satisfied
+   * on visit two and unanswered again on visit three has been open for a month,
+   * not a year. Working that out needs to know which visits asked it, not only
+   * the first, so the list is kept rather than collapsed.
+   *
+   * A visit-less import contributes nothing here: it has no place in a visit
+   * sequence, and inventing one would put a date on a walk that has no visit.
+   */
+  dueAt: string[]
   /** Where it was asked, in words. **Desk display** — may name a zone TYPE. */
   where: string
   /**
@@ -141,6 +155,13 @@ export interface ActiveItemSet {
 
 const labelFor = (label: string | null, type: string | null, fallback: string): string =>
   label ?? (type ? `the ${type}` : fallback)
+
+/** Append what is new, keep the order. Two imports on one visit are one visit. */
+const union = (a: string[], b: string[]): string[] => {
+  const out = [...a]
+  for (const v of b) if (!out.includes(v)) out.push(v)
+  return out
+}
 
 /** Only what a person wrote. Never a config type — see `ActiveItem.whereLabel`. */
 const clientLabelOf = (label: string | null): string | null => {
@@ -192,7 +213,12 @@ export function activeItemSet(db: Db, propertyId: string): ActiveItemSet {
       const existing = items.get(key)
       // First due wins for the date; the newest wins for everything else,
       // because the newest import's config is the current definition (§1j).
-      items.set(key, existing ? { ...item, dueSince: existing.dueSince } : item)
+      // `dueAt` accumulates rather than doing either — it is a history, and
+      // both "which visit first asked" and "which visit asked last" are lossy
+      // projections of it.
+      items.set(key, existing
+        ? { ...item, dueSince: existing.dueSince, dueAt: union(existing.dueAt, item.dueAt) }
+        : item)
     }
   }
 
@@ -248,6 +274,7 @@ function fromReceived(
       status: r.status,
       origin: 'received',
       dueSince: { importId: imp.id, visitId: imp.visit_id, at: imp.imported_at },
+      dueAt: imp.visit_id ? [imp.visit_id] : [],
       where: r.scope_zone_id
         ? zoneLabels.get(r.scope_zone_id)?.desk ?? 'a zone this import does not carry'
         : r.scope_pin_id
@@ -330,7 +357,9 @@ function fromConfig(
       // evidence exists on a pin and one human tap confirms it, which is a fact
       // about the field app's own state and is exactly the value §1c says this
       // repo cannot reconstruct. Null is the honest answer, not a default.
-      group: null, status: null, origin: 'computed', dueSince: due, where, whereLabel,
+      group: null, status: null, origin: 'computed', dueSince: due,
+      dueAt: imp.visit_id ? [imp.visit_id] : [],
+      where, whereLabel,
       itemText: item.text ?? null,
     })
   }

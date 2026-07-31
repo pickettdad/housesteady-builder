@@ -16,18 +16,27 @@
  * > default. The mechanical checklist is empty on visit two, and an empty
  * > checklist reads as already handled.
  *
- * **The number is a range across versions, and citing one figure reads as a
- * contradiction to whoever finds it next.** Field Code reports **twelve of
- * thirteen** zone types with no default, reading master v1.11. Measured here on
- * field config v1.2.1, `defaultsTrueFor` appears nowhere at all, so it is
- * **thirteen of thirteen**. Both are true of the version they were read from,
- * and the honest statement is *between twelve and thirteen of thirteen, and none
- * at all on the config this repo can actually read.*
+ * **The strongest evidence is a LIST GATE, not an item gate**, and an earlier
+ * version of this comment argued from the weaker one. Field Code, reading master
+ * v1.11: seven surfaces where a zone attribute decides something, and among them
+ * **`base:mechanical-base` is gated on `zone.has_mechanicals`.**
  *
- * Three items are gated on a zone attribute in this config — `liv.egress` on
+ * An item gate loses one question. A list gate loses **the entire list** — the
+ * base list never composes, no item under it is ever due, and the audit reports
+ * full coverage of a list nobody asked. So the spec's sentence is not a figure of
+ * speech: *the mechanical checklist is empty on visit two* is literally what one
+ * lost boolean does.
+ *
+ * **What this repo can measure is weaker, because it holds an older config.**
+ * v1.2.1 has no `has_mechanicals` and no `defaultsTrueFor` anywhere, so the list
+ * gate cannot be demonstrated here. Three item-level gates can: `liv.egress` on
  * `zone.sleeping`, `bsm.finished-behind` on `zone.finished`, `cir.stairs-rails`
- * on `zone.has_stairs`. Lose the ensuite's `finished: true` on replay and
- * anything gated on it stops being due, silently, in a room where it applies.
+ * on `zone.has_stairs`. Lose the ensuite's `finished: true` on replay and those
+ * three stop being due, silently, in a room where they apply.
+ *
+ * *(The count of defaulting zone types — 12 of 13 at v1.11, 13 of 13 here — is
+ * no longer the load-bearing fact. One list gate on one attribute is enough on
+ * its own and does not depend on how many other types default.)*
  *
  * **The test for what belongs in the plan: could the app work this out again by
  * looking at the house?** If no, carry it explicitly.
@@ -85,6 +94,8 @@ import { activeItemSet } from '../audit/activeItems.js'
 import { carriedItems } from '../audit/carriedItems.js'
 import { propertyEvidence } from '../audit/propertyEvidence.js'
 import { walkedAtByVisit } from '../audit/walkedAt.js'
+import { activeItemKey } from '../audit/activeItems.js'
+import { outstandingSince, type SinceBasis } from '../audit/outstandingSince.js'
 
 /** The plan's own version, independent of the manifest's. */
 export const PLAN_SCHEMA_VERSION = 1
@@ -146,28 +157,54 @@ export interface PlanGap {
   /** `not-reached`, or the config's own na reason id. Verbatim. */
   reason: string
   /**
-   * The date the WALK BEGAN, from the manifest's `session.startedAt`.
+   * The walk date of the visit this item's **current unbroken run** of being
+   * outstanding began at.
    *
-   * **Not `visits.visit_date`, which is hand-typed and unchecked** — see
-   * `walkedAt.ts`. The first signed gap report rendered a date a day off the
-   * manifest because a seed script typed one, and *"open since your visit"* must
-   * not read a field that can disagree with the evidence.
+   * **Not the first time it was ever outstanding**, which is what shipped and
+   * what `dueSince` holds — an item satisfied on visit two and unanswered again
+   * on visit three would be dated a year back when it was closed for eleven
+   * months of it. **Not the most recent carry either**, or the clock resets every
+   * visit. See `outstandingSince.ts` for the walk.
    *
-   * **And not `completedAt`, which moves.** A reopened session has more than one
-   * completion; this export reads *completed 17:41 · reopened "Test ai" 17:42 ·
-   * completed 17:45*. `startedAt` is when the house was walked and does not move.
+   * **From the manifest's `session.startedAt`, never `visits.visit_date`**, which
+   * is hand-typed and unchecked — see `walkedAt.ts`. The first signed gap report
+   * rendered a date a day off the manifest because a seed script typed one, and
+   * *"open since your visit"* must not read a field that can disagree with the
+   * evidence. And not `completedAt`, which moves when a session is reopened.
    *
-   * Null where no import for that visit carries a session start.
+   * Null on every basis but `dated`. **Read `sinceBasis` before reading this** —
+   * a null here is four different facts.
    */
   since: string | null
   /**
-   * When the import that first made it due was READ by this builder.
+   * Which of four things a `since` of null means.
    *
-   * A different fact under its own name. It has no meaning in the field — the
-   * reference session was walked on the 25th and imported days later — and it is
-   * here because it is the ordering key this repo actually sorts on.
+   * `dated` · `undated` (the visit is known, no session start recorded) ·
+   * `predates-record` (the run reaches this record's earliest visit and that is
+   * not the property's first) · `no-visit` (a visit-less import).
    */
-  sinceImportedAt: string
+  sinceBasis: SinceBasis
+  /** The visit the run began at, where one is identifiable. */
+  sinceVisitId: string | null
+  /** How many consecutive visits this record can see it outstanding for. */
+  sinceRunVisits: number
+  /** Why, in a sentence, so a receiver never has to interpret a bare null. */
+  sinceNote: string
+  /**
+   * When the import that **first** made this item due was read by this builder.
+   *
+   * **Renamed from `firstDueImportedAt`, and the rename is the point.** While
+   * `since` meant *first ever due*, the two names described one import and the
+   * shared prefix was accurate. They now describe different visits — the demo
+   * export has an item whose `since` is July and whose first-due import is March
+   * — and a name that still read `since…` would invite exactly the collapse this
+   * change removes.
+   *
+   * Kept because it is the ordering key this repo actually sorts on. It has no
+   * meaning in the field: the reference session was walked on the 25th and
+   * imported days later. It is not a fallback for `since`.
+   */
+  firstDueImportedAt: string
 }
 
 /**
@@ -355,16 +392,39 @@ export function buildSessionPlan(args: {
     )
   }
 
-  const carriedGaps: PlanGap[] = carried.items.map((item) => ({
-    scopeKind: item.scope.kind,
-    zoneId: item.scope.zoneId,
-    pinId: item.scope.pinId,
-    itemId: item.itemId,
-    reason: item.reason,
-    since: item.dueSince.visitId ? walks.get(item.dueSince.visitId)?.date ?? null : null,
-    sinceImportedAt: item.dueSince.at,
-  }))
-  const undated = carriedGaps.filter((g) => g.since === null).length
+  // The run each gap is currently in — the `since` ruling. Computed once for the
+  // whole stream rather than per row, because it walks the property's visit
+  // sequence and that sequence is the same for all of them.
+  const runs = outstandingSince({
+    db,
+    propertyId,
+    active,
+    keys: carried.items.map((i) => activeItemKey(i.scope, i.itemId)),
+    snapshot: evidence.snapshot,
+  })
+  warnings.push(...runs.warnings)
+
+  const carriedGaps: PlanGap[] = carried.items.map((item) => {
+    const run = runs.since.get(activeItemKey(item.scope, item.itemId))
+    return {
+      scopeKind: item.scope.kind,
+      zoneId: item.scope.zoneId,
+      pinId: item.scope.pinId,
+      itemId: item.itemId,
+      reason: item.reason,
+      since: run?.date ?? null,
+      // No default. A gap the run walk did not reach at all is `no-visit`, which
+      // is a state it already has a name for — inventing `dated` here would be
+      // the fallback-that-cannot-fail this whole change exists to remove.
+      sinceBasis: run?.basis ?? 'no-visit',
+      sinceVisitId: run?.visitId ?? null,
+      sinceRunVisits: run?.runVisits ?? 0,
+      sinceNote: run?.note ?? 'no run could be reconstructed for this item',
+      firstDueImportedAt: item.dueSince.at,
+    }
+  })
+  const byBasis = new Map<SinceBasis, number>()
+  for (const g of carriedGaps) byBasis.set(g.sinceBasis, (byBasis.get(g.sinceBasis) ?? 0) + 1)
 
   // -------------------------------------------------------------- monitors
   //
@@ -394,12 +454,27 @@ export function buildSessionPlan(args: {
     flagCounts.set(p.flag, (flagCounts.get(p.flag) ?? 0) + 1)
   }
   /**
-   * The two values this build knows, from the Manifest Contract.
+   * The values this build knows, **from the Manifest Contract** — and the
+   * Contract is one value short, which is a live problem rather than a v4 one.
    *
    * **The pin `flag` has no declared vocabulary in the config** — `propertyFlags`
-   * is a different thing entirely, house-level facts like `well`. So these come
-   * from a document rather than from data, which is why the retirement question
-   * below is a real one rather than a hypothetical.
+   * is a different thing entirely, house-level facts like `well`. So this list
+   * comes from a document rather than from data, and a document being wrong is
+   * invisible until somebody reads the other side.
+   *
+   * **Field Code did: the field's flag type is `"fine" | "monitor" | "issue"`**
+   * (`events.ts:28`, `PinScreen.tsx:12`), and `fine` is settable in the shipping
+   * app today. So the first time a concierge taps it, this list will report it as
+   * unmet vocabulary — preserved, counted, marked, not treated as a monitor.
+   *
+   * **`fine` is deliberately not added here.** The Manifest Contract is the
+   * governing document for this seam and this repo does not fork it: *"if
+   * something about it seems wrong, say so and stop — the owner routes the change
+   * to the Field team."* Adding a value read out of the field's source would make
+   * this repo depend on a source it does not hold. **The Contract needs a third
+   * value; when it has one, this list gets it.** Until then the fail-open path
+   * does exactly what it is for, and the session-plan contract §9 says so in
+   * advance so the warning is not read as a fault.
    */
   const KNOWN_FLAGS = ['monitor', 'issue']
 
@@ -413,9 +488,16 @@ export function buildSessionPlan(args: {
    * exists.* Amendment §C5's failure one artifact out, and the same three-state
    * shape as everywhere else: **empty · unbuilt · vocabulary-retired.**
    *
-   * What a monitor becomes under the ratified model is with the field session.
-   * Until that lands, this says the question is open rather than answering it —
-   * an open question stated is information; a confident empty is not.
+   * **The successor is settled, and the problem dissolves rather than defers.**
+   * Field Code: at Increment 5 this section is **re-sourced as a query over this
+   * repo's own `openConcerns`, with no field input at all** — a thing being
+   * watched is a concern with an open lifecycle, which is what the ratified model
+   * already says and which this repo already owns. And `fine` decomposes into
+   * nothing: a satisfied checklist item already records it, so there is no
+   * successor to design because there was never a second fact.
+   *
+   * So the flag is not replaced by another flag; the section stops reading a
+   * flag. Until Increment 5 lands, the third-state sentence stays.
    */
   const versions = (db
     .prepare('SELECT DISTINCT manifest_schema_version AS v FROM imports WHERE property_id = ?')
@@ -445,9 +527,8 @@ export function buildSessionPlan(args: {
     warnings.push(
       'this property\'s config declares no `.unit` items, so there are no comparison positions to ' +
         'carry — §B3\'s prior unit photographs cannot be exercised until a config that declares them ' +
-        'arrives. The master declares some; the count is in dispute between two readings and is ' +
-        'deliberately not stated here, because nothing binds to it and a disputed number in prose is ' +
-        'worse than none.',
+        'arrives. Master v1.11 declares 27, plus 5 `.wide`; the earlier reading of 23 was correct at ' +
+        'v1.5.1. A version skew, not a disagreement — the same shape as the zone-attribute count.',
     )
   }
   if (!Array.isArray(evidence.snapshot.zoneAttributes)) {
@@ -488,11 +569,39 @@ export function buildSessionPlan(args: {
         count: carriedGaps.length,
         note: carriedGaps.length === 0
           ? 'every applicable item on this property has an answer'
-          : `unanswered items and gap-feeding na, with the reason the config gave` +
-            (undated > 0
-              ? ` · ${undated} carry no \`since\` because no import for the visit that made them due ` +
-                'records a session start — not defaulted to the import timestamp, which means something else'
-              : ''),
+          : [
+            'unanswered items and gap-feeding na, with the reason the config gave',
+            // The basis breakdown, always — not only when something is missing.
+            // `since` is a date on some rows and one of three different silences
+            // on the others, and a count per basis is the only way a receiver can
+            // see which without reading every row.
+            `\`since\` basis: ${[...byBasis].sort().map(([b, n]) => `${n} ${b}`).join(' · ')}`,
+            'each date is the first visit of the item\'s current unbroken run of being outstanding — ' +
+              'not the first time it was ever due, which would age a reopened item by the months it ' +
+              'spent closed',
+            // Each silence explains itself HERE as well as on the row. A basis
+            // count alone is a word a receiver has to look up, and the whole
+            // reason `since` stopped being a nullable date is that one null
+            // meant four things.
+            (byBasis.get('undated') ?? 0) > 0
+              ? `${byBasis.get('undated')} carry no \`since\` because no import for the visit that made ` +
+                'them due records a session start — not defaulted to the import timestamp, which means ' +
+                'something else'
+              : null,
+            (byBasis.get('predates-record') ?? 0) > 0
+              ? `${byBasis.get('predates-record')} carry no \`since\` because their run reaches the ` +
+                'earliest visit this record holds and that visit is not a baseline — how long they have ' +
+                'been open cannot be stated from what is here'
+              : null,
+            (byBasis.get('no-visit') ?? 0) > 0
+              ? `${byBasis.get('no-visit')} carry no \`since\` because no visit on record has them due — ` +
+                'a visit-less import has no walk to date them to'
+              : null,
+            runs.recordReachesBack
+              ? null
+              : 'this property\'s earliest visit on record is not a baseline, so runs reaching it are ' +
+                'reported as `predates-record` rather than dated to a visit that may not be the first',
+          ].filter(Boolean).join(' · '),
       },
       monitorsDue: {
         count: monitorsDue.length,
@@ -502,8 +611,9 @@ export function buildSessionPlan(args: {
           retiredVocabulary
             ? 'this property has evidence at manifest v4 or later, where the design record retires ' +
               'the `monitor` flag — so an empty list here may mean the vocabulary is gone rather than ' +
-              'that nothing is being watched. What a monitor becomes under the ratified model is an ' +
-              'open question with the field session, and this build does not guess.'
+              'that nothing is being watched. At Increment 5 this section is re-sourced as a query ' +
+              'over this repo\'s own open concerns with no field input, so the flag is not replaced ' +
+              'by another flag — the section stops reading a flag. Until then, this sentence.'
             : monitorsDue.length === 0
               ? 'no live pin carries the monitor flag — the mechanism ran and found none, ' +
                 'which is not the same as it being unbuilt'
