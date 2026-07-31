@@ -1614,7 +1614,25 @@ describe('Increment 4 §3 — the session plan is session data, never config', (
    * it."* Same distinction as declared-and-false in the trigger evaluator.
    */
   it('never filters a zone attribute map to its true values', () => {
-    const plan = codeOf(join(serverSrc, 'plan', 'sessionPlan.ts'))
+    const source = codeOf(join(serverSrc, 'plan', 'sessionPlan.ts'))
+
+    /**
+     * **Scoped to the block that builds the map, not to the file.**
+     *
+     * The first version scanned the whole module for `filter(Boolean)` and fired
+     * on a line assembling a list of SENTENCES — nulls dropped from a note, not
+     * trues kept from an attribute map. Rule 8: read the finding first. There
+     * was no defect underneath, and the finding was that the check was asking
+     * its question of the wrong region.
+     *
+     * A scan that forbids a common idiom everywhere gets narrowed by whoever
+     * trips it next, and then it forbids nothing. Scoped, it keeps its teeth.
+     */
+    const start = source.indexOf('const attributes: Record<string, boolean>')
+    const end = source.indexOf('byZone.set(')
+    assert.ok(start > 0 && end > start, 'the attribute map is still built in one place')
+    const plan = source.slice(start, end)
+
     for (const shape of [
       /filter\(\[[^\]]*\]\)\s*=>\s*v\)/,
       /\.filter\(\(\[, v\]\) => v\)/,
@@ -1656,6 +1674,50 @@ describe('Increment 4 §3 — the session plan is session data, never config', (
    * `compilePlan` and is the v1 slot-model plan compiler — unrelated to this.
    * Two things with one name is how somebody eventually binds to the wrong one.
    */
+  /**
+   * **Nothing client-facing reads the hand-typed visit date.**
+   *
+   * `visits.visit_date` comes from a request body and no import path writes it,
+   * so it can disagree with the evidence — and it did: the first signed edition
+   * rendered *"visited 2026-07-24"* against a session that began
+   * 2026-07-25T16:55Z, because a seed script typed a date nothing checked.
+   *
+   * The column stays, because a visit booked for next Tuesday genuinely has a
+   * date and no manifest. It is simply not evidence.
+   */
+  it('never lets a client-facing or field-facing date come from the typed field', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(join(serverSrc, 'report')).concat(sourceFiles(join(serverSrc, 'plan')))) {
+      if (/\bvisit_date\b/.test(codeOf(file))) offenders.push(file.replace(repoRoot, ''))
+    }
+    assert.deepEqual(offenders, [],
+      'a client-facing document must not carry an unchecked claim about when we were in their house')
+
+    // And the one place that resolves it reads the session start, not the last
+    // completion — a reopened session has more than one completion.
+    const walked = codeOf(join(serverSrc, 'audit', 'walkedAt.ts'))
+    assert.match(walked, /MIN\(s\.started_at\)/, 'the walk began when the session began')
+    assert.ok(!/completed_at/.test(walked),
+      'completedAt moves when a session is reopened; startedAt is when the house was walked')
+  })
+
+  /**
+   * The emitter sends no `unanswered` list, and cannot honestly.
+   *
+   * v1.2.1 declares five zone attributes; v1.11 declares six, and the sixth is
+   * `has_mechanicals` — the only one carrying a `defaultsTrueFor`. **An emitter
+   * always reads a past config**, so any list it derives is systematically
+   * under-inclusive, and across those two versions it is missing exactly the
+   * attribute §3a is named after. The receiver derives it from its own
+   * vocabulary minus the verbatim map.
+   */
+  it('sends no derived unanswered list in the plan payload', () => {
+    const plan = readFileSync(join(serverSrc, 'plan', 'sessionPlan.ts'), 'utf8')
+    const iface = plan.slice(plan.indexOf('export interface PlanZone'), plan.indexOf('export interface PlanObject'))
+    assert.ok(!/unanswered|neverAsked/.test(iface.replace(/\/\*[\s\S]*?\*\//g, '')),
+      'an emitter cannot answer a question about a vocabulary it has not seen')
+  })
+
   it('does not borrow the field repo\'s plan-compiler vocabulary', () => {
     const offenders = sourceFiles(join(serverSrc, 'plan'))
       .filter((f) => /\bcompilePlan\b/.test(codeOf(f)))
