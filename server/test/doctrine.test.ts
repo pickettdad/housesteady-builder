@@ -724,8 +724,10 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
         if (NAMESPACES.test(head) && value.includes('.')) continue
         if (OURS.has(value)) continue
         // Refusal codes are namespaced on the module that raises them and are
-        // this repo's own words by construction.
-        if (/^(schema|profile|binding|audit)\./.test(value)) continue
+        // this repo's own words by construction. `lineage` joined the list when
+        // F10's reader landed — an extension of the stated exemption to a module
+        // following the same convention, not a narrowing to make a scan pass.
+        if (/^(schema|profile|binding|audit|lineage)\./.test(value)) continue
         offenders.push(`${file.replace(repoRoot, '')}: '${value}'`)
       }
     }
@@ -2051,6 +2053,36 @@ describe('Increment 4 §4 and §7', () => {
    * A guessed end time enters the pricing basis wearing the clothes of a measured
    * one, and the whole reason to collect this is that it is measured.
    */
+  /**
+   * **F10 — no reader may collapse "no lineage recorded" into "no successors".**
+   *
+   * `lineageFor()` returns null for an id nobody has told us about and
+   * `{successors: []}` for one the master records as retiring with no
+   * replacement. Those are opposite claims. **`?? []` on the call site undoes the
+   * entire file**, and it is the single most natural line somebody would write.
+   *
+   * Sixth instance of declared-versus-absent deciding a design here.
+   */
+  it('lets nothing default an absent lineage to an empty successor list', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(serverSrc)) {
+      const code = codeOf(file)
+      // `lineageFor(...) ?? []`, `.successors ?? []`, `?.successors ?? []` —
+      // every shape that turns "never told" into "told there are none".
+      for (const m of code.matchAll(/(?:lineageFor\([^)]*\)|\.successors)\s*(?:\?\.[\w]+\s*)?\?\?\s*\[/g)) {
+        offenders.push(`${file.replace(repoRoot, '')}: ${m[0].trim()}`)
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'an absent entry says nobody told us; an empty array says there is no replacement')
+
+    // And the branch that decides it reads the null explicitly rather than by
+    // truthiness, so an entry object can never be mistaken for a present one.
+    const series = codeOf(join(serverSrc, 'audit', 'itemSeries.ts'))
+    assert.match(series, /lineageAvailable:\s*known !== null/,
+      'availability is decided by the presence of an entry, not by whether it has successors in it')
+  })
+
   it('never auto-closes a running desk-work span', () => {
     const code = codeOf(join(serverSrc, 'desk', 'work.ts'))
     const writes = [...code.matchAll(/UPDATE desk_work SET ended_at[^`']*/g)].map((m) => m[0])

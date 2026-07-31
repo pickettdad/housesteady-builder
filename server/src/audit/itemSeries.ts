@@ -61,6 +61,7 @@
 
 import type { Db } from '../db/index.js'
 import { itemScopeKey, type ItemScope } from './activeItems.js'
+import { lineageFor, loadLineage, type Lineage } from './lineage.js'
 import { visitSequence, type VisitPoint } from './visitSequence.js'
 
 /** One recorded answer, at one visit. */
@@ -146,10 +147,17 @@ export function itemSeries(args: {
   db: Db
   propertyId: string
   includeSingletons?: boolean
+  /** Injectable so a test can supply a filled table against an empty repo. */
+  lineage?: Lineage
 }): SeriesResult {
   const { db, propertyId, includeSingletons = false } = args
   const seq = visitSequence(db, propertyId)
   const warnings: string[] = [...seq.warnings]
+
+  // F10. Empty today, and the reader ships anyway: the day the field session
+  // supplies the table, this display gains successors with no code change.
+  const lineage = args.lineage ?? loadLineage()
+  warnings.push(...lineage.warnings)
 
   // Which items each import's config declared. A retirement is an item declared
   // under one config and absent from a later one — read per import, because the
@@ -267,20 +275,40 @@ export function itemSeries(args: {
       runs.push(entry.points.slice(0, cut))
       const after = entry.points.slice(cut)
       if (after.length > 0) runs.push(after)
+      /**
+       * **`null` and `[]` are different answers, and this is the branch that
+       * keeps them apart.**
+       *
+       * No entry means nobody has told us. An entry with no successors means the
+       * question stopped being asked — a known none. A `?? []` here would
+       * collapse the two and undo the entire lineage file.
+       */
+      const known = lineageFor(lineage, entry.itemId)
+      const under = declaredPerImport.get(lastDeclared.importId)?.version ?? 'an earlier config'
+      const stillIn = newest?.config_version ?? 'the current config'
+      const ends = `this series ends here — \`${entry.itemId}\` was declared under ${under} and is ` +
+        `absent from ${stillIn}. Checklist Master §2: a redefined item retires and the replacement takes ` +
+        'a new id, so the answers before and after are answers to different questions.'
+
       breaks.push({
         reason: 'retired',
         afterVisitId: lastDeclared.visitId,
         lastDeclaredUnder: declaredPerImport.get(lastDeclared.importId)?.version ?? null,
         notDeclaredUnder: newest?.config_version ?? null,
-        successors: null,
-        lineageAvailable: false,
-        note:
-          `this series ends here — \`${entry.itemId}\` was declared under ` +
-          `${declaredPerImport.get(lastDeclared.importId)?.version ?? 'an earlier config'} and is absent from ` +
-          `${newest?.config_version ?? 'the current config'}. Checklist Master §2: a redefined item retires ` +
-          'and the replacement takes a new id, so the answers before and after are answers to different ' +
-          'questions. **Table F records where the content went; this builder cannot read it** — the master ' +
-          'is reference-only by doctrine — so the successors are shown as unknown rather than as none.',
+        successors: known ? known.successors : null,
+        lineageAvailable: known !== null,
+        note: known === null
+          ? `${ends} **Table F records where the content went; this builder has not been given it** — ` +
+            'the master is reference-only by doctrine and `schema/retirement-lineage-v1.json` is still ' +
+            'shape-only — so the successors are shown as unknown rather than as none. Open item F10.'
+          : known.successors.length === 0
+            ? `${ends} The master records it retiring at ${known.retiredAt} with **no replacement** — a ` +
+              'question that stopped being asked, which is a known none rather than an unknown.' +
+              (known.note ? ` ${known.note}` : '')
+            : `${ends} The master records the content continuing at ${known.retiredAt} as ` +
+              `${known.successors.join(', ')}. **Shown, never joined** — the successors are a different ` +
+              'question and software does not draw one line through them.' +
+              (known.note ? ` ${known.note}` : ''),
       })
       discontinuities.push(`${key} (last declared under ${declaredPerImport.get(lastDeclared.importId)?.version ?? '?'})`)
     } else {
@@ -306,11 +334,15 @@ export function itemSeries(args: {
   }
 
   if (discontinuities.length > 0) {
+    const unknown = series.filter((s) => s.breaks.some((b) => !b.lineageAvailable)).length
     warnings.push(
       `${discontinuities.length} item series end at a retirement and are NOT joined to any successor: ` +
         `${discontinuities.slice(0, 5).join(', ')}${discontinuities.length > 5 ? ', …' : ''}. ` +
-        'Table F records the lineage; this repo has never been given it in machine-readable form, so the ' +
-        'successors read as unknown rather than as none.',
+        (unknown > 0
+          ? `${unknown} of them have no recorded lineage, so their successors read as unknown rather ` +
+            'than as none — see open item F10. '
+          : '') +
+        'Where lineage IS recorded it is shown to a person and never joined by software.',
     )
   }
 
