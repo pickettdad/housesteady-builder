@@ -107,15 +107,36 @@ export function writeName(args: {
 }
 
 /**
- * Every unratified name, for whoever is doing the confirming.
+ * Every name still awaiting the design session, for whoever is doing the confirming.
  *
  * **Never summon a human to a blank space** — CLAUDE.md §9. A ratification queue
  * that says *"3 names await review"* and nothing else makes somebody go and find
  * them. This carries the wording, who wrote it, when, and which house they were
  * looking at, because that context is what makes a name judgeable.
+ *
+ * ---
+ *
+ * **Promotion is writing the name into the schema file, and this is where that
+ * becomes visible.**
+ *
+ * The `client_names.ratified_at` column exists and **nothing anywhere sets it** —
+ * a scan asserts that, deliberately, because the person confirming a name is not
+ * the person at the editor. So ratification does not happen by flipping a flag
+ * on a proposal; it happens when a design session writes the name into
+ * `client-names-v1.json`, which is reviewed config with a version and a hash.
+ *
+ * That makes promotion a real act, and it has to have a visible consequence.
+ * **A proposal whose item the file now carries leaves this queue** — otherwise a
+ * name promoted in March sits in the review list forever, and a queue that never
+ * empties is a queue nobody reads.
+ *
+ * The row itself is not deleted. Append-only: what somebody proposed, and what
+ * the design session settled on instead, both stay answerable.
  */
-export function unratifiedNames(db: Db): {
+export function unratifiedNames(db: Db, file: ClientNames = loadClientNames()): {
   id: string; itemId: string; name: string; actorId: string; propertyId: string | null; at: string
+  /** Set when the file settled on different words. The proposal is superseded, not wrong. */
+  supersededBy?: string
 }[] {
   return (db
     .prepare(
@@ -129,7 +150,37 @@ export function unratifiedNames(db: Db): {
     .map((r) => ({
       id: r.id, itemId: r.item_id, name: r.name, actorId: r.actor_id,
       propertyId: r.property_id, at: r.created_at,
+      supersededBy: file.describe(r.item_id)?.text,
     }))
+    .filter((r) => r.supersededBy === undefined)
+}
+
+/**
+ * Proposals the file has since settled — what somebody wrote, beside what shipped.
+ *
+ * Separated from the queue rather than dropped, because the two are read for
+ * different reasons: the queue is work to do, this is how the wording moved.
+ * **If these routinely differ a lot, the fault is in the naming guidance rather
+ * than in the concierge** — the same reading the house style takes of a high
+ * rewrite rate.
+ */
+export function supersededNames(db: Db, file: ClientNames = loadClientNames()): {
+  itemId: string; proposed: string; ratified: string; actorId: string; at: string
+}[] {
+  return (db
+    .prepare(
+      `SELECT n.item_id, n.name, n.actor_id, n.created_at
+         FROM client_names n
+        WHERE n.ratified_at IS NULL
+          AND n.seq = (SELECT MAX(m.seq) FROM client_names m WHERE m.item_id = n.item_id)
+        ORDER BY n.seq DESC`,
+    )
+    .all() as { item_id: string; name: string; actor_id: string; created_at: string }[])
+    .flatMap((r) => {
+      const ratified = file.describe(r.item_id)?.text
+      if (ratified === undefined) return []
+      return [{ itemId: r.item_id, proposed: r.name, ratified, actorId: r.actor_id, at: r.created_at }]
+    })
 }
 
 /**

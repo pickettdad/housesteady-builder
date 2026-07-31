@@ -52,7 +52,7 @@ export function App() {
               HouseSteady
             </a>
           </h1>
-          <span className="sub">binder builder · increment 3 — the audit engine</span>
+          <span className="sub">binder builder · increment 4 — carried items</span>
         </div>
       </header>
       <div className="shell">
