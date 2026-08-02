@@ -7,7 +7,10 @@
  */
 
 import assert from 'node:assert/strict'
+import { writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it } from 'node:test'
+import { lineageFor, loadLineage, LineageRefused, type Lineage, type LineageEntry } from '../src/audit/lineage.js'
 import { answersForProperty } from '../src/audit/answers.js'
 import { itemSeries } from '../src/audit/itemSeries.js'
 import { evaluate, noFacts, parseCondition, ConditionRefused } from '../src/audit/triggers.js'
@@ -119,7 +122,8 @@ describe('§1d — a retirement ends the series, it does not continue it', () =>
     assert.equal(broken.breaks[0]!.successors, null, 'null, because unknown is not the same as none')
     assert.equal(broken.breaks[0]!.lineageAvailable, false)
     assert.match(broken.breaks[0]!.note, /Table F records where the content went/)
-    assert.ok(result.warnings.some((w) => /never been given it in machine-readable form/.test(w)))
+    assert.ok(result.warnings.some((w) => /have no recorded lineage, so their successors read as unknown/.test(w)))
+    assert.ok(result.warnings.some((w) => /open item F10/.test(w)))
   })
 
   /** Named, never only counted — rule 2. */
@@ -611,5 +615,115 @@ describe('the zone-audit oracle folds pin items, as the export does', () => {
       if (!z.imported) continue
       assert.deepEqual(z.differences, [], `${z.label} diverges: ${z.differences.join(' · ')}`)
     }
+  })
+})
+
+// ---------------------------------------------------------------------- F10
+
+describe('F10 — retirement lineage, shape-only and ready', () => {
+  const entry = (over: Partial<LineageEntry> = {}): Lineage => ({
+    entries: new Map([['int.canvas', {
+      retiredId: 'int.canvas', retiredAt: 'v1.8', successors: ['int.canvas-a', 'int.canvas-b'],
+      reason: 'split', note: null, ...over,
+    }]]),
+    version: '1.0.0', loaded: true, note: 'test', warnings: [],
+  })
+
+  async function retiredWith(lineage?: Lineage) {
+    const db = freshDb()
+    const dir = scratchDir()
+    const ids = makePropertyAndVisit(db, { kind: 'baseline' })
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: dir })
+    const second = addVisit(db, ids.propertyId, 'baseline')
+    await runImport({
+      actorId: TEST_OPERATOR, db, propertyId: ids.propertyId, visitId: second,
+      raw: walk({ sessionId: 's2', startedAt: '2026-09-12T14:00:00.000Z', dropItems: ['int.canvas'] }),
+      dataDir: dir,
+    })
+    return itemSeries({ db, propertyId: ids.propertyId, includeSingletons: true, lineage })
+      .series.find((s) => s.discontinuous)!
+  }
+
+  /** The file ships empty, and an empty file must not claim to know anything. */
+  it('reads the shipped file, finds no entries, and says nothing is known', () => {
+    const l = loadLineage()
+    assert.equal(l.loaded, true, 'the file exists — it is the artifact F10 points at')
+    assert.equal(l.entries.size, 0)
+    assert.match(l.note, /present and declares no entries/)
+    assert.match(l.note, /unknown for every id/)
+    assert.equal(lineageFor(l, 'int.canvas'), null, 'a present, empty file knows nothing about any id')
+  })
+
+  /**
+   * **The distinction the whole file exists for.** No entry is *we have never
+   * been told*; an entry with no successors is *we know there is no
+   * replacement.* Opposite claims that look identical to a length check.
+   */
+  it('tells "no entry" from "an entry with no successors"', async () => {
+    const unknown = await retiredWith()
+    assert.equal(unknown.breaks[0]!.successors, null)
+    assert.equal(unknown.breaks[0]!.lineageAvailable, false)
+    assert.match(unknown.breaks[0]!.note, /shown as unknown rather than as none/)
+    assert.match(unknown.breaks[0]!.note, /Open item F10/)
+
+    const none = await retiredWith(entry({ successors: [] }))
+    assert.deepEqual(none.breaks[0]!.successors, [])
+    assert.equal(none.breaks[0]!.lineageAvailable, true, 'a known none IS available lineage')
+    assert.match(none.breaks[0]!.note, /no replacement/)
+    assert.match(none.breaks[0]!.note, /a known none rather than an unknown/)
+  })
+
+  /** Filled lineage shows the thread. It still does not join it. */
+  it('shows the successors and says outright that it does not join them', async () => {
+    const s = await retiredWith(entry())
+    assert.deepEqual(s.breaks[0]!.successors, ['int.canvas-a', 'int.canvas-b'])
+    assert.equal(s.breaks[0]!.lineageAvailable, true)
+    assert.match(s.breaks[0]!.note, /continuing at v1\.8 as int\.canvas-a, int\.canvas-b/)
+    assert.match(s.breaks[0]!.note, /Shown, never joined/)
+
+    // The runs are still two. Knowing where it went does not make it one series.
+    assert.equal(s.runs.length, 2)
+  })
+
+  /** An entry that cannot say what happened is not an entry. */
+  it('refuses an entry with no successors key, and says why the empty array differs', () => {
+    const l = loadLineage(join(scratchDir(), 'missing.json'))
+    assert.equal(l.loaded, false)
+    assert.match(l.note, /no retirement-lineage file is present/)
+    assert.match(l.note, /not "no item has successors"/)
+  })
+
+  it('loads a filled file, and drops a row that claims knowledge it does not have', () => {
+    const dir = scratchDir()
+    const file = join(dir, 'lineage.json')
+    writeFileSync(file, JSON.stringify({
+      version: '1.0.0',
+      entries: [
+        { retiredId: 'a.one', retiredAt: 'v1.8', successors: ['a.two'] },
+        { retiredId: 'b.one', retiredAt: 'v1.9', successors: [] },
+        { retiredId: 'c.one', retiredAt: 'v1.9' },            // no successors key
+        { retiredId: 'd.one', successors: [] },               // no version
+        { retiredId: 'a.one', retiredAt: 'v2.0', successors: ['a.three'] }, // duplicate
+      ],
+    }))
+
+    const l = loadLineage(file)
+    assert.deepEqual([...l.entries.keys()].sort(), ['a.one', 'b.one'])
+    assert.deepEqual(l.entries.get('a.one')!.successors, ['a.two'], 'the first entry wins, never merged')
+    assert.match(l.note, /2 retirement\(s\) with recorded lineage/)
+    assert.match(l.note, /1 of which retired with no replacement — a known none, not an unknown/)
+
+    assert.ok(l.warnings.some((w) => /c\.one declares no `successors` array/.test(w)))
+    assert.ok(l.warnings.some((w) => /would read as "no replacement" downstream/.test(w)))
+    assert.ok(l.warnings.some((w) => /missing retiredAt/.test(w)))
+    assert.ok(l.warnings.some((w) => /a\.one appears twice/.test(w)))
+  })
+
+  /** Fail open on a missing file; fail closed on a broken one. */
+  it('refuses a file that is present and unparseable', () => {
+    const file = join(scratchDir(), 'broken.json')
+    writeFileSync(file, '{ not json')
+    assert.throws(() => loadLineage(file), (e: unknown) =>
+      e instanceof LineageRefused && e.code === 'lineage.unparseable')
   })
 })

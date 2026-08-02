@@ -1,0 +1,41 @@
+{
+  "schemaId": "housesteady.retirement-lineage",
+  "version": "1.0.0",
+  "date": "2026-07-31",
+  "status": "SHAPE ONLY — DELIBERATELY EMPTY. This file is the concrete artifact behind open item F10 so the change request to the field session has something to ask for rather than a description. `entries` is empty because the data has never been given to this repo, and an empty file must read as 'no lineage is known' rather than 'no item has ever retired'. See `emptyMeans` below.",
+
+  "sourceDocument": "Checklist Master Table F. The master records retired id, version, successors and reason as structured data — but it is a markdown document in /docs/reference/ that a doctrine scan forbids any code path from reading, so the builder cannot get at it. This file is that table, in a form the builder may read.",
+
+  "note": "What happened to a checklist item id after it retired. Read ONLY to show a person where a broken series continued.",
+
+  "theOneRuleThisFileDoesNotChange": "Software must never use this to join a series. Checklist Master §2: an item that MOVES keeps its id; an item that is REDEFINED retires, and the replacement takes a new id. A retired id is a discontinuity, and a resolution recorded against it becoming attached to a differently-meaning item is false continuity. The master's own words: a stale test result silently vouching for something nobody checked is worse than an honest orphan. This file lets the builder say 'this series ends at v1.8 — the master records the content continuing as these four'. It does not let the builder draw one line.",
+
+  "emptyMeans": {
+    "note": "The distinction this file's consumers must preserve, and it is the same one that has decided six designs in this repo.",
+    "noEntryForAnId": "UNKNOWN. The builder has not been told what happened to it. `successors` reads null and `lineageAvailable` false.",
+    "entryWithEmptySuccessors": "NONE, and that is a fact. The item retired with no replacement — a question that stopped being asked rather than one that moved. `successors` reads [] and `lineageAvailable` true.",
+    "whyItMatters": "An empty array and an absent entry look identical to a consumer that only checks length, and they are opposite claims: 'we know there is no successor' versus 'we have never been told'. The builder reports them differently and a doctrine scan holds it."
+  },
+
+  "entryShape": {
+    "retiredId": "the checklist item id that retired — required, and globally unique by master §2 since a retired id is never reissued",
+    "retiredAt": "the master version at which it retired, e.g. `v1.8` — required, because 'this series ends' is only useful with a where",
+    "successors": "array of item ids the content continued as. **Empty array is a legitimate value meaning no replacement.** Omitting the key is not — an entry that cannot say is not an entry.",
+    "reason": "open vocabulary, from the master's own wording. Seen so far: `redefined` · `split`. Fail open: a reason this builder has not met is displayed verbatim, never dropped and never mapped onto one it knows.",
+    "note": "optional free text from the master, shown to a person as-is. Where the master explains WHY, that explanation is usually the most useful thing on the row."
+  },
+
+  "workedExample": {
+    "note": "NOT AN ENTRY — this is what one would look like, kept outside `entries` so no consumer reads it as data. Drawn from the master's own account of the v1.8 change, which is the case that makes the argument.",
+    "shape": {
+      "retiredId": "liv.egress",
+      "retiredAt": "v1.8",
+      "successors": ["liv.egress-width", "liv.egress-height", "liv.egress-sill", "liv.egress-opens"],
+      "reason": "split",
+      "note": "One measure carried one number for four different limits — a minimum width, a minimum height, a minimum openable area and a maximum sill height. A year later nobody can say which dimension a past reading measured. The master: a number carries false precision — it looks like data, so nothing about it invites doubt."
+    },
+    "whyThisOne": "It is the worst case in the master and the reason a discontinuity cannot be a soft warning. A retired id that carried pass/fail renders against the wrong question as a visible category error. This one carried a NUMBER, which renders as a plausible measurement of something nobody measured."
+  },
+
+  "entries": []
+}
