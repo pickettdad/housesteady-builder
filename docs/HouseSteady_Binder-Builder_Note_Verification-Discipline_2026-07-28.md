@@ -322,6 +322,66 @@ Two of this session's scans needed it and one of them earned it twice over:
 **Not retroactive.** The existing scans are not worth going back through; the cost is real
 and the returns fall off sharply once a scan has been reviewed once.
 
+### 10. Read the structure, not a plausible field name
+
+*(Added 2026-08-02, from the first real walk.)*
+
+**A guess that turns out right is indistinguishable from a checked fact, and that
+is the problem with it.**
+
+Increment 4 §1f needed the field carrying a recorded `measure` value. The Manifest
+Contract does not name it, and **no export had ever contained one** — eleven
+measure items declared, none fired. The obvious move was `evidence.value`.
+
+Instead the reader read the *structure*: a lone scalar in `evidence` yields the
+value and the key is recorded; several scalars is ambiguity, reported and refused.
+
+The first real walk arrived with two:
+
+```jsonc
+"liv.egress-sill"    { "value": "26", "unit": "in" }   // REFUSED — two scalars
+"att.access-honesty" { "value": "no access" }          // read, carrier evidence.value
+```
+
+**`evidence.value` would have been right.** And the repo would have carried a
+lucky guess that nobody could tell from a checked fact — no warning, no record of
+having looked, and a `unit` key silently ignored beside it. The refusal named
+`unit, value` in a warning, and *that* is how the shape became known.
+
+The rule, in one line: **when a name is unobserved, read the shape and report what
+you find.** A structural read that refuses is worth more than a plausible name
+that happens to work, because only the first one tells you when it was right.
+
+*(Corollary: `n = 1` stays on the record. One measured value in one export is the
+shape seen, not the shape guaranteed.)*
+
+### 11. A check whose distinguishing input is never present has not been passing
+
+*(Added 2026-08-02. Same walk, and the more expensive of the two.)*
+
+The zone-audit oracle compares this repo's reconstruction against the field app's
+own exported summary, item for item. It is the safety net under the whole audit
+engine, and it **agreed on every run for four increments.**
+
+It was wrong the whole time. The field app folds a pin's component-list items into
+the ZONE's summary; the oracle compared its zone-scoped computation against that
+folded number.
+
+**It agreed because the reference export has nothing to fold.** Two zones carry a
+summary, one typed live pin between them — and that pin's five items are *all
+resolved*, so the fold's contribution is exactly zero with or without the bug.
+The check was not passing. **It was idle**, and nothing about a green run says
+which.
+
+The first real walk had 17 pins across 8 zones. The oracle disagreed on four, every
+missing item component-scoped. Folded and re-run: 8 of 8 agree item for item.
+
+**Distinct from rule 9**, which is about a document asserting a state it does not
+re-derive. This is a check that *does* run, on data that cannot exercise it. The
+question to ask of any green check: **what in this fixture makes a wrong answer
+look different from a right one?** If nothing does, the check is a placeholder
+with a passing badge.
+
 #### 9c · The CI log was expected to answer this and does not — which is itself the finding
 
 The reasonable hope was that CI history already knows which scans have ever fired, making

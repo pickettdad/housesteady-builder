@@ -25,32 +25,50 @@
  *
  * ---
  *
- * ## The wire shape of a recorded value has never been observed
+ * ## The wire shape, OBSERVED 2026-07-31 — and the refusal is what found it
  *
- * The Manifest Contract does not say which field carries a `measure` value, and
- * **no export has ever contained one** (Observed Addendum §6: *"the
- * year-over-year comparison backbone — crack widths, water pressure, humidity,
- * insulation depth — is entirely unexercised"*).
+ * This module used to say the shape had never been observed, and it read the
+ * *structure* rather than guessing a field name: a lone scalar in `evidence`
+ * yields the value, several scalars is ambiguity and is refused.
  *
- * So this module does **not** guess a field name. Guessing `evidence.value`
- * would produce a reader that runs green forever against exports that have
- * nothing to read, and fails silently against the first one that does — rule 7,
- * in the one place where the input genuinely is always absent today.
+ * **The first real walk arrived and the refusal did exactly its job.** Two
+ * `evidence` objects, and the reader reported rather than guessed:
  *
- * **Instead it reads the structure.** A resolution's `evidence` object carrying
- * exactly one scalar yields that scalar, and the key it came from is recorded.
- * Several scalars is ambiguity, reported and not resolved. On the first real
- * measure export the report names the key immediately, and the Manifest Contract
- * gets an answer rather than this file getting a lucky guess.
+ * ```jsonc
+ * "liv.egress-sill"    { "value": "26", "unit": "in" }   // REFUSED — two scalars
+ * "att.access-honesty" { "value": "no access" }          // read, carrier evidence.value
+ * ```
+ *
+ * A guessed `evidence.value` would have been *right* — and would have been a
+ * lucky guess that nobody could tell from a checked fact. The refusal named
+ * `unit, value` in a warning, which is how the shape became known.
+ *
+ * So `evidence.value` is now read **because it was observed, not because it was
+ * assumed**, and `evidence.unit` beside it is the declared unit of the reading.
+ * The structural fallback stays for a key this build has not met.
+ *
+ * **`value` is a STRING even when it is a number** — `"26"`, not `26`. Kept
+ * verbatim: doctrine 1 says imports are stored as they arrived, and the
+ * evaluator already orders a numeric string. Coercing here would make the stored
+ * value disagree with the manifest over nothing.
+ *
+ * **n = 1 for `measure`.** One measured value in one export. This is the shape
+ * seen, not the shape guaranteed — the Manifest Contract still does not name the
+ * field, and that remains a change request.
  */
 
 import type { Db } from '../db/index.js'
 
 export interface AnswerValue {
   itemId: string
+  /** **Verbatim.** `"26"` stays a string; the evaluator orders a numeric string. */
   value: string | number | boolean
-  /** Which field of the resolution carried it. Recorded because it is unverified. */
+  /** Which field of the resolution carried it. Recorded because n = 1 for `measure`. */
   carrier: string
+  /** `evidence.unit` — what the reading was taken in, where the export says. */
+  unit: string | null
+  /** The item's own declared unit, from the config. Compared, never substituted. */
+  declaredUnit: string | null
   importId: string
   at: string
 }
@@ -71,6 +89,9 @@ export interface Answers {
 /** `satisfy` kinds that record a value rather than a state. */
 const VALUE_BEARING = new Set(['measure', 'choice'])
 
+/** What the config says about one value-recording item. */
+interface ValueItem { satisfy: string; unit: string | null }
+
 /**
  * Every recorded value on this property, keyed by item id.
  *
@@ -87,7 +108,7 @@ export function answersForProperty(db: Db, propertyId: string): Answers {
       'WHERE i.property_id = ? ORDER BY i.imported_at DESC, i.id DESC LIMIT 1')
     .get(propertyId) as { snapshot: string } | undefined
 
-  const valueBearing = new Map<string, string>()
+  const valueBearing = new Map<string, ValueItem>()
   if (newest) {
     let snap: Record<string, unknown> = {}
     try {
@@ -100,7 +121,8 @@ export function answersForProperty(db: Db, propertyId: string): Answers {
       for (const raw of items) {
         const i = raw as { id?: unknown; satisfy?: unknown }
         if (typeof i?.id === 'string' && typeof i.satisfy === 'string' && VALUE_BEARING.has(i.satisfy)) {
-          valueBearing.set(i.id, i.satisfy)
+          const unit = (i as { unit?: unknown }).unit
+          valueBearing.set(i.id, { satisfy: i.satisfy, unit: typeof unit === 'string' ? unit : null })
         }
       }
     }
@@ -160,6 +182,29 @@ export function answersForProperty(db: Db, propertyId: string): Answers {
     const scalars = Object.entries(evidence).filter(([, v]) =>
       typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean')
 
+    /**
+     * **`evidence.value` — observed 2026-07-31, on both a `measure` and a
+     * `choice`.** Read by name now that the name is known; the structural
+     * fallback below still covers a key this build has not met.
+     */
+    const named = scalars.find(([k]) => k === 'value')
+    if (named) {
+      const [, value] = named
+      const unit = typeof evidence.unit === 'string' ? evidence.unit : null
+      carriersSeen.set('evidence.value', (carriersSeen.get('evidence.value') ?? 0) + 1)
+      values.set(r.item_id, value)
+      found.push({
+        itemId: r.item_id,
+        value: value as string | number | boolean,
+        carrier: 'evidence.value',
+        unit,
+        declaredUnit: valueBearing.get(r.item_id)?.unit ?? null,
+        importId: r.import_id,
+        at: r.imported_at,
+      })
+      continue
+    }
+
     if (scalars.length === 1) {
       const [key, value] = scalars[0]!
       carriersSeen.set(`evidence.${key}`, (carriersSeen.get(`evidence.${key}`) ?? 0) + 1)
@@ -168,6 +213,8 @@ export function answersForProperty(db: Db, propertyId: string): Answers {
         itemId: r.item_id,
         value: value as string | number | boolean,
         carrier: `evidence.${key}`,
+        unit: typeof evidence.unit === 'string' ? evidence.unit : null,
+        declaredUnit: valueBearing.get(r.item_id)?.unit ?? null,
         importId: r.import_id,
         at: r.imported_at,
       })
@@ -191,10 +238,42 @@ export function answersForProperty(db: Db, propertyId: string): Answers {
         itemId: r.item_id,
         value: Number(r.result),
         carrier: 'result',
+        unit: null,
+        declaredUnit: valueBearing.get(r.item_id)?.unit ?? null,
         importId: r.import_id,
         at: r.imported_at,
       })
     }
+  }
+
+  /**
+   * **A reading in one unit against an item declared in another.**
+   *
+   * Master Table H: `fc.width` declares `mm`, `liv.egress-sill` declares `in`,
+   * and three moisture items declare **no unit at all** because the owner does
+   * not own a moisture meter yet — %WME, %MC and relative 0–100 are different
+   * scales and a wrong declaration corrupts the series.
+   *
+   * So a mismatch is reported and **never converted.** Converting would put a
+   * number in the record that no instrument produced, and the honest failure is
+   * a person looking at two units rather than software quietly picking one.
+   */
+  const mismatched = found.filter((f) => f.unit && f.declaredUnit && f.unit !== f.declaredUnit)
+  if (mismatched.length > 0) {
+    warnings.push(
+      `${mismatched.length} reading(s) were recorded in a unit the config does not declare for that item: ` +
+        `${mismatched.map((f) => `${f.itemId} recorded in ${f.unit}, declared ${f.declaredUnit}`).join('; ')}. ` +
+        'Reported and NOT converted — a converted number is one no instrument produced.',
+    )
+  }
+  const unitless = found.filter((f) => f.unit && !f.declaredUnit)
+  if (unitless.length > 0) {
+    warnings.push(
+      `${unitless.length} reading(s) carry a unit the config declares none for: ` +
+        `${unitless.map((f) => `${f.itemId} (${f.unit})`).join('; ')}. Master Table H leaves three ` +
+        'moisture items unitless deliberately, pending a moisture meter — a reading arriving with a unit ' +
+        'anyway is worth seeing rather than absorbing.',
+    )
   }
 
   if (ambiguous.length > 0) {
