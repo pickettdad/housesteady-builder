@@ -12,6 +12,7 @@ import { answersForProperty } from '../src/audit/answers.js'
 import { itemSeries } from '../src/audit/itemSeries.js'
 import { evaluate, noFacts, parseCondition, ConditionRefused } from '../src/audit/triggers.js'
 import { visitSequence } from '../src/audit/visitSequence.js'
+import { auditZones } from '../src/audit/zoneAudit.js'
 import { deskWork, DeskWorkRefused, runningSpan, startWork, stopWork } from '../src/desk/work.js'
 import type { Db } from '../src/db/index.js'
 import { runImport } from '../src/import/runImport.js'
@@ -546,5 +547,69 @@ describe('the visit sequence, now shared', () => {
     assert.deepEqual(seq.visits.map((v) => v.visitId), [ids.visitId, second])
     assert.equal(seq.reachesBack, true, 'the earliest visit is a baseline')
     assert.ok(seq.warnings.some((w) => /sort differently by walk date than by import order/.test(w)))
+  })
+})
+
+// ------------------------------------------------- the oracle, corrected
+
+describe('the zone-audit oracle folds pin items, as the export does', () => {
+  /**
+   * **The oracle was wrong for four increments and only real data showed it.**
+   *
+   * The field app puts a pin's component-list items in the ZONE's audit summary.
+   * This oracle compared its zone-scoped computation against that folded number.
+   * On the reference export it agreed anyway — two zones carrying a summary, one
+   * typed live pin between them, so there was nothing to fold.
+   *
+   * Rule 7 in the check that exists to catch everything else: a check whose
+   * distinguishing input is never present has not been passing, it has been idle.
+   */
+  /**
+   * **The reference export could not have discriminated, and this test says why.**
+   *
+   * Its one typed live pin is a `smoke-alarm` in the bedroom, and **all five of
+   * its items are resolved** — `alm.date`, `alm.power`, `alm.test`, `alm.type`,
+   * `alm.interconnect`. So the fold contributes exactly zero, the bedroom's core
+   * list is empty on both sides, and the oracle agreed identically with the fold
+   * and without it.
+   *
+   * Removing those five resolutions is the smallest change that makes the
+   * difference visible on real structure.
+   */
+  it('counts a typed pin\'s component items inside its zone\'s summary', async () => {
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db, { kind: 'baseline' })
+
+    // The reference, with the smoke-alarm's own answers taken away. Everything
+    // else — the pin, its type, its zone, the config — is untouched.
+    const m = JSON.parse(readReference()) as { resolutions: { itemId: string }[] }
+    m.resolutions = m.resolutions.filter((r) => !r.itemId.startsWith('alm.'))
+    const { importId } = await runImport({
+      actorId: TEST_OPERATOR, db, ...ids, raw: JSON.stringify(m), dataDir: scratchDir(),
+    })
+
+    const bedroom = auditZones(db, importId, 'baseline').find((z) => z.label === 'bedroom')!
+    const zoneOnly = new Set(bedroom.computed.applicable.map((i) => i.id))
+    const folded = bedroom.computed.coreUnresolved.filter((id) => !zoneOnly.has(id))
+
+    assert.deepEqual(folded.sort(), ['alm.date', 'alm.power', 'alm.test'],
+      'the pin\'s three core items belong in its zone\'s summary, because that is where the export puts them')
+
+    // **Only the summary folds.** `applicable` still carries zone items only —
+    // every other consumer keeps a pin item scoped to its pin.
+    for (const id of folded) assert.ok(!zoneOnly.has(id))
+    assert.ok(bedroom.computed.applicable.every((i) => !i.id.startsWith('alm.')))
+  })
+
+  it('still agrees with the reference export on every zone that carries a summary', async () => {
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db, { kind: 'baseline' })
+    const { importId } = await runImport({
+      actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir(),
+    })
+    for (const z of auditZones(db, importId, 'baseline')) {
+      if (!z.imported) continue
+      assert.deepEqual(z.differences, [], `${z.label} diverges: ${z.differences.join(' · ')}`)
+    }
   })
 })

@@ -34,9 +34,17 @@
  * on `zone.has_stairs`. Lose the ensuite's `finished: true` on replay and those
  * three stop being due, silently, in a room where they apply.
  *
- * *(The count of defaulting zone types — 12 of 13 at v1.11, 13 of 13 here — is
- * no longer the load-bearing fact. One list gate on one attribute is enough on
- * its own and does not depend on how many other types default.)*
+ * **Measured on the real v1.11 config, and this is the third different number in
+ * three documents — so it is stated once, precisely, and zone TYPES are dropped
+ * from the framing entirely.**
+ *
+ * All six zone attributes **declare** `defaultsTrueFor`. Five declare it with an
+ * **empty** value. The sixth, `has_mechanicals`, defaults true for `utility`
+ * alone — and it is the one carrying the list gate.
+ *
+ * That makes §3a stronger rather than weaker: **the mechanism is wired, and it is
+ * load-bearing on exactly the one attribute that gates an entire base list.**
+ * Declared-and-empty is not never-declared — seventh instance.
  *
  * **The test for what belongs in the plan: could the app work this out again by
  * looking at the house?** If no, carry it explicitly.

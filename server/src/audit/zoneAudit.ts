@@ -32,9 +32,35 @@
  * are `baseline`, `monthly`, `seasonal:spring`; nothing in the export declares
  * which kind of visit this was. It comes from the visit record, never from the
  * manifest — see the argument in §1h.1.
+ *
+ * ---
+ *
+ * ## The oracle was wrong for four increments, and only real data showed it
+ *
+ * **The field app folds a pin's component-list items into the ZONE's audit
+ * summary.** This module compared its zone-scoped computation against that
+ * folded number and called the difference agreement — because on the reference
+ * export there was nothing to fold.
+ *
+ * The reference export has exactly two zones carrying an audit summary, and
+ * between them **one typed live pin**. So the discriminating input was
+ * essentially absent, the oracle agreed on every run, and it would have kept
+ * agreeing forever. Rule 7's shape in the check that exists to catch everything
+ * else: *a check whose distinguishing input is never present has not been
+ * passing, it has been idle.*
+ *
+ * The first real walk had 17 pins across 8 zones and the oracle disagreed on
+ * four of them — every missing item component-scoped. Folded and re-run: **8 of
+ * 8 agree item-for-item**, and the 208 carried gaps are honest.
+ *
+ * **Only the SUMMARY folds.** A pin item stays scoped to its pin everywhere else
+ * in this repo; `applicable` still carries zone items only, because callers
+ * depend on that. The fold exists to compare like with like against an export
+ * that made a different choice.
  */
 
 import type { Db } from '../db/index.js'
+import { componentGraph } from './components.js'
 import { factsForImport, type VisitFacts } from './facts.js'
 import { composeGate, evaluate, type FactSet } from './triggers.js'
 
@@ -146,8 +172,21 @@ export function computeZoneAudit(args: {
   zoneId: string
   zoneType: string | null
   visitKind: string
-  /** Resolutions scoped to THIS ZONE only. Pin-scoped rows are a different question. */
+  /** Resolutions scoped to THIS ZONE only. */
   zoneResolutions: { item_id: string; kind: string | null }[]
+  /**
+   * Live typed pins standing IN this zone, with their own resolutions.
+   *
+   * **The field app folds a pin's component-list items into the zone's audit
+   * summary, and this used to omit them entirely.** See the module note: the
+   * oracle disagreed with the export on four of eight zones on the first real
+   * walk, and every missing item was component-scoped.
+   *
+   * Optional so an existing caller that only has zone data still compiles — and
+   * `pinsHere: undefined` versus `pinsHere: []` are different claims, so the
+   * comparison reports which it was given.
+   */
+  pinsHere?: { pinId: string; componentType: string; resolutions: { item_id: string; kind: string | null }[] }[]
 }): ZoneAudit {
   const { lists } = listsForZoneType(args.snapshot, args.zoneType)
 
@@ -179,12 +218,51 @@ export function computeZoneAudit(args: {
   const resolved = new Set(args.zoneResolutions.map((r) => r.item_id))
   const unresolved = applicable.filter((i) => !resolved.has(i.id))
 
+  /**
+   * The pins' component items, folded in — because that is where the export
+   * puts them.
+   *
+   * Kept as a separate pass rather than merged into the list loop above: a pin
+   * item is scoped to the pin everywhere else in this repo, and `applicable`
+   * feeds callers that rely on that. Only the SUMMARY folds.
+   */
+  const graph = componentGraph(args.snapshot)
+  const componentLists = Array.isArray(args.snapshot.componentLists)
+    ? (args.snapshot.componentLists as { types?: unknown; items?: unknown }[])
+    : []
+  const pinCore: string[] = []
+  let pinStandard = 0
+  let pinNa = 0
+
+  for (const pin of args.pinsHere ?? []) {
+    const pinResolved = new Set(pin.resolutions.map((r) => r.item_id))
+    pinNa += pin.resolutions.filter((r) => r.kind === 'na').length
+    const seenHere = new Set<string>()
+    // Parent first — §1b's rendered order, and inherited items keep the
+    // parent's id, so a softener's nameplate item IS `wt.nameplate`.
+    for (const type of [...graph.lineage(pin.componentType)].reverse()) {
+      for (const list of componentLists) {
+        const types = Array.isArray(list.types) ? (list.types as string[]) : []
+        if (!types.includes(type)) continue
+        for (const item of (Array.isArray(list.items) ? (list.items as ChecklistItem[]) : [])) {
+          if (typeof item?.id !== 'string' || seenHere.has(item.id)) continue
+          if (!inScope(item, args.visitKind)) continue
+          if (!evaluate(composeGate(null, item.trigger ?? null), args.facts).applies) continue
+          seenHere.add(item.id)
+          if (pinResolved.has(item.id)) continue
+          if ((item.tier ?? 'standard') === 'core') pinCore.push(item.id)
+          else pinStandard += 1
+        }
+      }
+    }
+  }
+
   return {
     zoneId: args.zoneId,
     zoneType: args.zoneType,
-    coreUnresolved: unresolved.filter((i) => i.tier === 'core').map((i) => i.id).sort(),
-    standardUnresolved: unresolved.filter((i) => i.tier !== 'core').length,
-    naCount: args.zoneResolutions.filter((r) => r.kind === 'na').length,
+    coreUnresolved: [...unresolved.filter((i) => i.tier === 'core').map((i) => i.id), ...pinCore].sort(),
+    standardUnresolved: unresolved.filter((i) => i.tier !== 'core').length + pinStandard,
+    naCount: args.zoneResolutions.filter((r) => r.kind === 'na').length + pinNa,
     applicable,
     uncertain,
   }
@@ -221,6 +299,35 @@ export function auditZones(db: Db, importId: string, visitKind: string, facts?: 
     byZone.set(r.scope_zone_id, list)
   }
 
+  // Live typed pins per zone, with their own resolutions — see `pinsHere`.
+  const pinRows = db
+    .prepare(
+      `SELECT pin_id, zone_id, component_type FROM pins
+        WHERE import_id = ? AND retired_at IS NULL AND component_type IS NOT NULL AND zone_id IS NOT NULL`,
+    )
+    .all(importId) as { pin_id: string; zone_id: string; component_type: string }[]
+
+  const pinRes = db
+    .prepare(
+      `SELECT scope_pin_id, item_id, kind FROM resolutions
+        WHERE import_id = ? AND scope_kind = 'pin' AND scope_pin_id IS NOT NULL`,
+    )
+    .all(importId) as { scope_pin_id: string; item_id: string; kind: string | null }[]
+
+  const resByPin = new Map<string, { item_id: string; kind: string | null }[]>()
+  for (const r of pinRes) {
+    const list = resByPin.get(r.scope_pin_id) ?? []
+    list.push({ item_id: r.item_id, kind: r.kind })
+    resByPin.set(r.scope_pin_id, list)
+  }
+
+  const pinsByZone = new Map<string, { pinId: string; componentType: string; resolutions: { item_id: string; kind: string | null }[] }[]>()
+  for (const p of pinRows) {
+    const list = pinsByZone.get(p.zone_id) ?? []
+    list.push({ pinId: p.pin_id, componentType: p.component_type, resolutions: resByPin.get(p.pin_id) ?? [] })
+    pinsByZone.set(p.zone_id, list)
+  }
+
   return zones.map((z) => {
     const computed = computeZoneAudit({
       snapshot: f.snapshot,
@@ -229,6 +336,7 @@ export function auditZones(db: Db, importId: string, visitKind: string, facts?: 
       zoneType: z.type,
       visitKind,
       zoneResolutions: byZone.get(z.zone_id) ?? [],
+      pinsHere: pinsByZone.get(z.zone_id) ?? [],
     })
 
     const imported = parse<ZoneComparison['imported']>(z.audit_summary, null)
