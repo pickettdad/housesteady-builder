@@ -43,7 +43,8 @@ Pinned in `server/test/walk-fixture.test.ts`.
 |---|---|
 | `session.propertyLabel`, `events[].propertyLabel` | replaced — it carried the owner's name |
 | `notes[].text`, `events[].text` | replaced with synthetic prose **at the original character length** |
-| `resolutions[].resolution.note`, `events[].resolution.note` | same |
+| `resolutions[].resolution.note`, `events[].note`, `events[].resolution.note` | same |
+| `zones[].closeNote` | same — **missed on the first cut**, see below |
 | `media[].sha256`, `events[].media.sha256`, `events[].manifestSha256` | rehashed from the original, so shape and uniqueness survive and nothing links to a real photograph |
 
 **Same length, and that is not fussiness.** A note whose length changes is a different test — truncation, wrapping and layout all read it.
@@ -59,13 +60,23 @@ Pinned in `server/test/walk-fixture.test.ts`.
 
 ## How the redaction was checked
 
-Not by grepping for words — the first attempt did, and it flagged the config's own checklist text as a leak. Instead, **both documents are walked in lockstep, leaf by leaf**:
+**By shape, not by a list — and the first two attempts show why both alternatives fail.**
+
+Attempt one grepped for **content** and flagged `GFCI` and `range hood` as leaks. Those are in the config's own checklist item text, written for a concierge. Content matching cannot tell a house from a checklist.
+
+Attempt two checked **a list of field paths I had written down** — and missed `zones[].closeNote` entirely, because a check that only inspects keys you already thought of cannot flag the one you did not. Verification Discipline rule 11, inside the redaction's own verification: its discriminating power depended on my memory being complete.
+
+**What holds it now** finds every prose-like string in the file — three or more words, not a uuid, hash, timestamp or lowercase token — and requires each to sit at a path **declared** either redacted or deliberately kept. A new free-text field in a future export fails the test rather than shipping. Negative-tested: planting one fires it.
+
+Alongside that, both documents are walked in lockstep, leaf by leaf:
+
+
 
 - every leaf is either byte-identical or sits at a redacted key
 - every leaf at a redacted key **did** change
 - every replaced string has its original length
 
-**10,237 leaves identical, 360 changed, zero problems.** Then the real manifest and this one were imported side by side and produced **identical** zone agreement, due counts, gap counts and recorded values.
+**10,235 leaves identical, 362 changed, zero problems** — and 36 prose fields accounted for by shape. Then the real manifest and this one were imported side by side and produced **identical** zone agreement, due counts, gap counts and recorded values.
 
 ## The other manifest
 

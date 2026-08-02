@@ -133,6 +133,52 @@ describe('the walk fixture — what it must keep doing', () => {
    * says so. Checked by path rather than by word, because the first attempt at
    * this grepped for content and flagged the config's own checklist text.
    */
+  /**
+   * **The redaction check, by SHAPE rather than by a list somebody maintains.**
+   *
+   * The first version of this asserted specific fields were clean — and it
+   * missed `zones[].closeNote` entirely, because a check that only inspects keys
+   * you already thought of cannot flag the one you did not. Rule 11 in the
+   * redaction's own verification: its discriminating power depended on my memory
+   * being complete.
+   *
+   * So this finds every prose-like string in the file — three or more words,
+   * not a uuid, hash, timestamp or lowercase token — and requires each one to
+   * sit at a path that is *declared* either redacted or deliberately kept.
+   * **A new free-text field in a future export fails here rather than shipping.**
+   */
+  it('leaves no prose-like field unaccounted for, found by shape not by list', () => {
+    const m = JSON.parse(readWalk()) as Record<string, unknown>
+
+    // Kept on purpose: the AI thread names nobody and is the only captured
+    // thread that exists; zone labels are generic vocabulary and the
+    // label-versus-type distinction is a live test.
+    const KEPT = new Set(['.chats[].messages[].text', '.events[].label', '.zones[].label'])
+    const REDACTED = new Set([
+      '.session.propertyLabel', '.events[].propertyLabel', '.notes[].text', '.events[].text',
+      '.resolutions[].resolution.note', '.events[].resolution.note', '.zones[].closeNote',
+      '.events[].note',
+    ])
+
+    const unaccounted: string[] = []
+    const walk = (node: unknown, path: string, inConfig: boolean): void => {
+      if (Array.isArray(node)) { for (const v of node) walk(v, `${path}[]`, inConfig); return }
+      if (node && typeof node === 'object') {
+        for (const [k, v] of Object.entries(node)) walk(v, `${path}.${k}`, inConfig || k === 'config')
+        return
+      }
+      if (typeof node !== 'string' || inConfig) return
+      if (/^[0-9a-f-]{36}$/.test(node) || /^[0-9a-f]{64}$/.test(node)) return
+      if (/^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(node) || /^[a-z0-9][a-z0-9._/-]*$/.test(node)) return
+      if (node.split(/\s+/).length < 3) return
+      if (!KEPT.has(path) && !REDACTED.has(path)) unaccounted.push(`${path}: ${node.slice(0, 60)}`)
+    }
+    walk(m, '', false)
+
+    assert.deepEqual(unaccounted, [],
+      'a prose field at a path nobody declared is a field nobody decided about')
+  })
+
   it('carries no real-house text, and keeps the config and chat verbatim', () => {
     const m = JSON.parse(readWalk()) as {
       session: { propertyLabel: string }

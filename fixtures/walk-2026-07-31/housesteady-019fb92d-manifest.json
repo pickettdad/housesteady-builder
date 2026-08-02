@@ -183,7 +183,7 @@
     "has_mechanicals": false
    },
    "closedAt": "2026-07-31T18:24:35.983Z",
-   "closeNote": "Opened for checking off used for sleeping and also to measure the sill per the closing tasks for tests or documentation",
+   "closeNote": "stained plan review coating poor blocked mount test above and next side row unit run zone cracked on cycle review clear",
    "canvases": [
     {
      "canvasId": "019fb96a-432c-7155-bcfb-15e613e91532",
@@ -335,7 +335,7 @@
     "has_mechanicals": false
    },
    "closedAt": "2026-07-31T18:53:54.444Z",
-   "closeNote": "Only created the attic zone so I could test the no access",
+   "closeNote": "but aged be fair a lower at meter zone later cable finish",
    "canvases": [],
    "audit": {
     "coreUnresolved": [
@@ -808,7 +808,7 @@
     "kind": "pin",
     "id": "019fb932-8ad9-7712-a1ba-1f8e82c03cd6"
    },
-   "text": "loose bracket fine looked filter not minor seal open damp test later photo follow be reading hinge flow in anchor checked cycle heat flashing",
+   "text": "later cable open front file note latch heat meter large fair ok small and map noted be upper front worn up level latch but in map cracked run",
    "at": "2026-07-31T17:24:22.428Z",
    "source": {
     "actor": "human",
@@ -823,7 +823,7 @@
     "kind": "pin",
     "id": "019fb932-8ad9-7712-a1ba-1f8e82c03cd6"
    },
-   "text": "next aged lower side row plate unit fixture on dusty seen",
+   "text": "dusty list it room is flow latch flow water in test clean",
    "at": "2026-07-31T17:30:26.855Z",
    "source": {
     "actor": "human",
@@ -838,7 +838,7 @@
     "kind": "pin",
     "id": "019fb93e-37d1-7f22-92b1-5611ac3f5f47"
    },
-   "text": "outlet flashing rusty upper noted map",
+   "text": "clear fine clean heat next latch near",
    "at": "2026-07-31T17:35:08.016Z",
    "source": {
     "actor": "human",
@@ -853,7 +853,7 @@
     "kind": "pin",
     "id": "019fb942-178f-7e81-a143-26e63c451af2"
    },
-   "text": "seal is the plan row cycle visit worn loose",
+   "text": "front dusty needs unit up line loose filter",
    "at": "2026-07-31T17:42:25.829Z",
    "source": {
     "actor": "human",
@@ -868,7 +868,7 @@
     "kind": "pin",
     "id": "019fb958-4fe6-746e-962f-7ebbf5d51f95"
    },
-   "text": "under water open row clear with",
+   "text": "below small fixture under right",
    "at": "2026-07-31T18:03:30.008Z",
    "source": {
     "actor": "human",
@@ -883,7 +883,7 @@
     "kind": "pin",
     "id": "019fb958-4fe6-746e-962f-7ebbf5d51f95"
    },
-   "text": "plate hinge vent looked",
+   "text": "recheck switch flashing",
    "at": "2026-07-31T18:06:18.289Z",
    "source": {
     "actor": "human",
@@ -898,7 +898,7 @@
     "kind": "pin",
     "id": "019fb95e-3759-7b2b-8934-ac825f97cb1d"
    },
-   "text": "shot item checked small hinge small cracked dry shot lower not set anchor bent area stained open to right up poor cycle dusty rusty shut of pin it near the switch shot drain with flow area lower visit coating recheck cover finish line right file meter set poor blocked back heat latch panel dry filter file upper gauge cracked bracket heat review lower right",
+   "text": "open list meter but vent worn to under list recheck on fine frame poor above loose area be flow frame unit mount filter loose hinge switch anchor looked fixture bent rear reading area chipped run run item fair with of surface air lower run poor up coating at small note air vent line near in clear water below area chipped vent is needs large looked flashing",
    "at": "2026-07-31T18:10:48.005Z",
    "source": {
     "actor": "human",
@@ -913,7 +913,7 @@
     "kind": "pin",
     "id": "019fb96d-4f3a-76c1-88b1-e625ff9e7126"
    },
-   "text": "the open cable outlet mount looked at fixture plate finish open row photo is level flashing shot at joint looked",
+   "text": "dusty but run needs shot switch below dry under flashing note row cable dusty in large is clear damp needs joint",
    "at": "2026-07-31T18:27:08.499Z",
    "source": {
     "actor": "human",
@@ -972,7 +972,7 @@
     "kind": "satisfied",
     "via": "note",
     "result": "fail",
-    "note": "is finish plate list fixture on meter later back needs aged plan under latch recheck"
+    "note": "meter in worn noted set review meter right duct map checked stained shot clean rusty"
    },
    "at": "2026-07-31T17:56:21.897Z",
    "source": {
@@ -1055,7 +1055,7 @@
     "evidence": {
      "value": "no access"
     },
-    "note": "open aged recheck cable next not surface but"
+    "note": "item frame cracked cover gasket right follow"
    },
    "at": "2026-07-31T18:53:41.308Z",
    "source": {
@@ -4898,7 +4898,7 @@
     "kind": "pin",
     "id": "019fb932-8ad9-7712-a1ba-1f8e82c03cd6"
    },
-   "text": "loose bracket fine looked filter not minor seal open damp test later photo follow be reading hinge flow in anchor checked cycle heat flashing",
+   "text": "later cable open front file note latch heat meter large fair ok small and map noted be upper front worn up level latch but in map cracked run",
    "eventId": "019fb934-a31c-7398-8aab-b897f98f4e2b",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 25,
@@ -4918,7 +4918,7 @@
     "kind": "pin",
     "id": "019fb932-8ad9-7712-a1ba-1f8e82c03cd6"
    },
-   "text": "and coating heat a note air cover reading note fair worn dry checked",
+   "text": "clear file plate shut gasket was of plate heat review cover flashing",
    "mediaIds": [
     "019fb932-fb2f-7b62-8c6f-38604906824d",
     "019fb933-819a-749c-842d-584aadeca9a1"
@@ -4939,7 +4939,7 @@
    "type": "ChatReplyRecorded",
    "threadId": "019fb935-1ca6-75bb-8807-f243259213d5",
    "model": "claude-sonnet-5",
-   "text": "line it note photo test loose dusty it cycle on noted good aged gasket test finish follow trap gauge with the later tight damp zone bracket found row air row heat noted near surface zone checked vent plate loose up fine room looked room was note water clean on up stained at outlet on coating at on mount with upper finish later note clear heat item shot vent noted a upper pin damp side pin mount noted at stained clean photo set upper large above seen cable surface shut air visit meter seen clean note unit be bent item water trap clean area on bracket dry was unit vent tight list noted duct cracked cycle it to room unit for switch worn is chipped item valve level and reading coating row note of air finish found filter list at row stained flashing air visit dusty map vent back flow visit recheck plate anchor cable worn shot clear fine hinge seen reading found bracket left and line flashing good test chipped heat is needs zone pin cycle damp room filter heat frame reading gauge seen not front mount water outlet up recheck",
+   "text": "for and next cycle review and it dry the outlet on needs latch photo clean row in is to right dusty item left not rusty but cover stained right room file to the room latch fair cable chipped clear latch needs on the large up cracked next and stained on worn photo finish finish seen cable frame not later lower under it line fine panel fair anchor tight and coating map loose it a large worn heat lower but coating a item review bracket on looked cracked clear it good later up mount is cycle unit of front row fine clear panel reading seen mount shut filter surface finish be noted follow found anchor stained lower room joint duct below gauge with gauge frame under seen not right finish unit aged worn upper ok dry near row front heat review under duct coating near the drain clear flow large with loose review cover rear looked ok checked below cycle zone chipped flashing front water worn photo drain drain cracked noted rusty coating the cable small chipped test run but right rear needs worn right file cover aged be plate not",
    "usage": {
     "inputTokens": 2592,
     "outputTokens": 324
@@ -5135,7 +5135,7 @@
     "kind": "pin",
     "id": "019fb932-8ad9-7712-a1ba-1f8e82c03cd6"
    },
-   "text": "next aged lower side row plate unit fixture on dusty seen",
+   "text": "dusty list it room is flow latch flow water in test clean",
    "eventId": "019fb93a-32a7-726d-a18c-650cda34a17c",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 37,
@@ -5349,7 +5349,7 @@
     "kind": "pin",
     "id": "019fb93e-37d1-7f22-92b1-5611ac3f5f47"
    },
-   "text": "outlet flashing rusty upper noted map",
+   "text": "clear fine clean heat next latch near",
    "eventId": "019fb93e-7cf0-72f8-b707-4e6b6d099ccf",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 47,
@@ -6060,7 +6060,7 @@
     "kind": "pin",
     "id": "019fb942-178f-7e81-a143-26e63c451af2"
    },
-   "text": "seal is the plan row cycle visit worn loose",
+   "text": "front dusty needs unit up line loose filter",
    "eventId": "019fb945-2b26-7371-83e2-cddd51e00f31",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 81,
@@ -6197,7 +6197,7 @@
   {
    "type": "ZoneReopened",
    "zoneId": "019fb92d-afd2-7d1b-a537-a5e5ede81965",
-   "note": "poor damp photo run looked",
+   "note": "noted surface chipped test",
    "eventId": "019fb947-c939-7d1f-a431-267aa9ee7c45",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 86,
@@ -6393,7 +6393,7 @@
     "kind": "satisfied",
     "via": "note",
     "result": "fail",
-    "note": "is finish plate list fixture on meter later back needs aged plan under latch recheck"
+    "note": "meter in worn noted set review meter right duct map checked stained shot clean rusty"
    },
    "eventId": "019fb951-ed09-7059-9668-c50abb756741",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
@@ -6839,7 +6839,7 @@
     "kind": "pin",
     "id": "019fb958-4fe6-746e-962f-7ebbf5d51f95"
    },
-   "text": "under water open row clear with",
+   "text": "below small fixture under right",
    "eventId": "019fb958-7558-7af6-a67d-fb2fc56aa77c",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 114,
@@ -7023,7 +7023,7 @@
     "kind": "pin",
     "id": "019fb958-4fe6-746e-962f-7ebbf5d51f95"
    },
-   "text": "plate hinge vent looked",
+   "text": "recheck switch flashing",
    "eventId": "019fb95b-06b1-7679-9afd-5dcee3af61b2",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 122,
@@ -7364,7 +7364,7 @@
     "kind": "pin",
     "id": "019fb95e-3759-7b2b-8934-ac825f97cb1d"
    },
-   "text": "shot item checked small hinge small cracked dry shot lower not set anchor bent area stained open to right up poor cycle dusty rusty shut of pin it near the switch shot drain with flow area lower visit coating recheck cover finish line right file meter set poor blocked back heat latch panel dry filter file upper gauge cracked bracket heat review lower right",
+   "text": "open list meter but vent worn to under list recheck on fine frame poor above loose area be flow frame unit mount filter loose hinge switch anchor looked fixture bent rear reading area chipped run run item fair with of surface air lower run poor up coating at small note air vent line near in clear water below area chipped vent is needs large looked flashing",
    "eventId": "019fb95f-2445-7845-9fa8-261317666143",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 138,
@@ -8246,7 +8246,7 @@
   {
    "type": "ZoneClosed",
    "zoneId": "019fb96a-206a-733d-bc76-9be7fc7b3820",
-   "note": "worn trap with fair coating flow rear surface on on good drain cycle heat map latch checked bent note at of meter upper",
+   "note": "stained plan review coating poor blocked mount test above and next side row unit run zone cracked on cycle review clear",
    "audit": {
     "coreUnresolved": [
      "int.canvas",
@@ -8435,7 +8435,7 @@
     "kind": "pin",
     "id": "019fb96d-4f3a-76c1-88b1-e625ff9e7126"
    },
-   "text": "the open cable outlet mount looked at fixture plate finish open row photo is level flashing shot at joint looked",
+   "text": "dusty but run needs shot switch below dry under flashing note row cable dusty in large is clear damp needs joint",
    "eventId": "019fb96e-1a53-7f32-90d5-c6ad69b2b881",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 184,
@@ -9913,7 +9913,7 @@
   {
    "type": "ZoneClosed",
    "zoneId": "019fb96e-8f76-7c4d-8381-d6f0b82e1adc",
-   "note": "the gauge to near set next poor left pin minor for line joint map zone chipped to line below row meter joint bracket to upper line near rusty seal hinge ok panel chipped seen aged loose seen cycle",
+   "note": "trap shut above damp right air up photo front large on on cracked not checked loose zone flashing cable heat outlet under review set note fixture it below in with later follow unit note and finish",
    "audit": {
     "coreUnresolved": [
      "int.canvas",
@@ -9963,7 +9963,7 @@
   {
    "type": "ZoneReopened",
    "zoneId": "019fb963-7359-77b2-a72e-653713171abf",
-   "note": "photo cable pin surface side",
+   "note": "shut map fine and gasket for",
    "eventId": "019fb980-5580-7279-bb48-be9e1317b4de",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 247,
@@ -9979,7 +9979,7 @@
   {
    "type": "ZoneReopened",
    "zoneId": "019fb96e-8f76-7c4d-8381-d6f0b82e1adc",
-   "note": "water map reading finish",
+   "note": "flashing not run blocked",
    "eventId": "019fb982-3e6d-79e7-85dc-edc6c81f4bcc",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
    "seq": 248,
@@ -10175,7 +10175,7 @@
     "evidence": {
      "value": "no access"
     },
-    "note": "open aged recheck cable next not surface but"
+    "note": "item frame cracked cover gasket right follow"
    },
    "eventId": "019fb986-683c-79c5-ad72-530257c321c5",
    "sessionId": "019fb92d-2a7a-7c74-96d2-4a98e0723992",
@@ -10192,7 +10192,7 @@
   {
    "type": "ZoneClosed",
    "zoneId": "019fb985-ac48-772c-917b-cbbcbee2c3e5",
-   "note": "the mount shut to latch outlet to air review of poor item",
+   "note": "but aged be fair a lower at meter zone later cable finish",
    "audit": {
     "coreUnresolved": [
      "rgh.structure",
