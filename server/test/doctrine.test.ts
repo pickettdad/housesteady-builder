@@ -708,6 +708,17 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
       // operator, and this one is spelled hyphenated to match the repo's own
       // vocabulary style rather than to dodge this scan.
       'not-in',
+      // Increment 4 §1f — the manifest field that carries a recorded value,
+      // OBSERVED on the first real walk rather than assumed. Not a config id:
+      // no config declares it, and `answers.ts` reads it from the verbatim
+      // `evidence` blob this repo stores.
+      //
+      // **The scan caught something real and this entry does not make it go
+      // away.** A manifest key name inside `/audit` is adapter knowledge one
+      // layer too high — it is there because `evidence` is stored verbatim by
+      // doctrine 1 rather than parsed by the adapter. If `evidence` ever gains
+      // an adapter shape, this literal moves there and comes out of this list.
+      'evidence.value',
     ])
 
     const offenders: string[] = []

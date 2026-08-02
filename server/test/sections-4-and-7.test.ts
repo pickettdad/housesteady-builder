@@ -325,6 +325,67 @@ describe('§1f — the reader, and why it can report nothing honestly', () => {
     assert.match(a.note, /evidence\.reading \(1\)/)
   })
 
+  /**
+   * **The observed shape, from the first real walk (2026-07-31).**
+   *
+   * `{ "value": "26", "unit": "in" }` on a measure and `{ "value": "no access" }`
+   * on a choice. Read by name now that the name is known — and the refusal is
+   * how it became known: two scalars were reported as ambiguous rather than
+   * guessed, and the warning named `unit, value`.
+   *
+   * **`value` is a string even when it is a number.** Kept verbatim; the
+   * evaluator already orders a numeric string, and coercing here would make the
+   * stored value disagree with the manifest over nothing.
+   */
+  it('reads evidence.value by name, keeps it verbatim, and carries the unit', async () => {
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db, { kind: 'baseline' })
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const importId = (db.prepare('SELECT id FROM imports LIMIT 1').get() as { id: string }).id
+    db.prepare(
+      `INSERT INTO resolutions (import_id, property_id, visit_id, scope_kind, item_id, kind, evidence,
+        at, is_recognized, feeds_gap_list, records_finding, created_at)
+       VALUES (?, ?, ?, 'zone', 'fc.width', 'satisfied', ?, ?, 1, 0, 0, ?)`,
+    ).run(importId, ids.propertyId, ids.visitId, JSON.stringify({ value: '26', unit: 'mm' }),
+      new Date().toISOString(), new Date().toISOString())
+
+    const a = answersForProperty(db, ids.propertyId)
+    assert.equal(a.values.get('fc.width'), '26', 'verbatim — the manifest says "26", not 26')
+    assert.equal(a.found[0]!.carrier, 'evidence.value')
+    assert.equal(a.found[0]!.unit, 'mm')
+    assert.equal(a.found[0]!.declaredUnit, 'mm', 'and the config declares mm for fc.width')
+    assert.deepEqual(a.ambiguous, [], 'two scalars is no longer ambiguous once one of them is named')
+
+    // And it still orders, because the evaluator reads a numeric string.
+    assert.equal(evaluate('answer.fc.width > 5', { ...noFacts(), answers: a.values }).applies, true)
+  })
+
+  /**
+   * **A reading in one unit against an item declared in another is reported and
+   * never converted.**
+   *
+   * Master Table H: a wrong unit declaration corrupts the series. A converted
+   * number is one no instrument produced, and the honest failure is a person
+   * looking at two units rather than software quietly picking one.
+   */
+  it('reports a unit mismatch rather than converting it', async () => {
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db, { kind: 'baseline' })
+    await runImport({ actorId: TEST_OPERATOR, db, ...ids, raw: readReference(), dataDir: scratchDir() })
+    const importId = (db.prepare('SELECT id FROM imports LIMIT 1').get() as { id: string }).id
+    db.prepare(
+      `INSERT INTO resolutions (import_id, property_id, visit_id, scope_kind, item_id, kind, evidence,
+        at, is_recognized, feeds_gap_list, records_finding, created_at)
+       VALUES (?, ?, ?, 'zone', 'fc.width', 'satisfied', ?, ?, 1, 0, 0, ?)`,
+    ).run(importId, ids.propertyId, ids.visitId, JSON.stringify({ value: '1.2', unit: 'in' }),
+      new Date().toISOString(), new Date().toISOString())
+
+    const a = answersForProperty(db, ids.propertyId)
+    assert.equal(a.values.get('fc.width'), '1.2', 'the reading stands, unconverted')
+    assert.ok(a.warnings.some((w) => /recorded in in, declared mm/.test(w)))
+    assert.ok(a.warnings.some((w) => /NOT converted — a converted number is one no instrument produced/.test(w)))
+  })
+
   /** Two scalars is ambiguity. Which one is the value is the question it refuses. */
   it('refuses to pick when evidence carries more than one scalar', async () => {
     const db = freshDb()
