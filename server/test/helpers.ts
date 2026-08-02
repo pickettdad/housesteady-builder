@@ -32,6 +32,22 @@ export const readReferenceAsRewalk = (sessionId = 'session-rewalk-1'): string =>
   return JSON.stringify(manifest)
 }
 
+/**
+ * The first real walk, redacted — `fixtures/walk-2026-07-31/`.
+ *
+ * **Reach for this over `readReference()` whenever a test needs a house rather
+ * than a shape.** Eight zones, seventeen pins, config v1.11, a `measure` with a
+ * unit, a `choice`, six `fine` flags, four videos, and a retirement and three
+ * reopens in the event log. The reference export has none of that, and the
+ * zone-audit oracle agreed for four increments because of it.
+ *
+ * See the directory's README for what was redacted and what deliberately was
+ * not — the config snapshot and the AI chat thread are byte-identical to the
+ * real export.
+ */
+export const readWalk = (): string =>
+  readFileSync(join(repoRoot, 'fixtures', 'walk-2026-07-31', 'housesteady-019fb92d-manifest.json'), 'utf8')
+
 export const scratchDir = (): string => mkdtempSync(join(tmpdir(), 'housesteady-test-'))
 
 /**
