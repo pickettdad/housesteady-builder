@@ -81,3 +81,22 @@ Alongside that, both documents are walked in lockstep, leaf by leaf:
 ## The other manifest
 
 The same session was exported **twice** — once with the inspection still open, once after closing. Only the closed one is here. Closing changed exactly two things: `session` gained `completedAt` and a lifecycle entry, and `events` gained `ExportProduced` (which records the *open* export's own files and hash) and `SessionCompleted`. Everything else was byte-identical, so a second fixture would be 493 KB to test two events.
+
+## `photo-dimensions.csv` — 157 rows, measured on the owner's Mac
+
+The redacted manifest carries no media, so nothing here can say how large the
+photographs actually are — and that number decides what a vision call costs.
+This file is `sips` output over the unzipped originals: `mediaId,width,height`.
+
+**It is not house data.** Pixel dimensions describe a camera, not a home, and
+every id in it already appears in the manifest beside it.
+
+The measurement is uniform to a degree worth recording: **every photograph is
+4032 on the long edge** — 143 landscape, 14 portrait, zero variation. One device,
+one walk. That makes cost per image a constant *on this export only*, which is
+precisely why the run record still refuses to derive cost from a photograph
+count: a second iPad, a client's phone or a scanned spec sheet breaks it, and the
+moment it breaks is the moment nobody is watching.
+
+Its ids are an exact set match with the manifest's 157 `kind: photo` rows —
+asserted by a test rather than checked once by hand.
