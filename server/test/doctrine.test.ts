@@ -2104,3 +2104,133 @@ describe('Increment 4 §4 and §7', () => {
       'a write targeting every open span is an auto-close by another name')
   })
 })
+
+/**
+ * The engine's send side — Increment 5 §10, Amendment 1 §C and §D.
+ *
+ * **Every scan here is negative-tested in place, per Verification Discipline §9b.**
+ * Each one extracts its detector as a predicate and asserts both directions: the
+ * real source is clean, *and* a synthetic offender is caught. A scan that has
+ * only ever seen clean input has not been passing — it has been idle (rule 11),
+ * and this file has now produced two scans that were silently doing nothing.
+ */
+describe('doctrine — assembly is separable from the call', () => {
+  const engineSrc = join(serverSrc, 'engine')
+
+  /**
+   * The whole point of the split (Amendment 1, ruling 1). If assembly can reach
+   * a model, then deciding what to send and sending it are one lump again and
+   * the send side stops being testable without a key. The seam is only real if
+   * nothing crosses it.
+   */
+  const reachesAModel = (code: string): boolean =>
+    /\bfetch\s*\(|from\s+['"]@anthropic-ai|from\s+['"][^'"]*ai\/client|new\s+Anthropic\b|\.messages\.create\b/.test(code)
+
+  it('lets no assembly module reach a model, a network or a key', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(engineSrc)) {
+      if (reachesAModel(codeOf(file))) offenders.push(file.replace(repoRoot, ''))
+    }
+    assert.deepEqual(offenders, [],
+      'assembly decides what to send; only the call sends it')
+
+    // Negative: the detector catches each shape it claims to.
+    assert.ok(reachesAModel(`const r = await fetch('https://api.anthropic.com')`))
+    assert.ok(reachesAModel(`import Anthropic from '@anthropic-ai/sdk'`))
+    assert.ok(reachesAModel(`import { call } from '../ai/client.js'`))
+    assert.ok(reachesAModel(`const m = await client.messages.create({})`))
+    assert.ok(!reachesAModel(`const m = media.filter((x) => x.kind === 'photo')`))
+  })
+
+  /**
+   * Amendment §C: declare what is consumed, never what is skipped. A skip list
+   * goes stale the first time the field app ships a kind nobody has met, and it
+   * fails by silently feeding that kind to an image call — which is the exact
+   * failure CLAUDE.md §5 forbids.
+   */
+  /**
+   * Both directions of the comparison, because a skip is as often written
+   * `if (kind === 'video') return` as `if (kind !== 'video') send`. The first
+   * form is the likelier one and the first version of this detector missed it —
+   * caught by the negative assertions below, which is the whole argument for
+   * §9b: a scan tested only against clean source proves nothing about what it
+   * would catch.
+   *
+   * A positive comparison against `'photo'` is caught too, and deliberately: a
+   * hardcoded kind test bypasses the declared constant even when it happens to
+   * agree with it today.
+   */
+  const isSkipList = (code: string): boolean =>
+    /kind\s*[!=]==?\s*['"](?:video|voice|audio|photo)['"]|!\s*\[[^\]]*['"](?:video|voice)['"][^\]]*\]\s*\.includes/.test(code)
+
+  it('decides consumption by a declared allow-list, never by excluding kinds', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(engineSrc)) {
+      if (isSkipList(codeOf(file))) offenders.push(file.replace(repoRoot, ''))
+    }
+    assert.deepEqual(offenders, [],
+      'the direction of the list is the rule — an allow-list fails safe on a kind nobody has met')
+
+    // The allow-list itself exists and is what the code branches on.
+    const assembly = codeOf(join(engineSrc, 'assembly.ts'))
+    assert.match(assembly, /CONSUMED_KINDS[^=]*=\s*\[\s*'photo'\s*\]/,
+      'the consumed set is a declared constant, not a condition scattered through the code')
+    assert.match(assembly, /CONSUMED_KINDS\.includes\(/,
+      'membership of the allow-list is what decides, not a comparison against a kind')
+
+    // Negative: the detector catches the skip-list shapes.
+    assert.ok(isSkipList(`if (m.kind !== 'video') send(m)`))
+    assert.ok(isSkipList(`if (m.kind === 'voice') return`))
+    assert.ok(isSkipList(`if (!['video', 'voice'].includes(m.kind)) send(m)`))
+    assert.ok(!isSkipList(`if (CONSUMED_KINDS.includes(m.kind)) send(m)`))
+  })
+
+  /**
+   * Amendment §D and doctrine 2. Cost enters the ledger through tokens the API
+   * reported, never through arithmetic over photographs. The temptation is
+   * unusually strong on this walk — all 157 photographs are 4032 on the long
+   * edge, so a per-image constant would produce exact-looking per-zone totals
+   * that were still a guess. An estimate that looks measured is worse than an
+   * honest absence, which is the same rule the honesty labels obey.
+   */
+  it('prices a run only from reported tokens', () => {
+    const engineCode = sourceFiles(engineSrc).map((f) => codeOf(f)).join('\n')
+    const priced = [...engineCode.matchAll(/estimateCost\s*\(/g)]
+    assert.equal(priced.length, 1,
+      'exactly one route from tokens to dollars, so there is no second door for an estimate')
+
+    const record = codeOf(join(engineSrc, 'runRecord.ts'))
+    assert.match(record, /export function usageFrom\([\s\S]*?tokensIn:\s*number,\s*tokensOut:\s*number,?\s*\)/,
+      'the only pricing entry point takes token counts, never a media count')
+    assert.ok(!/usageFrom\([^)]*\.length/.test(engineCode),
+      'a media count reaching the pricing function is an estimate wearing a measurement’s clothes')
+
+    // A cost total that quietly omits unpriced calls understates the bill while
+    // looking authoritative. Withholding it is the only honest option.
+    assert.match(record, /anyRun && anyUnpriced \? null : costUsd/,
+      'a partial cost total is not a total')
+  })
+
+  /**
+   * §3's accuracy claim is that the model sees a room rather than disconnected
+   * frames. A zone split across calls no longer satisfies it, so the split has
+   * to travel with the result — §10's no-silent-caps discipline applied to the
+   * one place where the cap changes what the answer means.
+   */
+  it('cannot split a zone without recording that it did', () => {
+    const assembly = codeOf(join(serverSrc, 'engine', 'assembly.ts'))
+    // Every construction site of a multi-batch result also builds the record.
+    assert.match(assembly, /batches\.length > 1 && thresholdInForce/,
+      'the split record is derived from the batching, not set by a caller who might forget')
+    assert.match(assembly, /No single call saw the whole room/,
+      'the withdrawal of §3’s claim is in words a person reads')
+
+    // And the absence of a threshold is declared rather than inferred from a
+    // sentinel — a configured-and-unreached threshold is a different fact from
+    // no threshold at all.
+    assert.match(assembly, /thresholdInForce\s*=\s*max !== undefined && max > 0/,
+      'no-threshold is a declared state, never a magic number')
+    assert.ok(!/maxPhotosPerBatch\s*(?:\?\?|\|\|)\s*(?:Infinity|\d+)/.test(assembly),
+      'defaulting an unset threshold to a number erases the distinction it exists to keep')
+  })
+})
