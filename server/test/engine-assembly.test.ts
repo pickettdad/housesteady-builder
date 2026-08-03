@@ -50,8 +50,13 @@ async function walked(): Promise<{ db: Db; importId: string }> {
 
 const photo = (id: string, over: Partial<AssemblyMedia> = {}): AssemblyMedia => ({
   mediaId: id, kind: 'photo', mime: 'image/jpeg', bytes: 3_000_000,
-  fileStatus: 'present', file: `media/z/_zone/${id}.jpg`, capturedAt: null, ...over,
+  fileStatus: 'present', file: `media/z/_zone/${id}.jpg`, capturedAt: null,
+  role: 'subject', ownerKind: 'zone', ownerPinId: null, ...over,
 })
+
+/** A wide shot of the room — context, never a subject (Amendment 2 §A2). */
+const wide = (id: string, over: Partial<AssemblyMedia> = {}): AssemblyMedia =>
+  photo(id, { role: 'context', ownerKind: 'canvas', ...over })
 
 const ZONE = { zoneId: 'z1', label: 'mechanical room' }
 
@@ -69,7 +74,7 @@ describe('call assembly — what would be sent, decided without sending it', () 
         photo('p1'),
         photo('t1', { kind: 'thermal', mime: 'image/tiff' }),
       ])
-      assert.equal(a.batches[0]?.media.length, 1)
+      assert.equal(a.batches[0]?.subjects.length, 1)
       assert.deepEqual(a.unconsumed.map((u) => u.kind), ['thermal'])
       assert.match(unconsumedNote(a) ?? "", /1 thermal/)
     })
@@ -91,7 +96,7 @@ describe('call assembly — what would be sent, decided without sending it', () 
         photo('p3', { fileStatus: 'failed_checksum' }),
         photo('p4', { file: null }),
       ])
-      assert.equal(a.batches[0]?.media.length, 1)
+      assert.equal(a.batches[0]?.subjects.length, 1)
       assert.deepEqual(a.unconsumed.map((u) => u.mediaId), ['v1'])
       assert.deepEqual(
         a.unavailable.map((u) => `${u.mediaId}:${u.reason}`),
@@ -104,7 +109,7 @@ describe('call assembly — what would be sent, decided without sending it', () 
     it('makes one call for a whole zone when no threshold is configured', () => {
       const a = assembleZone(ZONE, Array.from({ length: 58 }, (_, i) => photo(`p${i}`)))
       assert.equal(a.batches.length, 1)
-      assert.equal(a.batches[0]?.media.length, 58)
+      assert.equal(a.batches[0]?.subjects.length, 58)
       assert.equal(a.split, null)
     })
 
@@ -124,11 +129,58 @@ describe('call assembly — what would be sent, decided without sending it', () 
         maxPhotosPerBatch: 20,
       })
       assert.equal(a.batches.length, 3)
-      assert.deepEqual(a.batches.map((b) => b.media.length), [20, 20, 18])
+      assert.deepEqual(a.batches.map((b) => b.subjects.length), [20, 20, 18])
       assert.equal(a.split?.batchCount, 3)
       // §3's accuracy claim is withdrawn in words a person reads, not only in a
       // count they would have to interpret.
       assert.match(a.split?.note ?? '', /No single call saw the whole room/)
+    })
+  })
+
+  describe('room context — the wide shot (Amendment 2 §A2)', () => {
+    it('sends the room shot but never asks what it is', () => {
+      const a = assembleZone(ZONE, [wide('w1'), photo('p1'), photo('p2')])
+      assert.deepEqual(a.batches[0]?.subjects.map((m) => m.mediaId), ['p1', 'p2'])
+      assert.deepEqual(a.batches[0]?.context.map((m) => m.mediaId), ['w1'])
+      assert.equal(a.subjectCount, 2, 'context is not a subject')
+      // A floorplan sketch returning "a drawing of a room" is what this prevents.
+      assert.ok(a.batches.every((b) => b.subjects.every((s) => s.role === 'subject')))
+    })
+
+    it('repeats the room shot into every batch, and counts the repetition', () => {
+      // A split batch needs the room shot most: without it, batch 2 of 3 loses
+      // exactly what makes batching by room better than batching by photograph.
+      const a = assembleZone(
+        ZONE,
+        [wide('w1'), ...Array.from({ length: 6 }, (_, i) => photo(`p${i}`))],
+        { maxPhotosPerBatch: 2 },
+      )
+      assert.equal(a.batches.length, 3)
+      assert.ok(a.batches.every((b) => b.context.length === 1))
+      assert.equal(a.context.length, 1, 'one file, however many times it was sent')
+      assert.match(a.split?.note ?? '', /3 context sends were made for 1 file\./)
+    })
+
+    it('counts the threshold in subjects, so context cannot force a split', () => {
+      // Otherwise a room with two wide shots splits earlier than an identical
+      // room with one — a storage decision changing what the model sees.
+      const a = assembleZone(ZONE, [wide('w1'), wide('w2'), photo('p1'), photo('p2')], {
+        maxPhotosPerBatch: 2,
+      })
+      assert.equal(a.batches.length, 1)
+      assert.equal(a.split, null)
+    })
+
+    it('makes no call for a room with a wide shot and nothing in it', () => {
+      const a = assembleZone(ZONE, [wide('w1')])
+      assert.equal(a.batches.length, 0)
+      assert.equal(a.context.length, 1, 'the frame is kept, not discarded with the call')
+      assert.ok(reconciles(a))
+    })
+
+    it('counts context bytes into the batch that carries them', () => {
+      const a = assembleZone(ZONE, [wide('w1', { bytes: 1000 }), photo('p1', { bytes: 500 })])
+      assert.equal(a.batches[0]?.declaredBytes, 1500)
     })
   })
 
@@ -140,7 +192,7 @@ describe('call assembly — what would be sent, decided without sending it', () 
       ])
       assert.equal(a.receivedCount, 5)
       assert.ok(reconciles(a))
-      assert.equal(a.batches.reduce((t, b) => t + b.media.length, 0) + a.unconsumed.length + a.unavailable.length, 5)
+      assert.equal(a.subjectCount + a.unconsumed.length + a.unavailable.length, 5)
     })
 
     it('keeps a zone with no media at all, rather than omitting it', () => {
@@ -160,7 +212,7 @@ describe('call assembly — what would be sent, decided without sending it', () 
         photo('a', { capturedAt: '2026-07-31T17:18:00.000Z' }),
         photo('b', { capturedAt: '2026-07-31T17:19:00.000Z' }),
       ])
-      assert.deepEqual(a.batches[0]?.media.map((m) => m.mediaId), ['a', 'b', 'c'])
+      assert.deepEqual(a.batches[0]?.subjects.map((m) => m.mediaId), ['a', 'b', 'c'])
     })
 
     it('does not move an undated photograph to either end', () => {
@@ -171,7 +223,7 @@ describe('call assembly — what would be sent, decided without sending it', () 
         photo('late', { capturedAt: '2026-07-31T17:20:00.000Z' }),
         photo('early', { capturedAt: '2026-07-31T17:18:00.000Z' }),
       ])
-      assert.deepEqual(a.batches[0]?.media.map((m) => m.mediaId), ['x', 'early', 'late'])
+      assert.deepEqual(a.batches[0]?.subjects.map((m) => m.mediaId), ['x', 'early', 'late'])
     })
   })
 
@@ -282,66 +334,143 @@ describe('against the real walk — 163 rows, and what is actually readable', ()
     const a = assembleImport(db, importId)
     assert.equal(a.zones.reduce((t, z) => t + z.batches.length, 0), 0, 'no call is assembled')
     const unavailable = a.zones.flatMap((z) => z.unavailable)
-    assert.equal(unavailable.length, 110)
+    assert.equal(unavailable.length, 157, 'every photograph the export declares')
     assert.ok(unavailable.every((u) => u.reason === 'absent'))
+    assert.equal(a.zones.reduce((t, z) => t + z.subjectCount, 0), 0)
   })
 
-  it('separates the ownership decision from the kind decision, and counts both', async () => {
-    // 113 zone-owned, 38 pin-owned, 12 canvas. The pass reads the first group
-    // only — a reading of §3, flagged rather than assumed, and visible here
-    // rather than buried in a query.
+  it('reads everything that resolves to a zone, by any owner', async () => {
+    // Amendment 2 §A. All three owner kinds reach the pass; the census stays
+    // reported because a large pin-owned count on a capture-first export means
+    // the field workflow is not what the process says it is.
     const { db, importId } = await walked()
     const a = assembleImport(db, importId)
-    assert.deepEqual(a.notZoneOwned, [
+    assert.deepEqual(a.byOwnerKind, [
+      { ownerKind: 'zone', count: 113 },
       { ownerKind: 'pin', count: 38 },
       { ownerKind: 'canvas', count: 12 },
     ])
-    assert.deepEqual(a.orphanedZoneMedia, [], 'this export has no orphaned zone media')
-    assert.equal(a.zones.reduce((t, z) => t + z.receivedCount, 0), 113)
+    assert.equal(a.zones.reduce((t, z) => t + z.receivedCount, 0), 163, 'all of it lands in a zone')
+    assert.deepEqual(a.unassigned, [], 'this export has no capture without a room')
+    assert.ok(importReconciles(db, a))
   })
 
-  it('finds the video among the photographs and does not send it', async () => {
-    // §C is not hypothetical on this export: the two busiest zone-owned streams
-    // both carry a kind this pass cannot read.
+  it('resolves a pin’s media through the pin, not through the file path', async () => {
+    // The two agree on this export by coincidence — the contract stores a pin's
+    // media under its zone's directory. Proving the method rather than the
+    // number means breaking the coincidence: move a pin to another zone and the
+    // media has to follow the pin, not the path it is still stored under.
+    const { db, importId } = await walked()
+    const before = assembleImport(db, importId)
+    const pin = db
+      .prepare("SELECT pin_id, zone_id FROM pins WHERE import_id = ? AND zone_id IS NOT NULL LIMIT 1")
+      .get(importId) as { pin_id: string; zone_id: string }
+    const other = db
+      .prepare('SELECT zone_id FROM zones WHERE import_id = ? AND zone_id != ? LIMIT 1')
+      .get(importId, pin.zone_id) as { zone_id: string }
+    const moved = (
+      db.prepare("SELECT COUNT(*) n FROM media WHERE import_id = ? AND owner_kind = 'pin' AND owner_pin_id = ?")
+        .get(importId, pin.pin_id) as { n: number }
+    ).n
+    assert.ok(moved > 0, 'the chosen pin owns media')
+
+    db.prepare('UPDATE pins SET zone_id = ? WHERE import_id = ? AND pin_id = ?').run(other.zone_id, importId, pin.pin_id)
+    const after = assembleImport(db, importId)
+
+    const count = (a: typeof before, zoneId: string) => a.zones.find((z) => z.zoneId === zoneId)!.receivedCount
+    assert.equal(count(after, pin.zone_id), count(before, pin.zone_id) - moved)
+    assert.equal(count(after, other.zone_id), count(before, other.zone_id) + moved)
+  })
+
+  it('surfaces a capture that resolves to no room, rather than dropping it', async () => {
+    // Amendment 2 §B1. An unanchored pin's photograph is unassigned, not
+    // missing — a real capture with no room, and the two want different actions.
+    const { db, importId } = await walked()
+    const pin = db
+      .prepare("SELECT pin_id FROM pins WHERE import_id = ? AND zone_id IS NOT NULL LIMIT 1")
+      .get(importId) as { pin_id: string }
+    db.prepare('UPDATE pins SET zone_id = NULL WHERE import_id = ? AND pin_id = ?').run(importId, pin.pin_id)
+
+    const a = assembleImport(db, importId)
+    assert.ok(a.unassigned.length > 0)
+    assert.ok(a.unassigned.every((u) => u.reason === 'pin-is-unanchored'))
+    assert.ok(a.unassigned.every((u) => u.ownerKind === 'pin'))
+    assert.ok(importReconciles(db, a), 'unassigned still reconciles against the media total')
+    // Not folded into unavailable, which means something else entirely.
+    assert.equal(a.zones.flatMap((z) => z.unavailable).length, 157 - a.unassigned.length)
+  })
+
+  it('carries the canvas in as room context, never as a subject', async () => {
+    const { db, importId } = await walked()
+    db.prepare("UPDATE media SET file_status = 'present' WHERE import_id = ?").run(importId)
+    const a = assembleImport(db, importId)
+    const context = a.zones.flatMap((z) => z.context)
+    assert.equal(context.length, 12, 'every canvas image resolved to its zone')
+    assert.ok(context.every((c) => c.role === 'context' && c.ownerKind === 'canvas'))
+    // A floorplan sketch must never come back as a proposed object.
+    assert.equal(a.zones.flatMap((z) => z.batches).flatMap((b) => b.subjects).filter((s) => s.role === 'context').length, 0)
+  })
+
+  it('keeps pin ownership on the row as evidence', async () => {
+    // Ownership travels as evidence, never as a filter: an object proposed from
+    // a pinned photograph can reference the pin the concierge placed.
+    const { db, importId } = await walked()
+    db.prepare("UPDATE media SET file_status = 'present' WHERE import_id = ?").run(importId)
+    const a = assembleImport(db, importId)
+    const pinned = a.zones.flatMap((z) => z.batches).flatMap((b) => b.subjects).filter((s) => s.ownerKind === 'pin')
+    assert.ok(pinned.length > 0)
+    assert.ok(pinned.every((s) => s.ownerPinId !== null), 'the pin is on the row, not inferred later')
+  })
+
+  it('reports every unconsumed kind, including both voice notes', async () => {
+    // §C1 expects this report to make the transcription case with real numbers.
+    // Under the ownership reading it would have said zero, because both voice
+    // notes are pin-owned. It now says two — a small number honestly arrived at
+    // rather than a zero that misleads.
     const { db, importId } = await walked()
     const a = assembleImport(db, importId)
     const byKind = new Map<string, number>()
     for (const u of a.zones.flatMap((z) => z.unconsumed)) {
       byKind.set(u.kind ?? 'untyped', (byKind.get(u.kind ?? 'untyped') ?? 0) + 1)
     }
-    assert.deepEqual([...byKind.entries()], [['video', 3]])
+    assert.deepEqual([...byKind.entries()].sort(), [['video', 4], ['voice', 2]])
 
     const mech = a.zones.find((z) => z.zoneLabel === 'mechanical room')!
     assert.match(unconsumedNote(mech) ?? '', /1 file not sent to identification: 1 video\./)
-  })
-
-  it('shows both voice notes sitting outside the pass entirely', async () => {
-    // Neither voice note is zone-owned, so the unconsumed report never sees them.
-    // §C1 expects that report to make the case for transcription with real
-    // numbers — and on this walk it would understate it to zero. Recorded here
-    // so the gap is a known fact rather than a surprise when the case is made.
-    const { db, importId } = await walked()
-    const a = assembleImport(db, importId)
-    const voiceInZones = a.zones.flatMap((z) => z.unconsumed).filter((u) => u.kind === 'voice')
-    assert.equal(voiceInZones.length, 0)
-    const totalVoice = (
-      db.prepare("SELECT COUNT(*) n FROM media WHERE import_id = ? AND kind = 'voice'").get(importId) as { n: number }
-    ).n
-    assert.equal(totalVoice, 2, 'the export has two; the zone stream has none of them')
+    const entry = a.zones.find((z) => z.zoneLabel === 'entry')!
+    assert.match(unconsumedNote(entry) ?? '', /1 voice/)
   })
 
   it('reports the zone spread a call-denominated ceiling would not contain', async () => {
-    // Zone-owned photographs per zone: 54, 22, 13, 12, 9, and three zones with
-    // none. Six to one across the zones that have any, and a ceiling counted in
-    // calls would permit six times more in one room than another.
+    // Subjects per zone: 54, 37, 26, 14, 12, 2 — and two zones with none to
+    // identify. Twenty-seven to one across the zones that have any, so a ceiling
+    // counted in calls would permit 27× more in one room than another.
     const { db, importId } = await walked()
+    db.prepare("UPDATE media SET file_status = 'present' WHERE import_id = ?").run(importId)
     const a = assembleImport(db, importId)
-    const photos = a.zones
-      .map((z) => z.batches.reduce((t, b) => t + b.media.length, 0) + z.unavailable.length)
-      .filter((n) => n > 0)
-      .sort((x, y) => y - x)
-    assert.deepEqual(photos, [54, 22, 13, 12, 9])
-    assert.equal(photos.reduce((t, n) => t + n, 0), 110)
+    const subjects = a.zones.map((z) => z.subjectCount).filter((n) => n > 0).sort((x, y) => y - x)
+    assert.deepEqual(subjects, [54, 37, 26, 14, 12, 2])
+    assert.equal(subjects.reduce((t, n) => t + n, 0), 145)
+  })
+
+  it('makes no call for a room photographed only from the doorway', async () => {
+    // The bedroom has one wide shot and nothing else. There is nothing to
+    // identify, so there is no call — but the context is not lost, and the zone
+    // still reconciles. A room with a frame and no subjects is a real state.
+    const { db, importId } = await walked()
+    db.prepare("UPDATE media SET file_status = 'present' WHERE import_id = ?").run(importId)
+    const a = assembleImport(db, importId)
+    const bedroom = a.zones.find((z) => z.zoneLabel === 'bedroom')!
+    assert.equal(bedroom.subjectCount, 0)
+    assert.equal(bedroom.context.length, 1)
+    assert.equal(bedroom.batches.length, 0)
+    assert.ok(reconciles(bedroom))
+
+    // And a zone with no media at all is a different state again — §E turns on
+    // telling these two apart.
+    const attic = a.zones.find((z) => z.zoneLabel === 'attic')!
+    assert.equal(attic.receivedCount, 0)
+    assert.equal(attic.context.length, 0)
   })
 
   it('would split the mechanical room and say so, once a threshold exists', async () => {
@@ -354,16 +483,19 @@ describe('against the real walk — 163 rows, and what is actually readable', ()
     const whole = assembleImport(db, importId)
     const mechWhole = whole.zones.find((z) => z.zoneLabel === 'mechanical room')!
     assert.equal(mechWhole.batches.length, 1)
-    assert.equal(mechWhole.batches[0]?.media.length, 54)
+    assert.equal(mechWhole.batches[0]?.subjects.length, 54)
     assert.equal(mechWhole.split, null)
 
     const split = assembleImport(db, importId, { maxPhotosPerBatch: 25 })
     const mech = split.zones.find((z) => z.zoneLabel === 'mechanical room')!
     assert.equal(mech.batches.length, 3)
     assert.equal(mech.split?.batchCount, 3)
-    const kitchen = split.zones.find((z) => z.zoneLabel === 'kitchen')!
-    assert.equal(kitchen.batches.length, 1)
-    assert.equal(kitchen.split, null, 'the same threshold leaves a nine-photograph zone whole')
+    // The four room shots ride in every batch, so splitting costs twelve context
+    // sends for four files — stated in the note rather than left to be inferred.
+    assert.match(mech.split?.note ?? '', /12 context sends were made for 4 files/)
+    const entry = split.zones.find((z) => z.zoneLabel === 'entry')!
+    assert.equal(entry.batches.length, 1)
+    assert.equal(entry.split, null, 'the same threshold leaves a two-photograph zone whole')
   })
 
   it('produces a run record a person can read, before any call is made', async () => {
@@ -376,9 +508,11 @@ describe('against the real walk — 163 rows, and what is actually readable', ()
     }
     const t = totals(record)
     assert.equal(t.zones, 8)
-    assert.equal(t.received, 113)
-    assert.equal(t.sent, 110)
-    assert.equal(t.unconsumed, 3)
+    assert.equal(t.received, 163)
+    assert.equal(t.sent, 145)
+    assert.equal(t.context, 12)
+    assert.equal(t.contextSends, 11, 'the bedroom’s wide shot rides in no call, having no subjects')
+    assert.equal(t.unconsumed, 6)
     assert.equal(t.unavailable, 0)
     assert.equal(t.unreconciled, 0)
     assert.equal(t.tokensIn, null, 'nothing has run, so there is no token count to report')
