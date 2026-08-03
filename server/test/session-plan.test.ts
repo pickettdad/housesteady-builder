@@ -319,8 +319,8 @@ describe('the payload', () => {
     // A prior UNIT photo is still null, because no `.unit` item declares one —
     // the unit shot and the nameplate shot are different things, and falling
     // back to "the most recent photo" would conflate them.
-    assert.ok(p.objects.length > 0, 'there is a typed pin to get this wrong about')
-    assert.equal(p.objects.every((o) => o.priorUnitPhoto === null), true)
+    assert.ok(p.typedPins.length > 0, 'there is a typed pin to get this wrong about')
+    assert.equal(p.typedPins.every((o) => o.priorUnitPhoto === null), true)
   })
 
   it('leaves room for concerns without building any', async () => {
