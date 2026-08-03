@@ -2330,3 +2330,58 @@ describe('doctrine 4 — ownership is declared, never re-derived from a path', (
       'context must not count toward the batch threshold')
   })
 })
+
+/**
+ * §E — the property pass's ordering constraint, which the spec calls hard
+ * rather than preferred.
+ */
+describe('doctrine 7 — an empty queue is not evidence that the work was done', () => {
+  const engineSrc = join(serverSrc, 'engine')
+
+  it('cannot establish readiness from the absence of pending work', () => {
+    const code = codeOf(join(engineSrc, 'completeness.ts'))
+    // Which zones were identified is an input, never something this module goes
+    // looking for — the whole failure §E names is inferring "done" from "nothing
+    // queued", and a query for pending work here would rebuild that inference.
+    assert.match(code, /identifiedZones:\s*ReadonlySet<string>/,
+      'identification status is supplied by the caller')
+    for (const smell of ['ai_jobs', 'queue', 'pending', 'COUNT(*) = 0']) {
+      assert.ok(!code.includes(smell), `readiness must not consult ${smell}`)
+    }
+  })
+
+  it('asks the assembly which media belongs to a zone, rather than asking again', () => {
+    // Two implementations of the ownership rule would agree on today's export
+    // and diverge on an unanchored pin — the same silent drift as grouping by
+    // path, one module along. Caught while writing this, not after.
+    const code = codeOf(join(engineSrc, 'completeness.ts'))
+    assert.match(code, /assembleImport\(/, 'resolution comes from the one place that owns it')
+    assert.ok(!/FROM media/.test(code),
+      'a second query over media is a second answer to a question with one home')
+  })
+
+  it('makes readiness unforgeable, so the check cannot be skipped', () => {
+    const code = codeOf(join(engineSrc, 'completeness.ts'))
+    assert.match(code, /declare const readyBrand: unique symbol/,
+      'the proof carries a brand no caller can construct')
+    // Exactly one place mints it, inside the function that did the checking.
+    assert.equal([...code.matchAll(/as unknown as PropertyReady/g)].length, 1)
+    assert.ok(!/export (function|const) makePropertyReady/.test(code),
+      'no exported constructor — §10’s "the type forbids it", applied to a hard ordering constraint')
+  })
+
+  it('never lets anybody sign completeness as a judgement', () => {
+    // The overlay layer's own note: a signature claims the record matches the
+    // evidence and never condition, adequacy, age, safety or COMPLETENESS. So
+    // the recorded human act is the narrow fact — this zone has no media — and
+    // readiness is computed from it. A `capture-complete` kind would be the
+    // assessment the concierge may not make, arriving through a new door.
+    const code = codeOf(join(engineSrc, 'completeness.ts'))
+    assert.match(code, /NO_MEDIA_KIND = 'capture-none'/)
+    for (const forbidden of ['capture-complete', 'capture-adequate', 'capture-sufficient']) {
+      assert.ok(!code.includes(forbidden), `${forbidden} would be a judgement, not a fact`)
+    }
+    // And the fact is useless without its reason, so the reason is required.
+    assert.match(code, /has to say why/)
+  })
+})

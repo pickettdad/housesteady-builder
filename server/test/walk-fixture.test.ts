@@ -263,3 +263,46 @@ describe('the component-type inventory stays true to the config', () => {
     assert.equal(softener[4], '11')
   })
 })
+
+/**
+ * One list, two types — `smoke-alarm` and `co-alarm`.
+ *
+ * **A test rather than a note, because this is the kind of thing that gets
+ * "fixed" later by somebody who thinks it is a bug.** It is not: the config
+ * declares one entry serving both types, so a house with a smoke alarm and a CO
+ * alarm seeds the same five item ids twice, once per pin. That is the config
+ * working as written, and a future change that "deduplicates" it would silently
+ * stop one of the two alarms being checked.
+ */
+describe('the shared alarm list is deliberate, not a duplicate', () => {
+  const snapshot = (): Record<string, unknown> => JSON.parse(readWalk()).config.snapshot
+
+  it('serves two component types from one list', () => {
+    const lists = snapshot().componentLists as { types?: string[]; items?: { id: string }[] }[]
+    const shared = lists.filter((l) => (l.types ?? []).length > 1)
+    assert.equal(shared.length, 1, 'exactly one list serves more than one type today')
+    assert.deepEqual([...(shared[0]!.types ?? [])].sort(), ['co-alarm', 'smoke-alarm'])
+    assert.equal((shared[0]!.items ?? []).length, 5)
+  })
+
+  it('gives both types the same five item ids, which is the point', () => {
+    const graph = componentGraph(snapshot())
+    const lists = snapshot().componentLists as { types?: string[]; items?: { id: string }[] }[]
+    const itemsFor = (type: string): string[] => {
+      const l = lists.find((x) => (x.types ?? []).includes(type))!
+      return (l.items ?? []).map((i) => i.id).sort()
+    }
+    assert.equal(graph.state('smoke-alarm'), 'typed')
+    assert.equal(graph.state('co-alarm'), 'typed')
+    assert.deepEqual(itemsFor('smoke-alarm'), itemsFor('co-alarm'))
+  })
+
+  it('means 70 lists serve 71 types, so the two counts must not be conflated', () => {
+    // Anything reporting "how many component types" from the list count is off
+    // by one, and always will be while a shared list exists.
+    const lists = snapshot().componentLists as unknown[]
+    const graph = componentGraph(snapshot())
+    assert.equal(lists.length, 70)
+    assert.equal(graph.declared.size, 71)
+  })
+})
