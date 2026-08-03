@@ -143,7 +143,25 @@ export interface PlanZone {
  * The verbatim map is all the emitter can honestly send, and it is enough.
  */
 
-export interface PlanObject {
+/**
+ * A live typed pin, as the field recorded it. **Named for what it holds.**
+ *
+ * This was `PlanObject` / `objects` until Increment 5 Amendment 1 §A. Under the
+ * class frame an *object* is the desk's confirmed answer about a thing in a
+ * room — a builder-side entity with a class and a property-lifetime identity.
+ * A pin is a field-side entity. §2 of that spec says the two must never be
+ * conflated, and one word covering both is how that conflation arrives.
+ *
+ * **`objects` is reserved, not vacated.** When the desk produces confirmed
+ * objects the plan will carry them, and it may well carry both — *what the
+ * field recorded* and *what the desk confirmed* are different facts about the
+ * same house. Two names because two things.
+ *
+ * Fourth instance of this hazard after `compilePlan`, `type`/`label` and
+ * `sinceImportedAt`, and all three prior were cheaper to fix before the second
+ * meaning arrived than after.
+ */
+export interface PlanTypedPin {
   pinId: string
   componentType: string | null
   label: string | null
@@ -252,7 +270,7 @@ export interface SessionPlan {
   }
   property: { id: string; label: string }
   zones: PlanZone[]
-  objects: PlanObject[]
+  typedPins: PlanTypedPin[]
   carriedGaps: PlanGap[]
   monitorsDue: { pinId: string; componentType: string | null; label: string | null }[]
   comparisonPositionsDue: { pinId: string; itemId: string }[]
@@ -264,7 +282,7 @@ export interface SessionPlan {
   openConcerns: never[]
   sections: {
     zones: SectionReport
-    objects: SectionReport
+    typedPins: SectionReport
     carriedGaps: SectionReport
     monitorsDue: SectionReport
     comparisonPositionsDue: SectionReport
@@ -353,15 +371,15 @@ export function buildSessionPlan(args: {
   const decidedTrue = zones.flatMap((z) => Object.entries(z.attributes).filter(([, v]) => v === true).length)
     .reduce((a, b) => a + b, 0)
 
-  // ---------------------------------------------------------------- objects
+  // --------------------------------------------------------------- typed pins
   const pins = evidence.pins.filter((p) => !p.retired && p.componentType !== null)
   const units = unitItems(evidence.snapshot)
 
-  const objects: PlanObject[] = pins.map((pin) => {
+  const typedPins: PlanTypedPin[] = pins.map((pin) => {
     // §B3 — the prior unit photograph. Resolved through the type graph, because
     // §1b's inheritance means a softener's unit item is its parent's id.
     const candidates = evidence.graph.lineage(pin.componentType!).flatMap((t) => units.get(t) ?? [])
-    let priorUnitPhoto: PlanObject['priorUnitPhoto'] = null
+    let priorUnitPhoto: PlanTypedPin['priorUnitPhoto'] = null
     for (const itemId of candidates) {
       const resolution = evidence.pinResolutions.get(pin.pinId)?.get(itemId)
       if (resolution?.kind !== 'satisfied') continue
@@ -530,7 +548,7 @@ export function buildSessionPlan(args: {
     )
   }
 
-  const comparisonPositionsDue = objects
+  const comparisonPositionsDue = typedPins
     .filter((o) => o.priorUnitPhoto !== null)
     .map((o) => ({ pinId: o.pinId, itemId: o.priorUnitPhoto!.itemId }))
 
@@ -565,7 +583,7 @@ export function buildSessionPlan(args: {
     },
     property: { id: property.id, label: property.label },
     zones,
-    objects,
+    typedPins,
     carriedGaps,
     monitorsDue,
     comparisonPositionsDue,
@@ -578,9 +596,9 @@ export function buildSessionPlan(args: {
           : `${decidedTrue} attribute(s) decided true and ${decidedFalse} decided false travel explicitly; ` +
             'a recorded false is a decision and must not arrive as an absence',
       },
-      objects: {
-        count: objects.length,
-        note: objects.length === 0 ? 'no live typed pin on this property' : 'live typed pins, by field-minted uuid',
+      typedPins: {
+        count: typedPins.length,
+        note: typedPins.length === 0 ? 'no live typed pin on this property' : 'live typed pins, by field-minted uuid',
       },
       carriedGaps: {
         count: carriedGaps.length,
@@ -651,7 +669,7 @@ export function buildSessionPlan(args: {
           : `${unitItemCount} \`.unit\` item(s) declared; positions with a prior photograph to compare against`,
       },
       priorUnitPhotographs: {
-        count: objects.filter((o) => o.priorUnitPhoto).length,
+        count: typedPins.filter((o) => o.priorUnitPhoto).length,
         note: unitItemCount === 0
           ? 'none possible — see comparisonPositionsDue'
           : 'a prior whole-unit photograph to display beside the capture prompt, so the same object is ' +

@@ -127,7 +127,12 @@ The verbatim map is what makes that derivation possible, and it is all the emitt
 
   // Live typed pins, by uuid. Retired pins are not carried — a removed water
   // heater is house history, not an outstanding question.
-  "objects": [{
+  //
+  // Renamed from `objects` by Increment 5 Amendment 1 §A. Under the class frame
+  // an *object* is the desk's confirmed entity; this key holds what the field
+  // recorded. `objects` is RESERVED for the desk's own, which the plan may one
+  // day carry alongside this — two names because two things.
+  "typedPins": [{
     "pinId": "…",
     "componentType": "smoke-alarm",
     "label": null,

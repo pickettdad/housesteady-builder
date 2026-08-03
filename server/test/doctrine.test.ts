@@ -1759,7 +1759,7 @@ describe('Increment 4 §3 — the session plan is session data, never config', (
    */
   it('sends no derived unanswered list in the plan payload', () => {
     const plan = readFileSync(join(serverSrc, 'plan', 'sessionPlan.ts'), 'utf8')
-    const iface = plan.slice(plan.indexOf('export interface PlanZone'), plan.indexOf('export interface PlanObject'))
+    const iface = plan.slice(plan.indexOf('export interface PlanZone'), plan.indexOf('export interface PlanTypedPin'))
     assert.ok(!/unanswered|neverAsked/.test(iface.replace(/\/\*[\s\S]*?\*\//g, '')),
       'an emitter cannot answer a question about a vocabulary it has not seen')
   })
