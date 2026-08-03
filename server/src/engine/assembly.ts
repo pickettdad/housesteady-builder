@@ -74,6 +74,18 @@ import type { ModelConfig } from '../ai/models.js'
  */
 export const CONSUMED_KINDS: readonly string[] = ['photo']
 
+/**
+ * What a photograph is doing in the call.
+ *
+ * Amendment 2 §A2. A canvas image is a wide shot of the room, and §3's whole
+ * argument for batching by room is that the model sees a room rather than a
+ * series of disconnected frames — the wide shot *is* that room, and it is the
+ * single most useful frame for placing everything else. But it is not itself a
+ * thing to identify: a floorplan sketch returning a proposed object called *a
+ * drawing of a room* is the failure this distinction exists to avoid.
+ */
+export type MediaRole = 'subject' | 'context'
+
 /** A media row as this module needs it. Deliberately narrow. */
 export interface AssemblyMedia {
   mediaId: string
@@ -86,14 +98,33 @@ export interface AssemblyMedia {
   /** Relative path as exported. Null is itself a reason it cannot be sent. */
   file: string | null
   capturedAt: string | null
+  role: MediaRole
+  /**
+   * How this photograph was captured — zone, pin, canvas, inbox, or a kind
+   * nobody has met. **Evidence, never a filter** (Amendment 2 §A1): a concierge
+   * who pinned something said *this specific thing matters*, which is a stronger
+   * statement about a photograph than the absence of a pin. Filtering on it
+   * would discard the best evidence in the set first.
+   */
+  ownerKind: string | null
+  /** Set for pin-owned media, so the object it proposes can reference its pin. */
+  ownerPinId: string | null
 }
 
 /** One call's worth of photographs. */
 export interface Batch {
   /** 1-based, for display. Batch 1 of 1 is still batch 1. */
   index: number
-  media: AssemblyMedia[]
-  /** Declared bytes, summed. What lands in the call differs — see `prepareImage`. */
+  /** Photographs the pass is asked to identify things in. */
+  subjects: AssemblyMedia[]
+  /**
+   * Wide shots of the room, sent for orientation and **repeated in every batch**.
+   * A split batch needs the room shot most — without it, batch 2 of 3 loses
+   * exactly the thing that makes batching by room better than batching by
+   * photograph. The repetition is real cost and is counted, not hidden.
+   */
+  context: AssemblyMedia[]
+  /** Declared bytes for everything in this batch, subjects and context alike. */
   declaredBytes: number
 }
 
@@ -128,6 +159,17 @@ export interface ZoneAssembly {
   zoneLabel: string | null
   /** Calls to make. Empty is a valid outcome and not an error. */
   batches: Batch[]
+  /**
+   * Distinct photographs to identify, counted once however many batches they
+   * were spread across. `batches` cannot be summed for this — context repeats.
+   */
+  subjectCount: number
+  /**
+   * The room's wide shots, once. Present even when there is nothing to identify
+   * and therefore no call, so a room photographed only from the doorway does not
+   * lose its one frame between the media table and the record.
+   */
+  context: AssemblyMedia[]
   unconsumed: Unconsumed[]
   unavailable: Unavailable[]
   /**
@@ -177,7 +219,8 @@ export function assembleZone(
   media: AssemblyMedia[],
   options: AssemblyOptions = {},
 ): ZoneAssembly {
-  const sendable: AssemblyMedia[] = []
+  const subjects: AssemblyMedia[] = []
+  const context: AssemblyMedia[] = []
   const unconsumed: Unconsumed[] = []
   const unavailable: Unavailable[] = []
 
@@ -195,18 +238,22 @@ export function assembleZone(
       unavailable.push({ mediaId: m.mediaId, reason: m.fileStatus })
       continue
     }
-    sendable.push(m)
+    ;(m.role === 'context' ? context : subjects).push(m)
   }
 
   // Capture order. The concierge walked the room in an order and consecutive
   // frames are usually the same thing from two angles — shuffling that throws
   // away context the model would otherwise get for free. Rows without a
   // timestamp keep their incoming position rather than sorting to one end.
-  const ordered = stableByCapturedAt(sendable)
+  const ordered = stableByCapturedAt(subjects)
+  const orderedContext = stableByCapturedAt(context)
 
   const max = options.maxPhotosPerBatch
   const thresholdInForce = max !== undefined && max > 0
 
+  // The threshold counts subjects. Context is overhead carried into every batch,
+  // so counting it would let a room with two wide shots split earlier than an
+  // identical room with one — a storage decision changing what the model sees.
   const batches: Batch[] = []
   if (ordered.length > 0) {
     const size = thresholdInForce ? max : ordered.length
@@ -214,10 +261,16 @@ export function assembleZone(
       const slice = ordered.slice(i, i + size)
       batches.push({
         index: batches.length + 1,
-        media: slice,
-        declaredBytes: slice.reduce((t, m) => t + (m.bytes ?? 0), 0),
+        subjects: slice,
+        context: orderedContext,
+        declaredBytes: [...slice, ...orderedContext].reduce((t, m) => t + (m.bytes ?? 0), 0),
       })
     }
+  } else if (orderedContext.length > 0) {
+    // A room with only a wide shot and nothing else. There is nothing to
+    // identify, so there is no call — but the context is not lost, it is simply
+    // not a subject. Recorded rather than silently discarded.
+    batches.length = 0
   }
 
   const split: SplitRecord | null =
@@ -228,7 +281,12 @@ export function assembleZone(
           note:
             `${ordered.length} photographs exceeded the configured maximum of ${max}, ` +
             `so this zone was read in ${batches.length} calls rather than one. ` +
-            `No single call saw the whole room.`,
+            `No single call saw the whole room.` +
+            (orderedContext.length > 0
+              ? ` The ${orderedContext.length} room shot${orderedContext.length === 1 ? '' : 's'} ` +
+                `went into each call, so ${orderedContext.length * batches.length} context sends ` +
+                `were made for ${orderedContext.length} file${orderedContext.length === 1 ? '' : 's'}.`
+              : ''),
         }
       : null
 
@@ -236,6 +294,8 @@ export function assembleZone(
     zoneId: zone.zoneId,
     zoneLabel: zone.label,
     batches,
+    subjectCount: ordered.length,
+    context: orderedContext,
     unconsumed,
     unavailable,
     split,
@@ -277,8 +337,10 @@ function stableByCapturedAt(media: AssemblyMedia[]): AssemblyMedia[] {
  * intent.
  */
 export function reconciles(a: ZoneAssembly): boolean {
-  const placed =
-    a.batches.reduce((t, b) => t + b.media.length, 0) + a.unconsumed.length + a.unavailable.length
+  // Counted from the distinct sets rather than from batch membership, because
+  // context appears in every batch — summing batches would over-count a room's
+  // wide shot once per split and quietly turn a correct assembly into a failure.
+  const placed = a.subjectCount + a.context.length + a.unconsumed.length + a.unavailable.length
   return placed === a.receivedCount
 }
 

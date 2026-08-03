@@ -73,8 +73,15 @@ export interface ZoneRunRecord {
   zoneLabel: string | null
   /** Rows the zone had, before any partition. */
   received: number
-  /** Photographs assembled into calls. */
+  /** Distinct photographs to identify. Counted once however many batches. */
   sent: number
+  /**
+   * The room's wide shots, counted once. Sent into every batch, so a split zone
+   * transmits them more than once — `contextSends` is that number, and the gap
+   * between the two is the real cost of splitting.
+   */
+  context: number
+  contextSends: number
   /** Files a kind rule excluded, with the sentence a person reads. */
   unconsumed: number
   unconsumedNote: string | null
@@ -112,7 +119,9 @@ export function plannedRecord(a: ZoneAssembly): ZoneRunRecord {
     zoneId: a.zoneId,
     zoneLabel: a.zoneLabel,
     received: a.receivedCount,
-    sent: a.batches.reduce((t, b) => t + b.media.length, 0),
+    sent: a.subjectCount,
+    context: a.context.length,
+    contextSends: a.context.length * a.batches.length,
     unconsumed: a.unconsumed.length,
     unconsumedNote: unconsumedNote(a),
     unavailable: a.unavailable.length,
@@ -121,7 +130,7 @@ export function plannedRecord(a: ZoneAssembly): ZoneRunRecord {
     reconciled: reconciles(a),
     calls: a.batches.map((b) => ({
       batchIndex: b.index,
-      photographsSent: b.media.length,
+      photographsSent: b.subjects.length + b.context.length,
       sentLongestEdge: null,
       downscaled: false,
       usage: null,
@@ -157,6 +166,9 @@ export interface RunTotals {
   sent: number
   unconsumed: number
   unavailable: number
+  /** Distinct room shots, and the number of times they were transmitted. */
+  context: number
+  contextSends: number
   /** Null when no call has run. Distinct from 0, which means calls ran free. */
   tokensIn: number | null
   tokensOut: number | null
@@ -192,6 +204,8 @@ export function totals(record: RunRecord): RunTotals {
     sent: record.zones.reduce((t, z) => t + z.sent, 0),
     unconsumed: record.zones.reduce((t, z) => t + z.unconsumed, 0),
     unavailable: record.zones.reduce((t, z) => t + z.unavailable, 0),
+    context: record.zones.reduce((t, z) => t + z.context, 0),
+    contextSends: record.zones.reduce((t, z) => t + z.contextSends, 0),
     tokensIn,
     tokensOut,
     // A cost total that silently omits unpriced calls understates the bill and

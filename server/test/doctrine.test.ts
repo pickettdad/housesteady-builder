@@ -2234,3 +2234,99 @@ describe('doctrine — assembly is separable from the call', () => {
       'defaulting an unset threshold to a number erases the distinction it exists to keep')
   })
 })
+
+/**
+ * Zone resolution and room context — Amendment 2 §A and §B.
+ *
+ * Both scans here guard decisions that produced *correct output by an incorrect
+ * method*, which is the version hardest to catch: nothing failed, so nothing drew
+ * attention. The first version of `engine/plan.ts` grouped media on the export's
+ * `group` key and got every per-zone number right, because the contract stores a
+ * pin's media under its zone's directory. The coincidence breaks on an unanchored
+ * pin, on inbox media, and on any future change to the export's storage layout.
+ */
+describe('doctrine 4 — ownership is declared, never re-derived from a path', () => {
+  const engineSrc = join(serverSrc, 'engine')
+
+  /**
+   * Deciding *where a photograph belongs* from *where it is stored* is
+   * un-composing something the producer already composed. It also lets a storage
+   * decision silently change what a model is shown.
+   */
+  const derivesFromPath = (code: string): boolean =>
+    /group_key|\bgroup\b\s*[,)]|(?:\.file|file)\s*\.\s*(?:split|startsWith|match|includes)\s*\(|(?:dirname|basename)\s*\(/.test(code)
+
+  it('resolves a zone from the declared owner, never from the file path', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(engineSrc)) {
+      if (derivesFromPath(codeOf(file))) offenders.push(file.replace(repoRoot, ''))
+    }
+    assert.deepEqual(offenders, [],
+      'the path is storage location only — the manifest’s own comment says so')
+
+    // And the resolution reads the three declared owner columns.
+    const plan = codeOf(join(engineSrc, 'plan.ts'))
+    for (const col of ['owner_kind', 'owner_zone_id', 'owner_pin_id', 'owner_canvas_id']) {
+      assert.match(plan, new RegExp(col), `resolution reads ${col}`)
+    }
+    assert.match(plan, /pinZone|canvasZone/, 'a pin’s and a canvas’s zone are looked up, not guessed')
+
+    // Negative: the detector catches each shape it claims to.
+    assert.ok(derivesFromPath(`const zone = m.file.split('/')[1]`))
+    assert.ok(derivesFromPath(`SELECT group_key FROM media`))
+    assert.ok(derivesFromPath(`const z = dirname(m.file)`))
+    assert.ok(derivesFromPath(`if (file.startsWith('media/_misc')) skip()`))
+    assert.ok(!derivesFromPath(`const z = pinZone.get(m.owner_pin_id)`))
+  })
+
+  /**
+   * Amendment 2 §B1. An unanchored pin's photograph and an inbox item are real
+   * captures with no room — unassigned rather than missing. Folding them into
+   * `unavailable` would report a capture that exists as one that does not, and
+   * the two want different actions from a person.
+   */
+  it('keeps a capture with no room apart from one that is missing', () => {
+    const plan = codeOf(join(engineSrc, 'plan.ts'))
+    assert.match(plan, /unassigned:\s*Unassigned\[\]/, 'unassigned is its own bucket')
+    assert.ok(!/unassigned[\s\S]{0,200}unavailable\.push/.test(plan),
+      'an unresolved zone never becomes an unavailable file')
+    // Every way a capture can fail to resolve names itself. Checked against the
+    // strings the code actually carries rather than a shape this scan imagined —
+    // the first version asserted `reason: '...'` and failed, because they are
+    // positional arguments. A scan that describes code it has not read is the
+    // same error class as resolving a zone from a path.
+    for (const reason of ['pin-is-unanchored', 'pin-not-in-import', 'canvas-not-in-import', 'zone-not-in-import']) {
+      assert.ok(plan.includes(`'${reason}'`), `${reason} is a named reason, because the reason is the data`)
+    }
+    assert.match(plan, /unassigned\.push\(\{[^}]*reason:/,
+      'nothing lands in the bucket without saying why it is there')
+    // And it counts toward the import's reconciliation rather than vanishing.
+    assert.match(plan, /a\.unassigned\.length === total|\+ a\.unassigned\.length/,
+      'unassigned media is part of the arithmetic that proves nothing was dropped')
+  })
+
+  /**
+   * Amendment 2 §A2. A canvas image is the room, sent so the model can place
+   * everything else — but it is not a thing in the room. A floorplan sketch
+   * coming back as a proposed object called "a drawing of a room" is the failure.
+   */
+  it('cannot let room context become something to identify', () => {
+    const assembly = codeOf(join(engineSrc, 'assembly.ts'))
+    assert.match(assembly, /m\.role === 'context' \? context : subjects/,
+      'the role decides the bucket, at one place')
+    assert.match(assembly, /subjectCount:\s*ordered\.length/,
+      'the subject count comes from the subject list, never from the batch contents')
+
+    // Context repeats across batches, so summing batch membership would
+    // over-count it — the reconciliation must not be written that way.
+    assert.match(assembly, /a\.subjectCount \+ a\.context\.length/,
+      'reconciliation counts distinct media, not batch membership')
+    assert.ok(!/reduce\(\(t, b\) => t \+ b\.subjects\.length, 0\) \+ a\.unconsumed/.test(assembly),
+      'summing batches would over-count a repeated room shot once per split')
+
+    // The threshold counts subjects only, so a second wide shot cannot split a
+    // room that an otherwise identical room would not split.
+    assert.ok(!/ordered\.length \+ orderedContext\.length/.test(assembly),
+      'context must not count toward the batch threshold')
+  })
+})
