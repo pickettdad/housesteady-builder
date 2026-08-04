@@ -185,6 +185,16 @@ export interface ZoneAssembly {
   thresholdInForce: boolean
   /** Every input row, for the reconciliation a test asserts on. */
   receivedCount: number
+  /**
+   * Rows whose file is on this machine, across every kind and role.
+   *
+   * Counted here rather than re-queried elsewhere, because *which media belongs
+   * to this zone* is a rule with one home. A second place answering it in SQL
+   * would drift from the owner-resolution rule exactly as grouping by path
+   * drifted from ownership — and it would drift silently, since both would look
+   * right on any export where they happen to agree.
+   */
+  presentCount: number
 }
 
 /** The zone's own identity, kept separate from its media. */
@@ -296,6 +306,7 @@ export function assembleZone(
     batches,
     subjectCount: ordered.length,
     context: orderedContext,
+    presentCount: media.filter((m) => m.file !== null && m.fileStatus === 'present').length,
     unconsumed,
     unavailable,
     split,
