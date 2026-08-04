@@ -2350,14 +2350,42 @@ describe('doctrine 7 — an empty queue is not evidence that the work was done',
     }
   })
 
-  it('asks the assembly which media belongs to a zone, rather than asking again', () => {
-    // Two implementations of the ownership rule would agree on today's export
-    // and diverge on an unanchored pin — the same silent drift as grouping by
-    // path, one module along. Caught while writing this, not after.
-    const code = codeOf(join(engineSrc, 'completeness.ts'))
-    assert.match(code, /assembleImport\(/, 'resolution comes from the one place that owns it')
-    assert.ok(!/FROM media/.test(code),
+  /**
+   * **Scoped to `engine/`, and deliberately not repo-wide.**
+   *
+   * The bug was found in `completeness.ts`; a scan pinned to that file would
+   * cover where it was found and not where it will be found next. Where it will
+   * be found next is the identification runner, the property pass and the review
+   * queue — all of which land in this directory.
+   *
+   * Repo-wide was considered and rejected on evidence rather than taste. Eleven
+   * modules outside `engine/` touch the ownership columns and at least two do so
+   * correctly: `import/report.ts` groups by `owner_kind` to census the raw
+   * declaration, and `pass/read.ts` reads zone-owned media for the fresh-pass
+   * screen, where pin-owned photographs appear under their pins instead. A scan
+   * firing on those has still fired, and a false positive teaches people to
+   * route around scans.
+   *
+   * The Checklist Master scan is repo-wide because its rule genuinely is —
+   * *no code path reads `/docs/reference`* admits no exceptions. This rule is
+   * the engine's, so its scope is the engine's.
+   */
+  it('lets no engine module re-answer which media belongs to a zone', () => {
+    const offenders: string[] = []
+    for (const file of sourceFiles(engineSrc)) {
+      if (file.endsWith('plan.ts')) continue // the one place that owns the rule
+      if (/FROM media/.test(codeOf(file))) offenders.push(file.replace(repoRoot, ''))
+    }
+    assert.deepEqual(offenders, [],
       'a second query over media is a second answer to a question with one home')
+
+    // And the module that needed the answer asks for it.
+    assert.match(codeOf(join(engineSrc, 'completeness.ts')), /assembleImport\(/,
+      'resolution comes from the one place that owns it')
+
+    // The exemption is a single file, not a pattern anybody can join.
+    const owners = sourceFiles(engineSrc).filter((f) => /FROM media/.test(codeOf(f)))
+    assert.deepEqual(owners.map((f) => f.replace(repoRoot, '')), ['/server/src/engine/plan.ts'])
   })
 
   it('makes readiness unforgeable, so the check cannot be skipped', () => {

@@ -403,6 +403,39 @@ That is not an argument for anything elaborate. It is the reason 9b is the only 
 actually available: the cheaper alternative was checked, and it is empty. *(One look, not a
 project — and the look is done, so nobody needs to repeat it.)*
 
+### 12. The name of an act is part of what it claims
+
+**Proposed by the design session 2026-08-03, after the second instance in a fortnight.**
+
+For every act a person can take, ask **what a reasonable reader would believe that person
+had verified — and whether they could have.** Where they could not, the act needs a
+different name.
+
+**Two instances, both caught by reading doctrine and asking what a word claims. Neither
+would ever have failed a test.**
+
+| The act | What its name claimed | What the person could actually check |
+|---|---|---|
+| `confirmed` covering a generated care interval | a human verified *descale every 12 months* | nothing on screen says so — it is research output |
+| `capture-complete` on a zone | a human assessed the capture as sufficient | completeness is not theirs to assess |
+
+**The fix in both cases was a rename, not a restructure.** `adopted` alongside `confirmed`;
+`capture-none` instead of `capture-complete`. The workflow did not change — one click per
+object, one declaration per empty zone. Only the word did, and with it what the record
+claims happened.
+
+**Distinct from rule 9**, which is about documents asserting checked states. This is about
+the vocabulary of the acts themselves. And it is the one route doctrine 2 has with **no
+data path to scan**: a laundered inference normally arrives through a value moving between
+tables, where a scan can see it. This one arrives through a button label, where nothing can.
+
+**Why it needs to be a rule rather than good taste.** Both instances were introduced by
+someone applying the doctrine carefully and getting the workflow right. The error was never
+in the mechanism — it was in the noun, and the noun is the part nobody re-reads. CLAUDE.md
+§6 already fixes what a signature means: *"I observed this, and this description matches
+what I saw."* Rule 12 is only the instruction to hold each act's name against that sentence
+before shipping it.
+
 ---
 
 ## Consequences already in the code
