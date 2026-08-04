@@ -290,7 +290,7 @@ function fromReceived(
 }
 
 /** One item's tier and text, from the import's own config snapshot. */
-function declarationOf(db: Db, importId: string, itemId: string): { tier: string; text: string | null } {
+export function declarationOf(db: Db, importId: string, itemId: string): { tier: string; text: string | null } {
   const row = db.prepare('SELECT snapshot FROM config_snapshots WHERE import_id = ?').get(importId) as
     | { snapshot: string }
     | undefined

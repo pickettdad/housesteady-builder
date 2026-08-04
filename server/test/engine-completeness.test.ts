@@ -9,7 +9,10 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
+  candidateReasons,
   declareNoMedia,
   liveNoMediaDeclarations,
   NO_MEDIA_KIND,
@@ -19,7 +22,7 @@ import {
 import { writeOverlay } from '../src/overlay/store.js'
 import type { Db } from '../src/db/index.js'
 import { runImport } from '../src/import/runImport.js'
-import { freshDb, makePropertyAndVisit, readWalk, scratchDir, TEST_OPERATOR } from './helpers.js'
+import { freshDb, makePropertyAndVisit, readWalk, repoRoot, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 interface Walked {
   db: Db
@@ -107,7 +110,7 @@ describe('§E — completeness is derived from facts, never from an empty queue'
     assert.equal(empties.length, 1, 'only the attic carries no media at all')
     for (const z of empties) {
       declareNoMedia({
-        db: w.db, propertyId: w.propertyId, visitId: w.visitId,
+        db: w.db, propertyId: w.propertyId, visitId: w.visitId, importId: w.importId,
         zoneId: z.zoneId, reason: 'nothing to photograph on this visit', actorId: TEST_OPERATOR,
       })
     }
@@ -128,7 +131,7 @@ describe('§E — completeness is derived from facts, never from an empty queue'
     assert.throws(
       () =>
         declareNoMedia({
-          db: w.db, propertyId: w.propertyId, visitId: w.visitId,
+          db: w.db, propertyId: w.propertyId, visitId: w.visitId, importId: w.importId,
           zoneId: z.zone_id, reason: '   ', actorId: TEST_OPERATOR,
         }),
       /has to say why/,
@@ -142,7 +145,7 @@ describe('§E — completeness is derived from facts, never from an empty queue'
     loadAll(w)
     const attic = zoneIds(w).find((z) => z.label === 'attic')!
     declareNoMedia({
-      db: w.db, propertyId: w.propertyId, visitId: w.visitId,
+      db: w.db, propertyId: w.propertyId, visitId: w.visitId, importId: w.importId,
       zoneId: attic.zone_id, reason: 'nothing up there', actorId: TEST_OPERATOR,
     })
     assert.equal(liveNoMediaDeclarations(w.db, w.importId).size, 1)
@@ -194,5 +197,118 @@ describe('§E — completeness is derived from facts, never from an empty queue'
     const r = propertyReadiness({ db: w.db, importId: w.importId, identifiedZones: new Set() })
     assert.ok(r.ready === false)
     assert.ok(r.blockers.some((b) => b.state === 'awaiting-identification'))
+  })
+})
+
+describe('the boundary — a zone with media cannot be declared empty', () => {
+  it('refuses the declaration outright', async () => {
+    // Nothing stopped this before. It is the one route by which capture-none
+    // could launder a hole into an explanation: a zone with 59 photographs that
+    // have not been loaded would go from "the files are not here" to "there is
+    // nothing to load", and readiness would pass over a room whose photographs
+    // exist and are simply elsewhere.
+    const w = await walked()
+    const mech = zoneIds(w).find((z) => z.label === 'mechanical room')!
+    assert.throws(
+      () =>
+        declareNoMedia({
+          db: w.db, propertyId: w.propertyId, visitId: w.visitId, importId: w.importId,
+          zoneId: mech.zone_id, reason: 'nothing in there', actorId: TEST_OPERATOR,
+        }),
+      /declares 59 media files, so it cannot be recorded as having none/,
+    )
+  })
+
+  it('refuses it whether or not the files have been loaded', async () => {
+    // The declaration is about what the manifest says exists, not about what is
+    // on this machine today. Loading the files changes neither answer.
+    const w = await walked()
+    loadAll(w)
+    const kitchen = zoneIds(w).find((z) => z.label === 'kitchen')!
+    assert.throws(
+      () =>
+        declareNoMedia({
+          db: w.db, propertyId: w.propertyId, visitId: w.visitId, importId: w.importId,
+          zoneId: kitchen.zone_id, reason: 'empty', actorId: TEST_OPERATOR,
+        }),
+      /cannot be recorded as having none/,
+    )
+  })
+
+  it('still allows it on a zone the manifest gives nothing', async () => {
+    const w = await walked()
+    const attic = zoneIds(w).find((z) => z.label === 'attic')!
+    declareNoMedia({
+      db: w.db, propertyId: w.propertyId, visitId: w.visitId, importId: w.importId,
+      zoneId: attic.zone_id, reason: 'no access', actorId: TEST_OPERATOR,
+    })
+    assert.equal(liveNoMediaDeclarations(w.db, w.importId).get(attic.zone_id), 'no access')
+  })
+})
+
+describe('candidate reasons — the record already answered this', () => {
+  it('offers what the field said about the attic', async () => {
+    // att.access-honesty resolved `via choice` with the value "no access",
+    // minutes before the zone closed with no photographs in it.
+    const w = await walked()
+    const attic = zoneIds(w).find((z) => z.label === 'attic')!
+    const candidates = candidateReasons(w.db, w.importId, attic.zone_id)
+    assert.equal(candidates.length, 1, 'an empty zone has few resolutions by construction')
+    const c = candidates[0]!
+    assert.equal(c.itemId, 'att.access-honesty')
+    assert.equal(c.value, 'no access')
+    assert.equal(c.kind, 'satisfied')
+    assert.match(c.suggestion, /no access$/)
+    assert.ok(c.itemText, 'the item’s own words, not its id')
+  })
+
+  it('reads the recorded value through the module that owns that rule', () => {
+    // A second reader of `evidence` here would be a second answer to a question
+    // that already has a careful one — and would agree on this export.
+    const code = readFileSync(
+      join(repoRoot, 'server', 'src', 'engine', 'completeness.ts'), 'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    assert.match(code, /answersForProperty\(/)
+    assert.ok(!code.includes('evidence'), 'nothing here parses evidence itself')
+  })
+
+  it('returns candidates rather than writing one', async () => {
+    // §9's third guard: shown, never pre-filled. A reason sitting in the input
+    // box makes acceptance the default and rejection work.
+    const w = await walked()
+    const attic = zoneIds(w).find((z) => z.label === 'attic')!
+    candidateReasons(w.db, w.importId, attic.zone_id)
+    assert.equal(liveNoMediaDeclarations(w.db, w.importId).size, 0, 'offering wrote nothing')
+  })
+
+  it('offers a candidate that explains nothing, rather than deciding for the concierge', async () => {
+    // The bedroom's one resolution is a sill height. It says nothing about why
+    // the room has no photographs — and it is still what the field recorded, so
+    // it is still what gets shown. Working out which resolution "explains" an
+    // empty zone would mean hardcoding a vocabulary that belongs to the config,
+    // and being wrong about that is worse than one unhelpful line.
+    //
+    // This is why §9's second guard matters as much as the third: "none of
+    // these" has to be exactly as easy as the top option.
+    const w = await walked()
+    const bedroom = zoneIds(w).find((z) => z.label === 'bedroom')!
+    const candidates = candidateReasons(w.db, w.importId, bedroom.zone_id)
+    assert.equal(candidates.length, 1)
+    assert.equal(candidates[0]?.itemId, 'liv.egress-sill')
+    assert.equal(candidates[0]?.suggestion, 'Sill height above finished floor — 26')
+  })
+
+  it('offers nothing where the field recorded nothing', async () => {
+    const w = await walked()
+    const silent = zoneIds(w).find(
+      (z) =>
+        (
+          w.db
+            .prepare("SELECT COUNT(*) n FROM resolutions WHERE import_id = ? AND scope_kind = 'zone' AND scope_zone_id = ?")
+            .get(w.importId, z.zone_id) as { n: number }
+        ).n === 0,
+    )!
+    assert.ok(silent, 'this export has zones with no zone-scoped resolution')
+    assert.deepEqual(candidateReasons(w.db, w.importId, silent.zone_id), [])
   })
 })

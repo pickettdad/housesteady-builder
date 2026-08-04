@@ -49,6 +49,8 @@
 import type { Db } from '../db/index.js'
 import { writeOverlay } from '../overlay/store.js'
 import { assembleImport } from './plan.js'
+import { answersForProperty } from '../audit/answers.js'
+import { declarationOf } from '../audit/activeItems.js'
 
 /**
  * The kind an overlay carries when a person records that a zone has nothing to
@@ -217,6 +219,80 @@ export function liveNoMediaDeclarations(db: Db, importId: string): Map<string, s
 }
 
 /**
+ * What the field already said about an empty zone.
+ *
+ * **The concierge at a sealed attic hatch knows why. The same person three weeks
+ * later at a screen may not** — and on this walk the record already holds the
+ * answer: the attic's `att.access-honesty` resolved `via choice` with the value
+ * `no access`, minutes before the zone closed with no photographs in it. Asking
+ * the desk to retype that is asking a question the record has answered.
+ *
+ * So every answered resolution against the zone is offered as a candidate. **No
+ * attempt is made to work out which one explains the emptiness** — that would
+ * mean hardcoding a vocabulary (`no access`, `none present`) that belongs to the
+ * config, and being wrong about it would be worse than offering one line too
+ * many. An empty zone has few resolutions by construction: the attic has exactly
+ * one.
+ *
+ * §9's third guard binds here and is the reason this returns candidates rather
+ * than writing anything: **shown, never pre-filled.** A reason sitting in the
+ * input box makes acceptance the default and rejection work, which is how a
+ * plausible-but-wrong explanation gets ratified. The concierge still declares.
+ * They are simply not made to retype what the field already told them.
+ */
+export interface CandidateReason {
+  itemId: string
+  /** The item's own text, from this import's config snapshot. */
+  itemText: string | null
+  /** satisfied | na | whatever the export said. Preserved, never switched on. */
+  kind: string | null
+  /** What was recorded, where the item records a value. */
+  value: string | null
+  /** The concierge's own note on the resolution, where there is one. */
+  note: string | null
+  /** Ready to show. The concierge picks it or writes their own. */
+  suggestion: string
+}
+
+export function candidateReasons(db: Db, importId: string, zoneId: string): CandidateReason[] {
+  const imp = db.prepare('SELECT property_id FROM imports WHERE id = ?').get(importId) as
+    | { property_id: string }
+    | undefined
+  if (!imp) return []
+
+  // The recorded value comes from the one module that knows how a value is
+  // carried on a resolution — `evidence.value` by observation, with a structural
+  // fallback. Re-reading `evidence` here would be a second answer to a question
+  // that already has a careful one.
+  const answers = answersForProperty(db, imp.property_id)
+
+  const rows = db
+    .prepare(
+      `SELECT item_id, kind, note
+         FROM resolutions
+        WHERE import_id = ? AND scope_kind = 'zone' AND scope_zone_id = ?
+          AND kind IS NOT NULL
+        ORDER BY id`,
+    )
+    .all(importId, zoneId) as { item_id: string; kind: string | null; note: string | null }[]
+
+  return rows.map((r) => {
+    const text = declarationOf(db, importId, r.item_id).text
+    const raw = answers.values.get(r.item_id)
+    const value = raw === undefined || raw === null ? null : String(raw)
+    const parts = [text ?? r.item_id, value].filter((p): p is string => Boolean(p))
+    return {
+      itemId: r.item_id,
+      itemText: text,
+      kind: r.kind,
+      value,
+      note: r.note,
+      suggestion: parts.join(' — '),
+    }
+  })
+}
+
+/**
  * Record that a zone has nothing to load, and why.
  *
  * The reason is required, not optional. *The attic hatch was sealed* and *there
@@ -233,6 +309,7 @@ export function declareNoMedia(args: {
   db: Db
   propertyId: string
   visitId: string
+  importId: string
   zoneId: string
   reason: string
   actorId: string
@@ -242,6 +319,30 @@ export function declareNoMedia(args: {
     throw new Error(
       'A zone recorded as having no media has to say why. "Nothing to photograph" and "not visited" ' +
         'are different facts, and the property pass needs to know which.',
+    )
+  }
+
+  /**
+   * A zone whose manifest declares media cannot be declared empty.
+   *
+   * Nothing stopped this before, and it is the one way `capture-none` could
+   * launder a hole into an explanation: a zone with fifty-nine photographs that
+   * have not been loaded would go from `media-not-loaded` — *the files are not
+   * here* — to `empty-declared` — *there is nothing to load* — and readiness
+   * would pass over a room whose photographs exist and are simply elsewhere.
+   *
+   * Asked through the assembly, because *which media belongs to this zone* has
+   * one home. Reading the whole import to check one zone is more work than a
+   * targeted query and is the correct trade: a second query here is how the two
+   * answers drift apart.
+   */
+  const zone = assembleImport(args.db, args.importId).zones.find((z) => z.zoneId === args.zoneId)
+  if (zone && zone.receivedCount > 0) {
+    throw new Error(
+      `${zone.zoneLabel ?? args.zoneId} declares ${zone.receivedCount} media file` +
+        `${zone.receivedCount === 1 ? '' : 's'}, so it cannot be recorded as having none. ` +
+        `${zone.presentCount} ${zone.presentCount === 1 ? 'is' : 'are'} on this machine — if the rest ` +
+        `are not coming, that is a missing file to report, not an empty room.`,
     )
   }
   writeOverlay({
