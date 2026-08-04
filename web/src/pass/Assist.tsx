@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Lightbox } from './Lightbox.js'
 import {
   fmtTime, thumbUrl,
   type AssistModel, type Classification, type EntityState, type NameplateProposal, type NotRead,
@@ -269,6 +270,7 @@ export function NameplateCard({
   acts: AssistActs
 }) {
   const [editing, setEditing] = useState(false)
+  const [zoomed, setZoomed] = useState(false)
   const [draft, setDraft] = useState<Record<string, string>>({})
 
   const readable = proposal.fields.filter((f) => f.value !== null)
@@ -304,15 +306,29 @@ export function NameplateCard({
       onEdit={() => setEditing((v) => !v)}
       onDiscard={() => acts.discard(proposal.generationId)}
     >
-      {/* Guard 1: the photograph is first and it is large. */}
-      <a
+      {/*
+        Guard 1: the photograph is first and it is large — and now legible. It
+        opens a magnifier rather than a new tab: a browser fits a 4032px image
+        to the viewport, so the tab was the same downscale one click away, with
+        the reading left behind on another screen.
+      */}
+      <button
+        type="button"
         className="proposal-evidence"
-        href={`/api/visits/${visitId}/media/${proposal.mediaId}`}
-        target="_blank"
-        rel="noreferrer"
+        onClick={() => setZoomed(true)}
+        title="Open the photograph to read the plate"
       >
         <img loading="lazy" src={thumbUrl(visitId, proposal.mediaId, 1200)} alt="" />
-      </a>
+        <span className="evidence-hint">Click to read the plate</span>
+      </button>
+      {zoomed && (
+        <Lightbox
+          visitId={visitId}
+          mediaId={proposal.mediaId}
+          caption={pinLabel}
+          onClose={() => setZoomed(false)}
+        />
+      )}
 
       <div className="proposal-body">
         <NotYours what={`Read from this photograph on ${pinLabel.toLowerCase()}`} />
@@ -464,6 +480,7 @@ function AbstainedCard({
   acts: AssistActs
 }) {
   const [typing, setTyping] = useState(false)
+  const [zoomed, setZoomed] = useState(false)
   const [draft, setDraft] = useState<Record<string, string>>({})
   const seen = proposal.fields.filter((f) => f.uncertain)
 
@@ -478,14 +495,28 @@ function AbstainedCard({
 
   return (
     <Proposal className="nameplate abstained">
-      <a
+      {/*
+        The abstention screen needs this most. The model could not read the
+        plate; the concierge may still be able to, and until now they were
+        offered the same 1200px rendering that produced the abstention.
+      */}
+      <button
+        type="button"
         className="proposal-evidence"
-        href={`/api/visits/${visitId}/media/${proposal.mediaId}`}
-        target="_blank"
-        rel="noreferrer"
+        onClick={() => setZoomed(true)}
+        title="Open the photograph to read the plate yourself"
       >
         <img loading="lazy" src={thumbUrl(visitId, proposal.mediaId, 1200)} alt="" />
-      </a>
+        <span className="evidence-hint">Click to read the plate yourself</span>
+      </button>
+      {zoomed && (
+        <Lightbox
+          visitId={visitId}
+          mediaId={proposal.mediaId}
+          caption={pinLabel}
+          onClose={() => setZoomed(false)}
+        />
+      )}
 
       <div className="proposal-body">
         <div className="not-yours abstain">Nothing has been entered</div>
@@ -661,6 +692,7 @@ export function TypeCard({
   acts: AssistActs
 }) {
   const [chosen, setChosen] = useState<string | null>(null)
+  const [zoomedId, setZoomedId] = useState<string | null>(null)
 
   const accept = (type: string) =>
     acts.acceptType(proposal.generationId, { kind: 'component', componentType: type, freeformLabel: null })
@@ -687,12 +719,15 @@ export function TypeCard({
       onAccept={() => proposal.candidates[0] && accept(proposal.candidates[0].type)}
       onDiscard={() => acts.discard(proposal.generationId, 'none of these')}
     >
+      {zoomedId && (
+        <Lightbox visitId={visitId} mediaId={zoomedId} onClose={() => setZoomedId(null)} />
+      )}
       {mediaIds.length > 0 && (
         <div className="proposal-evidence strip">
           {mediaIds.slice(0, 4).map((id) => (
-            <a key={id} href={`/api/visits/${visitId}/media/${id}`} target="_blank" rel="noreferrer">
+            <button key={id} type="button" onClick={() => setZoomedId(id)} title="Open the photograph">
               <img loading="lazy" src={thumbUrl(visitId, id, 400)} alt="" />
-            </a>
+            </button>
           ))}
         </div>
       )}
@@ -774,6 +809,7 @@ export function RouteCard({
   acts: AssistActs
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [zoomed, setZoomed] = useState(false)
   const lead = suggestion.candidates[0]
   const rest = suggestion.candidates.slice(1)
   if (!lead) return null
@@ -784,14 +820,18 @@ export function RouteCard({
       onAccept={() => acts.acceptRoute(suggestion.generationId, lead.pinId)}
       onDiscard={() => acts.discard(suggestion.generationId, 'none of these')}
     >
-      <a
+      <button
+        type="button"
         className="proposal-evidence"
-        href={`/api/visits/${visitId}/media/${suggestion.mediaId}`}
-        target="_blank"
-        rel="noreferrer"
+        onClick={() => setZoomed(true)}
+        title="Open the photograph"
       >
         <img loading="lazy" src={thumbUrl(visitId, suggestion.mediaId, 400)} alt="" />
-      </a>
+        <span className="evidence-hint">Click to see it full size</span>
+      </button>
+      {zoomed && (
+        <Lightbox visitId={visitId} mediaId={suggestion.mediaId} onClose={() => setZoomed(false)} />
+      )}
 
       <div className="proposal-body">
         <NotYours
