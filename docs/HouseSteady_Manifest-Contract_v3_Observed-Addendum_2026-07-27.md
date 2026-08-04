@@ -106,11 +106,15 @@ Design must not assume this sample is the whole picture:
 1. **Nicknames** — is a separate `pin.label` implemented? The contract's telemetry requirement depends on it being distinct from `type.label`.
 2. **`visitTwoGaps[]`** — the v1 export carried this as an explicit array; v3 has no equivalent, implying the builder derives gaps from resolutions plus `naReasons.feedsGapList`. Confirm deliberate.
 3. **Zone audit summary vs `resolutions[]`** — confirm `resolutions[]` is authoritative and the zone summary is a convenience rollup.
-4. **Pin identity across visits — the load-bearing one (added 2026-07-26).** The contract says pin *number* is the cross-visit join key, which implies `pinId` does **not** persist between visits. If so, a second visit's export legitimately carries different `pinId`s for the same physical objects, and any "this pinId differs from last visit's" check will fire on nearly every pin of every recurring visit.
+4. ~~**Pin identity across visits — the load-bearing one (added 2026-07-26).**~~ **ANSWERED — see the header note.** The ratified Object/Concern Model §3 settles it: `pinId` is a permanent uuid minted offline and **the builder adopts it as canonical**; the human-facing number is **session-scoped** and restarts at #1 each visit. The session-plan export is therefore the cross-visit identity mechanism rather than a convenience — which is (b) below, confirmed.
+
+   *Marked answered in the body 2026-08-04, per F-29 §5. It was answered in the header note only, which is the failure F-29 is about: a correction living somewhere other than the sentence it corrects. The original question is kept below because the reasoning in it is what produced the answer.*
+
+   ~~The contract says pin *number* is the cross-visit join key, which implies `pinId` does **not** persist between visits. If so, a second visit's export legitimately carries different `pinId`s for the same physical objects, and any "this pinId differs from last visit's" check will fire on nearly every pin of every recurring visit.
 
    The deeper question underneath it: **how does the field app know to reuse number 7 for the water heater on visit two?** Today it cannot — that is precisely what the session plan round trip (contract §7a, "pre-seeded pin expectations") exists to supply, and it is not built. Until it is, pin numbers are assigned fresh each visit and **do not carry identity across visits at all.** The longitudinal join the whole binder depends on is therefore blocked on the session plan, not merely unbuilt.
 
-   Confirm with the field session: (a) does `pinId` persist across visits or not; (b) is number reuse on a recurring visit entirely dependent on the session plan import; (c) if a concierge renumbers or reuses a number manually, what governs it. **Until answered, cross-visit pin checks must report one summary observation per import, never one warning per pin.**
+   Confirm with the field session: (a) does `pinId` persist across visits or not; (b) is number reuse on a recurring visit entirely dependent on the session plan import; (c) if a concierge renumbers or reuses a number manually, what governs it. **Until answered, cross-visit pin checks must report one summary observation per import, never one warning per pin.**~~
 
 5. **Language lint** — the config defines a layer with id `monitor`, label "Monitoring". Internal vocabulary today; if it ever reaches a client-facing render it collides with the Scope's banned-word discipline. David adjudicates whether the ban covers equipment/technical senses.
 
