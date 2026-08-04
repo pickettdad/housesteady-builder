@@ -425,9 +425,46 @@ object, one declaration per empty zone. Only the word did, and with it what the 
 claims happened.
 
 **Distinct from rule 9**, which is about documents asserting checked states. This is about
-the vocabulary of the acts themselves. And it is the one route doctrine 2 has with **no
-data path to scan**: a laundered inference normally arrives through a value moving between
-tables, where a scan can see it. This one arrives through a button label, where nothing can.
+the vocabulary of the acts themselves.
+
+#### 12a · The correction — it was never unscannable
+
+**This rule was first written saying the failure arrives through a button label "where
+nothing can scan it". That is wrong, and the correction matters more than the original
+sentence.** The words in a user interface are string literals in components. A scan over
+user-visible strings is straightforward, and one already existed — *the button label is the
+claim*, forbidding a rendered `verify`, `approve` or `certify`.
+
+**What made the class unscannable was not its nature. It was that the scanner could not see
+the files.** `sourceFiles()` matched `.ts` only; `web/src` holds one `.ts` file and thirteen
+`.tsx`. The scan had been reading `api.ts` and no component at all, reporting green every
+run without ever seeing a button.
+
+So the second half of this rule is about the scan rather than the act:
+
+> **The scan for a rule-12 violation is a scan over user-visible strings — and that is the
+> scan most likely to be idle, because it looks like a lint rather than a doctrine guard,
+> and nobody asks whether a lint is reading anything.**
+
+Rule 11 and rule 12 meet here. The guard against a dishonest word had itself never run, and
+its subject was the one thing it could not see.
+
+#### 12b · The worked example
+
+![An illegible nameplate beside a crisp serial number](images/verification_guard-1-worked-example_2026-08-04.png)
+
+The assist card as it stood: a nameplate rendered at 1200px from a 4032px original, beside
+the model's reading of it. **The plate cannot be read. `Q1373_5_9-4471` can.**
+
+CLAUDE.md §9's first guard says *evidence first, suggestion second — physically, in the
+layout*, because a confident string beside a thumbnail changes the human's task from *what
+does this say* to *does that look right*. The frame above is that sentence as a picture:
+the only legible thing on the screen is the thing the concierge is supposed to be checking.
+**A photograph the concierge cannot read is not evidence, and a signature over it claims a
+verification that could not have happened** — which is rule 12 arriving through a CSS width
+rather than through a word.
+
+Fixed by a magnifier, Increment 5 §6.
 
 **Why it needs to be a rule rather than good taste.** Both instances were introduced by
 someone applying the doctrine carefully and getting the workflow right. The error was never
