@@ -91,6 +91,20 @@ Two live. **Pin 7 carries three photographs and no type** — a thing captured a
 | 16 | 18:26:16 | 66.7 | entry | freeform `Ceiling stains` |
 | 17 | 18:49:18 | 89.8 | mechanical room | component `furnace` |
 
+### The cause is the owner's, and the export cannot see it
+
+**Added 2026-08-04, after the owner read this parse.** His account, in his words:
+
+> *The pinning only happened in the kitchen because that was what I was supposed to be doing and testing. I would have stopped pinning sooner if I wasn't still trying to follow the original inspection process. Capture with next to no pinning is what felt natural. Pretty much after I had made that decision I just coasted through the rest of the inspection trying out the other things that needed to be tested.*
+
+**This is testimony, not measurement — and it changes the reading, not the numbers.** Everything below was and is true. What it means is different:
+
+- **The kitchen is not where pinning "kept up". It is where pinning was the exercise.** A protocol being followed, then a decision being made.
+- **The six non-kitchen pins are incidental** — things noticed while other features were being tested — rather than a systematic attempt thinning under load.
+- So the pin set is **evidence about the kitchen, deliberately, and close to no evidence about the other seven zones.** That is a stronger caveat than the one this document originally drew, not a weaker one.
+
+**And it makes the kitchen worth more, not less.** It is the one room where someone deliberately tried to type everything they saw. **Three untyped pins and two freeform `Receptacle`s came out of the room where the taxonomy was tried hardest** — which is a better signal about what the taxonomy fails to cover than the same counts spread thinly would be.
+
 **The shape, stated without reading anything into it:**
 
 - Walk span **101 minutes** (17:17:20 → 18:58:00, from media). Pinning span **90 minutes** — so pinning did not stop early in wall-clock terms; **only 13 of 163 photographs (8%) were taken after the last pin.**
@@ -107,7 +121,7 @@ Two live. **Pin 7 carries three photographs and no type** — a thing captured a
 | 18:28:07 | mechanical room | **1** |
 | 18:54:42 | front | **0** |
 
-**The single fact this parse most wants read carefully:** the **mechanical room has 59 media rows and one pin.** It is where the densest equipment in the house is, and it is where the taxonomy was least exercised.
+**The single fact this parse most wants read carefully:** the **mechanical room has 59 media rows and one pin.** It is where the densest equipment in the house is, and it is where the taxonomy was least exercised — **because pinning had already been decided against by the time that room was reached**, not because the room defeated it. The photographs are there; nothing has read them.
 
 ---
 
@@ -164,6 +178,10 @@ anchors · chatThreadIds · flag · mediaIds · noteIds · number · pinId · re
 ## What this parse cannot say
 
 Restating your §4 rather than relying on it being remembered: **the fixture is manifest-only, 163 media rows all `file_status: absent`.** This names **what was pinned, never what was photographed.** The mechanical room's 59 photographs are invisible here and that is exactly where §3d says the taxonomy was least exercised — **the two facts compound, and this floor is lower than the pin count alone suggests.**
+
+**And a third thing, which the owner's account adds: intent is not in the export.** A pin count of one in the mechanical room and a pin count of one in the entry look identical here and are not the same fact — one is a room reached after pinning was abandoned, the other a room where a single stain was worth marking. **No parse of this file can tell those apart**, which is why §3d now carries testimony beside the measurement rather than instead of it.
+
+The general form is worth keeping: **the export records what was done, never why**, so any reading of a *pattern* in operator behaviour needs the operator. This one had a live one to ask.
 
 ---
 
