@@ -1,6 +1,6 @@
 # Binder Builder — Open Items & File Index
 
-**Date:** 2026-07-27
+**Date:** 2026-08-04 · *last edited date, not the date it was written — this file is rewritten wholesale, so a stale header here is the exact trap the dated-filename rule exists to prevent.*
 **What this is:** the single place open items live. Everything previously buried as an "open for David" note inside a spec is collected here.
 **Discipline:** this file is **undated in spirit and replaced wholesale** each session — same pattern as the Build-Roadmap on the business track. It is never appended to; it is rewritten so it is always current. If an item is not here, it is not tracked.
 

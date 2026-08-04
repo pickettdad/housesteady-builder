@@ -4,6 +4,29 @@
 **Status:** verified observation, recorded for the audit engine. **Not implemented in Increment 1** — Increment 1 stores and displays `zones[].audit` as given.
 **Source:** `/fixtures/reference/housesteady-019f9a33-manifest.json`, verified by hand during the Increment 1 read-through.
 
+
+> ## ⚠ CORRECTED 2026-07-31 — one claim in this note is wrong
+>
+> **§"Pin-scoped resolutions … are not counted in the zone summary. The two scopes
+> are independent" is false.** The field app **does** fold a live typed pin's
+> component-list items into the **zone's** audit summary.
+>
+> This note could not have known. The reference export it was written against has
+> two zones carrying a summary and **one typed live pin between them**, with all
+> five of its items resolved — so the fold contributed zero and the reconstruction
+> agreed anyway. **The oracle built on this note agreed on every run for four
+> increments while being wrong.**
+>
+> The first real walk had 17 pins across 8 zones and disagreed on four of them,
+> every missing item component-scoped. Folded and re-run: 8 of 8 agree item for
+> item. See the module note at the top of `server/src/audit/zoneAudit.ts`, which
+> is the current description.
+>
+> **Only the summary folds.** A pin item stays scoped to its pin everywhere else;
+> `applicable` still carries zone items only.
+>
+> Everything else in this note held. Rule 11 was written from this.
+
 ---
 
 ## What was verified
