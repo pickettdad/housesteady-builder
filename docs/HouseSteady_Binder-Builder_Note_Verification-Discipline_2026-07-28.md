@@ -475,6 +475,47 @@ before shipping it.
 
 ---
 
+### 13. A fix for a class of wording is tested on the class, and the test is one grep
+
+**Proposed by the design session 2026-08-04, owner Builder Code. Three instances across two
+repos, and the third was named by Field Code against itself.**
+
+When a document turns out to assert something false, the instinct is to fix the sentence.
+**The sentence is rarely alone.** A claim that survived long enough to be worth correcting
+survived because it was plausible — and a plausible claim gets written down more than once,
+by more than one author, in documents that do not cite each other.
+
+> **Having fixed a wording error, grep for the class of it across every document that could
+> carry it — including the other repo — before calling it fixed. The sweep is one command.
+> Not doing it means the correction lands in the copy you happened to be reading.**
+
+**The three instances:**
+
+| # | The claim | Where it turned out to live |
+|---|---|---|
+| 1 | *"Pin-scoped resolutions are not counted in the zone summary. The two scopes are independent."* | `Increment-3_Note_Zone-Audit-Reconstruction`. The correction lived in `zoneAudit.ts`'s module note and **nowhere in `/docs`.** An oracle built on it agreed for four increments while wrong |
+| 2 | *"Pin number is the cross-visit join key."* | `PLAN-STAGE-1` §7b **and** the binder's carried Manifest Contract v3 copy — one false sentence in two repos. The answer sat in the Observed Addendum's header note while §8 Q4 still read as open. F-29 |
+| 3 | A ratified-model contradiction in `REDESIGN-v2` Decision 5 | **Found by Field Code sweeping rather than fixing.** Nine instances, not one — and `CLAUDE.md` names that document *read first*, so it was the highest-traffic copy of the wrong thing and on nobody's list |
+
+**Why one grep rather than judgement.** Every one of the three was found by somebody reading a
+document for an unrelated reason. None was found by care, and none would have been found by
+being more careful next time — **the failure is that a correction is scoped to the document
+in front of you, and the fix is to make the scope a command rather than an intention.**
+
+**It is rule 5 at the level of prose.** *A fix that removes a symptom has not removed a
+class* — and a corrected sentence is a symptom when the same sentence is three files away.
+It is also rule 9 turned around: rule 9 says a document asserting a checked state must carry
+the check; **this says the check has to run over every document that makes the assertion, not
+the one that prompted it.**
+
+**The cheap version, and it is genuinely cheap.** Pick the distinctive four or five words —
+*"cross-visit join key"*, *"not counted in the zone summary"* — and grep both repos. Where a
+hit is correct in context, say so in the sweep result rather than skipping it silently: two of
+Field Code's nine were correct, and recording that is what makes the sweep re-runnable by
+somebody else.
+
+---
+
 ## Consequences already in the code
 
 **Nothing in the builder parses the Checklist Master at runtime.** It is read-only

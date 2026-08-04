@@ -7,9 +7,11 @@
  * property automatically, and this module does not try to.
  *
  * What it does is guard the mistake that corrupts data permanently: filing visit
- * two into the wrong house. Pin number is the cross-visit join key, so a misfiled
- * import silently merges two houses' pin histories and both are wrong from then
- * on, undetectably. Everything else an import can get wrong is fixable.
+ * two into the wrong house. The field-minted `pinId` uuid is the cross-visit
+ * identity — the human-facing number is session-scoped and restarts each visit —
+ * so a misfiled import silently merges two houses' pin histories and both are
+ * wrong from then on, undetectably. Everything else an import can get wrong is
+ * fixable.
  *
  * So: compare the label to what we know about the chosen property, and warn on a
  * poor match. The warning is advisory and dismissible — the operator decides,
