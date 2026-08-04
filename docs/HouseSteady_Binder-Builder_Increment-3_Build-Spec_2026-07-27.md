@@ -131,7 +131,7 @@ Verified against both zones of the reference export — **item-for-item identica
 
 **So the engine's applicability logic can be checked against every zone of every import, for free.** Any divergence is a real bug — in the engine, the config, or the field app — and is surfaced, never papered over.
 
-**Two constraints on using it.** Store `zones[].audit` **verbatim** and compute alongside it; this is not a licence to overwrite what the field app exported. And **pin-scoped resolutions are not counted in the zone summary** — component items come from `componentLists[]` matched on the pin's `componentType`, and the two scopes are independent.
+**Two constraints on using it.** Store `zones[].audit` **verbatim** and compute alongside it; this is not a licence to overwrite what the field app exported. And ~~**pin-scoped resolutions are not counted in the zone summary** — component items come from `componentLists[]` matched on the pin's `componentType`, and the two scopes are independent.~~ **CORRECTED 2026-08-04: this is false.** The field app **does** fold a live typed pin's component-list items into the zone's audit summary. Found on the first real walk; the reference export could not show it (one typed live pin, all five items resolved, so the fold contributed zero). Current description: the module note at the top of `server/src/audit/zoneAudit.ts`. **Only the summary folds** — `applicable` still carries zone items only.
 
 **One thing the manifest does not carry: the visit kind.** `scope[]` values are `baseline`, `monthly`, `seasonal:spring`, but nothing declares which kind of visit this was — only `config.configId` hints. **Take the visit kind from the visit record, never from the manifest.**
 

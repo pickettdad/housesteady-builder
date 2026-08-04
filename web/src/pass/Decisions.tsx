@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Lightbox } from './Lightbox.js'
 import {
   thumbUrl,
   type DecisionItem,
@@ -271,6 +272,7 @@ function ResolutionEvidence({ item }: { item: DecisionItem }) {
 }
 
 function PinEvidence({ visitId, pin }: { visitId: string; pin: PassPin }) {
+  const [zoomedId, setZoomedId] = useState<string | null>(null)
   return (
     <>
       {pin.notes.length > 0 && (
@@ -283,11 +285,19 @@ function PinEvidence({ visitId, pin }: { visitId: string; pin: PassPin }) {
       {pin.mediaIds.length > 0 && (
         <div className="tiles">
           {pin.mediaIds.map((id) => (
-            <a key={id} href={`/api/visits/${visitId}/media/${id}`} target="_blank" rel="noreferrer">
+            <button key={id} type="button" className="tile-open" onClick={() => setZoomedId(id)}>
               <img loading="lazy" src={thumbUrl(visitId, id, 400)} alt={`Photo on pin ${pin.number ?? ''}`} />
-            </a>
+            </button>
           ))}
         </div>
+      )}
+      {zoomedId && (
+        <Lightbox
+          visitId={visitId}
+          mediaId={zoomedId}
+          caption={`pin ${pin.number ?? ''}`.trim()}
+          onClose={() => setZoomedId(null)}
+        />
       )}
     </>
   )
@@ -330,6 +340,7 @@ export function PhotoTileView({
   }
 
   const isImage = (photo.mime ?? '').startsWith('image/')
+  const [zoomed, setZoomed] = useState(false)
   const assigned = photo.state?.assign
   const to = assigned?.newValue as { toKind?: string; toId?: string } | undefined
   const attachedPin = to?.toKind === 'pin' ? zone?.pins.find((p) => p.pinId === to.toId) : undefined
@@ -337,13 +348,18 @@ export function PhotoTileView({
 
   return (
     <div className="tile-wrap">
-      <a href={`/api/visits/${visitId}/media/${photo.mediaId}`} target="_blank" rel="noreferrer">
-        {isImage ? (
+      {isImage ? (
+        <button type="button" className="tile-open" onClick={() => setZoomed(true)}>
           <img loading="lazy" src={thumbUrl(visitId, photo.mediaId, 400)} alt="" />
-        ) : (
-          <span className="tile other">{photo.kind ?? 'file'}</span>
-        )}
-      </a>
+        </button>
+      ) : (
+        // A voice note or a video has nothing for a magnifier to enlarge. The
+        // kind is shown instead, which is what it was already doing.
+        <span className="tile other">{photo.kind ?? 'file'}</span>
+      )}
+      {zoomed && (
+        <Lightbox visitId={visitId} mediaId={photo.mediaId} onClose={() => setZoomed(false)} />
+      )}
 
       {assigned ? (
         <div className="tile-state">

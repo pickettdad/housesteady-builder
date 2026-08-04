@@ -25,31 +25,115 @@ import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir, TES
 const serverSrc = join(repoRoot, 'server', 'src')
 
 /**
- * Every source file under a directory.
+ * What `sourceFiles()` reads.
  *
- * **`.tsx` was missing until 2026-08-04, and one scan had been idle its whole
- * life because of it.** `web/src` holds one `.ts` file and thirteen `.tsx`, so
- * "the button label is the claim" — the scan forbidding a user-visible *verify*
- * or *certify* — was reading `api.ts` and no component at all. It reported green
- * every run without ever seeing a button.
+ * **Declared, because the extension list is the scope of every scan that uses
+ * it, and until 2026-08-04 nobody had audited it.** `.tsx` was missing; `web/src`
+ * holds one `.ts` file and thirteen `.tsx`, so "the button label is the claim" —
+ * the scan forbidding a user-visible *verify* or *certify* — had been reading
+ * `api.ts` and no component at all, reporting green every run without ever
+ * seeing a button.
  *
- * Rule 11's third instance, and the sharpest: the check whose whole subject is
- * the words on the screen had never been shown a screen. Found while adding a
- * scan over `web/src/pass` and wondering why a file plainly containing the
- * string did not match.
+ * Rule 11's third instance and the sharpest of them: the check whose whole
+ * subject is the words on a screen had never been shown a screen.
  */
+const SCANNED_EXTENSIONS = ['.ts', '.tsx'] as const
+
+/**
+ * Extensions present under the scanned roots that this walker deliberately does
+ * not return — **each with the reason, because rule 5 says a fix that removes a
+ * symptom has not removed a class.** Adding `.tsx` fixed one instance. The class
+ * is that an unaudited extension list silently scopes every scan built on it, so
+ * an exclusion is now a declared decision rather than an absence.
+ *
+ * `everyExtensionIsAccountedFor` below fails when a new extension appears under
+ * a scanned root, so the next one is a decision somebody makes rather than a
+ * blind spot nobody sees.
+ */
+const NOT_SCANNED: Record<string, string> = {
+  '.sql':
+    'Migrations, read by `migrationFiles()` instead. Kept out of the general walker because ' +
+    'most scans assume TypeScript and would misfire on DDL — a CREATE TABLE is not a code ' +
+    'path. The separate walker is named so the two conventions are visible rather than an ' +
+    'accident of whoever wrote each scan.',
+  '.css':
+    'One stylesheet. It carries no code paths — but it does carry user-visible text through ' +
+    '`content:`, which is a real channel for a rule-12 violation that no TypeScript scan can ' +
+    'see. `renderedText()` reads it for exactly that, and nothing else needs it.',
+}
+
 const sourceFiles = (dir: string): string[] => {
   const out: string[] = []
   const walk = (d: string) => {
     for (const entry of readdirSync(d)) {
       const full = join(d, entry)
       if (statSync(full).isDirectory()) walk(full)
-      else if (entry.endsWith('.ts') || entry.endsWith('.tsx')) out.push(full)
+      else if (SCANNED_EXTENSIONS.some((e) => entry.endsWith(e))) out.push(full)
     }
   }
   walk(dir)
   return out
 }
+
+/** Every file under a directory, whatever its extension. For the audit below. */
+const allFiles = (dir: string): string[] => {
+  const out: string[] = []
+  const walk = (d: string) => {
+    for (const entry of readdirSync(d)) {
+      const full = join(d, entry)
+      if (statSync(full).isDirectory()) walk(full)
+      else out.push(full)
+    }
+  }
+  walk(dir)
+  return out
+}
+
+/**
+ * The migrations, by their own walker.
+ *
+ * Named rather than hand-rolled at each call site. Several scans already read
+ * `.sql` this way; giving it a name is what makes the second convention a
+ * decision instead of something a scan author has to know to reinvent.
+ */
+const migrationFiles = (): string[] =>
+  readdirSync(join(repoRoot, 'server', 'src', 'db', 'migrations'))
+    .filter((f) => f.endsWith('.sql'))
+    .map((f) => join(repoRoot, 'server', 'src', 'db', 'migrations', f))
+
+/**
+ * Text a person actually sees, from every file that can carry it.
+ *
+ * **Two channels, because there are two.** JSX text between tags is the obvious
+ * one. `content:` in CSS is the other, and no TypeScript scan can see it — a
+ * `::after { content: "Verified" }` renders a claim onto the screen that every
+ * scan over `.tsx` would miss. Found while auditing what `sourceFiles()` skips,
+ * which is the point of auditing it.
+ */
+function* renderedTextIn(file: string, source: string): Generator<[string, string]> {
+  if (file.endsWith('.css')) {
+    for (const m of source.matchAll(/content:\s*(['"])([^'"]*)\1/g)) yield [file, m[2] ?? '']
+    return
+  }
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  for (const m of code.matchAll(/>([^<>{}]{3,80})</g)) yield [file, m[1] ?? '']
+}
+
+function* renderedText(dir: string): Generator<[string, string]> {
+  for (const file of allFiles(dir)) {
+    if (!/\.(tsx?|css)$/.test(file)) continue
+    yield* renderedTextIn(file, readFileSync(file, 'utf8'))
+  }
+  for (const file of sourceFiles(join(serverSrc, 'overlay'))) {
+    yield* renderedTextIn(file, readFileSync(file, 'utf8'))
+  }
+}
+
+/** The roots any scan walks. Kept here so the audit below can walk them all. */
+const SCANNED_ROOTS = [
+  join(repoRoot, 'server', 'src'),
+  join(repoRoot, 'web', 'src'),
+]
 
 /** Source with comments and template-literal prose stripped, so prose never trips a scan. */
 const codeOf = (file: string): string =>
@@ -254,21 +338,31 @@ describe('doctrine — the concierge identifies, specialists assess', () => {
      */
     const webSrc = join(repoRoot, 'web', 'src')
     const offenders: string[] = []
-    for (const file of sourceFiles(webSrc).concat(sourceFiles(join(serverSrc, 'overlay')))) {
-      const code = codeOf(file)
-      for (const match of code.matchAll(/>([^<>{}]{3,80})</g)) {
-        const text = match[1] ?? ''
-        const t = text.trim().toLowerCase()
-        if (!t || !/[a-z]/.test(t)) continue
-        if (/\b(verify|verified|approve|approved|certify|certified)\b/.test(t)) {
-          // The import report legitimately verifies checksums — that is a claim
-          // about bytes, and it is the one place the word is honest.
-          if (/checksum|file|sha|byte/.test(t)) continue
-          offenders.push(`"${text.trim()}" in ${file.replace(repoRoot, '')}`)
-        }
+    for (const [file, text] of renderedText(webSrc)) {
+      const t = text.trim().toLowerCase()
+      if (!t || !/[a-z]/.test(t)) continue
+      if (/\b(verify|verified|approve|approved|certify|certified)\b/.test(t)) {
+        // The import report legitimately verifies checksums — that is a claim
+        // about bytes, and it is the one place the word is honest.
+        if (/checksum|file|sha|byte/.test(t)) continue
+        offenders.push(`"${text.trim()}" in ${file.replace(repoRoot, '')}`)
       }
     }
     assert.deepEqual(offenders, [], 'the button label is the claim')
+
+    // Negative-tested, because this scan spent its whole life idle and "it
+    // passes" was exactly what that looked like. §9b.
+    assert.ok(
+      [...renderedTextIn('/x.tsx', '<button>Mark verified</button>')].some(([, t]) =>
+        /verified/.test(t),
+      ),
+    )
+    assert.ok(
+      [...renderedTextIn('/x.css', '.done::after { content: "Verified"; }')].some(([, t]) =>
+        /Verified/.test(t),
+      ),
+      'CSS content: is user-visible text and no TypeScript scan can see it',
+    )
   })
 })
 
@@ -2445,31 +2539,24 @@ describe('doctrine — a photograph the concierge cannot read is not evidence', 
    * downscale one click further away — with the reading left behind on another
    * screen. A hand-built media href is that pattern returning.
    *
-   * **The assist screen is clean; two sites on the decisions screen are not, and
-   * they are named rather than excluded.** §6 specifies the assist screen and
-   * fixing a second surface unasked is scope somebody else pays for — but a scan
-   * that quietly skipped a directory would report green over a defect that is
-   * still there. So the remaining instances are counted, and the count is the
-   * assertion: fix one and this fails, add one and this fails.
+   * **Now repo-wide over the pass, with no exemptions.** The interim recorded
+   * two remaining sites on the decisions screen with their exact count, so that
+   * fixing one or adding one both failed. They are fixed, and the list is empty —
+   * which is the only state a defect list should be allowed to rest in.
    */
-  const KNOWN_NEW_TAB_SITES = ['/web/src/pass/Decisions.tsx']
-
   it('no longer offers a new tab in place of a magnifier', () => {
-    const byFile = new Map<string, number>()
+    const offenders: string[] = []
     for (const file of sourceFiles(passSrc)) {
-      const hits = [...codeOf(file).matchAll(/href=\{`\/api\/visits\/\$\{[^}]+\}\/media\/[^`]*`\}/g)]
-      if (hits.length > 0) byFile.set(file.replace(repoRoot, ''), hits.length)
+      for (const m of codeOf(file).matchAll(/href=\{`\/api\/visits\/\$\{[^}]+\}\/media\/[^`]*`\}/g)) {
+        offenders.push(`${file.replace(repoRoot, '')}: ${m[0]}`)
+      }
     }
+    assert.deepEqual(offenders, [],
+      'evidence opens in the magnifier, not in a tab that downscales it again')
 
-    // The screen §6 names carries none.
-    assert.equal(byFile.get('/web/src/pass/Assist.tsx'), undefined,
-      'the assist screen opens the magnifier, not a tab that downscales it again')
-
-    // And nowhere else has grown one.
-    assert.deepEqual([...byFile.keys()].sort(), KNOWN_NEW_TAB_SITES,
-      'a new-tab evidence link appeared somewhere new, or an outstanding one was fixed — update the list')
-    assert.equal(byFile.get('/web/src/pass/Decisions.tsx'), 2,
-      'the decisions screen still has two, deliberately out of §6’s scope and recorded here')
+    // Negative: the detector still recognises the pattern it was written for.
+    const pattern = /href=\{`\/api\/visits\/\$\{[^}]+\}\/media\/[^`]*`\}/
+    assert.ok(pattern.test('<a href={`/api/visits/${visitId}/media/${id}`}>'))
   })
 
   it('uses the full-size path its comment has always claimed', () => {
@@ -2520,5 +2607,52 @@ describe('doctrine — a photograph the concierge cannot read is not evidence', 
     assert.ok(steps, 'the zoom steps are declared in one place')
     const values = steps[1]!.split(',').map((s) => Number(s.trim()))
     assert.ok(Math.max(...values) >= 4, 'magnification runs well past fit-to-window')
+  })
+})
+
+/**
+ * The scanner's own scope — rule 5 applied to rule 11's third instance.
+ *
+ * Adding `.tsx` fixed the instance. **The class is that `sourceFiles()` silently
+ * scopes every scan built on it by an extension list nobody audits**, and a scan
+ * that cannot say what it did not look at is a scan reporting on a scope nobody
+ * chose.
+ */
+describe('doctrine — a scan says what it did not look at', () => {
+  it('accounts for every extension present under the roots it walks', () => {
+    const found = new Map<string, number>()
+    for (const root of SCANNED_ROOTS) {
+      for (const file of allFiles(root)) {
+        const ext = file.slice(file.lastIndexOf('.'))
+        found.set(ext, (found.get(ext) ?? 0) + 1)
+      }
+    }
+
+    const unaccounted = [...found.keys()].filter(
+      (e) => !SCANNED_EXTENSIONS.includes(e as (typeof SCANNED_EXTENSIONS)[number]) && !(e in NOT_SCANNED),
+    )
+    assert.deepEqual(unaccounted, [],
+      'a new extension appeared under a scanned root — scan it, or record in NOT_SCANNED why not')
+
+    // And every declared exclusion is still real. An exclusion for something no
+    // longer present is a decision about nothing, and it hides the next one.
+    const stale = Object.keys(NOT_SCANNED).filter((e) => !found.has(e))
+    assert.deepEqual(stale, [], 'NOT_SCANNED names an extension that is no longer under any scanned root')
+  })
+
+  it('scans the extensions it claims to, in the numbers actually present', () => {
+    // The failure this replaces was invisible precisely because a count was
+    // never asserted: thirteen unread files look the same as none.
+    const web = sourceFiles(join(repoRoot, 'web', 'src'))
+    assert.ok(web.filter((f) => f.endsWith('.tsx')).length >= 13,
+      'the components are in scope, which they were not before 2026-08-04')
+    assert.ok(sourceFiles(serverSrc).length > 50)
+  })
+
+  it('reads migrations through a named walker rather than a reinvented one', () => {
+    // Two file-walking conventions in one file is fine; two *unnamed* ones is how
+    // a scan author picks the wrong scope without knowing there was a choice.
+    assert.ok(migrationFiles().length >= 16)
+    assert.ok(migrationFiles().every((f) => f.endsWith('.sql')))
   })
 })

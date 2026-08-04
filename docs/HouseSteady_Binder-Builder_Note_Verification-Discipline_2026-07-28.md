@@ -425,9 +425,46 @@ object, one declaration per empty zone. Only the word did, and with it what the 
 claims happened.
 
 **Distinct from rule 9**, which is about documents asserting checked states. This is about
-the vocabulary of the acts themselves. And it is the one route doctrine 2 has with **no
-data path to scan**: a laundered inference normally arrives through a value moving between
-tables, where a scan can see it. This one arrives through a button label, where nothing can.
+the vocabulary of the acts themselves.
+
+#### 12a · The correction — it was never unscannable
+
+**This rule was first written saying the failure arrives through a button label "where
+nothing can scan it". That is wrong, and the correction matters more than the original
+sentence.** The words in a user interface are string literals in components. A scan over
+user-visible strings is straightforward, and one already existed — *the button label is the
+claim*, forbidding a rendered `verify`, `approve` or `certify`.
+
+**What made the class unscannable was not its nature. It was that the scanner could not see
+the files.** `sourceFiles()` matched `.ts` only; `web/src` holds one `.ts` file and thirteen
+`.tsx`. The scan had been reading `api.ts` and no component at all, reporting green every
+run without ever seeing a button.
+
+So the second half of this rule is about the scan rather than the act:
+
+> **The scan for a rule-12 violation is a scan over user-visible strings — and that is the
+> scan most likely to be idle, because it looks like a lint rather than a doctrine guard,
+> and nobody asks whether a lint is reading anything.**
+
+Rule 11 and rule 12 meet here. The guard against a dishonest word had itself never run, and
+its subject was the one thing it could not see.
+
+#### 12b · The worked example
+
+![An illegible nameplate beside a crisp serial number](images/verification_guard-1-worked-example_2026-08-04.png)
+
+The assist card as it stood: a nameplate rendered at 1200px from a 4032px original, beside
+the model's reading of it. **The plate cannot be read. `Q1373_5_9-4471` can.**
+
+CLAUDE.md §9's first guard says *evidence first, suggestion second — physically, in the
+layout*, because a confident string beside a thumbnail changes the human's task from *what
+does this say* to *does that look right*. The frame above is that sentence as a picture:
+the only legible thing on the screen is the thing the concierge is supposed to be checking.
+**A photograph the concierge cannot read is not evidence, and a signature over it claims a
+verification that could not have happened** — which is rule 12 arriving through a CSS width
+rather than through a word.
+
+Fixed by a magnifier, Increment 5 §6.
 
 **Why it needs to be a rule rather than good taste.** Both instances were introduced by
 someone applying the doctrine carefully and getting the workflow right. The error was never
@@ -435,6 +472,47 @@ in the mechanism — it was in the noun, and the noun is the part nobody re-read
 §6 already fixes what a signature means: *"I observed this, and this description matches
 what I saw."* Rule 12 is only the instruction to hold each act's name against that sentence
 before shipping it.
+
+---
+
+### 13. A fix for a class of wording is tested on the class, and the test is one grep
+
+**Proposed by the design session 2026-08-04, owner Builder Code. Three instances across two
+repos, and the third was named by Field Code against itself.**
+
+When a document turns out to assert something false, the instinct is to fix the sentence.
+**The sentence is rarely alone.** A claim that survived long enough to be worth correcting
+survived because it was plausible — and a plausible claim gets written down more than once,
+by more than one author, in documents that do not cite each other.
+
+> **Having fixed a wording error, grep for the class of it across every document that could
+> carry it — including the other repo — before calling it fixed. The sweep is one command.
+> Not doing it means the correction lands in the copy you happened to be reading.**
+
+**The three instances:**
+
+| # | The claim | Where it turned out to live |
+|---|---|---|
+| 1 | *"Pin-scoped resolutions are not counted in the zone summary. The two scopes are independent."* | `Increment-3_Note_Zone-Audit-Reconstruction`. The correction lived in `zoneAudit.ts`'s module note and **nowhere in `/docs`.** An oracle built on it agreed for four increments while wrong |
+| 2 | *"Pin number is the cross-visit join key."* | `PLAN-STAGE-1` §7b **and** the binder's carried Manifest Contract v3 copy — one false sentence in two repos. The answer sat in the Observed Addendum's header note while §8 Q4 still read as open. F-29 |
+| 3 | A ratified-model contradiction in `REDESIGN-v2` Decision 5 | **Found by Field Code sweeping rather than fixing.** Nine instances, not one — and `CLAUDE.md` names that document *read first*, so it was the highest-traffic copy of the wrong thing and on nobody's list |
+
+**Why one grep rather than judgement.** Every one of the three was found by somebody reading a
+document for an unrelated reason. None was found by care, and none would have been found by
+being more careful next time — **the failure is that a correction is scoped to the document
+in front of you, and the fix is to make the scope a command rather than an intention.**
+
+**It is rule 5 at the level of prose.** *A fix that removes a symptom has not removed a
+class* — and a corrected sentence is a symptom when the same sentence is three files away.
+It is also rule 9 turned around: rule 9 says a document asserting a checked state must carry
+the check; **this says the check has to run over every document that makes the assertion, not
+the one that prompted it.**
+
+**The cheap version, and it is genuinely cheap.** Pick the distinctive four or five words —
+*"cross-visit join key"*, *"not counted in the zone summary"* — and grep both repos. Where a
+hit is correct in context, say so in the sweep result rather than skipping it silently: two of
+Field Code's nine were correct, and recording that is what makes the sweep re-runnable by
+somebody else.
 
 ---
 

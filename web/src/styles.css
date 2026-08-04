@@ -578,3 +578,6 @@ button.proposal-evidence:focus-visible .evidence-hint { opacity: 1; }
 .proposal-evidence.strip button {
   padding: 0; border: 0; background: none; line-height: 0; cursor: zoom-in;
 }
+
+/* Evidence tiles on the decisions screen open the magnifier too. */
+button.tile-open { padding: 0; border: 0; background: none; line-height: 0; cursor: zoom-in; }

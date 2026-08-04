@@ -315,23 +315,48 @@ describe('the zone-audit oracle, against the reference export', () => {
       'a monthly visit asks fewer questions, and the scope filter is what decides it')
   })
 
-  /** Pin-scoped resolutions answer component items; the two scopes are independent. */
-  it('counts only zone-scoped resolutions in a zone summary', () => {
-    const pinScoped = db
-      .prepare(`SELECT COUNT(*) AS n FROM resolutions WHERE import_id = ? AND scope_kind = 'pin'`)
-      .get(importId) as { n: number }
-    assert.ok(pinScoped.n > 0, 'the reference export has pin-scoped resolutions to be wrong about')
-
-    // If they were folded in, the na counts would not have matched above. This
-    // states the invariant directly so a future change breaks here rather than
-    // in a comparison whose cause is three files away.
-    const zoneOnly = computeZoneAudit({
-      snapshot: factsForImport(db, importId).snapshot,
-      facts: factsForImport(db, importId).visit,
+  /**
+   * **A pin's component items fold into the ZONE's summary, and only the summary.**
+   *
+   * This test previously asserted the opposite in its name and its comment —
+   * *"counts only zone-scoped resolutions"*, *"the two scopes are independent"* —
+   * and its body tested neither claim: it called `computeZoneAudit` with no
+   * resolutions and no pins and asserted the na count was zero, which is true
+   * whatever the fold does. **A false name over a body that could not fail.**
+   *
+   * Found 2026-08-04 by grepping the wording of a correction rather than fixing
+   * the file that prompted it — rule 13, on its first use, in this repo.
+   */
+  it('folds a live typed pin’s items into the zone summary, and not into `applicable`', () => {
+    const { snapshot, visit } = factsForImport(db, importId)
+    const base = {
+      snapshot, facts: visit,
       zoneId: 'nowhere', zoneType: null, visitKind: 'baseline',
       zoneResolutions: [],
+    }
+
+    const withoutPins = computeZoneAudit(base)
+    const withPin = computeZoneAudit({
+      ...base,
+      pinsHere: [{
+        pinId: 'p1',
+        componentType: 'smoke-alarm',
+        resolutions: [{ item_id: 'alm.unit', kind: 'na' }],
+      }],
     })
-    assert.equal(zoneOnly.naCount, 0)
+
+    // The summary counts it — that is the field app's own behaviour, and the
+    // reason the oracle agreed for four increments while being wrong.
+    assert.equal(withoutPins.naCount, 0)
+    assert.equal(withPin.naCount, 1, 'a pin-scoped na reaches the zone summary')
+
+    // And nothing else moves. `applicable` carries zone items only, because
+    // callers depend on that.
+    assert.deepEqual(
+      withPin.applicable.map((a) => a.id),
+      withoutPins.applicable.map((a) => a.id),
+      'the fold is summary-only',
+    )
   })
 
   it('builds the type graph from the import own config, not from the binder schema', () => {
