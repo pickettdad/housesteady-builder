@@ -24,13 +24,27 @@ import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir, TES
 
 const serverSrc = join(repoRoot, 'server', 'src')
 
+/**
+ * Every source file under a directory.
+ *
+ * **`.tsx` was missing until 2026-08-04, and one scan had been idle its whole
+ * life because of it.** `web/src` holds one `.ts` file and thirteen `.tsx`, so
+ * "the button label is the claim" — the scan forbidding a user-visible *verify*
+ * or *certify* — was reading `api.ts` and no component at all. It reported green
+ * every run without ever seeing a button.
+ *
+ * Rule 11's third instance, and the sharpest: the check whose whole subject is
+ * the words on the screen had never been shown a screen. Found while adding a
+ * scan over `web/src/pass` and wondering why a file plainly containing the
+ * string did not match.
+ */
 const sourceFiles = (dir: string): string[] => {
   const out: string[] = []
   const walk = (d: string) => {
     for (const entry of readdirSync(d)) {
       const full = join(d, entry)
       if (statSync(full).isDirectory()) walk(full)
-      else if (entry.endsWith('.ts')) out.push(full)
+      else if (entry.endsWith('.ts') || entry.endsWith('.tsx')) out.push(full)
     }
   }
   walk(dir)
@@ -2411,5 +2425,100 @@ describe('doctrine 7 — an empty queue is not evidence that the work was done',
     }
     // And the fact is useless without its reason, so the reason is required.
     assert.match(code, /has to say why/)
+  })
+})
+
+/**
+ * §9 guard 1 at the resolution it was always about — Increment 5 §6.
+ *
+ * Scans rather than behavioural tests because there is no web test harness, and
+ * because what matters here is the *shape* of the screen: that the evidence is
+ * reachable at full size, and that the magnifier does not carry the model's
+ * reading into itself.
+ */
+describe('doctrine — a photograph the concierge cannot read is not evidence', () => {
+  const webSrc = join(repoRoot, 'web', 'src')
+  const passSrc = join(webSrc, 'pass')
+
+  /**
+   * A browser fits a 4032px image to the viewport, so the new tab was the same
+   * downscale one click further away — with the reading left behind on another
+   * screen. A hand-built media href is that pattern returning.
+   *
+   * **The assist screen is clean; two sites on the decisions screen are not, and
+   * they are named rather than excluded.** §6 specifies the assist screen and
+   * fixing a second surface unasked is scope somebody else pays for — but a scan
+   * that quietly skipped a directory would report green over a defect that is
+   * still there. So the remaining instances are counted, and the count is the
+   * assertion: fix one and this fails, add one and this fails.
+   */
+  const KNOWN_NEW_TAB_SITES = ['/web/src/pass/Decisions.tsx']
+
+  it('no longer offers a new tab in place of a magnifier', () => {
+    const byFile = new Map<string, number>()
+    for (const file of sourceFiles(passSrc)) {
+      const hits = [...codeOf(file).matchAll(/href=\{`\/api\/visits\/\$\{[^}]+\}\/media\/[^`]*`\}/g)]
+      if (hits.length > 0) byFile.set(file.replace(repoRoot, ''), hits.length)
+    }
+
+    // The screen §6 names carries none.
+    assert.equal(byFile.get('/web/src/pass/Assist.tsx'), undefined,
+      'the assist screen opens the magnifier, not a tab that downscales it again')
+
+    // And nowhere else has grown one.
+    assert.deepEqual([...byFile.keys()].sort(), KNOWN_NEW_TAB_SITES,
+      'a new-tab evidence link appeared somewhere new, or an outstanding one was fixed — update the list')
+    assert.equal(byFile.get('/web/src/pass/Decisions.tsx'), 2,
+      'the decisions screen still has two, deliberately out of §6’s scope and recorded here')
+  })
+
+  it('uses the full-size path its comment has always claimed', () => {
+    // `mediaUrl` existed and was referenced nowhere, with a comment saying it was
+    // "used for the lightbox". That comment is how the gap survived: anyone
+    // grepping for the full-size path found it and read the comment as evidence
+    // it was wired up. Rule 9, in a doc-comment.
+    const users = sourceFiles(webSrc).filter(
+      (f) => !f.endsWith('api.ts') && /\bmediaUrl\(/.test(codeOf(f)),
+    )
+    assert.ok(users.length > 0, 'something actually fetches the original')
+    assert.ok(
+      users.some((f) => f.endsWith('Lightbox.tsx')),
+      'and it is the magnifier, which is what the comment says',
+    )
+  })
+
+  it('keeps the model’s reading out of the magnifier', () => {
+    /**
+     * Guard 1 specifies the layout — photo large, suggestion beside it — and the
+     * magnifier is a temporary act of reading laid over it. Putting the reading
+     * inside would rebuild the original problem at higher resolution: the
+     * concierge would check a string against a plate rather than read a plate.
+     *
+     * **Checked on the interface, not on word occurrence.** The first version of
+     * this scan forbade the substrings `suggestion` and `reading` anywhere in the
+     * file — and simultaneously asserted the phrase *"Never a reading"* was
+     * present. It asserted a contradiction and could never have passed. What the
+     * rule is actually about is what the component can *receive*, so that is what
+     * is checked.
+     */
+    const code = codeOf(join(passSrc, 'Lightbox.tsx'))
+    for (const leak of ['proposal', 'ProposedField', 'AssistModel', 'NameplateProposal']) {
+      assert.ok(!code.includes(leak), `the magnifier must not be able to receive ${leak}`)
+    }
+    // Its props are exactly the four it needs, and none of them is a value.
+    const props = code.match(/export interface LightboxProps \{([\s\S]*?)\n\}/)
+    assert.ok(props, 'the props are declared in one place')
+    const names = [...props[1]!.matchAll(/^\s{2}(\w+)\??:/gm)].map((m) => m[1])
+    assert.deepEqual(names.sort(), ['caption', 'mediaId', 'onClose', 'visitId'])
+  })
+
+  it('zooms past 1:1, because the plate is a fraction of the frame', () => {
+    // Stopping at "actual size" stops exactly where the small text starts to
+    // matter — the subject is the plate, not the water heater it is bolted to.
+    const code = codeOf(join(passSrc, 'Lightbox.tsx'))
+    const steps = code.match(/const STEPS = \[([^\]]+)\]/)
+    assert.ok(steps, 'the zoom steps are declared in one place')
+    const values = steps[1]!.split(',').map((s) => Number(s.trim()))
+    assert.ok(Math.max(...values) >= 4, 'magnification runs well past fit-to-window')
   })
 })
