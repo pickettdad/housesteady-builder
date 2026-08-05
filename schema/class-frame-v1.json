@@ -46,6 +46,8 @@
     "id": "kebab-case token.",
     "label": "what a person reads.",
     "kind": "`look` or `measure`. A `measure` point records a value; a `look` point records a state.",
+    "access": "`direct` | `requires-access-found` | `requires-access-event`. DEFAULTS TO `direct` and most points are it. Amendment 5 §B. `requires-access-found` needs an access point to exist and be exposed — a riser at grade, an uncovered lid — and is an Inspection Visit item only if Discovery found the access. `requires-access-event` needs the thing opened by a third party on their own schedule, RIDES THAT EVENT, and is never an Inspection Visit item.",
+    "accessEvent": "REQUIRED when `access` is `requires-access-event`, and meaningless otherwise. `septic-pump-out` · `annual-combustion-service` · `panel-service`. A gated point that cannot name its event is a point nobody can schedule.",
     "unit": "REQUIRED ON A `measure` POINT, and `null` is a legitimate value meaning deliberately unitless. Amendment 3 §B2. `delivery-temperature` is °C and `expansion-tank-charge` is kPa, and the shape had nowhere to say so — while the field app already carries three deliberately unitless measure items because %WME, %MC and relative 0–100 are different scales. So: a unit is declared, or its absence is explicit. An ABSENT key is neither, and is an error. Ninth instance of declared-versus-absent deciding a shape here."
   },
 
@@ -79,12 +81,50 @@
     "howAnAnswerIsLabelled": "reported-by-homeowner from the point it enters, per Amendment 4 §C2 — and §0.2 stands, no path assigns a label at render."
   },
 
+  "accessConditions": {
+    "whyThisExists": "Amendment 5, raised by the owner from field experience rather than from the documents. The desk pass generates 'measure the sludge and scum depth' for a septic tank; the concierge arrives and the lids are under eight inches of sod, because between pump-outs that is where rural lids live. Either the visit becomes an excavation nobody agreed to, or the item is silently skipped and the record shows an inspection that did not happen.",
+    "theOwnersFraming": "A concierge will not ask an owner to unbury septic lids for Discovery photographs and then not really do anything.",
+    "itIsNotOneSystemsQuirk": "The maintenance schedule's own cautions already describe the same shape: `never remove panel covers — visual only, from outside the enclosure`. The interior of an electrical panel is access-gated on an electrician's visit, and that caution has been saying so all along without anything downstream being able to represent it. Others in the class: a sealed combustion chamber opened at annual service · a chimney interior opened at a WETT inspection or a sweep · duct interiors opened at cleaning · a crawlspace or attic with no built hatch.",
+    "anAccessGatedPointIsNotAGap": "`We did not look inside the tank` is not a failure to inspect. It is a thing that happens when the tank is next opened, and we will be there. §5a already requires an absence to state its basis; this is the same rule one step earlier, and a gated point must never render as a gap.",
+    "theCoordinationRole": "A `requires-access-event` point is a COORDINATION item, not a visit item — and the event is one the concierge coordinates anyway. That is the role the service actually performs. Amendment 5 §E1.",
+    "andTheHomeProfileShouldSayIt": "`We have not seen inside the tank. Here is what your access looks like. We will document the interior when it is next pumped.` Honest, specific, and the first place the Home Profile carries a forward commitment rather than a finding. Amendment 5 §E2."
+  },
+
+  "discoveryIsNotOursToDirect": {
+    "rule": "Every engine output lands AFTER identification. Discovery precedes identification, so NOTHING THE ENGINE PRODUCES CAN DIRECT A DISCOVERY CAPTURE.",
+    "whyItIsStatedHereRatherThanOnce": "Amendment 5 §C states it for the whole engine, and this file is where somebody writing a class would be tempted to break it — an access condition is exactly the kind of thing that reads like a capture instruction.",
+    "soWhereDoesTheCaptureComeFrom": "The Checklist Master, driven by a property flag. `property.septic` asks for the access. That makes it an F-4 content item in the capture-versus-inspection split the owner already carries — named here so it is not rediscovered as a question later.",
+    "nothingFoundIsARealAnswer": "No visible access is exactly what the Home Profile should say, and the class's own owner question — `where-are-the-lids` — is how the household fills the gap the camera could not."
+  },
+
   "consumables": {
     "note": "A distinct kind of care category, because an interval alone does not let anyone act. 'Replace the fridge filter every six months' is useless without which cartridge.",
     "partIdentity": "Inferred until it has been bought and fitted once, then Documented from the purchase record — and it never needs asking again for that house.",
     "whereItLands": "`s9.consumables` already exists in the Binder Schema as a `presentWhenPopulated` slot, declared and never fed. This is what feeds it.",
     "whyAbstentionMattersMostHere": "A wrong part number costs a trip.",
     "source": "Increment 5 §1b."
+  },
+
+  "workedClass": {
+    "note": "NOT AN ENTRY — kept outside `classes` so nothing reading the array treats it as declared. This is what one complete class looks like with all four vocabularies and Amendment 5's access conditions, drawn from Amendment 5 §B1 which is ratified content rather than an invention.",
+    "shape": {
+      "id": "septic-tank",
+      "label": "Septic tank",
+      "systems": ["wastewater"],
+      "componentType": "none",
+      "componentTypeNote": "NOT PART OF THE SHAPE — explaining this row. Config v1.11.0 declares `septic-lid` and `septic-alarm` but no `septic-tank`. Whether this class maps to `septic-lid` or genuinely to `none` is the class author's call and the §1a check will report whichever is chosen.",
+      "careCategories": ["pump-out"],
+      "inspectionPoints": ["tank-lid-security", "riser-and-access-condition", "sludge-and-scum-depth"],
+      "opportunityConditions": ["overdue-pump-out"],
+      "ownerQuestions": ["where-are-the-lids", "when-was-it-last-pumped"],
+      "replacementHorizon": true
+    },
+    "andTheInspectionPointsItReferences": [
+      { "id": "tank-lid-security", "label": "Lid secure and intact", "kind": "look", "access": "requires-access-found" },
+      { "id": "riser-and-access-condition", "label": "Riser and access condition", "kind": "look", "access": "requires-access-found" },
+      { "id": "sludge-and-scum-depth", "label": "Sludge and scum depth", "kind": "measure", "unit": "cm", "access": "requires-access-event", "accessEvent": "septic-pump-out" }
+    ],
+    "theContrastWorthSeeing": "`septic-bed` is the useful opposite: every one of its points is `direct`, because a leaching bed is entirely observable from the surface — and it is the most consequential component in the system. The tank is where the access problem lives; the bed is where the failures show."
   },
 
   "careCategories": [],
