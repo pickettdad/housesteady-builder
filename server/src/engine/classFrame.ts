@@ -60,6 +60,47 @@
  *
  * ---
  *
+ * ## These inspection points are not field checklist items, and never become them
+ *
+ * **Amendment 6 §A, and it is written here because §D's finding was that the
+ * design was right and unexplained** — the absence of a reason is what let the
+ * question get asked as a dichotomy. Whoever is about to make the frame generate
+ * the field checklist will be reading this file, so the reason lives in it.
+ *
+ * > The field checklist is what the concierge is asked to **do at the visit**.
+ * > These points are what the binder expects to **know** about that kind of
+ * > thing. Neither generates the other.
+ *
+ * **What actually crosses the wire:** a class seeds a pin's *component type*, and
+ * the type brings whatever the field config declares for it. Nothing about a
+ * class's own points travels. §2's stage table always said this.
+ *
+ * Two independent reasons, and the second is the load-bearing one:
+ *
+ * **1 — Eight of the 69 points are `requires-access-event`**, which Amendment 5
+ * ruled are coordination items and never visit items. Generating checklist items
+ * would put all eight on a visit list as work the concierge cannot do: a heat
+ * exchanger behind a sealed cabinet, a flue liner wanting a camera, three points
+ * inside a buried tank. Precisely the failure Amendment 5 exists to prevent.
+ *
+ * **2 — It would destroy `checkComponentTypes`, and would look like tidying.**
+ * §1a is the strong cross-check *because* the class list and the field config are
+ * maintained separately and can disagree. If this file generated that one they
+ * could never disagree, and the check would be **idle from birth** — the §B3
+ * weakness documented above, promoted onto the only cross-vocabulary check the
+ * engine has. *A check whose two sides cannot disagree has not been passing.*
+ * This reason holds even if every point were `direct`.
+ *
+ * **A stub type is therefore not a defect.** It means the field app asks nothing
+ * at that pin; the binder still knows what it wanted. The difference lands in the
+ * gap report's *missing from us* column, which is what that column is for — and
+ * it tells the field team their config has catching up to do per property, with
+ * evidence. Three of 68 classes today. Amendment 6 §C, whose caveats stand: that
+ * join is unbuilt, and whether the field app grows items for `cistern` and
+ * `iron-filter` is a field decision that goes through the owner.
+ *
+ * ---
+ *
  * ## Fail open on a missing file, fail closed on a broken one
  *
  * The same split as `lineage.ts`. A missing file is the ordinary state before
