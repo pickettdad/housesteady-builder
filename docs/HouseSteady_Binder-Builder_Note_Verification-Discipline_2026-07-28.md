@@ -403,6 +403,37 @@ That is not an argument for anything elaborate. It is the reason 9b is the only 
 actually available: the cheaper alternative was checked, and it is empty. *(One look, not a
 project — and the look is done, so nobody needs to repeat it.)*
 
+#### 11a · Idleness moves. A check that was exercised can go idle with nobody touching it
+
+*(Added 2026-08-05, proposed by Builder Code. Rule 11 with the arrow reversed.)*
+
+Rule 11 is written about input that was **never** present. The class frame produced the other
+direction and it is the more dangerous one, because nothing announces it.
+
+`class-frame-v1.json` shipped deliberately empty, so `readClassFrame`'s empty-classes branch
+and `auditClassFrame`'s empty-run branch were the *exercised* ones and every failure path was
+idle — correctly, loudly, with the tests saying so in their names. The content pass landed 32
+classes. **Four tests failed and were fixed within the hour. Two live code branches stopped
+being reached at the same instant and nothing pointed at them at all.**
+
+> **When a fixture gains content, the branches it stops exercising go silently untested. The
+> failing tests get attention because they fail; the departed branch has no such mechanism.**
+
+The asymmetry is the whole point. A check that was never exercised at least has a fixture
+somebody can look at and ask rule 11's question of. A check that *stops* being exercised leaves
+a green suite, an unchanged test file, and no artefact anywhere recording that the coverage
+moved. The only moment it is cheap to notice is the moment the content arrives — which is
+exactly the moment attention is on the four red tests instead.
+
+**The practice, and it costs one thought per fixture change:** when a fixture gains content,
+list the branches it *used* to reach, and construct the input they have lost. Here that was two
+lines — write an empty frame to scratch — and it kept both branches under test rather than
+converting a deliberate design decision into dead code by accretion.
+
+**It is rule 5 pointed at coverage.** *A fix that removes a symptom has not removed a class* —
+and fixing the tests that went red is a symptom fix when the same event silenced tests that
+stayed green.
+
 ### 12. The name of an act is part of what it claims
 
 **Proposed by the design session 2026-08-03, after the second instance in a fortnight.**
@@ -496,6 +527,7 @@ by more than one author, in documents that do not cite each other.
 | 1 | *"Pin-scoped resolutions are not counted in the zone summary. The two scopes are independent."* | `Increment-3_Note_Zone-Audit-Reconstruction`. The correction lived in `zoneAudit.ts`'s module note and **nowhere in `/docs`.** An oracle built on it agreed for four increments while wrong |
 | 2 | *"Pin number is the cross-visit join key."* | `PLAN-STAGE-1` §7b **and** the binder's carried Manifest Contract v3 copy — one false sentence in two repos. The answer sat in the Observed Addendum's header note while §8 Q4 still read as open. F-29 |
 | 3 | A ratified-model contradiction in `REDESIGN-v2` Decision 5 | **Found by Field Code sweeping rather than fixing.** Nine instances, not one — and `CLAUDE.md` names that document *read first*, so it was the highest-traffic copy of the wrong thing and on nobody's list |
+| 4 | *"keeps the worked example out of the data"* over a body asserting `theArray === []` | **The first instance in code rather than prose, 2026-08-05.** Two test bodies, `class-frame` and the wording file, both named for a collision guard and neither checking one — they checked emptiness, a different fact that was true while all three schema files shipped empty. The class frame gained content and the assertion failed *for the wrong reason*: not an example leaking, just content arriving. Fixed as one scan over every schema file carrying an example, which is also the guard the two files that are still empty now have before their content lands |
 
 **Why one grep rather than judgement.** Every one of the three was found by somebody reading a
 document for an unrelated reason. None was found by care, and none would have been found by

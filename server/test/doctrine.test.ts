@@ -1130,6 +1130,89 @@ describe('doctrine — the checklist master is reference, never an input', () =>
   })
 })
 
+describe('rule 13 — a worked example never collides with the data it explains', () => {
+  /**
+   * Three schema files carry a worked example beside the array it explains:
+   * `class-frame-v1.json`, `owner-question-wording-v1.json`,
+   * `retirement-lineage-v1.json`. All three ship the example outside the array so
+   * nothing iterating treats it as declared.
+   *
+   * **That property was asserted twice by hand and neither assertion checked
+   * it.** Both bodies read `assert.deepEqual(file.theArray, [])` — which is
+   * *the array is empty*, a different fact that happened to be true while every
+   * one of these files shipped empty. The day the class frame gained 32 classes
+   * the assertion failed, and it failed for the wrong reason: not because an
+   * example had leaked, but because content had arrived. Rule 12, and rule 13
+   * says a fix for a class of wording is tested on the class.
+   *
+   * The real property, and it holds whether the array has nothing in it or
+   * everything: **no id inside an example block is also an id in the file's own
+   * data.** It is what would have caught the actual collision — a worked class
+   * keyed `septic-tank` sitting beside a real class of the same name, carrying a
+   * superseded answer to a question the file had already resolved.
+   *
+   * Two files still ship empty and cannot collide today. That is the point of
+   * scanning the class rather than the instance: the guard is in place before
+   * their content lands, not written again afterwards from the same lesson.
+   */
+  const exampleKey = (k: string): boolean => /worked|example/i.test(k)
+
+  /** Every `id` at any depth. An example nests; ids can be anywhere in it. */
+  const idsWithin = (v: unknown, out: Set<string> = new Set()): Set<string> => {
+    if (Array.isArray(v)) for (const x of v) idsWithin(x, out)
+    else if (v && typeof v === 'object') {
+      for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+        if (k === 'id' && typeof x === 'string') out.add(x)
+        else idsWithin(x, out)
+      }
+    }
+    return out
+  }
+
+  const schemaFiles = (): { path: string; file: Record<string, unknown> }[] =>
+    allFiles(join(repoRoot, 'schema'))
+      .filter((p) => p.endsWith('.json'))
+      .map((path) => ({ path, file: JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown> }))
+
+  it('finds the example blocks, so this scan is not vacuous', () => {
+    // §9b. A scan that silently matches nothing reports green forever.
+    const carrying = schemaFiles().filter((s) => Object.keys(s.file).some(exampleKey))
+    assert.ok(carrying.length >= 3, `only ${carrying.length} schema files carry an example`)
+  })
+
+  it('keeps every example’s ids out of the arrays it sits beside', () => {
+    const offenders: string[] = []
+    for (const { path, file } of schemaFiles()) {
+      const declared = new Set(
+        Object.entries(file).flatMap(([k, v]) =>
+          exampleKey(k) || !Array.isArray(v)
+            ? []
+            : v.flatMap((e) => (e && typeof e === 'object' && typeof (e as { id?: unknown }).id === 'string'
+                ? [(e as { id: string }).id]
+                : []))))
+      for (const [k, v] of Object.entries(file)) {
+        if (!exampleKey(k)) continue
+        for (const id of idsWithin(v)) {
+          if (declared.has(id)) offenders.push(`${path.replace(repoRoot, '')} · ${k} uses the declared id \`${id}\``)
+        }
+      }
+    }
+    assert.deepEqual(offenders, [],
+      'an example sharing an id with real data is a second answer to the same question, and the stale one wins by being read first')
+  })
+
+  it('catches a collision when there is one, proved on a constructed file', () => {
+    // §9b again — negative-tested where it is written, because the shipped files
+    // pass and a scan nothing can fail is a scan nobody has run.
+    const file = {
+      classes: [{ id: 'septic-tank', label: 'Septic tank' }],
+      workedClass: { shape: { id: 'septic-tank', componentType: 'none' } },
+    }
+    const declared = new Set(file.classes.map((c) => c.id))
+    assert.deepEqual([...idsWithin(file.workedClass)].filter((id) => declared.has(id)), ['septic-tank'])
+  })
+})
+
 /**
  * Increment 4 §8 — the five scans the spec asks for, plus the two the build
  * turned out to need.

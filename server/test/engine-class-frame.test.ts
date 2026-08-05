@@ -1,11 +1,32 @@
 /**
  * The class frame — Increment 5 §1, Amendment 3 §B.
  *
- * **Every check in this module is idle against the shipped file**, because the
- * shipped file has no classes. So almost every test here constructs its input.
- * That is not test convenience — it is rule 11 written down: *a check whose
- * distinguishing input is never present has not been passing, it has been idle*,
- * and the shipped frame can never supply that input by design.
+ * **This file was written when the frame shipped empty, and the frame is not
+ * empty any more.** Register #37 closed with 32 of 173 classes and all four
+ * vocabularies populated, and four tests here failed. Every one of them deserved
+ * to: they asserted *the file declares nothing*, which was true the day it was
+ * written and is now false.
+ *
+ * ## Rule 11 pointed the other way, and that is the interesting part
+ *
+ * The original header said every check here is idle against the shipped file. It
+ * no longer is — `checkVocabulary` now resolves ~200 real references and passes.
+ * **But the reverse became true at the same instant:** `readClassFrame`'s
+ * empty-classes branch and `auditClassFrame`'s empty-run branch are still live
+ * code, and nothing in the repo reaches them any more. A check whose
+ * distinguishing input has *left* is as idle as one whose input never arrived,
+ * and the tests below therefore construct an empty frame file rather than
+ * deleting those cases.
+ *
+ * ## And one test failed for the wrong reason, which is worth more than the fix
+ *
+ * `keeps the worked class out of the data` asserted `classes.length === 0`. That
+ * is not what its name claims. It never checked whether the worked class leaked
+ * into the array — it checked that the array was empty, which was a different
+ * fact that happened to be true. **Rule 12: the name of an act is part of what it
+ * claims.** The same body was written twice, here and for the wording file, so
+ * the real property is now a scan over every schema file carrying an example —
+ * `doctrine.test.ts`, rule 13.
  */
 
 import assert from 'node:assert/strict'
@@ -42,23 +63,50 @@ const cls = (over: Partial<ClassEntry> = {}): ClassEntry => ({
   opportunityConditions: [], ownerQuestions: [], replacementHorizon: true, ...over,
 })
 
-describe('the class frame ships empty, and says so', () => {
-  it('reads the shipped file with no classes and calls that its honest state', () => {
+/**
+ * A frame file that parses and declares nothing. **The state the repo shipped in
+ * and no longer holds**, so the only way to reach that branch is to build one.
+ */
+const emptyFrameFile = (): string => {
+  const p = join(scratchDir(), 'empty-frame.json')
+  writeFileSync(p, JSON.stringify({ version: 'empty-for-test', classes: [] }))
+  return p
+}
+
+describe('the reader reports what the file holds, whatever that is', () => {
+  it('reads the shipped file and reports its real content', () => {
+    // Was `reads the shipped file with no classes`. It has 32, and the note
+    // counts rather than explaining an emptiness that is over.
     const f = readClassFrame()
     assert.equal(f.absent, false)
+    assert.ok(f.classes.length > 0, 'the content pass has landed')
+    assert.match(f.note, new RegExp(`^${f.classes.length} classes declared`))
+    for (const v of [f.careCategories, f.inspectionPoints, f.opportunityConditions, f.ownerQuestions]) {
+      assert.ok(v.length > 0, 'all four vocabularies are populated')
+    }
+  })
+
+  it('still calls an empty file its honest state — constructed, because nothing ships that way now', () => {
+    // Live code with no input left in the repo. Rule 11 does not only catch a
+    // check that was never reached; it catches one that has stopped being.
+    const f = readClassFrame(emptyFrameFile())
+    assert.equal(f.absent, false)
     assert.equal(f.classes.length, 0)
-    assert.deepEqual(
-      [f.careCategories.length, f.inspectionPoints.length, f.opportunityConditions.length, f.ownerQuestions.length],
-      [0, 0, 0, 0])
     assert.match(f.note, /honest one/)
   })
 
   it('tells a missing file apart from a file declaring nothing', () => {
-    // Opposite claims that look identical to a caller checking `classes.length`.
+    // Opposite claims that look identical to a caller checking `classes.length`,
+    // which is why both sides are built. Comparing absence against the *shipped*
+    // file used to make this claim and now would not: that file declares 32
+    // things, so it tests absent-versus-present and the name says more.
     const missing = readClassFrame(join(scratchDir(), 'no-such-frame.json'))
+    const declaresNothing = readClassFrame(emptyFrameFile())
     assert.equal(missing.absent, true)
-    assert.equal(readClassFrame().absent, false)
+    assert.equal(declaresNothing.absent, false)
+    assert.equal(missing.classes.length, declaresNothing.classes.length, 'indistinguishable by count')
     assert.match(missing.note, /Nothing is wrong/)
+    assert.match(declaresNothing.note, /honest one/)
   })
 
   it('refuses a present file that will not parse', () => {
@@ -74,9 +122,59 @@ describe('the class frame ships empty, and says so', () => {
   })
 
   it('reports an empty run as an empty run, never as a pass', () => {
-    const a = auditClassFrame(readClassFrame(), walkConfig())
+    // The distinction rule 11 exists for, and it survives the content pass
+    // because the input is built rather than read.
+    const a = auditClassFrame(readClassFrame(emptyFrameFile()), walkConfig())
     assert.deepEqual(a.problems, [])
     assert.match(a.note, /not a pass — it is an empty run/)
+  })
+
+  it('and a real run counts what it checked, so the two can never read alike', () => {
+    const a = auditClassFrame(readClassFrame(), walkConfig())
+    assert.doesNotMatch(a.note, /empty run/)
+    assert.match(a.note, /^\d+ classes checked/)
+  })
+})
+
+/**
+ * **The first time these checks have had real input.** Everything above and
+ * below constructs its own, because a passing file cannot exercise a failure
+ * path. This block does the opposite job: it runs the shipped checks over the
+ * shipped content against the walk's own config, so the result is verified here
+ * rather than carried across a handover.
+ */
+describe('the shipped content, checked rather than taken on trust', () => {
+  it('audits clean against the walk’s own config snapshot', () => {
+    const a = auditClassFrame(readClassFrame(), walkConfig())
+    assert.deepEqual(a.problems.map((p) => `${p.code} · ${p.classId}`), [])
+  })
+
+  it('reports the classes that map to a stub, because a stub seeds an empty checklist', () => {
+    // Not an error and never treated as one — the type is declared and its ids
+    // are reserved. But a house with a cistern seeds nothing today, and that is
+    // a fact for the field team rather than a silence. Doctrine 6.
+    const r = checkComponentTypes(readClassFrame(), walkConfig())
+    assert.deepEqual(r.problems, [])
+    assert.ok(r.stubs.length > 0, 'idle if the content ever stops reaching a stub')
+    for (const id of r.stubs) {
+      assert.equal(r.resolved.find((x) => x.classId === id)?.state, 'stub')
+    }
+  })
+
+  it('resolves every class to a declared type, an explicit none, or a stub — never an absence', () => {
+    const r = checkComponentTypes(readClassFrame(), walkConfig())
+    assert.equal(r.resolved.length, readClassFrame().classes.length, 'nothing dropped')
+    assert.deepEqual([...new Set(r.resolved.map((x) => x.state))].sort(), ['none', 'stub', 'typed'])
+  })
+
+  it('carries access events as open vocabulary, not a list this repo keeps', () => {
+    // `well-pump-service` arrived with the content pass and nothing needed
+    // changing, which is the property being asserted — a second event type is
+    // ordinary. Doctrine 7: fail open on vocabulary.
+    const events = new Set(
+      readClassFrame().inspectionPoints.flatMap((p) => (p.accessEvent ? [p.accessEvent] : [])))
+    assert.ok(events.size > 1, 'more than one event is in use')
+    assert.deepEqual(checkAccess(readClassFrame()), [], 'and every one of them passes unrecognised')
   })
 })
 
@@ -182,11 +280,40 @@ describe('§B3 · vocabulary references, and what this check cannot do', () => {
     assert.deepEqual(checkVocabulary(f), [], 'silent — and that is the documented limit, not a bug')
   })
 
-  it('is idle against the shipped file, which is why every test above builds its own', () => {
-    // Rule 11 made explicit. If this ever stops being true the shipped file has
-    // gained classes and these tests should be re-read, not deleted.
-    assert.deepEqual(checkVocabulary(readClassFrame()), [])
-    assert.equal(readClassFrame().classes.length, 0)
+  it('is no longer idle — the shipped file resolves real references and passes', () => {
+    // This test used to assert the opposite, and its comment said: *if this ever
+    // stops being true the shipped file has gained classes and these tests should
+    // be re-read, not deleted.* It has, and they were.
+    //
+    // The re-read: every test above still builds its own input, because they
+    // exercise failures and a clean file cannot produce one. What changed is
+    // this test's own claim. `checkVocabulary` against the shipped file used to
+    // iterate nothing and report green; it now resolves every reference 32
+    // classes make and reports green. **Those are the same output from opposite
+    // causes**, which is the entire distinction rule 11 draws, so the assertion
+    // is that the run is not vacuous rather than that it is empty.
+    const f = readClassFrame()
+    const references = f.classes.flatMap((c) => [
+      ...c.careCategories, ...c.inspectionPoints, ...c.opportunityConditions, ...c.ownerQuestions])
+    assert.ok(references.length > 50, `only ${references.length} references — has the content pass been reverted?`)
+    assert.deepEqual(checkVocabulary(f), [])
+  })
+
+  it('would still catch drift in the shipped file, proved by breaking a copy of it', () => {
+    // The check passing on real content is worth less than it looks: a check
+    // that resolves 200 references and one that resolves none both return `[]`.
+    // So take the real classes and misspell one declared term.
+    const f = readClassFrame()
+    const first = f.classes[0]
+    assert.ok(first, 'the content pass has landed')
+    const term = first.careCategories[0] ?? first.inspectionPoints[0]
+    assert.ok(term, 'and its first class references something')
+    const broken = {
+      ...f,
+      classes: [{ ...first, careCategories: [...first.careCategories, `${term} `] }, ...f.classes.slice(1)],
+    }
+    assert.equal(checkVocabulary(broken).length, 1)
+    assert.equal(checkVocabulary(broken)[0]?.code, 'undeclared-care-category')
   })
 })
 
@@ -334,13 +461,21 @@ describe('§A · owner questions, the fifth output', () => {
     }
   })
 
-  it('keeps the worked example out of the data', () => {
-    // Same guard `retirement-lineage-v1.json` uses: an example inside the array
-    // would be read as a ratified question by anything that iterates it.
+  it('marks its example as not an entry, and ships with nothing to collide with yet', () => {
+    // **This test used to be called `keeps the worked example out of the data`
+    // over a body asserting `wording === []`.** Those are different claims and
+    // the class frame proved it: the same body under the same name failed the
+    // day content arrived, not because an example leaked but because the array
+    // stopped being empty. Rule 12, instance 4.
+    //
+    // The collision property now belongs to the rule-13 scan in
+    // `doctrine.test.ts`, which holds it over all three schema files — including
+    // this one, whose content has not landed yet. What is left here is the
+    // narrower thing this test can actually see.
     const w = wording()
     assert.ok('workedExample' in w)
-    assert.deepEqual(w.wording, [])
     assert.match(JSON.stringify(w.workedExample), /NOT AN ENTRY/)
+    assert.deepEqual(w.wording, [], 'still empty — and when it is not, this line is the one to re-read')
   })
 })
 
@@ -430,15 +565,68 @@ describe('§B · an inspection point declares its access condition', () => {
     assert.match(d, /Checklist Master, driven by a property flag/)
   })
 
-  it('keeps the worked class out of the data', () => {
-    // Same guard as the wording file's example and the lineage file's: a class
-    // inside `classes` would be read as declared by anything iterating it.
+  it('points at the real class rather than carrying a second copy of it', () => {
+    // **This test used to assert `classes` was empty and was named for a
+    // property it did not check.** Rule 12. The worked class carried a full
+    // `shape` because the file shipped with no classes and nothing else could
+    // show one — and within a day of the content landing that copy said
+    // `componentType: none` while `componentTypeRules.septicTankResolved`, in
+    // the same file, had resolved it to `septic-lid`. One file, two answers to
+    // its own question. A pointer cannot drift, so it points.
     const raw = JSON.parse(
       readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8'),
-    ) as Record<string, unknown>
-    assert.ok('workedClass' in raw)
-    assert.deepEqual(raw.classes, [])
-    assert.match(JSON.stringify(raw.workedClass), /NOT AN ENTRY/)
-    assert.equal(readClassFrame().classes.length, 0, 'and the reader still sees none')
+    ) as { workedClass: Record<string, unknown> }
+    const w = raw.workedClass
+    assert.match(JSON.stringify(w.note), /NOT AN ENTRY/)
+    assert.ok(!('shape' in w), 'no second copy of the class')
+    assert.ok(
+      readClassFrame().classes.some((c) => c.id === w.walksThrough),
+      `workedClass.walksThrough names \`${String(w.walksThrough)}\`, which is not a declared class`)
+  })
+
+  it('names three inspection points in prose, and every claim it makes about them is true', () => {
+    // It used to quote all three as objects. The rule-13 scan in `doctrine.test.ts`
+    // fired on that and was right: an example carrying an id plus fields is a
+    // second declaration, which is the shape that had already drifted once here.
+    // So the block names them and the claims are checked instead — the same
+    // treatment `theContrastWorthSeeing` gets below.
+    const story = JSON.stringify(
+      (JSON.parse(readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8')) as
+        { workedClass: Record<string, unknown> }).workedClass.theAccessStoryItIsHereToTell)
+    const f = readClassFrame()
+    const declared = new Map(f.inspectionPoints.map((p) => [p.id, p]))
+
+    for (const id of ['tank-lid-security', 'riser-and-access-condition']) {
+      assert.ok(story.includes(id), `the story names \`${id}\``)
+      assert.equal(declared.get(id)?.access, 'requires-access-found', `and calls \`${id}\` access-found`)
+    }
+    const gated = declared.get('sludge-and-scum-depth')
+    assert.ok(story.includes('sludge-and-scum-depth'))
+    assert.equal(gated?.access, 'requires-access-event')
+    assert.equal(gated?.accessEvent, 'septic-pump-out', 'the story names the event it rides')
+    assert.ok(story.includes('septic-pump-out'))
+
+    // And all three belong to the class the block points at, which is the only
+    // reason naming them here teaches anything.
+    const tank = f.classes.find((c) => c.id === 'septic-tank')
+    for (const id of ['tank-lid-security', 'riser-and-access-condition', 'sludge-and-scum-depth']) {
+      assert.ok(tank?.inspectionPoints.includes(id), `\`${id}\` is one of septic-tank's own points`)
+    }
+  })
+
+  it('and the contrast paragraph’s claim about the bed is true of the bed’s own points', () => {
+    // `theContrastWorthSeeing` supplies the third condition the tank cannot show:
+    // *every one of septic-bed's points is direct.* That is a claim about data
+    // sitting in prose, which is the shape that goes stale silently — the bed
+    // gaining one gated point would make the file wrong with nothing objecting.
+    const f = readClassFrame()
+    const bed = f.classes.find((c) => c.id === 'septic-bed')
+    assert.ok(bed, 'the contrast names a real class')
+    const declared = new Map(f.inspectionPoints.map((p) => [p.id, p]))
+    assert.ok(bed.inspectionPoints.length > 0)
+    for (const id of bed.inspectionPoints) {
+      assert.equal(declared.get(id)?.access ?? DEFAULT_ACCESS, 'direct',
+        `the file says every septic-bed point is direct; \`${id}\` is not`)
+    }
   })
 })
