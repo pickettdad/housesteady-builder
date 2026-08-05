@@ -167,6 +167,36 @@ describe('the shipped content, checked rather than taken on trust', () => {
     assert.deepEqual([...new Set(r.resolved.map((x) => x.state))].sort(), ['none', 'stub', 'typed'])
   })
 
+  it('never lets the file’s own bookkeeping disagree with its data', () => {
+    // **The second instance in two days of a hand-kept restatement drifting.**
+    // The heating-and-cooling delta shipped a `_replaceWholesale` block that was
+    // byte-identical to the pre-delta text — cut from the same copy, never
+    // updated — so applying it verbatim would have left the file saying *32 of
+    // 173* over 68 classes, with heating and cooling still listed as remaining.
+    // Same shape as the worked class one merge earlier: a second copy of a fact
+    // the data already holds. Derived now, and asserted here.
+    const f = readClassFrame()
+    const raw = JSON.parse(
+      readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8'),
+    ) as { status: string; contentPassProgress: { written: string[] } }
+
+    const claimed = /^[^0-9]*(\d+) of (\d+) classes/.exec(raw.status)
+    assert.ok(claimed, 'the status names a count')
+    assert.equal(Number(claimed[1]), f.classes.length, 'the status counts the classes it actually holds')
+    assert.ok(Number(claimed[2]) >= f.classes.length, 'and the target is not behind the content')
+
+    // Every `system (n)` line matches the array. A class with two system tags
+    // counts in both, so these sum past the class total — deliberately.
+    const real = new Map<string, number>()
+    for (const c of f.classes) for (const s of c.systems) real.set(s, (real.get(s) ?? 0) + 1)
+    const stated = raw.contentPassProgress.written.map((w) => /^(\S+) \((\d+)\)$/.exec(w))
+    assert.ok(stated.every(Boolean), 'every written line parses as `system (n)`')
+    for (const m of stated) {
+      assert.equal(Number(m?.[2]), real.get(String(m?.[1])), `\`${String(m?.[1])}\` is miscounted`)
+    }
+    assert.equal(stated.length, real.size, 'and no system is written that the classes do not carry')
+  })
+
   it('carries access events as open vocabulary, not a list this repo keeps', () => {
     // `well-pump-service` arrived with the content pass and nothing needed
     // changing, which is the property being asserted — a second event type is

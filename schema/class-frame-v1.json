@@ -2,7 +2,7 @@
   "schemaId": "housesteady.class-frame",
   "version": "1.0.0",
   "date": "2026-08-04",
-  "status": "CONTENT PASS IN PROGRESS — 32 of 173 classes. Water heating, wells and water treatment, and septic are written; nine systems remain. `classes` is no longer empty and the four vocabularies are populated from those three systems only. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
+  "status": "CONTENT PASS IN PROGRESS — 68 of 173 classes. Water heating, wells and water treatment, septic, and heating and cooling are written; the rest remain. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
   "sourceDocument": "HouseSteady_Class-Frame_v1-1_2026-08-02, as corrected by Increment 5 Build Spec Amendment 3 §B and Amendment 4 §D.",
   "note": "What kinds of thing live in a house, and what each kind needs. The engine recognises a thing, looks up its class, and generates work from what the class declares. This file is the declaration; the research pass supplies model-specific detail inside it.",
   "whyTheFrameShipsBeforeTheContent": "Pass two written as prose and translated into this shape later is a hand transformation applied to ~172 rows, which is the shape of every drift failure in this project. Written against this file, it is authored in its final form. Amendment 3 §C.",
@@ -174,6 +174,55 @@
     {
       "id": "effluent-filter-cleaning",
       "label": "Effluent filter cleaning"
+    },
+    {
+      "id": "coil-cleaning",
+      "label": "Coil cleaning",
+      "note": "Condenser and evaporator coils. Shared across cooling, heat pumps and dehumidification."
+    },
+    {
+      "id": "blower-and-fan-cleaning",
+      "label": "Blower and fan cleaning",
+      "note": "A fouled squirrel cage is not a dirty filter — distinct work, distinct rhythm."
+    },
+    {
+      "id": "core-cleaning",
+      "label": "Ventilator core cleaning"
+    },
+    {
+      "id": "chimney-sweep",
+      "label": "Chimney sweeping",
+      "note": "Also the access event gating the liner and creosote points — see `accessEvent: chimney-sweep`."
+    },
+    {
+      "id": "burn-pot-and-ash-service",
+      "label": "Burn pot and ash service",
+      "note": "Wood and pellet. Frequent, owner-level, and the item most likely to be skipped in February."
+    },
+    {
+      "id": "humidifier-pad-replacement",
+      "label": "Evaporator pad replacement",
+      "note": "Consumable — §1b part identity."
+    },
+    {
+      "id": "oil-filter-replacement",
+      "label": "Oil filter replacement",
+      "note": "Consumable — §1b part identity."
+    },
+    {
+      "id": "radiator-bleeding",
+      "label": "Radiator bleeding",
+      "note": "Seasonal, owner-level, and the reason a cold radiator is usually not a failed boiler."
+    },
+    {
+      "id": "damper-and-louvre-service",
+      "label": "Damper and louvre service",
+      "note": "Louvres seize long before anyone notices, because nobody looks in the season they are not used."
+    },
+    {
+      "id": "ground-loop-fluid-service",
+      "label": "Ground loop fluid service",
+      "note": "Antifreeze concentration and loop pressure. Ground-source only."
     }
   ],
   "inspectionPoints": [
@@ -407,6 +456,159 @@
       "id": "bed-encroachment-and-loading",
       "label": "Bed encroachment and loading",
       "kind": "look"
+    },
+    {
+      "id": "heat-exchanger-condition",
+      "label": "Heat exchanger condition",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "annual-combustion-service",
+      "note": "Not visible without disassembly. Seen when the trade opens the appliance — and a cracked exchanger is the highest-consequence thing in this system."
+    },
+    {
+      "id": "filter-size-and-fit",
+      "label": "Filter size and fit",
+      "kind": "look",
+      "note": "The wrong size fitted is common and looks like a filter that was changed."
+    },
+    {
+      "id": "blower-compartment-condition",
+      "label": "Blower compartment condition",
+      "kind": "look"
+    },
+    {
+      "id": "thermostat-function-and-schedule",
+      "label": "Thermostat function and schedule",
+      "kind": "look"
+    },
+    {
+      "id": "duct-connections-and-sealing",
+      "label": "Duct connections and sealing",
+      "kind": "look"
+    },
+    {
+      "id": "register-airflow",
+      "label": "Register airflow",
+      "kind": "measure",
+      "unit": null,
+      "note": "Deliberately unitless. An anemometer reads m/s and a flow hood reads CFM — the instrument decides the scale, exactly as %WME and %MC do for moisture. Second instance of a declared null unit. Field change request F-19 lands here."
+    },
+    {
+      "id": "condenser-clearance-and-level",
+      "label": "Outdoor unit clearance and level",
+      "kind": "look"
+    },
+    {
+      "id": "outdoor-coil-condition",
+      "label": "Outdoor coil condition",
+      "kind": "look"
+    },
+    {
+      "id": "refrigerant-line-insulation",
+      "label": "Refrigerant line insulation",
+      "kind": "look"
+    },
+    {
+      "id": "defrost-cycle-function",
+      "label": "Defrost cycle function",
+      "kind": "look"
+    },
+    {
+      "id": "core-and-filter-condition",
+      "label": "Core and filter condition",
+      "kind": "look"
+    },
+    {
+      "id": "ventilation-balance-and-flow",
+      "label": "Ventilation balance and flow",
+      "kind": "look"
+    },
+    {
+      "id": "humidifier-pad-and-drain",
+      "label": "Pad and drain condition",
+      "kind": "look"
+    },
+    {
+      "id": "firebox-and-refractory-condition",
+      "label": "Firebox and refractory condition",
+      "kind": "look"
+    },
+    {
+      "id": "door-gasket-and-glass",
+      "label": "Door gasket and glass",
+      "kind": "look"
+    },
+    {
+      "id": "hearth-and-clearances",
+      "label": "Hearth and clearances to combustibles",
+      "kind": "look"
+    },
+    {
+      "id": "connector-clearance-to-combustibles",
+      "label": "Connector clearance to combustibles",
+      "kind": "look",
+      "note": "WETT treats appliance, connector and chimney as one system with three parts. This is the part most often wrong and most often reachable."
+    },
+    {
+      "id": "creosote-accumulation",
+      "label": "Creosote accumulation",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "chimney-sweep"
+    },
+    {
+      "id": "chimney-liner-condition",
+      "label": "Liner condition",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "chimney-sweep",
+      "note": "Wants a camera down the flue. Seen when the sweep is there, not at a visit."
+    },
+    {
+      "id": "chimney-crown-and-flashing",
+      "label": "Crown and flashing",
+      "kind": "look"
+    },
+    {
+      "id": "cap-and-screen-condition",
+      "label": "Cap and screen condition",
+      "kind": "look"
+    },
+    {
+      "id": "condensate-pump-operation",
+      "label": "Condensate pump operation",
+      "kind": "look",
+      "note": "Deliberately distinct from `float-and-pump-operation`, which is gated on a septic pump-out. Same kind of check, different reachability — see `accessIsPerPointNotPerReference`."
+    },
+    {
+      "id": "tank-shell-and-legs",
+      "label": "Tank shell, legs and support",
+      "kind": "look"
+    },
+    {
+      "id": "fill-and-vent-condition",
+      "label": "Fill pipe and vent condition",
+      "kind": "look"
+    },
+    {
+      "id": "tank-gauge-function",
+      "label": "Tank gauge function",
+      "kind": "look"
+    },
+    {
+      "id": "fuel-line-condition",
+      "label": "Fuel line condition",
+      "kind": "look"
+    },
+    {
+      "id": "regulator-and-vent-position",
+      "label": "Regulator and vent position",
+      "kind": "look"
+    },
+    {
+      "id": "secondary-containment-present",
+      "label": "Secondary containment present",
+      "kind": "look"
     }
   ],
   "opportunityConditions": [
@@ -475,6 +677,25 @@
       "id": "overdue-pump-out",
       "label": "Pump-out overdue",
       "note": "Fires from the owner question's answer against the interval — it cannot be seen, only asked."
+    },
+    {
+      "id": "no-secondary-containment",
+      "label": "Fuel tank with no secondary containment"
+    },
+    {
+      "id": "oil-tank-past-insurable-age",
+      "label": "Oil tank approaching the age insurers decline",
+      "note": "Insurance-relevant rather than condition-relevant, which makes it an opportunity and not a finding. Regional — oil is real in rural Quinte."
+    },
+    {
+      "id": "no-wett-record-on-solid-fuel",
+      "label": "Solid fuel appliance with no WETT record",
+      "note": "Insurers ask for it and households often do not know they need one."
+    },
+    {
+      "id": "no-condensate-overflow-protection",
+      "label": "Condensate pump with no overflow shutdown",
+      "note": "The pump fails silently and floods the mechanical room while the appliance it serves is fine."
     }
   ],
   "ownerQuestions": [
@@ -534,6 +755,29 @@
       "id": "do-you-know-what-this-does",
       "label": "Do you know what this does?",
       "note": "For a treatment canister nobody can identify. The most useful output the weakest class in the list has."
+    },
+    {
+      "id": "does-any-room-never-get-comfortable",
+      "label": "Is there a room that never gets comfortable?",
+      "note": "Households know this precisely and it is nowhere in any document. It feeds the property pass on return air and balance, which no per-object engine can reach."
+    },
+    {
+      "id": "when-was-the-chimney-last-swept",
+      "label": "When was the chimney last swept?"
+    },
+    {
+      "id": "do-you-burn-wood-and-how-often",
+      "label": "Do you burn wood, and how often?",
+      "note": "Care intervals for a solid-fuel appliance depend on use more than on age, and only the household knows the use."
+    },
+    {
+      "id": "do-you-have-a-wett-certificate",
+      "label": "Do you have a WETT certificate?"
+    },
+    {
+      "id": "who-fills-the-tank",
+      "label": "Who fills the tank?",
+      "note": "Names the coordination partner, the same way `owned-or-rented` does for a rental heater."
     }
   ],
   "classes": [
@@ -1298,18 +1542,907 @@
         "has-this-ever-backed-up"
       ],
       "replacementHorizon": true
+    },
+    {
+      "id": "furnace-gas",
+      "label": "Gas furnace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "burner-and-combustion-service",
+        "blower-and-fan-cleaning",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "orphaned-atmospheric-vent",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "owned-or-rented",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "furnace-oil",
+      "label": "Oil furnace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "burner-and-combustion-service",
+        "blower-and-fan-cleaning",
+        "oil-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable",
+        "who-fills-the-tank"
+      ],
+      "replacementHorizon": true,
+      "note": "Regional — real in rural Quinte, rarer in town. One care category apart from gas and it is the oil filter."
+    },
+    {
+      "id": "furnace-electric",
+      "label": "Electric furnace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "blower-and-fan-cleaning"
+      ],
+      "inspectionPoints": [
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "No combustion, so four inspection points fall away including the heat exchanger. The same shape the fuel split takes in water heating."
+    },
+    {
+      "id": "air-handler",
+      "label": "Air handler",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "blower-and-fan-cleaning",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "The config aliases this to `furnace` and it has no burner at all — the indoor half of a heat pump or air conditioner."
+    },
+    {
+      "id": "boiler-gas",
+      "label": "Gas boiler",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "burner-and-combustion-service"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "thermostat-function-and-schedule",
+        "expansion-tank-charge",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "orphaned-atmospheric-vent",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "boiler-oil",
+      "label": "Oil boiler",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "burner-and-combustion-service",
+        "oil-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "thermostat-function-and-schedule",
+        "expansion-tank-charge"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable",
+        "who-fills-the-tank"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "radiator-hydronic",
+      "label": "Radiator",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "radiator-bleeding"
+      ],
+      "inspectionPoints": [
+        "corrosion-at-connections",
+        "shutoff-present-and-operable"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "circulator-pump",
+      "label": "Circulator pump",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [],
+      "inspectionPoints": [
+        "corrosion-at-connections",
+        "shutoff-present-and-operable"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "A boiler may have several and any one failing disables a zone — which is why the owner question about a cold room is on the radiator and the boiler both."
+    },
+    {
+      "id": "air-conditioner-central",
+      "label": "Central air conditioner",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "coil-cleaning",
+        "condensate-drain-service",
+        "air-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "condenser-clearance-and-level",
+        "outdoor-coil-condition",
+        "refrigerant-line-insulation",
+        "condensate-path-clear",
+        "thermostat-function-and-schedule"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "heat-pump-air-source",
+      "label": "Air-source heat pump",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "coil-cleaning",
+        "condensate-drain-service",
+        "air-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "condenser-clearance-and-level",
+        "outdoor-coil-condition",
+        "refrigerant-line-insulation",
+        "defrost-cycle-function",
+        "condensate-path-clear",
+        "thermostat-function-and-schedule"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "heat-pump-ground-source",
+      "label": "Ground-source heat pump",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "coil-cleaning",
+        "air-filter-replacement",
+        "ground-loop-fluid-service",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "condensate-path-clear",
+        "thermostat-function-and-schedule",
+        "filter-size-and-fit"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "do-you-have-the-paperwork",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "Regional and genuinely different service — no outdoor unit at all, so four air-source points fall away and a loop fluid category arrives that nothing else has."
+    },
+    {
+      "id": "mini-split",
+      "label": "Ductless mini-split",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "air-filter-replacement",
+        "coil-cleaning",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "outdoor-coil-condition",
+        "refrigerant-line-insulation",
+        "defrost-cycle-function",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "Its filters are owner-level and never done, which is the whole reason the class exists separately."
+    },
+    {
+      "id": "air-conditioner-window",
+      "label": "Window air conditioner",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "air-filter-replacement",
+        "coil-cleaning"
+      ],
+      "inspectionPoints": [
+        "outdoor-coil-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "hrv-erv",
+      "label": "Heat recovery ventilator",
+      "systems": [
+        "ventilation"
+      ],
+      "componentType": "hrv-erv",
+      "careCategories": [
+        "air-filter-replacement",
+        "core-cleaning"
+      ],
+      "inspectionPoints": [
+        "core-and-filter-condition",
+        "ventilation-balance-and-flow",
+        "condensate-path-clear",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "HRV and ERV merged — the care is filters, core cleaning and balancing either way."
+    },
+    {
+      "id": "humidifier-whole-home",
+      "label": "Whole-home humidifier",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "humidifier",
+      "careCategories": [
+        "humidifier-pad-replacement"
+      ],
+      "inspectionPoints": [
+        "humidifier-pad-and-drain",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "dehumidifier-whole-home",
+      "label": "Whole-home dehumidifier",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "dehumidifier",
+      "careCategories": [
+        "air-filter-replacement",
+        "coil-cleaning",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "condensate-path-clear",
+        "filter-size-and-fit"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "dehumidifier-portable",
+      "label": "Portable dehumidifier",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "air-filter-replacement",
+        "coil-cleaning"
+      ],
+      "inspectionPoints": [
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "No checklist, and it has a filter nobody cleans."
+    },
+    {
+      "id": "attic-fan",
+      "label": "Attic or whole-house fan",
+      "systems": [
+        "ventilation"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "damper-and-louvre-service"
+      ],
+      "inspectionPoints": [
+        "blower-compartment-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Louvres seize long before anyone notices, because nobody looks in the season it is not used."
+    },
+    {
+      "id": "register",
+      "label": "Register or grille",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "register",
+      "careCategories": [],
+      "inspectionPoints": [
+        "register-airflow",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": false,
+      "note": "Merged supply and return at v0.2 — they share every care task, and balance is a property-level diagnostic the property pass handles rather than object care. No replacement horizon: a grille is replaced when a room is renovated, not on a lifespan."
+    },
+    {
+      "id": "condensate-pump",
+      "label": "Condensate pump",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "condensate-pump-operation",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "no-condensate-overflow-protection",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Fails silently and floods the mechanical room while the appliance it serves is fine."
+    },
+    {
+      "id": "condensate-drain",
+      "label": "Condensate drain",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [],
+      "replacementHorizon": false
+    },
+    {
+      "id": "baseboard-heater-electric",
+      "label": "Electric baseboard heater",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "thermostat-function-and-schedule"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "Very common in older rural stock and in additions."
+    },
+    {
+      "id": "fireplace-wood",
+      "label": "Wood-burning fireplace",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [
+        "chimney-sweep",
+        "burn-pot-and-ash-service"
+      ],
+      "inspectionPoints": [
+        "firebox-and-refractory-condition",
+        "hearth-and-clearances",
+        "connector-clearance-to-combustibles",
+        "creosote-accumulation"
+      ],
+      "opportunityConditions": [
+        "no-wett-record-on-solid-fuel",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-chimney-last-swept",
+        "do-you-burn-wood-and-how-often",
+        "do-you-have-a-wett-certificate"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "wood-stove",
+      "label": "Wood stove",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [
+        "chimney-sweep",
+        "burn-pot-and-ash-service"
+      ],
+      "inspectionPoints": [
+        "firebox-and-refractory-condition",
+        "door-gasket-and-glass",
+        "hearth-and-clearances",
+        "connector-clearance-to-combustibles",
+        "creosote-accumulation"
+      ],
+      "opportunityConditions": [
+        "no-wett-record-on-solid-fuel",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-chimney-last-swept",
+        "do-you-burn-wood-and-how-often",
+        "do-you-have-a-wett-certificate"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "pellet-stove",
+      "label": "Pellet stove",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [
+        "burn-pot-and-ash-service",
+        "blower-and-fan-cleaning",
+        "chimney-sweep"
+      ],
+      "inspectionPoints": [
+        "firebox-and-refractory-condition",
+        "door-gasket-and-glass",
+        "hearth-and-clearances",
+        "connector-clearance-to-combustibles"
+      ],
+      "opportunityConditions": [
+        "no-wett-record-on-solid-fuel",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "do-you-burn-wood-and-how-often",
+        "do-you-have-a-wett-certificate"
+      ],
+      "replacementHorizon": true,
+      "note": "Its care is unlike a wood stove's — a blower, an auger and a burn pot, and no creosote point because it vents differently."
+    },
+    {
+      "id": "fireplace-gas",
+      "label": "Gas fireplace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [
+        "burner-and-combustion-service"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "door-gasket-and-glass",
+        "hearth-and-clearances"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "fireplace-electric",
+      "label": "Electric fireplace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [],
+      "inspectionPoints": [],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Almost no care and no inspection point that is not a general electrical one. Worth the class precisely to say so — an empty row is an answer."
+    },
+    {
+      "id": "chimney-masonry",
+      "label": "Masonry chimney",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "chimney",
+      "careCategories": [
+        "chimney-sweep"
+      ],
+      "inspectionPoints": [
+        "chimney-crown-and-flashing",
+        "cap-and-screen-condition",
+        "chimney-liner-condition",
+        "creosote-accumulation"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-chimney-last-swept"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "chimney-metal",
+      "label": "Metal chimney",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "chimney",
+      "careCategories": [
+        "chimney-sweep"
+      ],
+      "inspectionPoints": [
+        "cap-and-screen-condition",
+        "chimney-liner-condition",
+        "creosote-accumulation",
+        "connector-clearance-to-combustibles"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-chimney-last-swept"
+      ],
+      "replacementHorizon": true,
+      "note": "Class-A insulated, and a different inspection entirely — no crown, no flashing, and clearances that are the manufacturer's rather than the code's."
+    },
+    {
+      "id": "chimney-cap",
+      "label": "Chimney cap",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "chimney",
+      "careCategories": [],
+      "inspectionPoints": [
+        "cap-and-screen-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Separately replaceable, and animals and water get in while the chimney itself is sound."
+    },
+    {
+      "id": "stovepipe",
+      "label": "Stovepipe",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "chimney",
+      "careCategories": [],
+      "inspectionPoints": [
+        "connector-clearance-to-combustibles",
+        "creosote-accumulation"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "The connector between appliance and chimney. WETT treats appliance, connector and chimney as one system with three parts, and this is the part with no other home."
+    },
+    {
+      "id": "fuel-tank-propane",
+      "label": "Propane tank",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [],
+      "inspectionPoints": [
+        "tank-shell-and-legs",
+        "regulator-and-vent-position",
+        "fuel-line-condition",
+        "tank-gauge-function"
+      ],
+      "opportunityConditions": [
+        "long-tenure-rental",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "who-fills-the-tank"
+      ],
+      "replacementHorizon": true,
+      "note": "Usually leased, and the lease is a fact worth carrying — `owned-or-rented` does the same job here it does for a rented water heater."
+    },
+    {
+      "id": "fuel-tank-oil",
+      "label": "Oil tank",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [],
+      "inspectionPoints": [
+        "tank-shell-and-legs",
+        "fuel-line-condition",
+        "tank-gauge-function",
+        "secondary-containment-present"
+      ],
+      "opportunityConditions": [
+        "no-secondary-containment",
+        "oil-tank-past-insurable-age",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-this-ever-leaked",
+        "who-fills-the-tank",
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true,
+      "note": "Insurance-relevant rather than merely condition-relevant. Age and type drive coverage, which is why the opportunity fires on age rather than on a finding."
+    },
+    {
+      "id": "propane-regulator",
+      "label": "Propane regulator",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [],
+      "inspectionPoints": [
+        "regulator-and-vent-position",
+        "fuel-line-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "oil-tank-fittings",
+      "label": "Oil tank fill and vent",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [],
+      "inspectionPoints": [
+        "fill-and-vent-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "TSSA-regulated and separate from the shell — a sound tank with a wrong fill or vent is a real and separate finding."
+    },
+    {
+      "id": "oil-filter",
+      "label": "Oil filter",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [
+        "oil-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "fuel-line-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
     }
   ],
   "contentPassProgress": {
     "written": [
-      "domestic-hot-water (8)",
+      "heating-and-cooling (29)",
       "water-supply (16)",
-      "wastewater (8)"
+      "domestic-hot-water (8)",
+      "wastewater (8)",
+      "solid-fuel (7)",
+      "hydronic-heating (5)",
+      "fuel (5)",
+      "ventilation (2)"
     ],
-    "remaining": "heating and cooling · electrical · appliances · plumbing · envelope and structure · site and exterior · safety · fuel · tier two",
+    "remaining": "electrical · appliances · plumbing · envelope and structure · site and exterior · safety · tier two. Fuel is no longer on this list unqualified — five fuel classes arrived with heating and cooling (tanks, regulator, fittings, filter). Whether that completes the system is the design session's to say.",
     "classCountNote": "173, not 172. `well-pump` split into `well-pump-submersible` and `well-pump-jet` during pass two — one is in the well and cannot be looked at, the other is in the basement and can. For a service whose product is documentation, observable-versus-not is the sharpest split there is.",
     "whatWritingTheContentAudited": "Four of five presumptive splits held. `water-heater-indirect` held on a different axis than it was split on — its care is identical to the electric tank and it survives on inspection alone. That is evidence the identity pass could not produce, and it is the argument for pass two auditing pass one rather than merely extending it.",
     "reuseSoFar": "Five of water heating's seven care categories were shared with systems not yet written. Wells and septic reused only `valve-exercise`, `age-past-band-midpoint` and `unheated-space-exposure` — water supply and hot water share less than two adjacent systems will. Heating and cooling is the real test: it is where `air-filter-replacement`, `condensate-drain-service` and `burner-and-combustion-service` get their second use.",
-    "authoredDirectlyHere": "Register #37. The markdown per-system documents are the reasoning record; this file is the source. Nothing was transformed by hand."
+    "authoredDirectlyHere": "Register #37. The markdown per-system documents are the reasoning record; this file is the source. Nothing was transformed by hand.",
+    "writtenIsDerived": "Counts per system tag, and a class carrying two tags counts in both — `boiler-gas` is heating-and-cooling and hydronic-heating, so the tags sum past the class total. **Derived from `classes`, never hand-kept**, and a test asserts both this list and the count in `status` against the array. The heating-and-cooling delta arrived with a `_replaceWholesale` block still saying *32 of 173* over a file holding 68 — the same class of failure as the worked class one merge earlier, and the second in two days from the same seam: a hand-maintained restatement of something the data already knows.",
+    "theReuseTestItSetItselfAndTheResult": "`reuseSoFar` named heating and cooling as the real test and predicted three care categories would get their second use there: `air-filter-replacement`, `condensate-drain-service`, `burner-and-combustion-service`. Measured after merge — all three, and exactly those three: no other category from the first three systems was reused. New users: 12, 8 and 5. Seven inspection points carried over as well. **The measurement is Builder Code's; the reasoning above it is the design session's and is left as written.**",
+    "whatTheEarlierNotesCover": "`classCountNote`, `whatWritingTheContentAudited` and `reuseSoFar` were written after the first three systems and describe those. They are records of what was learned when, not claims about the whole pass."
   }
 }
