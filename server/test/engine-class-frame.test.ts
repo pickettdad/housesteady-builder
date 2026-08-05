@@ -15,9 +15,11 @@ import { join } from 'node:path'
 import {
   auditClassFrame,
   checkComponentTypes,
+  checkAccess,
   checkUnits,
   checkVocabulary,
   ClassFrameUnreadable,
+  DEFAULT_ACCESS,
   readClassFrame,
   type ClassEntry,
   type ClassFrame,
@@ -339,5 +341,104 @@ describe('§A · owner questions, the fifth output', () => {
     assert.ok('workedExample' in w)
     assert.deepEqual(w.wording, [])
     assert.match(JSON.stringify(w.workedExample), /NOT AN ENTRY/)
+  })
+})
+
+/**
+ * Access conditions — Amendment 5.
+ *
+ * **Raised by the owner from field experience rather than from the documents**,
+ * and it is the case that shows why: a concierge will not ask an owner to unbury
+ * septic lids for Discovery photographs and then not really do anything.
+ */
+describe('§B · an inspection point declares its access condition', () => {
+  const point = (over: Partial<import('../src/engine/classFrame.js').InspectionPoint> = {}) => ({
+    id: 'sludge-and-scum-depth', label: 'Sludge and scum depth', kind: 'measure' as const,
+    unit: 'cm', ...over,
+  })
+
+  it('defaults to direct, because most points are', () => {
+    // Unlike `unit`, whose absence is an error. The asymmetry is deliberate:
+    // requiring every direct point to say so would be noise.
+    assert.equal(DEFAULT_ACCESS, 'direct')
+    assert.deepEqual(checkAccess(frame({ inspectionPoints: [point({ access: undefined })] })), [])
+  })
+
+  it('refuses a gated point that cannot name its event', () => {
+    // A point nobody can schedule would sit on the Inspection Visit list forever
+    // looking like work.
+    const p = checkAccess(frame({
+      inspectionPoints: [point({ access: 'requires-access-event' })],
+    }))
+    assert.equal(p.length, 1)
+    assert.equal(p[0]?.code, 'access-event-unnamed')
+    assert.match(p[0]?.problem ?? '', /nobody can schedule/)
+  })
+
+  it('accepts a gated point that names its event', () => {
+    assert.deepEqual(
+      checkAccess(frame({
+        inspectionPoints: [point({ access: 'requires-access-event', accessEvent: 'septic-pump-out' })],
+      })), [])
+  })
+
+  it('catches an event left behind by an edit', () => {
+    // `requires-access-found` with a pump-out attached means either the access
+    // condition is wrong or the event is stale. Both are worth surfacing.
+    const p = checkAccess(frame({
+      inspectionPoints: [point({ access: 'requires-access-found', accessEvent: 'septic-pump-out' })],
+    }))
+    assert.equal(p[0]?.code, 'access-event-orphaned')
+  })
+
+  it('carries all three values, and the septic case is the worked one', () => {
+    // From Amendment 5 §B1, which is ratified content rather than an invention.
+    const f = frame({
+      inspectionPoints: [
+        point({ id: 'bed-surface-condition', kind: 'look', unit: undefined, access: 'direct' }),
+        point({ id: 'riser-and-access-condition', kind: 'look', unit: undefined, access: 'requires-access-found' }),
+        point({ access: 'requires-access-event', accessEvent: 'septic-pump-out' }),
+      ],
+    })
+    assert.deepEqual(checkAccess(f), [])
+    assert.deepEqual(auditClassFrame(f, walkConfig()).problems, [])
+  })
+
+  it('records that a gated point is not a gap, where a reader will find it', () => {
+    // The distinction Amendment 5 §B turns on. It is not enforceable by a check
+    // here — the gap report is elsewhere — so it is written where the person
+    // building that render will be reading.
+    const raw = JSON.parse(
+      readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8'),
+    ) as Record<string, unknown>
+    const a = JSON.stringify(raw.accessConditions)
+    assert.match(a, /is not a failure to inspect/)
+    assert.match(a, /must never render as a gap/)
+    assert.match(a, /COORDINATION item, not a visit item/)
+  })
+
+  it('records that nothing the engine produces can direct a Discovery capture', () => {
+    // Amendment 5 §C, stated for the whole engine. An access condition is
+    // exactly the thing that reads like a capture instruction, which is why the
+    // boundary is in this file rather than only in the amendment.
+    const raw = JSON.parse(
+      readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8'),
+    ) as Record<string, unknown>
+    const d = JSON.stringify(raw.discoveryIsNotOursToDirect)
+    assert.match(d, /Discovery precedes identification/)
+    assert.match(d, /NOTHING THE ENGINE PRODUCES CAN DIRECT A DISCOVERY CAPTURE/)
+    assert.match(d, /Checklist Master, driven by a property flag/)
+  })
+
+  it('keeps the worked class out of the data', () => {
+    // Same guard as the wording file's example and the lineage file's: a class
+    // inside `classes` would be read as declared by anything iterating it.
+    const raw = JSON.parse(
+      readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8'),
+    ) as Record<string, unknown>
+    assert.ok('workedClass' in raw)
+    assert.deepEqual(raw.classes, [])
+    assert.match(JSON.stringify(raw.workedClass), /NOT AN ENTRY/)
+    assert.equal(readClassFrame().classes.length, 0, 'and the reader still sees none')
   })
 })

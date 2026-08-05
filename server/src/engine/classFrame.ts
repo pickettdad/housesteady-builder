@@ -41,6 +41,25 @@
  *
  * ---
  *
+ * ## An access-gated point is not a gap, and this module never lets it become one
+ *
+ * *We did not look inside the tank* is not a failure to inspect. It is a thing
+ * that happens when the tank is next opened, and we will be there. §5a already
+ * requires an absence to state its basis; Amendment 5 is that rule one step
+ * earlier. A `requires-access-event` point is a **coordination** item rather
+ * than a visit item — and the event is one the concierge coordinates anyway,
+ * which is the role the service actually performs.
+ *
+ * ## And nothing here can direct a Discovery capture
+ *
+ * Amendment 5 §C, stated for the whole engine: **every engine output lands after
+ * identification, and Discovery precedes identification.** An access condition
+ * is exactly the kind of thing that reads like a capture instruction, which is
+ * why the boundary is recorded in the frame file as well as here. What Discovery
+ * must photograph comes from the Checklist Master, driven by a property flag.
+ *
+ * ---
+ *
  * ## Fail open on a missing file, fail closed on a broken one
  *
  * The same split as `lineage.ts`. A missing file is the ordinary state before
@@ -57,6 +76,26 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const DEFAULT_PATH = join(repoRoot, 'schema', 'class-frame-v1.json')
 
 export type InspectionKind = 'look' | 'measure'
+
+/**
+ * Whether the thing has to be opened before the point can be answered, and by
+ * whom. Amendment 5 §B, raised by the owner from field experience.
+ *
+ * The failure it exists for: the desk pass generates *measure the sludge and
+ * scum depth* and the concierge arrives to find the lids under eight inches of
+ * sod, because between pump-outs that is where rural lids live. Either the visit
+ * becomes an excavation nobody agreed to, or the item is silently skipped and
+ * **the record shows an inspection that did not happen.**
+ *
+ * Not one system's quirk: the maintenance schedule's own cautions already say
+ * *never remove panel covers — visual only, from outside the enclosure*, which
+ * is the interior of a panel being access-gated on an electrician's visit. That
+ * caution has been true all along with nothing downstream able to represent it.
+ */
+export type AccessCondition = 'direct' | 'requires-access-found' | 'requires-access-event'
+
+/** The default, and most points are it. Declared so it is not a literal. */
+export const DEFAULT_ACCESS: AccessCondition = 'direct'
 
 export interface VocabularyTerm {
   id: string
@@ -75,6 +114,20 @@ export interface InspectionPoint extends VocabularyTerm {
    * Amendment 3 §B2; ninth instance of the distinction.
    */
   unit?: string | null
+  /**
+   * Defaults to `direct` when absent — unlike `unit`, whose absence is an error.
+   * The asymmetry is deliberate: most points are direct and requiring every one
+   * to say so would be noise, whereas a measure with no unit is a reading whose
+   * scale nobody recorded.
+   */
+  access?: AccessCondition
+  /**
+   * The third-party event that opens the thing — `septic-pump-out`,
+   * `annual-combustion-service`, `panel-service`. **Required when `access` is
+   * `requires-access-event` and meaningless otherwise:** a gated point that
+   * cannot name its event is a point nobody can schedule.
+   */
+  accessEvent?: string
 }
 
 export interface ClassEntry {
@@ -214,6 +267,28 @@ export function checkVocabulary(frame: ClassFrame): FrameProblem[] {
  * entries rather than about a class referencing them, and because it can fire
  * on a file with no classes at all.
  */
+export function checkAccess(frame: ClassFrame): FrameProblem[] {
+  const out: FrameProblem[] = []
+  for (const p of frame.inspectionPoints) {
+    const access = p.access ?? DEFAULT_ACCESS
+    if (access === 'requires-access-event' && !p.accessEvent) {
+      out.push({
+        classId: p.id,
+        problem: `The inspection point \`${p.id}\` rides an access event and does not name one. A gated point that cannot say which event opens the thing is a point nobody can schedule, and it would sit on the Inspection Visit list forever looking like work.`,
+        code: 'access-event-unnamed',
+      })
+    }
+    if (access !== 'requires-access-event' && p.accessEvent) {
+      out.push({
+        classId: p.id,
+        problem: `The inspection point \`${p.id}\` names the access event \`${p.accessEvent}\` but is \`${access}\`, so nothing waits for it. Either the access condition is wrong or the event is left over from an edit.`,
+        code: 'access-event-orphaned',
+      })
+    }
+  }
+  return out
+}
+
 export function checkUnits(frame: ClassFrame): FrameProblem[] {
   return frame.inspectionPoints
     .filter((p) => p.kind === 'measure' && !('unit' in p))
@@ -294,7 +369,7 @@ export function auditClassFrame(
   configSnapshot: Record<string, unknown>,
 ): { problems: FrameProblem[]; stubs: string[]; note: string } {
   const types = checkComponentTypes(frame, configSnapshot)
-  const problems = [...types.problems, ...checkVocabulary(frame), ...checkUnits(frame)]
+  const problems = [...types.problems, ...checkVocabulary(frame), ...checkUnits(frame), ...checkAccess(frame)]
   return {
     problems,
     stubs: types.stubs,
