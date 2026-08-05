@@ -1,0 +1,54 @@
+{
+  "schemaId": "housesteady.owner-question-wording",
+  "version": "1.0.0",
+  "date": "2026-08-04",
+
+  "status": "SHAPE ONLY — DELIBERATELY EMPTY. `wording` is empty because nobody has written a question yet. Increment 5 Amendment 4 §A2 ratified the mechanism, not the words. Same discipline as `client-names-v1.json`, which shipped with zero names for the same reason: a machine-generated approximation sitting in the field would make acceptance the default.",
+
+  "note": "What an owner question SAYS when the person who lives in the house reads it. The class frame declares the question's id; this file carries its wording. Amendment 4 §A2, and a sibling of `client-names-v1.json` by that amendment's own naming.",
+
+  "whyItIsASeparateFile": "The same reason a client name is not the config's item text. An id is a token the engine counts and the review queue groups on; wording is a sentence a person reads and a person signs. One changes when the frame changes; the other changes when the house style does. Keeping them in one file makes every wording edit a change to the frame.",
+
+  "authorship": "A human writes these and a human signs them. Doctrine 5 — AI may propose wording; nothing client-facing is AI-signed. Amendment 4 §A2 states it directly and `client-names-v1.json` already carries the same rule word for word.",
+
+  "howAnAbsenceBehaves": "A question with no entry here is WITHHELD from the client render and reported as desk work, NEVER rendered as its id. That is §2b's rule, generalised unchanged by Amendment 4 §A2 — and it is load-bearing rather than theoretical, because today it withholds every question there could be. The count of withheld questions is reported beside the rendered one so the empty state is loud rather than invisible.",
+
+  "theTone": {
+    "constraint": "The owner's, verbatim: not hard homework questions, just \"this is what we saw and what do you know about it\" type questions.",
+    "theNamedFailure": "The Home Profile becomes a form. Twenty questions with blanks arrive, the client reads it as homework, and it does not come back — so the Inspection Visit runs without the one thing only they knew, and a relationship document has become an obligation.",
+    "whereItRenders": "On the Home Profile, which already reaches the client between the desk pass and the Inspection Visit and already says what we are looking at next visit.",
+    "attachedToTheThing": "A question renders beside the photograph of the thing it is about — NEVER collected into a questionnaire section. The Home Profile is a document about their house; the question is a caption on something in it. Amendment 4 §B.",
+    "optional": "Answering is optional and the document must read that way. It is an invitation, not a return.",
+    "houseStyle": "Applies in full. No jargon without its plain-language twin at first use, no internal vocabulary, no judgement words."
+  },
+
+  "iDontKnowIsAnAnswer": {
+    "rule": "`I don't know` is offered as plainly as any answer, and records as an EXPLICIT UNKNOWN rather than as an absence.",
+    "theNamedFailure": "The form makes not knowing look like failing. The homeowner writes \"maybe 2015\", it enters the record as reported, and a guessed date is believed for five years.",
+    "whyItIsTheSameRuleAsANameplate": "A wrong serial is worse than a blank one, because a blank one gets chased and a wrong one gets believed. This is that rule one surface out — doctrine 4: an explicit unknown is information. For these questions it is often the most useful answer in the set, because it says nobody has been tracking it.",
+    "andItIsNotAnAbsence": "An unanswered question and a question answered `I don't know` are different facts. The first is a question that may still be asked; the second is an answer, and the answer is that nobody knows. Tenth instance of declared-versus-absent deciding a shape here.",
+    "source": "Amendment 4 §B1."
+  },
+
+  "howAnAnswerIsLabelled": "`reported-by-homeowner`, from the point it enters. Amendment 4 §C2, and §0.2 stands — no path assigns or changes a label at render. An answer is evidence for a slot: 'it is on a rental agreement with [company]' feeds the systems inventory and tells the concierge who to coordinate with rather than which trade to call.",
+
+  "entryShape": {
+    "questionId": "the id declared in `class-frame-v1.json`'s `ownerQuestions` vocabulary. Required, and it must exist there — a wording for a question no class can ask is dead weight that reads as coverage.",
+    "text": "the question as the homeowner reads it. Required — an entry that cannot say the question is not an entry.",
+    "why": "optional, and shown to the concierge rather than the client. What this question is FOR, so a person deciding whether to send it knows what it buys.",
+    "ratifiedAt": "the date a human signed this wording. Required — unsigned wording is not withheld by accident, it is withheld by rule."
+  },
+
+  "workedExample": {
+    "note": "NOT AN ENTRY — kept outside `wording` so no consumer reads it as data. This is the case Amendment 4 was written from.",
+    "shape": {
+      "questionId": "tpr-last-tested",
+      "text": "We photographed the relief valve on your water heater. Do you know if it has ever been tested or replaced?",
+      "why": "No photograph shows whether a relief valve will reseat. Mineral deposit at the discharge is the strongest predictor we have and it only tells us it has wept before. If the household knows it was replaced in 2023, the Inspection Visit is a different conversation than if nobody has touched it in fifteen years — and only they have that.",
+      "ratifiedAt": "not ratified — this is an example"
+    },
+    "whyThisOne": "It is the question that produced the amendment. The engine can identify a fifteen-year-old gas water heater from a photograph and cannot identify the one fact that decides what to do about its valve."
+  },
+
+  "wording": []
+}
