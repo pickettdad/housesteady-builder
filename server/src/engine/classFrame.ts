@@ -1,0 +1,306 @@
+/**
+ * The class frame — Increment 5 §1, as corrected by Amendment 3 §B.
+ *
+ * **The consumer of a file that is deliberately empty**, the second one this
+ * repo has shipped. `retirement-lineage-v1.json` was the first and the reasoning
+ * is the same: the content is an owner-authored pass, a generated approximation
+ * would make acceptance the default, and emptiness is the honest state.
+ *
+ * What is different here, and it is why Amendment 3 §C says ship the frame
+ * before the content: **pass two written as prose and translated into this shape
+ * later is a hand transformation over ~172 rows.** That is the shape of every
+ * drift failure in this project. Written against the shipped file, it is
+ * authored in its final form.
+ *
+ * ---
+ *
+ * ## Two cross-checks, and they are not equally strong
+ *
+ * **§1a — component types, against the import's own config snapshot.** The
+ * strong one, because it reads something this file does not own. A class naming
+ * a type the config does not declare is a visible error.
+ *
+ * **§B3 — vocabulary references, within this file**, across all four
+ * vocabularies including Amendment 4's owner questions. The weaker one, and
+ * Amendment 3 says so plainly: both sides live in one file and are authored by
+ * one session, so it catches typos and drift and **cannot catch a judgement
+ * error** — a category that is declared, referenced, and simply wrong.
+ *
+ * **Both are idle until there are classes.** With `classes` empty each iterates
+ * nothing and reports green forever, which is rule 11 twice in one module. Their
+ * tests construct the offending input rather than reading the shipped file,
+ * because the shipped file can never exercise them.
+ *
+ * ## And the §B3 check has a second failure mode that is not about code
+ *
+ * If the vocabulary is harvested *from* the classes after they are written, no
+ * class can name an undeclared term and the check can never fail. **The file
+ * says the vocabularies are authored from the systems first**, and no code can
+ * enforce that — it is an authoring discipline, recorded where the author will
+ * be reading.
+ *
+ * ---
+ *
+ * ## Fail open on a missing file, fail closed on a broken one
+ *
+ * The same split as `lineage.ts`. A missing file is the ordinary state before
+ * this ships anywhere and yields an empty frame with a note saying so. A file
+ * that is present and unparseable is structure, and refuses loudly — doctrine 7.
+ */
+
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { componentGraph, type TypeState } from '../audit/components.js'
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+const DEFAULT_PATH = join(repoRoot, 'schema', 'class-frame-v1.json')
+
+export type InspectionKind = 'look' | 'measure'
+
+export interface VocabularyTerm {
+  id: string
+  label: string
+  note?: string
+}
+
+export interface InspectionPoint extends VocabularyTerm {
+  kind: InspectionKind
+  /**
+   * Required on a `measure` point. **`null` is a legitimate value** meaning
+   * deliberately unitless — the field app already carries three such items,
+   * because %WME, %MC and relative 0–100 are different scales.
+   *
+   * An ABSENT key is neither declared nor explicitly absent, and is an error.
+   * Amendment 3 §B2; ninth instance of the distinction.
+   */
+  unit?: string | null
+}
+
+export interface ClassEntry {
+  id: string
+  label: string
+  /** A set. Two is ordinary — see the file's `classShape`. Amendment 3 §B1. */
+  systems: string[]
+  /** A config component type, or the literal `'none'`. Never absent. */
+  componentType: string
+  careCategories: string[]
+  inspectionPoints: string[]
+  opportunityConditions: string[]
+  /** Amendment 4 §A — the fifth output. Wording lives in its own file. */
+  ownerQuestions: string[]
+  replacementHorizon: boolean
+}
+
+export interface ClassFrame {
+  version: string
+  careCategories: VocabularyTerm[]
+  inspectionPoints: InspectionPoint[]
+  opportunityConditions: VocabularyTerm[]
+  ownerQuestions: VocabularyTerm[]
+  classes: ClassEntry[]
+  /** True when the file was not found. Distinct from a file declaring nothing. */
+  absent: boolean
+  /** Always populated, so a caller reporting state has words rather than a flag. */
+  note: string
+}
+
+export class ClassFrameUnreadable extends Error {
+  constructor(message: string, readonly code: string) {
+    super(message)
+    this.name = 'ClassFrameUnreadable'
+  }
+}
+
+/**
+ * Read the frame.
+ *
+ * A file that is absent yields an empty frame that says so — `absent: true` is
+ * *we have no frame* and an empty `classes` on a present file is *the frame
+ * declares no classes yet*. Those are different facts and a caller must be able
+ * to tell them apart, which is the same rule `lineage.ts` holds.
+ */
+export function readClassFrame(path: string = DEFAULT_PATH): ClassFrame {
+  let raw: string
+  try {
+    raw = readFileSync(path, 'utf8')
+  } catch {
+    return {
+      version: 'absent',
+      careCategories: [], inspectionPoints: [], opportunityConditions: [], ownerQuestions: [], classes: [],
+      absent: true,
+      note: `No class frame at ${path.replace(repoRoot, '')}. Nothing is wrong: the engine has no classes to work from and says so, rather than behaving as though the frame declared nothing.`,
+    }
+  }
+
+  let parsed: Record<string, unknown>
+  try {
+    parsed = JSON.parse(raw) as Record<string, unknown>
+  } catch (e) {
+    throw new ClassFrameUnreadable(
+      `The class frame at ${path.replace(repoRoot, '')} is present and will not parse: ${(e as Error).message}. ` +
+        `A missing frame is a state; a broken one is structure, and structure refuses.`,
+      'class-frame.unparseable',
+    )
+  }
+
+  const arr = <T>(k: string): T[] => (Array.isArray(parsed[k]) ? (parsed[k] as T[]) : [])
+  const classes = arr<ClassEntry>('classes')
+  const frame: ClassFrame = {
+    version: typeof parsed.version === 'string' ? parsed.version : 'unknown',
+    careCategories: arr<VocabularyTerm>('careCategories'),
+    inspectionPoints: arr<InspectionPoint>('inspectionPoints'),
+    opportunityConditions: arr<VocabularyTerm>('opportunityConditions'),
+    ownerQuestions: arr<VocabularyTerm>('ownerQuestions'),
+    classes,
+    absent: false,
+    note:
+      classes.length === 0
+        ? 'The class frame declares no classes. That is its shipped state and the honest one — pass two is an owner-authored content pass. The engine will identify objects and place none of them until it is written.'
+        : `${classes.length} classes declared.`,
+  }
+  return frame
+}
+
+// --------------------------------------------------------------- the checks
+
+export interface FrameProblem {
+  classId: string
+  /** What is wrong, in words a person can act on. */
+  problem: string
+  /** Machine-readable, for counting: `undeclared-care-category`, and so on. */
+  code: string
+}
+
+/**
+ * §B3 — every term a class references is declared in this file.
+ *
+ * **Idle while `classes` is empty**, and weaker than §1a even when it is not:
+ * both sides are here and one session wrote them. It catches `filter change`
+ * against `filter-change`. It cannot catch a category that is declared,
+ * referenced, and wrong.
+ */
+export function checkVocabulary(frame: ClassFrame): FrameProblem[] {
+  const care = new Set(frame.careCategories.map((t) => t.id))
+  const points = new Set(frame.inspectionPoints.map((t) => t.id))
+  const opps = new Set(frame.opportunityConditions.map((t) => t.id))
+  const questions = new Set(frame.ownerQuestions.map((t) => t.id))
+
+  const out: FrameProblem[] = []
+  for (const c of frame.classes) {
+    const check = (ids: string[] | undefined, known: Set<string>, what: string, code: string): void => {
+      for (const id of ids ?? []) {
+        if (!known.has(id)) {
+          out.push({
+            classId: c.id,
+            problem: `${c.id} names the ${what} \`${id}\`, which this file does not declare. Either the term is a typo for a declared one, or the vocabulary is missing an entry — and the second is the interesting case.`,
+            code,
+          })
+        }
+      }
+    }
+    check(c.careCategories, care, 'care category', 'undeclared-care-category')
+    check(c.inspectionPoints, points, 'inspection point', 'undeclared-inspection-point')
+    check(c.opportunityConditions, opps, 'opportunity condition', 'undeclared-opportunity-condition')
+    check(c.ownerQuestions, questions, 'owner question', 'undeclared-owner-question')
+  }
+  return out
+}
+
+/**
+ * §B2 — a `measure` point declares a unit, or declares its absence.
+ *
+ * Separate from `checkVocabulary` because it is about the vocabulary's own
+ * entries rather than about a class referencing them, and because it can fire
+ * on a file with no classes at all.
+ */
+export function checkUnits(frame: ClassFrame): FrameProblem[] {
+  return frame.inspectionPoints
+    .filter((p) => p.kind === 'measure' && !('unit' in p))
+    .map((p) => ({
+      classId: p.id,
+      problem: `The measure point \`${p.id}\` declares no unit and does not declare that it has none. A unit is declared, or its absence is explicit — an absent key is neither, and a reading whose scale nobody recorded is worse than no reading.`,
+      code: 'measure-point-no-unit',
+    }))
+}
+
+export interface ComponentTypeCheck {
+  problems: FrameProblem[]
+  /** What each class's declared type resolved to. Reported, not only counted. */
+  resolved: { classId: string; componentType: string; state: TypeState | 'none' }[]
+  /** Classes mapping to a stub — declared, ids reserved, no items. */
+  stubs: string[]
+}
+
+/**
+ * §1a — every declared component type exists in **the import's own config
+ * snapshot**, never in a list kept here.
+ *
+ * The named failure: the class list and the field config maintained separately,
+ * disagreeing, and nobody noticing until a session plan seeds the wrong
+ * checklist. Same discipline as the trigger vocabulary cross-check.
+ *
+ * **`none` is a legitimate answer and is not checked against anything** — it
+ * says *this kind of thing is not inspected*, which is ordinary. An absent key
+ * says nobody filled it in, and that is the error.
+ */
+export function checkComponentTypes(
+  frame: ClassFrame,
+  configSnapshot: Record<string, unknown>,
+): ComponentTypeCheck {
+  const graph = componentGraph(configSnapshot)
+  const problems: FrameProblem[] = []
+  const resolved: ComponentTypeCheck['resolved'] = []
+  const stubs: string[] = []
+
+  for (const c of frame.classes) {
+    const declared = c.componentType
+    if (declared === undefined || declared === null || declared === '') {
+      problems.push({
+        classId: c.id,
+        problem: `${c.id} declares no component type. A class that maps to nothing must say \`none\` — an absent key says nobody filled it in, and the two are different facts.`,
+        code: 'component-type-absent',
+      })
+      continue
+    }
+    if (declared === 'none') {
+      resolved.push({ classId: c.id, componentType: 'none', state: 'none' })
+      continue
+    }
+    const state = graph.state(declared)
+    resolved.push({ classId: c.id, componentType: declared, state })
+    if (state === 'undeclared') {
+      problems.push({
+        classId: c.id,
+        problem: `${c.id} maps to the component type \`${declared}\`, which this import's config does not declare. Either the class list is ahead of the field config or one of them has a typo — and a session plan seeded from this would carry the wrong checklist.`,
+        code: 'component-type-undeclared',
+      })
+    } else if (state === 'stub') {
+      stubs.push(c.id)
+    }
+  }
+  return { problems, resolved, stubs }
+}
+
+/**
+ * Everything wrong with the frame, in one call.
+ *
+ * Takes the config snapshot rather than a database handle so it is testable
+ * against a literal, and so the same function serves a stored import and a
+ * manifest being examined — the shape `componentGraph` already uses.
+ */
+export function auditClassFrame(
+  frame: ClassFrame,
+  configSnapshot: Record<string, unknown>,
+): { problems: FrameProblem[]; stubs: string[]; note: string } {
+  const types = checkComponentTypes(frame, configSnapshot)
+  const problems = [...types.problems, ...checkVocabulary(frame), ...checkUnits(frame)]
+  return {
+    problems,
+    stubs: types.stubs,
+    note:
+      frame.classes.length === 0
+        ? 'No classes declared, so the component-type and vocabulary checks iterated nothing. That is not a pass — it is an empty run, and the distinction is rule 11.'
+        : `${frame.classes.length} classes checked, ${problems.length} problems, ${types.stubs.length} mapping to a stub type.`,
+  }
+}

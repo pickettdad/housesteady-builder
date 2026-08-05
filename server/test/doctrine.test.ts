@@ -2365,9 +2365,26 @@ describe('doctrine 4 — ownership is declared, never re-derived from a path', (
     /group_key|\bgroup\b\s*[,)]|(?:\.file|file)\s*\.\s*(?:split|startsWith|match|includes)\s*\(|(?:dirname|basename)\s*\(/.test(code)
 
   it('resolves a zone from the declared owner, never from the file path', () => {
+    /**
+     * **Scoped to modules that handle media, and the narrowing was earned.**
+     *
+     * This fired on `classFrame.ts` the moment that module shipped, because it
+     * uses `dirname()` to locate a schema file on disk. Rule 8 says investigate
+     * before narrowing, so: that module reads a JSON file and touches no media
+     * at all — it cannot derive media ownership from a path because it has no
+     * media to derive it for.
+     *
+     * So the scope is the rule's own domain rather than an exemption by name:
+     * **you can only derive media ownership from a path if you handle media.**
+     * A future engine module that starts touching media comes back into scope
+     * automatically, which an exemption list would not do.
+     */
+    const handlesMedia = (code: string): boolean => /\bmedia\b/i.test(code)
     const offenders: string[] = []
     for (const file of sourceFiles(engineSrc)) {
-      if (derivesFromPath(codeOf(file))) offenders.push(file.replace(repoRoot, ''))
+      const code = codeOf(file)
+      if (!handlesMedia(code)) continue
+      if (derivesFromPath(code)) offenders.push(file.replace(repoRoot, ''))
     }
     assert.deepEqual(offenders, [],
       'the path is storage location only — the manifest’s own comment says so')
@@ -2385,6 +2402,13 @@ describe('doctrine 4 — ownership is declared, never re-derived from a path', (
     assert.ok(derivesFromPath(`const z = dirname(m.file)`))
     assert.ok(derivesFromPath(`if (file.startsWith('media/_misc')) skip()`))
     assert.ok(!derivesFromPath(`const z = pinZone.get(m.owner_pin_id)`))
+
+    // And the scope is not vacuous: the modules that do handle media are still
+    // being read. A narrowing that quietly emptied the scan would be worse than
+    // the false positive it fixed.
+    const inScope = sourceFiles(engineSrc).filter((f) => /\bmedia\b/i.test(codeOf(f)))
+    assert.ok(inScope.length >= 2, 'the media-handling modules remain in scope')
+    assert.ok(inScope.some((f) => f.endsWith('plan.ts')), 'including the one that owns the resolution')
   })
 
   /**
@@ -2654,5 +2678,92 @@ describe('doctrine — a scan says what it did not look at', () => {
     // a scan author picks the wrong scope without knowing there was a choice.
     assert.ok(migrationFiles().length >= 16)
     assert.ok(migrationFiles().every((f) => f.endsWith('.sql')))
+  })
+})
+
+/**
+ * The class frame — Increment 5 §1 and Amendment 3.
+ */
+describe('doctrine — the class frame reads the config, and never re-owns the calendar', () => {
+  const engineSrc = join(serverSrc, 'engine')
+
+  /**
+   * §1a's core requirement. The named failure is the class list and the field
+   * config maintained separately, disagreeing, and nobody noticing until a
+   * session plan seeds the wrong checklist — which a list of component types
+   * kept in this repo is exactly how you get.
+   */
+  const holdsATypeList = (code: string): boolean =>
+    /\[\s*(['"])(?:water-heater|furnace|electrical-panel|sump-pump|heat-pump)\1\s*,/.test(code) ||
+    /componentTypes?\s*[:=]\s*\[\s*['"]/.test(code)
+
+  it('keeps no component-type list anywhere in the engine', () => {
+    const offenders = sourceFiles(engineSrc).filter((f) => holdsATypeList(codeOf(f)))
+    assert.deepEqual(offenders.map((f) => f.replace(repoRoot, '')), [],
+      'the import’s own config snapshot is the only source of component types')
+
+    // And the check really takes a snapshot rather than reaching for one.
+    const frame = codeOf(join(engineSrc, 'classFrame.ts'))
+    assert.match(frame, /configSnapshot: Record<string, unknown>/,
+      'the config is an argument, so a caller cannot accidentally supply the wrong import’s')
+    assert.match(frame, /componentGraph\(configSnapshot\)/,
+      'resolution goes through the one graph the audit already trusts')
+
+    // Negative: the detector recognises the shapes it claims to.
+    assert.ok(holdsATypeList(`const TYPES = ['water-heater', 'furnace']`))
+    assert.ok(holdsATypeList(`componentTypes: ['sump-pump', 'deck']`))
+    assert.ok(!holdsATypeList(`const g = componentGraph(configSnapshot)`))
+  })
+
+  /**
+   * Amendment 3 §A2. The schedule owns the calendar slot and the default
+   * cadence; the engine owns identity, multiplicity and model-specific detail
+   * rendered inside it. **A research-pass interval that differs from a schedule
+   * default is a manufacturer-instruction override** — the mechanism, its
+   * per-property scope and its obligation to carry a reason and a source are all
+   * already declared in `maintenance-schedule-v1.json`'s own `overrideRule`.
+   *
+   * So the failure to forbid is the engine emitting a **second calendar item**:
+   * one binder carrying *flush annually* and *flush every six months*, both
+   * signed, with nothing saying which is authoritative.
+   */
+  const emitsAScheduleItem = (code: string): boolean =>
+    /cadence\s*:/.test(code) && /appliesWhen\s*:/.test(code)
+
+  it('lets no engine module emit a schedule item of its own', () => {
+    const offenders = sourceFiles(engineSrc).filter((f) => emitsAScheduleItem(codeOf(f)))
+    assert.deepEqual(offenders.map((f) => f.replace(repoRoot, '')), [],
+      'a differing interval is an override on the schedule’s item, never a second item beside it')
+
+    // Negative: the detector catches the shape a second calendar item would take.
+    assert.ok(emitsAScheduleItem(`return { id, text, cadence: 'annual', appliesWhen: 'house.water-heater' }`))
+    assert.ok(!emitsAScheduleItem(`return { classId, careCategories: ['descale'] }`))
+
+    // And the rule the engine must obey is recorded in the file it binds to,
+    // not only in an amendment — checked from the artefact, per rule 9.
+    const sched = JSON.parse(
+      readFileSync(join(repoRoot, 'schema', 'reference', 'maintenance-schedule-v1.json'), 'utf8'),
+    ) as { overrideRule?: string }
+    assert.match(sched.overrideRule ?? '', /carry a reason and a source/)
+  })
+
+  /**
+   * Amendment 3 §B3's second weakness, and the one no code can enforce: if the
+   * vocabulary is harvested from the classes after they are written, no class
+   * can name an undeclared term and the check is idle from birth.
+   *
+   * A scan cannot catch that. What it can do is hold the instruction in the file
+   * the author will have open — so this asserts the file still says it.
+   */
+  it('keeps the authoring order recorded where the author will read it', () => {
+    const raw = JSON.parse(
+      readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8'),
+    ) as Record<string, unknown>
+    const v = JSON.stringify(raw.theVocabulariesMustComeFirst ?? '')
+    assert.match(v, /authored FROM THE SYSTEMS/, 'the order is stated')
+    assert.match(v, /ownerQuestions/, 'and it covers all four vocabularies, including Amendment 4’s')
+    assert.match(v, /idle from birth/, 'and why it is not a preference')
+    // The frame's own limits are recorded rather than left to be rediscovered.
+    assert.match(JSON.stringify(raw.whatThisCrossCheckCannotDo ?? ''), /cannot catch a judgement error/)
   })
 })

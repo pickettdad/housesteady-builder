@@ -1,0 +1,95 @@
+{
+  "schemaId": "housesteady.class-frame",
+  "version": "1.0.0",
+  "date": "2026-08-04",
+
+  "status": "SHAPE ONLY — DELIBERATELY EMPTY. `classes` is empty because the class list's pass two is an owner-authored content pass that has not been written, and a generated approximation would make acceptance the default. Same reasoning as `retirement-lineage-v1.json` shipping with zero entries: emptiness is the honest state, not a stub. The four vocabularies are empty for a sharper reason — see `theVocabulariesMustComeFirst`.",
+
+  "sourceDocument": "HouseSteady_Class-Frame_v1-1_2026-08-02, as corrected by Increment 5 Build Spec Amendment 3 §B and Amendment 4 §D.",
+
+  "note": "What kinds of thing live in a house, and what each kind needs. The engine recognises a thing, looks up its class, and generates work from what the class declares. This file is the declaration; the research pass supplies model-specific detail inside it.",
+
+  "whyTheFrameShipsBeforeTheContent": "Pass two written as prose and translated into this shape later is a hand transformation applied to ~172 rows, which is the shape of every drift failure in this project. Written against this file, it is authored in its final form. Amendment 3 §C.",
+
+  "theVocabulariesMustComeFirst": {
+    "rule": "`careCategories`, `inspectionPoints`, `opportunityConditions` and `ownerQuestions` are authored FROM THE SYSTEMS, before the classes that reference them — never harvested from the classes afterwards.",
+    "whyItIsNotAPreference": "Amendment 3 §B3's second stated weakness, and it is rule 11. If the vocabulary is written by collecting whatever the classes happen to say, then no class can name an undeclared term, the cross-check can never fail, and it is idle from birth — a green check that proves nothing. Authored first, it catches the drift it exists for.",
+    "theDriftItCatches": "Across ~172 classes written as free text, three classes say `filter change`, `filter replacement` and `replace filter`, and nothing notices. That is Increment 5 §1a's two-taxonomies failure occurring inside one file.",
+    "andTheReviewQueueDependsOnIt": "Increment 5 §7 must be able to say 'three water heaters this quarter returned expansion tank inspection and the class does not declare it'. Counting proposals against the frame requires the frame's entries to be tokens rather than prose.",
+    "measuredFromThePilot": "Eight classes produced 7 care categories, 15 inspection points and 7 opportunity conditions (owner questions arrived with Amendment 4 and the pilot has not been re-counted for them) — and five of the seven care categories were already shared with systems not yet written. As prose, `air-filter-replacement` would have been written five times, differently."
+  },
+
+  "whatThisCrossCheckCannotDo": "Stated so it is not over-trusted. Amendment 3 §B3's first weakness: unlike §1a's component-type check, which reads an EXTERNAL config this file does not own, both sides of this one live in this file and are authored by one session. It catches typos and drift. It cannot catch a judgement error — a category that is declared, referenced, and simply wrong.",
+
+  "careVersusInspection": {
+    "rule": "Care changes the state of the thing. Inspection looks at the thing and reports.",
+    "theCaseThatForcedIt": "A TPR valve. Operating it is an action on a rhythm — care. Looking at its discharge piping is a look — inspection.",
+    "whyTheLineMatters": "Care feeds the schedule's calendar; inspection feeds the Inspection Visit. §0.4's four streams stay uncollapsed because of it.",
+    "source": "Amendment 3 §B4."
+  },
+
+  "howThisMeetsTheMaintenanceSchedule": {
+    "theLine": "Granularity, not rhythm. The schedule asks whether the HOUSE has water treatment and emits one row; this frame asks what THIS OBJECT is and emits one row per object. One system fires without identification; the other cannot fire without it.",
+    "theJoin": "`componentType` below. The schedule keys on `house.<component-type>`; every class here declares the type it maps to or an explicit `none`. No new field and no mapping layer.",
+    "whoOwnsWhat": "The schedule owns the calendar slot and the default cadence. This frame owns identity, multiplicity, and model-specific detail rendered inside that slot — one calendar entry expanded to two lines where the engine knows there are two pumps.",
+    "intervalConflicts": "There is no second calendar item. `maintenance-schedule-v1.json`'s own `overrideRule` already governs it: manufacturer instructions, specialist advice, insurer requirements and actual condition override generic intervals, per property, carrying a reason and a source, never editing that file. A research-pass finding of 'every six months for this model' is a manufacturer-instruction override and must be written as one.",
+    "source": "Amendment 3 §A, from Builder Code's parse of 2026-08-04."
+  },
+
+  "vocabularyShape": {
+    "id": "kebab-case token. The thing a class references and the review queue counts.",
+    "label": "what a person reads. Client-facing where the stream is client-facing.",
+    "note": "optional, for the author of the next class rather than for a client."
+  },
+
+  "inspectionPointShape": {
+    "id": "kebab-case token.",
+    "label": "what a person reads.",
+    "kind": "`look` or `measure`. A `measure` point records a value; a `look` point records a state.",
+    "unit": "REQUIRED ON A `measure` POINT, and `null` is a legitimate value meaning deliberately unitless. Amendment 3 §B2. `delivery-temperature` is °C and `expansion-tank-charge` is kPa, and the shape had nowhere to say so — while the field app already carries three deliberately unitless measure items because %WME, %MC and relative 0–100 are different scales. So: a unit is declared, or its absence is explicit. An ABSENT key is neither, and is an error. Ninth instance of declared-versus-absent deciding a shape here."
+  },
+
+  "classShape": {
+    "id": "kebab-case token, unique across this file.",
+    "label": "the client-facing name, used when no specific model has been identified. The config declares no label for a component type — checked 2026-08-04, the id is all it has — so this is the class list's own to write.",
+    "systems": "ARRAY, and holding two is ordinary rather than exceptional. Amendment 3 §B1: `water-heater-indirect` is domestic hot water AND hydronic, and dropping either loses a real property-pass question. An empty array is legitimate — a pod coffee maker belongs to no system.",
+    "componentType": "the field-config component type this class maps to, or the string `none`. REQUIRED — see `componentTypeRules`.",
+    "careCategories": "array of ids declared in `careCategories`.",
+    "inspectionPoints": "array of ids declared in `inspectionPoints`.",
+    "opportunityConditions": "array of ids declared in `opportunityConditions`.",
+    "ownerQuestions": "array of ids declared in `ownerQuestions`. Amendment 4 §A — the fifth output.",
+    "replacementHorizon": "boolean — whether a replacement horizon applies to this kind of thing. The class declares only THAT one applies; the horizon itself is entirely generated by the research pass, per Increment 5 §4c."
+  },
+
+  "componentTypeRules": {
+    "checkedAgainstTheImport": "Every class declaring a component type is validated against the IMPORT'S OWN config snapshot, never against a list kept here or anywhere else in this repo. Increment 5 §1a — the named failure is the class list and the field config drifting apart and nobody noticing until a session plan seeds the wrong checklist.",
+    "explicitNoneIsNotAnAbsentKey": "A class may map to no component type and that is ordinary — a pod coffee maker is on no checklist and never will be. `componentType: \"none\"` says THIS KIND OF THING IS NOT INSPECTED. An absent key says NOBODY FILLED THIS IN. Eighth instance of that distinction, and they are different facts.",
+    "stubTypesAreThirdThing": "Config v1.11.0 declares 71 component types: 62 typed and 9 stubs with ids reserved and no items. A class mapping to a stub is mapping to a name with nothing behind it — different from `none`, and different from a typed component. It seeds an empty checklist today. Checked 2026-08-04.",
+    "thisCheckIsIdleUntilThereAreClasses": "With `classes` empty it iterates nothing and reports green forever. Rule 11. Its behavioural test must CONSTRUCT a class naming a type the config does not declare, because the shipped file can never exercise it."
+  },
+
+  "ownerQuestionsNote": {
+    "whatItIs": "The questions this kind of thing raises for the person who lives there. Amendment 4 §A, ratified by the owner 2026-08-04. A declared vocabulary like the other three, for the same reasons: reuse is heavy across serviceable classes, and the review queue must be able to count them.",
+    "theNamedFailure": "The desk pass identifies a fifteen-year-old gas water heater and the Inspection Visit arrives to test its relief valve without ever asking the one person who might know when it was last tested. The concierge either operates a valve nobody has touched in fifteen years, or does not — and either way the household's own knowledge, which was free, was never collected.",
+    "whyAPhotographCannotSupplyIt": "A Discovery capture can show mineral crust at the discharge, staining on the pan, corrosion, a capped discharge pipe — prior weeping leaves a mark and is the strongest available predictor. What no photograph shows is the seat. So `there is mineral deposit at the discharge` is Observed, `this valve may not reseat` is Inferred, and `it was replaced in 2023` is reported-by-homeowner and only the household has it.",
+    "itIsNotASixthStream": "§0.4 stands. An owner question is ENGINE OUTPUT. Its unanswered state becomes a gap only after a human has signed and sent it — the engine never writes a gap row.",
+    "sharedAcrossMostServiceableClasses": "when was this last serviced and by whom · has this ever leaked or failed · is this owned or on a rental agreement · do you have the paperwork for it",
+    "classSpecific": "the TPR question · when was the well last shock-chlorinated · when was the tank last pumped",
+    "whereTheWordingLives": "`owner-question-wording-v1.json`, a sibling of `client-names-v1.json`. The class declares the id; a human writes and signs the wording. Doctrine 5.",
+    "howAnAnswerIsLabelled": "reported-by-homeowner from the point it enters, per Amendment 4 §C2 — and §0.2 stands, no path assigns a label at render."
+  },
+
+  "consumables": {
+    "note": "A distinct kind of care category, because an interval alone does not let anyone act. 'Replace the fridge filter every six months' is useless without which cartridge.",
+    "partIdentity": "Inferred until it has been bought and fitted once, then Documented from the purchase record — and it never needs asking again for that house.",
+    "whereItLands": "`s9.consumables` already exists in the Binder Schema as a `presentWhenPopulated` slot, declared and never fed. This is what feeds it.",
+    "whyAbstentionMattersMostHere": "A wrong part number costs a trip.",
+    "source": "Increment 5 §1b."
+  },
+
+  "careCategories": [],
+  "inspectionPoints": [],
+  "opportunityConditions": [],
+  "ownerQuestions": [],
+  "classes": []
+}
