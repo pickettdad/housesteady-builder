@@ -660,3 +660,96 @@ describe('§B · an inspection point declares its access condition', () => {
     }
   })
 })
+
+describe('zero care categories must say why, and only when true', () => {
+  /**
+   * **Asked for by the design session after PR #63 raised it**, and the reason it
+   * is worth a scan rather than a convention is what writing the reasons found.
+   *
+   * PR #63 observed that seven electrical classes declared no care and most of
+   * their notes were silent on whether that was a ruling or unwritten work. The
+   * answer came back as a content pass over every such class — and **having to
+   * justify the emptiness found five real omissions that reviewing it had not**:
+   * a lake intake is pulled before ice, a cistern is cleaned, a condensate
+   * reservoir grows biofilm, baseboard fins collect dust, a stovepipe is swept
+   * with the chimney. That is rule 9 applied to content: the check is not
+   * bookkeeping over the claim, it is the thing that finds the error.
+   *
+   * **Both directions matter, and the second is the one that keeps this honest.**
+   * A class with no care must carry the phrase. A class *with* care must not —
+   * because a stale ruling left on a class that has since gained work is exactly
+   * how the marker stops meaning anything, and it is not hypothetical: the most
+   * valuable correction in the appliances pass was `washer-top-load`, which
+   * declared zero care **with a stated reason and the reason was wrong**. A
+   * ruling with a reason is harder to catch than an omission because it looks
+   * considered.
+   *
+   * **What this cannot do** — §11b, and it is the same shape as `checkVocabulary`.
+   * It matches one canonical phrase. A note that asserts emptiness in different
+   * words on a class that has care is invisible to it, and `washer-top-load`'s
+   * note is currently that case: it opens *"Zero care categories, and it is a
+   * ruling"*, preserved as the record of the correction, over a class that now
+   * declares two. The scan is silent there by construction, not by accident.
+   */
+  const PHRASE = 'Zero care is a ruling'
+
+  /**
+   * Read from the raw file, not from `readClassFrame`. **`note` is prose the
+   * parser deliberately does not model** — `ClassEntry` carries the five arrays
+   * and nothing about documentation, and it should stay that way: the engine
+   * must not acquire a dependency on wording. The bookkeeping guard above reads
+   * raw JSON for exactly the same reason.
+   */
+  type RawClass = { id: string; careCategories: string[]; note?: string; systems: string[] }
+  const rawClasses = (): RawClass[] =>
+    (JSON.parse(readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8')) as
+      { classes: RawClass[] }).classes
+
+  const declaresIt = (c: { note?: string }): boolean => (c.note ?? '').includes(PHRASE)
+  const empty = (c: { careCategories: string[] }): boolean => c.careCategories.length === 0
+
+  it('has classes on both sides, so neither direction is vacuous', () => {
+    // §9b. A scan over a frame where every class had care would report green
+    // forever, and so would one where none did.
+    const cs = rawClasses()
+    assert.ok(cs.some(empty), 'some class declares no care')
+    assert.ok(cs.some((c) => !empty(c)), 'and some class declares care')
+  })
+
+  it('every class declaring no care says why', () => {
+    const silent = rawClasses().filter((c) => empty(c) && !declaresIt(c)).map((c) => c.id)
+    assert.deepEqual(silent, [],
+      'zero care is a ruling or it is unwritten work, and a reader cannot tell which without the note')
+  })
+
+  it('and no class that declares care still claims the ruling', () => {
+    const stale = rawClasses().filter((c) => !empty(c) && declaresIt(c)).map((c) => c.id)
+    assert.deepEqual(stale, [],
+      'a ruling left behind on a class that has since gained care is how the marker stops meaning anything')
+  })
+
+  it('fires in both directions, proved on constructed classes', () => {
+    // Negative-tested where it is written, because the shipped file passes both
+    // ways and a scan nothing can fail is a scan nobody has run.
+    const silentZero = { id: 'x', careCategories: [], note: 'Nothing about care.', systems: ['s'] }
+    const staleRuling = { id: 'y', careCategories: ['tank-flush'], note: `${PHRASE}: sealed.`, systems: ['s'] }
+    const goodZero = { id: 'z', careCategories: [], note: `${PHRASE} — sealed.`, systems: ['s'] }
+    const goodCare = { id: 'w', careCategories: ['tank-flush'], note: 'Flushed annually.', systems: ['s'] }
+
+    assert.equal(empty(silentZero) && !declaresIt(silentZero), true, 'catches a silent empty class')
+    assert.equal(!empty(staleRuling) && declaresIt(staleRuling), true, 'catches a stale ruling')
+    assert.equal(empty(goodZero) && !declaresIt(goodZero), false, 'passes a justified empty class')
+    assert.equal(!empty(goodCare) && declaresIt(goodCare), false, 'passes an ordinary class')
+  })
+
+  it('meets real content at scale, not one surviving class', () => {
+    // A floor rather than a count. The exact number is derived from `classes` and
+    // moves every delta, so asserting it would be the hand-kept restatement the
+    // PR #61 guard exists to prevent — the same failure twice over. What is worth
+    // holding is that the scan has not quietly decayed to near-idle, which a
+    // floor catches and a count only obscures.
+    const ruled = rawClasses().filter(empty)
+    assert.ok(ruled.length >= 10, `only ${ruled.length} classes exercise this scan`)
+    assert.ok(new Set(ruled.flatMap((c) => c.systems)).size >= 3, 'across more than one system’s content')
+  })
+})
