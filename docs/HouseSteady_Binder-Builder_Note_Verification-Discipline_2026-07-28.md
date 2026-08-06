@@ -584,6 +584,45 @@ somebody else.
 
 ---
 
+### 14. A correction is authored whole, never appended
+
+**Named by the design session 2026-08-05 against its own work, owner Builder Code. Third
+instance, and the first two are in this repo already.**
+
+Rule 13 says the sweep is one grep. This is the shape of the fix the sweep finds, and it is
+the step people skip because appending feels like the honest, additive thing to do.
+
+**Appending a correction to a note leaves the superseded claim in front.** A reader meets
+the disproved sentence first and the correction second — if they read that far. The record
+is complete and the document still misleads, which is the worst combination available:
+nothing was hidden, and the wrong thing is what gets read.
+
+> **Rewrite the whole note so the correction leads, and quote the disproved claim inside it
+> rather than leaving it standing as a sentence in its own right. The whole-file rule, one
+> level down.**
+
+**The three instances:**
+
+- **The Zone-Audit note** — the original shape.
+- **F-29 §7b** — the same, in the field repo.
+- **`washer-top-load` in the class frame** — the design session's own, and the one that
+  proves the rule is not about carelessness. That note was *added deliberately*, as an
+  honest record of a correction, by an author who had just learned the lesson elsewhere.
+
+**Why it recurs even among people who know it.** Appending is what a careful person does:
+it preserves the history, it shows the working, it refuses to pretend the error never
+happened. Every one of those instincts is right. **The failure is entirely in the ordering**
+— and ordering is invisible to the author, who knows the correction is there because they
+just wrote it.
+
+**The tell, and it is cheap to run:** read only the first sentence of the note. If that
+sentence alone is now false, the note is wrong no matter what follows it.
+
+**What it does not license.** Authored whole never means the superseded claim disappears —
+deleting it loses the thing the correction is evidence *of*, and `washer-top-load` is worth
+more with its wrong reason quoted than without it. **Lead with the correction, carry the
+error inside it.**
+
 ## Consequences already in the code
 
 **Nothing in the builder parses the Checklist Master at runtime.** It is read-only
