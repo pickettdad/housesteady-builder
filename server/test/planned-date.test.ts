@@ -19,9 +19,10 @@
 
 import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
 import { plannedDate, walkedAt } from '../src/audit/walkedAt.js'
 import { now, openDb } from '../src/db/index.js'
@@ -50,13 +51,19 @@ describe('the rename carries existing data', () => {
       CREATE TABLE visits (
         id TEXT PRIMARY KEY, property_id TEXT NOT NULL, kind TEXT NOT NULL,
         visit_date TEXT, notes TEXT, created_at TEXT NOT NULL);`)
-    // Everything before 015, so only the rename is pending.
-    for (const n of [
-      '001_initial.sql', '002_pin_number_nullable.sql', '003_overlays.sql', '004_passes.sql',
-      '005_desk_media.sql', '006_ai_jobs.sql', '007_accept.sql', '008_operators.sql',
-      '009_audit_runs.sql', '010_property_scoped.sql', '011_one_session_one_import.sql',
-      '012_active_items.sql', '013_report_editor.sql', '014_editions.sql',
-    ]) pre.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(n, now())
+    // **Every migration except 015, read from the directory rather than listed.**
+    // The list used to stop at 014, which meant every migration added afterwards
+    // also ran against this deliberately-incomplete database and failed the
+    // moment one of them touched a table the fake schema never created. That is
+    // the same hand-kept-restatement failure this file is guarding a rename
+    // against, one level up — and the fix is the same: derive it.
+    //
+    // The test's own claim is that `openDb` runs ONLY the rename. This makes that
+    // sentence true instead of nearly true.
+    const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'db', 'migrations')
+    for (const n of readdirSync(migrationsDir).filter((f) => f.endsWith('.sql') && !f.startsWith('015_'))) {
+      pre.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(n, now())
+    }
 
     pre.prepare(
       'INSERT INTO visits (id, property_id, kind, visit_date, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
