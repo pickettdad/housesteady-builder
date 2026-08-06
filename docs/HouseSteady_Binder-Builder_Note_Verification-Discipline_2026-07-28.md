@@ -623,6 +623,49 @@ deleting it loses the thing the correction is evidence *of*, and `washer-top-loa
 more with its wrong reason quoted than without it. **Lead with the correction, carry the
 error inside it.**
 
+### 15. Where data has a declared shape, read it through the thing that parses it
+
+**Proposed by the design session 2026-08-06, owner Builder Code. Two instances,
+both Builder Code's, both inside eight days.**
+
+Rule 1 says locate every boundary rather than assuming one. This is the same
+error one level up: **assuming the shape of a field rather than reading it.**
+
+- **`componentLists[].types[]`, PR #65.** A regex over `"id"`, `"componentType"`
+  and `"type"` keys returned nothing for `window`, and that was reported to the
+  owner as *`window` is not a component type in v1.11.0*. It was, and had been
+  all along — component types live in a `types` array inside `componentLists`,
+  which the regex never looked at.
+- **`type: {kind, label}`, PR #73.** A grep for `freeformLabel` returned zero
+  freeform pin labels in the walk export. There are five. `freeform_label` is the
+  **database column** the importer writes; the manifest nests the label under a
+  `type` object, and the grep was searching for the flattened name against the
+  unflattened file.
+
+> **A grep's zero is ambiguous between *not present* and *not present in the
+> shape I guessed*. A parser's zero is not.** Where a file has a declared
+> structure and something in the repo already reads it, use that — the answer
+> comes back in the shape the data actually has.
+
+**The tell is specific and it is available before running anything:** the search
+term was a name that had been *inferred* rather than a name that had been *read*.
+Both times the real name was one `PRAGMA table_info`, one `Object.keys`, or one
+glance at a sample record away.
+
+**Why it survives knowing better.** A grep is instant and a parse needs a file
+opened, a module imported, a path resolved. The cost difference is seconds and it
+is felt at exactly the moment somebody is trying to answer a small side question
+quickly — which is why both instances happened while checking something *else*.
+
+**What makes it worse than an ordinary wrong answer:** both zeros were reported
+as findings. The first told the owner a capability was missing that had shipped
+months earlier; the second nearly had a §7 input written off as absent from the
+material it is actually in. **Rule 2 is the partial defence** — a check that
+names its evidence would have said *0 of 71 declared types*, and 71 was known.
+Neither report named a denominator, because a grep does not have one.
+
+---
+
 ## Consequences already in the code
 
 **Nothing in the builder parses the Checklist Master at runtime.** It is read-only
