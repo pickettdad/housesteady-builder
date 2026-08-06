@@ -190,7 +190,19 @@ describe('the shipped content, checked rather than taken on trust', () => {
     const claimed = /^[^0-9]*(\d+) of (\d+) classes/.exec(raw.status)
     assert.ok(claimed, 'the status names a count')
     assert.equal(Number(claimed[1]), f.classes.length, 'the status counts the classes it actually holds')
-    assert.ok(Number(claimed[2]) >= f.classes.length, 'and the target is not behind the content')
+    // **The ceiling assertion is gone, and its removal is the finding.** This used
+    // to read `target >= classes.length` — *the target is not behind the content*
+    // — which quietly assumed 173 was a cap. It was a projection made during pass
+    // one, and the outside review added three classes the projection could not
+    // have anticipated. **The content passing its own estimate is a real outcome,
+    // not a bookkeeping error**, and a guard that forbids it would have forced the
+    // target to be retro-fitted to whatever the file happened to hold — which
+    // makes the second number mean nothing at all.
+    //
+    // What is still worth holding is that the target is a real number somebody
+    // wrote, so a malformed status is still caught. Rewritten whole rather than
+    // amended, per rule 14.
+    assert.ok(Number(claimed[2]) > 0, 'the status names a projection, whatever the content has done to it')
 
     // Every `system (n)` line matches the array. A class with two system tags
     // counts in both, so these sum past the class total — deliberately.

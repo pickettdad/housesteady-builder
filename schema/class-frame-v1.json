@@ -2,7 +2,7 @@
   "schemaId": "housesteady.class-frame",
   "version": "1.0.0",
   "date": "2026-08-04",
-  "status": "CONTENT PASS COMPLETE — 173 of 173 classes. Every system is written. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
+  "status": "CONTENT PASS COMPLETE — 176 of 173 classes projected, and past it. Every system is written; outside review added three the pass-one projection did not anticipate. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
   "sourceDocument": "HouseSteady_Class-Frame_v1-1_2026-08-02, as corrected by Increment 5 Build Spec Amendment 3 §B and Amendment 4 §D.",
   "note": "What kinds of thing live in a house, and what each kind needs. The engine recognises a thing, looks up its class, and generates work from what the class declares. This file is the declaration; the research pass supplies model-specific detail inside it.",
   "whyTheFrameShipsBeforeTheContent": "Pass two written as prose and translated into this shape later is a hand transformation applied to ~172 rows, which is the shape of every drift failure in this project. Written against this file, it is authored in its final form. Amendment 3 §C.",
@@ -537,6 +537,18 @@
       "label": "Seasonal position change",
       "note": "Opened in spring and closed in autumn, or the reverse. Foundation vents. Care that changes a thing's state without servicing it. Added 2026-08-06.",
       "audience": "owner"
+    },
+    {
+      "id": "chemical-solution-refill",
+      "label": "Treatment solution refill",
+      "audience": "both",
+      "note": "Peroxide and chlorine injection systems. Consumable with a part identity — §1b. Regional: it exists here because the groundwater does."
+    },
+    {
+      "id": "boiler-water-treatment",
+      "label": "Boiler water treatment",
+      "audience": "professional",
+      "note": "Outdoor wood boilers and hydronic loops. Untreated water eats a water jacket that costs more than the stove."
     }
   ],
   "inspectionPoints": [
@@ -1436,6 +1448,29 @@
       "id": "blade-balance-and-mounting",
       "label": "Blade balance and mounting",
       "kind": "look"
+    },
+    {
+      "id": "pest-intrusion-evidence",
+      "label": "Evidence of pest intrusion",
+      "kind": "look",
+      "note": "Mice nesting in a ventilator core, chewed wiring inside a generator enclosure, cluster flies in a window track. **Regional and constant in rural stock**, and it appears in no equipment manual — which is why an outside model that knows the region found it and two that did not, did not."
+    },
+    {
+      "id": "backup-heat-present",
+      "label": "Backup heat present and configured",
+      "kind": "look",
+      "note": "Air-source heat pumps at −25 °C. **The regional question is not whether a room is comfortable but whether there is a second heat source when the pump stops being able to extract any.**"
+    },
+    {
+      "id": "water-jacket-and-treatment",
+      "label": "Water jacket and treatment record",
+      "kind": "look"
+    },
+    {
+      "id": "buried-line-and-insulation",
+      "label": "Buried supply line and insulation",
+      "kind": "look",
+      "note": "Outdoor boilers run insulated lines underground to the house. Heat loss there is invisible and it is most of the complaints."
     }
   ],
   "opportunityConditions": [
@@ -1672,6 +1707,20 @@
       "id": "vented-crawlspace-in-freezing-climate",
       "label": "Vented crawlspace in a freezing climate",
       "note": "Regional. Current practice here is a sealed, conditioned crawlspace; exterior venting invites frozen pipes. **Added 2026-08-06 because two reviews disagreed about the same class and both were right** — the correctness pass said the seasonal care exists and was undeclared, the regional pass said the practice is wrong for this climate. The care describes what happens; the opportunity carries the correction."
+    },
+    {
+      "id": "disposer-on-septic",
+      "label": "Food waste disposer on a septic system",
+      "note": "Regional and code-based: the Ontario Building Code requires a substantially larger tank to carry a grinder, so one fitted to an ordinary septic is a load problem rather than a convenience. **Neither of the other two reviews saw this.**"
+    },
+    {
+      "id": "no-backup-heat-on-heat-pump",
+      "label": "Air-source heat pump with no backup heat"
+    },
+    {
+      "id": "no-snow-guards-on-steel-roof",
+      "label": "Steel roof over an eavestrough with no snow guards",
+      "note": "A sheet of ice releasing off a steel roof takes the eavestrough with it. **Filed on the eavestrough because there is no roof class yet** — it moves to the roof when the building-fabric pass lands, and it is recorded here rather than held so the finding is not lost in the gap."
     }
   ],
   "ownerQuestions": [
@@ -2688,6 +2737,7 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [
+        "owned-or-rented",
         "last-serviced-and-by-whom",
         "does-any-room-never-get-comfortable",
         "who-fills-the-tank"
@@ -2716,6 +2766,7 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [
+        "owned-or-rented",
         "last-serviced-and-by-whom",
         "does-any-room-never-get-comfortable"
       ],
@@ -2776,6 +2827,7 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [
+        "owned-or-rented",
         "last-serviced-and-by-whom",
         "does-any-room-never-get-comfortable"
       ],
@@ -2805,6 +2857,7 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [
+        "owned-or-rented",
         "last-serviced-and-by-whom",
         "does-any-room-never-get-comfortable",
         "who-fills-the-tank"
@@ -2879,6 +2932,7 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [
+        "owned-or-rented",
         "last-serviced-and-by-whom",
         "does-any-room-never-get-comfortable"
       ],
@@ -2902,16 +2956,20 @@
         "refrigerant-line-insulation",
         "defrost-cycle-function",
         "condensate-path-clear",
-        "thermostat-function-and-schedule"
+        "thermostat-function-and-schedule",
+        "backup-heat-present"
       ],
       "opportunityConditions": [
+        "no-backup-heat-on-heat-pump",
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [
+        "owned-or-rented",
         "last-serviced-and-by-whom",
         "does-any-room-never-get-comfortable"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Regional, 2026-08-06: at −25 °C the question is not comfort but whether a second heat source exists when the pump can no longer extract heat."
     },
     {
       "id": "heat-pump-ground-source",
@@ -3006,7 +3064,8 @@
         "core-and-filter-condition",
         "ventilation-balance-and-flow",
         "condensate-path-clear",
-        "duct-connections-and-sealing"
+        "duct-connections-and-sealing",
+        "pest-intrusion-evidence"
       ],
       "opportunityConditions": [
         "age-past-band-midpoint"
@@ -3089,7 +3148,7 @@
     },
     {
       "id": "attic-fan",
-      "label": "Attic or whole-house fan",
+      "label": "Attic fan",
       "systems": [
         "ventilation"
       ],
@@ -3098,14 +3157,15 @@
         "damper-and-louvre-service"
       ],
       "inspectionPoints": [
-        "blower-compartment-condition"
+        "blower-compartment-condition",
+        "pest-intrusion-evidence"
       ],
       "opportunityConditions": [
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Louvres seize long before anyone notices, because nobody looks in the season it is not used."
+      "note": "CORRECTED 2026-08-06. Two reviews reached this class by different routes — one said attic and whole-house fans should split, the other that a whole-house fan is a warm-climate strategy that does not belong here at all. **Both resolve the same way: this is a powered attic ventilator, and whole-house fans are out of scope for this climate.** The label carried both and now carries one. Louvres seize long before anyone notices, because nobody looks in the season it is not used."
     },
     {
       "id": "register",
@@ -3624,7 +3684,8 @@
       "inspectionPoints": [
         "generator-start-and-run",
         "generator-enclosure-and-clearance",
-        "transfer-or-interlock-present"
+        "transfer-or-interlock-present",
+        "pest-intrusion-evidence"
       ],
       "opportunityConditions": [
         "no-generator-on-well-and-septic",
@@ -3653,7 +3714,8 @@
       "inspectionPoints": [
         "generator-start-and-run",
         "stored-fuel-condition",
-        "transfer-or-interlock-present"
+        "transfer-or-interlock-present",
+        "pest-intrusion-evidence"
       ],
       "opportunityConditions": [
         "generator-without-interlock",
@@ -4330,6 +4392,7 @@
         "supply-line-and-shutoff"
       ],
       "opportunityConditions": [
+        "disposer-on-septic",
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [
@@ -4853,7 +4916,8 @@
         "glazing-and-seal-condition",
         "operation-and-latching",
         "weatherseal-condition",
-        "frame-and-sill-condition"
+        "frame-and-sill-condition",
+        "pest-intrusion-evidence"
       ],
       "opportunityConditions": [
         "age-past-band-midpoint"
@@ -5060,6 +5124,7 @@
         "gutter-slope-and-fastening"
       ],
       "opportunityConditions": [
+        "no-snow-guards-on-steel-roof",
         "no-gutter-guards-under-trees",
         "age-past-band-midpoint"
       ],
@@ -5226,7 +5291,8 @@
         "vegetation-clearance"
       ],
       "inspectionPoints": [
-        "structure-envelope-and-access"
+        "structure-envelope-and-access",
+        "pest-intrusion-evidence"
       ],
       "opportunityConditions": [
         "age-past-band-midpoint"
@@ -5947,22 +6013,106 @@
       ],
       "replacementHorizon": true,
       "note": "Battery, firmware, and the schedule itself — a schedule set for a household that has since changed its hours is a real and invisible cost."
+    },
+    {
+      "id": "sulphur-treatment",
+      "label": "Sulphur and odour treatment",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "water-treatment",
+      "careCategories": [
+        "chemical-solution-refill",
+        "water-filter-cartridge-replacement"
+      ],
+      "inspectionPoints": [
+        "water-clarity-and-odour",
+        "bypass-valve-position",
+        "regeneration-cycle-function",
+        "filter-housing-and-seal"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "what-do-you-notice-about-the-water",
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "Aeration or peroxide injection for hydrogen sulphide. **Named independently by two reviews from different directions** — one from a general water-treatment list, one from the geology of the local limestone tablelands. That is the only agreement in the review round that counts as two checks. It was previously falling into `water-treatment-other`, which is the bucket that exists to say a thing has no dependable maintenance — and this one does."
+    },
+    {
+      "id": "outdoor-wood-boiler",
+      "label": "Outdoor wood boiler",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "burn-pot-and-ash-service",
+        "chimney-sweep",
+        "boiler-water-treatment"
+      ],
+      "inspectionPoints": [
+        "water-jacket-and-treatment",
+        "buried-line-and-insulation",
+        "firebox-and-refractory-condition",
+        "cap-and-screen-condition",
+        "pest-intrusion-evidence"
+      ],
+      "opportunityConditions": [
+        "no-wett-record-on-solid-fuel",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-burn-wood-and-how-often",
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "**Named by two reviews independently.** A staple here for heating older houses and detached outbuildings, and it heats the house through buried lines rather than through a chimney in it — which is why nothing in the indoor solid-fuel classes covers it."
+    },
+    {
+      "id": "propane-space-heater",
+      "label": "Direct-vent propane space heater",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "burner-and-combustion-service",
+        "glass-and-surface-care"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "gas-connection-and-shutoff",
+        "hearth-and-clearances"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "Regional. Heavily relied on for additions and seasonal rooms in older rural stock, and it is neither a fireplace nor a furnace. HouseSteady labour cannot touch gas, so its care carries `professional` throughout."
     }
   ],
   "contentPassProgress": {
     "written": [
-      "heating-and-cooling (29)",
+      "heating-and-cooling (31)",
       "plumbing (23)",
       "appliances (22)",
       "envelope (17)",
-      "water-supply (16)",
+      "water-supply (17)",
       "site (14)",
       "tier-two (14)",
       "electrical (11)",
       "domestic-hot-water (8)",
       "wastewater (8)",
-      "solid-fuel (7)",
-      "hydronic-heating (5)",
+      "solid-fuel (8)",
+      "hydronic-heating (6)",
       "fuel (5)",
       "waterfront (5)",
       "safety (4)",
