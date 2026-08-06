@@ -2,7 +2,7 @@
   "schemaId": "housesteady.class-frame",
   "version": "1.0.0",
   "date": "2026-08-04",
-  "status": "CONTENT PASS IN PROGRESS — 155 of 173 classes. Water heating, wells and water treatment, septic, heating and cooling, electrical, appliances, plumbing, and envelope, site and waterfront are written; safety and tier two remain. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
+  "status": "CONTENT PASS COMPLETE — 173 of 173 classes. Every system is written. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
   "sourceDocument": "HouseSteady_Class-Frame_v1-1_2026-08-02, as corrected by Increment 5 Build Spec Amendment 3 §B and Amendment 4 §D.",
   "note": "What kinds of thing live in a house, and what each kind needs. The engine recognises a thing, looks up its class, and generates work from what the class declares. This file is the declaration; the research pass supplies model-specific detail inside it.",
   "whyTheFrameShipsBeforeTheContent": "Pass two written as prose and translated into this shape later is a hand transformation applied to ~172 rows, which is the shape of every drift failure in this project. Written against this file, it is authored in its final form. Amendment 3 §C.",
@@ -428,6 +428,31 @@
       "id": "culvert-and-drain-clearing",
       "label": "Culvert and drain clearing",
       "note": "Silt, leaves and ice from culverts, yard drains and catch basins. Rural essential — the driveway washes out when it is skipped."
+    },
+    {
+      "id": "sanitising",
+      "label": "Sanitising",
+      "note": "Water coolers, ice makers, instant-hot dispensers. Standing water at room temperature — the care nobody does because nothing looks wrong."
+    },
+    {
+      "id": "firmware-and-account-review",
+      "label": "Firmware and account review",
+      "note": "Smart devices. A camera on abandoned firmware and an account nobody can log into are both failures, and neither is visible in the house."
+    },
+    {
+      "id": "blade-and-direction-service",
+      "label": "Blade cleaning and seasonal direction reversal",
+      "note": "Ceiling fans. The reversal is a real seasonal item and almost nobody does it."
+    },
+    {
+      "id": "caulk-and-grout-renewal",
+      "label": "Caulk and grout renewal",
+      "note": "Not mechanical, and it is what stands between a shower and rot in the wall cavity."
+    },
+    {
+      "id": "monitoring-contract-review",
+      "label": "Monitoring contract review",
+      "note": "Security panels. The contract is the thing that fails, not the panel."
     }
   ],
   "inspectionPoints": [
@@ -1272,6 +1297,61 @@
       "id": "catch-basin-and-grate",
       "label": "Catch basin, grate and sump condition",
       "kind": "look"
+    },
+    {
+      "id": "alarm-test-and-response",
+      "label": "Alarm test and response",
+      "kind": "look",
+      "note": "Pressing test proves the horn, not the sensor. Worth naming because the household believes it proves both."
+    },
+    {
+      "id": "device-age-and-expiry",
+      "label": "Device age against its printed expiry",
+      "kind": "look",
+      "note": "Smoke and CO alarms carry a hard replacement date printed on the housing — ten years for smoke, seven to ten for CO. **A date, not a judgement**, which is why this is the frame's cleanest inspection point."
+    },
+    {
+      "id": "placement-and-coverage",
+      "label": "Placement and coverage against requirement",
+      "kind": "look",
+      "note": "One per storey, outside sleeping areas, and near fuel-burning equipment. A count against a requirement rather than a condition assessment."
+    },
+    {
+      "id": "interconnection-present",
+      "label": "Interconnection present",
+      "kind": "look"
+    },
+    {
+      "id": "extinguisher-charge-and-date",
+      "label": "Charge, gauge and service date",
+      "kind": "look"
+    },
+    {
+      "id": "radon-fan-operation",
+      "label": "Radon fan operation and manometer",
+      "kind": "look",
+      "note": "A U-tube manometer with the fluid level even means the fan has stopped. Visible, unmistakable, and nobody knows to look."
+    },
+    {
+      "id": "standing-water-condition",
+      "label": "Standing water and reservoir condition",
+      "kind": "look"
+    },
+    {
+      "id": "device-power-and-connectivity",
+      "label": "Device power and connectivity",
+      "kind": "look"
+    },
+    {
+      "id": "fan-flow-and-termination",
+      "label": "Fan flow and termination",
+      "kind": "look",
+      "note": "A bathroom fan that runs and vents into the attic is the moisture failure that hides best."
+    },
+    {
+      "id": "blade-balance-and-mounting",
+      "label": "Blade balance and mounting",
+      "kind": "look"
     }
   ],
   "opportunityConditions": [
@@ -1477,6 +1557,32 @@
       "id": "composite-deck-being-sealed",
       "label": "Composite decking being sealed or stained",
       "note": "Fires when a household is doing work that does nothing and may harm the surface. The class split exists to make this visible."
+    },
+    {
+      "id": "alarm-past-printed-expiry",
+      "label": "Alarm past its printed replacement date",
+      "note": "A hard date rather than a judgement, which makes it the least arguable row in the frame."
+    },
+    {
+      "id": "no-co-alarm-near-fuel-equipment",
+      "label": "Fuel-burning equipment with no CO alarm nearby"
+    },
+    {
+      "id": "no-alarm-on-a-storey",
+      "label": "A storey with no alarm"
+    },
+    {
+      "id": "no-interconnection",
+      "label": "Alarms present but not interconnected"
+    },
+    {
+      "id": "extinguisher-past-service-date",
+      "label": "Extinguisher past its service or replacement date"
+    },
+    {
+      "id": "bathroom-fan-venting-to-attic",
+      "label": "Bathroom fan venting into the attic",
+      "note": "The moisture failure that hides best — it looks like it is working from inside the room."
     }
   ],
   "ownerQuestions": [
@@ -1629,6 +1735,19 @@
       "id": "do-you-have-a-service-contract",
       "label": "Is there a service contract on it?",
       "note": "Pools, hot tubs, lifts and elevators are often already covered, and coordinating against an existing contract beats arranging a second one."
+    },
+    {
+      "id": "have-you-tested-them",
+      "label": "Have you tested them, and when?"
+    },
+    {
+      "id": "who-monitors-it",
+      "label": "Who monitors it, and is the contract current?"
+    },
+    {
+      "id": "does-the-app-still-work",
+      "label": "Can you still sign in to it?",
+      "note": "Smart devices outlive their accounts. A camera nobody can reach is a device that is not there."
     }
   ],
   "classes": [
@@ -4104,7 +4223,7 @@
     },
     {
       "id": "food-waste-disposer",
-      "label": "Food waste disposer",
+      "label": "Garburator",
       "systems": [
         "appliances"
       ],
@@ -4124,7 +4243,7 @@
         "do-you-use-it"
       ],
       "replacementHorizon": true,
-      "note": "Added 2026-08-05 from outside review. Common, absent from v0.2 entirely, and it sits on the boundary between appliances and plumbing — filed here because it is an appliance, and flagged in case plumbing wants it."
+      "note": "DUPLICATE RESOLVED 2026-08-06, and the correction leads per rule 14. This class and v0.2's `garburator` are one thing under two names — it arrived from outside review as `food-waste-disposer` and shipped before the tier-two pass reached v0.2's own id. **The id stays `food-waste-disposer` because it is already shipped and referenced; the label becomes `Garburator` because that is what a household in this region says.** Common, real, and everyone abuses it — and it sits on the boundary between appliances and plumbing, filed under appliances because it is one."
     },
     {
       "id": "water-main-shutoff",
@@ -5317,6 +5436,411 @@
       ],
       "replacementHorizon": true,
       "note": "Spring melt and foundation water."
+    },
+    {
+      "id": "smoke-alarm",
+      "label": "Smoke alarm",
+      "systems": [
+        "safety"
+      ],
+      "componentType": "smoke-alarm",
+      "careCategories": [
+        "battery-replacement"
+      ],
+      "inspectionPoints": [
+        "alarm-test-and-response",
+        "device-age-and-expiry",
+        "placement-and-coverage",
+        "interconnection-present"
+      ],
+      "opportunityConditions": [
+        "alarm-past-printed-expiry",
+        "no-alarm-on-a-storey",
+        "no-interconnection"
+      ],
+      "ownerQuestions": [
+        "have-you-tested-them"
+      ],
+      "replacementHorizon": true,
+      "note": "Ten-year replacement is a hard date printed on the housing, not a judgement — which makes this the cleanest row in the frame. Everything else here is a count against a requirement rather than a condition assessment, and that distinction is what keeps a concierge on the documenting side of the line."
+    },
+    {
+      "id": "co-alarm",
+      "label": "Carbon monoxide alarm",
+      "systems": [
+        "safety"
+      ],
+      "componentType": "co-alarm",
+      "careCategories": [
+        "battery-replacement"
+      ],
+      "inspectionPoints": [
+        "alarm-test-and-response",
+        "device-age-and-expiry",
+        "placement-and-coverage",
+        "interconnection-present"
+      ],
+      "opportunityConditions": [
+        "alarm-past-printed-expiry",
+        "no-co-alarm-near-fuel-equipment",
+        "no-alarm-on-a-storey"
+      ],
+      "ownerQuestions": [
+        "have-you-tested-them"
+      ],
+      "replacementHorizon": true,
+      "note": "Shares its checklist with the smoke alarm and its own expiry is shorter — seven to ten years rather than ten. Same shape, different date, which is exactly why it is a separate class."
+    },
+    {
+      "id": "fire-extinguisher",
+      "label": "Fire extinguisher",
+      "systems": [
+        "safety"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "extinguisher-charge-and-date"
+      ],
+      "opportunityConditions": [
+        "extinguisher-past-service-date",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "have-you-tested-them"
+      ],
+      "replacementHorizon": true,
+      "note": "No checklist at v1.11.0, and a real inspection and recharge date. Its gauge is readable by anyone and read by nobody. Zero care is a ruling."
+    },
+    {
+      "id": "radon-fan",
+      "label": "Radon mitigation fan",
+      "systems": [
+        "safety"
+      ],
+      "componentType": "radon-fan",
+      "careCategories": [],
+      "inspectionPoints": [
+        "radon-fan-operation",
+        "device-power-and-connectivity"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "Stub component type at v1.11.0. A U-tube manometer with its fluid level even means the fan has stopped — visible, unmistakable, and nobody knows to look. Zero care is a ruling."
+    },
+    {
+      "id": "bathroom-exhaust-fan",
+      "label": "Bathroom exhaust fan",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "blower-and-fan-cleaning"
+      ],
+      "inspectionPoints": [
+        "fan-flow-and-termination",
+        "vent-screen-and-blockage"
+      ],
+      "opportunityConditions": [
+        "bathroom-fan-venting-to-attic",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Arguably belongs in heating and cooling — it is the moisture control that fails silently, and a fan that runs while venting into the attic looks like it is working from inside the room. Kept in tier two because it has no component type."
+    },
+    {
+      "id": "ceiling-fan",
+      "label": "Ceiling fan",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "blade-and-direction-service"
+      ],
+      "inspectionPoints": [
+        "blade-balance-and-mounting"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Seasonal direction reversal is a real item almost nobody does."
+    },
+    {
+      "id": "caulk-and-grout",
+      "label": "Caulk and grout",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "caulk-and-grout-renewal"
+      ],
+      "inspectionPoints": [
+        "caulk-and-grout-condition"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [],
+      "replacementHorizon": false,
+      "note": "Not mechanical, and it is what stands between a shower and rot in the wall cavity. No replacement horizon — it is renewed on condition, forever."
+    },
+    {
+      "id": "coffee-maker",
+      "label": "Coffee maker",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "descale-appliance",
+        "sanitising"
+      ],
+      "inspectionPoints": [],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Merged with the espresso machine at v0.2 — v0.1 gave *Same* as the reason for both, which is the merge argument written into the split."
+    },
+    {
+      "id": "kettle-electric",
+      "label": "Electric kettle",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "descale-appliance"
+      ],
+      "inspectionPoints": [],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Descaling, in a hard-water region."
+    },
+    {
+      "id": "air-purifier",
+      "label": "Air purifier",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "air-filter-replacement"
+      ],
+      "inspectionPoints": [],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Filters on a rhythm with a part number — §1b, and the part identity is the whole reason it earns a row."
+    },
+    {
+      "id": "water-cooler",
+      "label": "Water cooler",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "sanitising",
+        "water-filter-cartridge-replacement"
+      ],
+      "inspectionPoints": [
+        "standing-water-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Sanitising nobody does. Standing water at room temperature, indefinitely."
+    },
+    {
+      "id": "wine-fridge",
+      "label": "Wine fridge",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "condenser-coil-cleaning",
+        "door-seal-cleaning"
+      ],
+      "inspectionPoints": [
+        "door-seal-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Condenser coils and a door seal — the refrigerator's care on a thing nobody thinks of as a refrigerator."
+    },
+    {
+      "id": "ice-maker-standalone",
+      "label": "Ice maker",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "sanitising",
+        "water-filter-cartridge-replacement"
+      ],
+      "inspectionPoints": [
+        "standing-water-condition",
+        "supply-line-and-shutoff"
+      ],
+      "opportunityConditions": [
+        "no-leak-protection-on-supply",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Filter and sanitising, and a supply line behind a cabinet."
+    },
+    {
+      "id": "range-water-line",
+      "label": "Refrigerator water line",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "connector-age-and-type",
+        "supply-line-and-shutoff"
+      ],
+      "opportunityConditions": [
+        "rubber-supply-connectors",
+        "no-leak-protection-on-supply",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "The flood risk hiding behind the fridge, and it fails where nobody looks until the floor is wet. Zero care is a ruling."
+    },
+    {
+      "id": "instant-hot-dispenser",
+      "label": "Instant hot water dispenser",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "descale-appliance",
+        "sanitising"
+      ],
+      "inspectionPoints": [
+        "standing-water-condition",
+        "supply-line-and-shutoff",
+        "fixture-leak-and-drip"
+      ],
+      "opportunityConditions": [
+        "no-leak-protection-on-supply",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "A small under-sink tank that scales and leaks behind the cabinet."
+    },
+    {
+      "id": "security-panel",
+      "label": "Security panel",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "battery-replacement",
+        "monitoring-contract-review"
+      ],
+      "inspectionPoints": [
+        "device-power-and-connectivity",
+        "alarm-test-and-response"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "who-monitors-it"
+      ],
+      "replacementHorizon": true,
+      "note": "The contract is the thing that fails, not the panel."
+    },
+    {
+      "id": "doorbell-camera",
+      "label": "Doorbell camera",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "battery-replacement",
+        "firmware-and-account-review"
+      ],
+      "inspectionPoints": [
+        "device-power-and-connectivity"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-the-app-still-work"
+      ],
+      "replacementHorizon": true,
+      "note": "Smart devices outlive their accounts. A camera nobody can sign in to is a device that is not there."
+    },
+    {
+      "id": "thermostat-smart",
+      "label": "Smart thermostat",
+      "systems": [
+        "tier-two"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "battery-replacement",
+        "firmware-and-account-review"
+      ],
+      "inspectionPoints": [
+        "thermostat-function-and-schedule",
+        "device-power-and-connectivity"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-the-app-still-work",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "Battery, firmware, and the schedule itself — a schedule set for a household that has since changed its hours is a real and invisible cost."
     }
   ],
   "contentPassProgress": {
@@ -5327,6 +5851,7 @@
       "envelope (17)",
       "water-supply (16)",
       "site (14)",
+      "tier-two (14)",
       "electrical (11)",
       "domestic-hot-water (8)",
       "wastewater (8)",
@@ -5334,9 +5859,10 @@
       "hydronic-heating (5)",
       "fuel (5)",
       "waterfront (5)",
+      "safety (4)",
       "ventilation (2)"
     ],
-    "remaining": "safety · tier two. Fuel is no longer on this list unqualified — five fuel classes arrived with heating and cooling (tanks, regulator, fittings, filter). Whether that completes the system is the design session's to say.",
+    "remaining": "",
     "classCountNote": "173, not 172. `well-pump` split into `well-pump-submersible` and `well-pump-jet` during pass two — one is in the well and cannot be looked at, the other is in the basement and can. For a service whose product is documentation, observable-versus-not is the sharpest split there is.",
     "whatWritingTheContentAudited": "Four of five presumptive splits held. `water-heater-indirect` held on a different axis than it was split on — its care is identical to the electric tank and it survives on inspection alone. That is evidence the identity pass could not produce, and it is the argument for pass two auditing pass one rather than merely extending it.",
     "reuseSoFar": "Five of water heating's seven care categories were shared with systems not yet written. Wells and septic reused only `valve-exercise`, `age-past-band-midpoint` and `unheated-space-exposure` — water supply and hot water share less than two adjacent systems will. Heating and cooling is the real test: it is where `air-filter-replacement`, `condensate-drain-service` and `burner-and-combustion-service` get their second use.",
