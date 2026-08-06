@@ -23,13 +23,49 @@ import { openZone, startPass } from '../src/pass/store.js'
 import { writeOverlay } from '../src/overlay/store.js'
 import { freshDb, makePropertyAndVisit, readReference, scratchDir, TEST_OPERATOR } from './helpers.js'
 
-/** Every table Increment 2c makes attributable. */
-const ATTRIBUTED = [
-  'properties', 'visits', 'imports', 'passes', 'pass_zone_opens', 'pass_events',
-  'desk_media', 'ai_jobs', 'ai_generations', 'overlays',
-  // Increment 4 §7. An hour is only a pricing basis if you know whose.
-  'desk_work',
-]
+/**
+ * Tables that deliberately record no actor, each with the reason.
+ *
+ * **This list replaces the hand-kept list of tables that DO**, and the inversion
+ * is the point. `ATTRIBUTED` had to be remembered, so a table added without an
+ * actor was a table the rule silently did not reach — which is exactly what
+ * happened to `objects` in Increment 5 §2. **Fourth instance of a hand-maintained
+ * restatement drifting from the data it restates**, after the status block, the
+ * `_replaceWholesale` count and the worked-class merge.
+ *
+ * Exempting is now the thing that takes an entry, and attributing is the default.
+ * A new table is covered the day it is created, by nobody doing anything.
+ */
+const UNATTRIBUTED: Readonly<Record<string, string>> = {
+  _migrations: 'the migration runner, not a domain table',
+  operators: 'the actors themselves — the first row has nobody to attribute it to',
+
+  // Verbatim manifest mirrors. Doctrine 1: imports are stored exactly as
+  // exported and never mutated, so the actor is the import that carried them and
+  // a per-row actor would be the same value repeated a thousand times.
+  zones: 'manifest mirror — the actor is on `imports`',
+  pins: 'manifest mirror',
+  media: 'manifest mirror',
+  notes: 'manifest mirror',
+  events: 'manifest mirror',
+  resolutions: 'manifest mirror',
+  anchors: 'manifest mirror',
+  canvases: 'manifest mirror',
+  chat_threads: 'manifest mirror',
+  chat_messages: 'manifest mirror',
+  inbox_refs: 'manifest mirror',
+  session_meta: 'manifest mirror',
+  config_snapshots: 'manifest mirror',
+
+  // Derived rows. Nobody acts to create one; they follow from something that was
+  // itself attributed, and inventing an actor would claim a decision nobody made.
+  audit_slots: 'derived from an audit run, which carries the actor',
+  audit_carried_items: 'derived from an audit run',
+  active_items: 'derived projection',
+  report_editions: 'derived from the edition that produced it',
+  object_media: 'derived from the object, which carries the actor',
+  object_provenance: 'derived from the decision — and it carries `actor_id` anyway',
+}
 
 describe('the operator registry', () => {
   let db: Db
@@ -181,13 +217,34 @@ describe('every attributed row records who acted', () => {
    * feature" has to mean.
    */
   it('refuses an unattributed insert on every attributed table', () => {
+    // **Derived from the schema rather than from a list somebody maintains.**
+    // Every table is attributed unless it is explicitly exempt, so a table added
+    // tomorrow is covered tomorrow — which the previous shape could not do.
+    const tables = (db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+      .all() as { name: string }[]).map((r) => r.name)
     const triggers = new Set(
       (db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as { name: string }[])
         .map((r) => r.name),
     )
-    for (const table of ATTRIBUTED) {
-      assert.ok(triggers.has(`trg_${table}_actor`), `${table} has no actor trigger`)
-    }
+    const hasActor = (t: string): boolean =>
+      (db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).some((c) => c.name === 'actor_id')
+
+    const missing = tables
+      .filter((t) => !(t in UNATTRIBUTED))
+      .filter((t) => !hasActor(t) || !triggers.has(`trg_${t}_actor`))
+    assert.deepEqual(missing, [],
+      'every table records which operator acted, or says in UNATTRIBUTED why it does not')
+  })
+
+  it('and the exemption list names no table that has stopped existing', () => {
+    // The exemption list is itself a restatement, so it gets the same treatment:
+    // an entry for a dropped table is a reason nobody can check any more.
+    const tables = new Set(
+      (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+        .all() as { name: string }[]).map((r) => r.name),
+    )
+    assert.deepEqual(Object.keys(UNATTRIBUTED).filter((t) => !tables.has(t)), [])
   })
 
   it('names the table when it refuses, so the fix is obvious', () => {
@@ -224,7 +281,15 @@ describe('every attributed row records who acted', () => {
       targetKind: 'media', targetId: 'anything', actorId: TEST_OPERATOR,
     })
 
-    for (const table of ATTRIBUTED) {
+    // Same derivation as the trigger check — every attributed table, discovered
+    // rather than listed, so this walks whatever the schema actually holds.
+    const attributed = (db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+      .all() as { name: string }[])
+      .map((r) => r.name)
+      .filter((t) => !(t in UNATTRIBUTED))
+    assert.ok(attributed.length > 0, 'idle if every table were somehow exempt')
+    for (const table of attributed) {
       const rows = db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }
       const orphans = db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE actor_id IS NULL`).get() as { n: number }
       assert.equal(orphans.n, 0, `${table} has ${orphans.n} of ${rows.n} rows with nobody attached`)
