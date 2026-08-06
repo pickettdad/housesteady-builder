@@ -38,6 +38,8 @@ import {
   checkComponentTypes,
   checkAccess,
   checkUnits,
+  checkCareAudience,
+  CARE_AUDIENCES,
   checkVocabulary,
   ClassFrameUnreadable,
   DEFAULT_ACCESS,
@@ -145,6 +147,11 @@ describe('the reader reports what the file holds, whatever that is', () => {
  */
 describe('the shipped content, checked rather than taken on trust', () => {
   it('audits clean against the walk’s own config snapshot', () => {
+    // Briefly carried a filter for `care-audience-absent`, between Amendment 8
+    // declaring `audience` and §C's 71 values landing. **Both arrived in one
+    // merge**, so the exemption existed for exactly as long as the gap it
+    // described and is gone with it — rewritten whole rather than left with a
+    // superseded first line, which is rule 14 applied to a test comment.
     const a = auditClassFrame(readClassFrame(), walkConfig())
     assert.deepEqual(a.problems.map((p) => `${p.code} · ${p.classId}`), [])
   })
@@ -751,5 +758,75 @@ describe('zero care categories must say why, and only when true', () => {
     const ruled = rawClasses().filter(empty)
     assert.ok(ruled.length >= 10, `only ${ruled.length} classes exercise this scan`)
     assert.ok(new Set(ruled.flatMap((c) => c.systems)).size >= 3, 'across more than one system’s content')
+  })
+})
+
+describe('every care category declares an audience — Amendment 8 §B2', () => {
+  /**
+   * **The schedule and the engine feed one list, and only one of them declares an
+   * audience.** So `s15.owner-pro-split` — a month-one deliverable — renders
+   * populated for the schedule's 190 items and blank for everything the engine
+   * produces, and the two halves of one list look different in front of the
+   * client the list is for. That is the consistency argument, and it is what
+   * separates this field from the licensed-work and procedure-render flags that
+   * were both proposed and withdrawn on 2026-08-05 for answering *who may do it*.
+   *
+   * **No default, and that is the whole shape.** An unstated audience and a
+   * deliberate `both` are different facts; allowing absence makes them
+   * indistinguishable. Tenth instance of declared-versus-absent deciding
+   * something here, and the same rule `unit` holds on a measure point.
+   *
+   * **`both` is why this works at category grain.** `air-filter-replacement`
+   * spans 13 classes and `gutter-clearing` is owner work on a bungalow and
+   * professional work at three storeys. Without a `both` value, audience would
+   * need class × care-category grain — `careCategories` becoming an array of
+   * objects across 173 classes.
+   */
+  it('recognises exactly the schedule’s three values, and no others', () => {
+    assert.deepEqual([...CARE_AUDIENCES], ['owner', 'professional', 'both'])
+  })
+
+  it('catches an absent audience and an unrecognised one as different facts', () => {
+    // Negative-tested both ways, per §B2. Two codes rather than one, because
+    // nobody-wrote-it and somebody-wrote-something-wrong want different fixes.
+    const absent = frame({ careCategories: [{ id: 'tank-flush', label: 'Tank flush' }] })
+    const wrong = frame({
+      careCategories: [{ id: 'tank-flush', label: 'Tank flush', audience: 'concierge' as never }],
+    })
+    const good = frame({
+      careCategories: CARE_AUDIENCES.map((a) => ({ id: `c-${a}`, label: a, audience: a })),
+    })
+
+    assert.deepEqual(checkCareAudience(absent).map((p) => p.code), ['care-audience-absent'])
+    assert.deepEqual(checkCareAudience(wrong).map((p) => p.code), ['care-audience-unrecognised'])
+    assert.deepEqual(checkCareAudience(good), [], 'all three values pass, including `both`')
+  })
+
+  it('is not vacuous — the shipped file has care categories to check', () => {
+    // §9b. A check over an empty vocabulary reports green forever.
+    assert.ok(readClassFrame().careCategories.length > 0)
+  })
+
+  /**
+   * **Green, and it closed itself exactly as designed.** This test shipped
+   * failing: Amendment 8 declared `audience` on every care category and §C
+   * sequenced the 71 values behind the outside review, because a review that
+   * moves, splits or merges a category rewrites anything written before it.
+   *
+   * The values landed in the same merge as the shape, so the red never reached
+   * `main` — and the test needed no edit to go green, which was the property
+   * being aimed at. **What made that safe was the check being negative-tested
+   * from both directions above**, so its passing now means the vocabulary is
+   * filled rather than that the check stopped looking.
+   *
+   * It stays as the standing guard: a category added later without an audience
+   * fails here, and that is the state the whole field exists to prevent.
+   */
+  it('every shipped care category declares one', () => {
+    const f = readClassFrame()
+    const problems = checkCareAudience(f)
+    assert.deepEqual(problems, [],
+      `${problems.length} of ${f.careCategories.length} care categories declare no audience. ` +
+        `There is no default — an unstated audience and a deliberate \`both\` are different facts.`)
   })
 })
