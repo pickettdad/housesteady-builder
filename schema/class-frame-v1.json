@@ -2,7 +2,7 @@
   "schemaId": "housesteady.class-frame",
   "version": "1.0.0",
   "date": "2026-08-04",
-  "status": "CONTENT PASS IN PROGRESS — 79 of 173 classes. Water heating, wells and water treatment, septic, heating and cooling, and electrical are written; the rest remain. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
+  "status": "CONTENT PASS IN PROGRESS — 101 of 173 classes. Water heating, wells and water treatment, septic, heating and cooling, electrical, and appliances are written; the rest remain. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
   "sourceDocument": "HouseSteady_Class-Frame_v1-1_2026-08-02, as corrected by Increment 5 Build Spec Amendment 3 §B and Amendment 4 §D.",
   "note": "What kinds of thing live in a house, and what each kind needs. The engine recognises a thing, looks up its class, and generates work from what the class declares. This file is the declaration; the research pass supplies model-specific detail inside it.",
   "whyTheFrameShipsBeforeTheContent": "Pass two written as prose and translated into this shape later is a hand transformation applied to ~172 rows, which is the shape of every drift failure in this project. Written against this file, it is authored in its final form. Amendment 3 §C.",
@@ -268,6 +268,86 @@
       "id": "connector-cleaning",
       "label": "Connector cleaning",
       "note": "EV charging handles and their contacts."
+    },
+    {
+      "id": "door-seal-cleaning",
+      "label": "Door seal cleaning",
+      "note": "Household-level, frequent, and it is what makes a gasket last. Shared across refrigeration, dishwashers and front-load washers."
+    },
+    {
+      "id": "grease-filter-cleaning",
+      "label": "Grease filter cleaning",
+      "note": "Household-level and monthly in a kitchen that cooks."
+    },
+    {
+      "id": "charcoal-filter-replacement",
+      "label": "Charcoal filter replacement",
+      "note": "Recirculating hoods. Consumable — §1b part identity. Nobody replaces it, which is why it is declared."
+    },
+    {
+      "id": "lint-and-duct-clearing",
+      "label": "Lint and duct clearing",
+      "note": "The dryer duct's whole reason for existing as a class."
+    },
+    {
+      "id": "drum-and-gasket-service",
+      "label": "Drum and gasket service",
+      "note": "Front-load washers. Leaving the door ajar is half of it and costs nothing."
+    },
+    {
+      "id": "descale-appliance",
+      "label": "Appliance descaling",
+      "note": "Dishwashers and kettles in hard water. Distinct from `descale`, which is a heat exchanger."
+    },
+    {
+      "id": "interior-cleaning",
+      "label": "Interior cleaning",
+      "note": "Household-level. Ovens, refrigerators, microwaves — the care that keeps a thing working rather than merely clean."
+    },
+    {
+      "id": "glass-and-surface-care",
+      "label": "Glass and surface care",
+      "note": "Smooth-top ranges and cooktops need a specific cleaner and a scraper; the wrong one scratches. Also gas fireplace glass."
+    },
+    {
+      "id": "drip-pan-replacement",
+      "label": "Drip pan replacement",
+      "note": "Coil ranges and cooktops. Consumable — §1b, and the part number is why the coil-versus-smooth split earns itself."
+    },
+    {
+      "id": "condenser-coil-cleaning",
+      "label": "Appliance condenser coil cleaning",
+      "note": "Refrigeration. Distinct from `coil-cleaning`, which is an HVAC coil in an airstream."
+    },
+    {
+      "id": "bag-and-filter-service",
+      "label": "Bag and filter service",
+      "note": "Central vacuum."
+    },
+    {
+      "id": "seasonal-removal-and-reinstall",
+      "label": "Seasonal removal and reinstallation",
+      "note": "Pulled before ice and returned after. Lake intakes and floating docks — a whole category the first four systems missed because it is care that happens to a thing rather than on it."
+    },
+    {
+      "id": "drain-filter-cleaning",
+      "label": "Drain filter or trap cleaning",
+      "note": "A debris trap in a drain path — a dishwasher filter, a front-load washer pump trap. Owner-accessible on most models, neglected on nearly all. Added 2026-08-05 from outside review."
+    },
+    {
+      "id": "self-clean-cycle",
+      "label": "Running the appliance's own cleaning cycle",
+      "note": "Tub-clean, clean-washer, self-clean oven. Distinct from `interior-cleaning`: this is the appliance cleaning itself on a rhythm somebody has to remember, which is why it is the one that gets skipped. Added 2026-08-05."
+    },
+    {
+      "id": "manual-defrost",
+      "label": "Manual defrosting",
+      "note": "Non-frost-free freezers and refrigerators. Chest freezers are common in rural stock. Added 2026-08-05."
+    },
+    {
+      "id": "termination-clearing",
+      "label": "Exterior vent termination clearing",
+      "note": "Snow, ice, nests, leaves, and a backdraft damper that must move freely. Cross-system — dryers, range hoods, and bathroom fans when interior is written. Added 2026-08-05; the frame had the inspection point and not the task."
     }
   ],
   "inspectionPoints": [
@@ -749,6 +829,67 @@
       "id": "charger-mounting-and-strain",
       "label": "Charger mounting and cable strain relief",
       "kind": "look"
+    },
+    {
+      "id": "door-seal-condition",
+      "label": "Door seal condition",
+      "kind": "look"
+    },
+    {
+      "id": "levelling-and-stability",
+      "label": "Levelling and stability",
+      "kind": "look",
+      "note": "An unlevel range is a tipping hazard and an unlevel washer walks itself apart."
+    },
+    {
+      "id": "anti-tip-bracket-present",
+      "label": "Anti-tip bracket present",
+      "kind": "look",
+      "note": "Ranges. Cheap, invisible, and the failure it prevents involves a child and a hot oven."
+    },
+    {
+      "id": "supply-line-and-shutoff",
+      "label": "Supply line and shutoff condition",
+      "kind": "look",
+      "note": "Braided lines age. This is the single commonest source of an unattended flood in a house."
+    },
+    {
+      "id": "drain-hose-and-standpipe",
+      "label": "Drain hose and standpipe",
+      "kind": "look"
+    },
+    {
+      "id": "duct-run-and-termination",
+      "label": "Duct run and termination",
+      "kind": "look",
+      "note": "Dryer ducts. Length, material and where it actually ends — a run into a soffit is common and wrong."
+    },
+    {
+      "id": "lint-accumulation",
+      "label": "Lint accumulation",
+      "kind": "look"
+    },
+    {
+      "id": "grease-filter-condition",
+      "label": "Grease filter condition",
+      "kind": "look"
+    },
+    {
+      "id": "ambient-temperature-suitability",
+      "label": "Ambient temperature suitability",
+      "kind": "look",
+      "note": "A refrigerator in an unheated Ontario garage stops cooling in winter unless it carries a kit — §1.2's exposure exception, made checkable."
+    },
+    {
+      "id": "gas-connection-and-shutoff",
+      "label": "Gas connection and shutoff",
+      "kind": "look",
+      "note": "Gas ranges and dryers. Visual only; anything beyond looking is a gas fitter's, which the owner has ruled HouseSteady cannot do at all."
+    },
+    {
+      "id": "vacuum-suction-and-inlets",
+      "label": "Suction and inlet condition",
+      "kind": "look"
     }
   ],
   "opportunityConditions": [
@@ -864,6 +1005,24 @@
       "id": "no-generator-on-well-and-septic",
       "label": "Well or septic with no backup power",
       "note": "Regional. A power cut on a well-and-septic property takes water and wastewater with it, and that is a habitability question rather than a comfort one."
+    },
+    {
+      "id": "no-anti-tip-bracket",
+      "label": "Range with no anti-tip bracket"
+    },
+    {
+      "id": "no-leak-protection-on-supply",
+      "label": "Water-supplied appliance with no leak protection",
+      "note": "A washer, dishwasher or fridge line with no pan, no sensor and no auto-shutoff. Cheap, and the failure it prevents is the expensive one."
+    },
+    {
+      "id": "dryer-duct-run-excessive",
+      "label": "Dryer duct run longer or more restrictive than intended"
+    },
+    {
+      "id": "charcoal-filter-never-replaced",
+      "label": "Recirculating hood filter never replaced",
+      "note": "Fires on almost every recirculating hood, which is the point of declaring it."
     }
   ],
   "ownerQuestions": [
@@ -960,6 +1119,20 @@
       "id": "who-installed-it-and-is-it-under-warranty",
       "label": "Who installed it, and is it still under warranty?",
       "note": "Solar and EV equipment are young enough that warranty is usually live and usually unfiled."
+    },
+    {
+      "id": "does-it-still-do-its-job",
+      "label": "Does it still do what you need it to?",
+      "note": "Households know an appliance is failing long before it fails, and it appears in no record. It is also the least intrusive way to ask about age."
+    },
+    {
+      "id": "has-it-ever-flooded-or-overflowed",
+      "label": "Has it ever flooded or overflowed?"
+    },
+    {
+      "id": "do-you-use-it",
+      "label": "Do you use it?",
+      "note": "A second fridge nobody opens, a wall oven used twice a year. It changes the care that is worth doing and the replacement horizon that is worth stating."
     }
   ],
   "classes": [
@@ -1083,7 +1256,8 @@
         "tank-flush",
         "anode-service",
         "air-filter-replacement",
-        "condensate-drain-service"
+        "condensate-drain-service",
+        "condenser-coil-cleaning"
       ],
       "inspectionPoints": [
         "tpr-discharge-piping",
@@ -1105,7 +1279,7 @@
         "do-you-have-the-paperwork"
       ],
       "replacementHorizon": true,
-      "note": "It cools and dehumidifies the room it stands in — welcome in July, a real load in January."
+      "note": "It cools and dehumidifies the room it stands in — welcome in July, a real load in January. Corrected 2026-08-05 — it has an appliance condenser coil and the household can clean it."
     },
     {
       "id": "water-heater-indirect",
@@ -1154,7 +1328,8 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling: a sealed circulator runs to failure and is replaced, never serviced."
     },
     {
       "id": "mixing-valve",
@@ -1193,7 +1368,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Zero care and two inspection points, and one of the higher-value rows in the system — it fails invisibly and the symptom reads as a bad relief valve."
+      "note": "Zero care and two inspection points, and one of the higher-value rows in the system — it fails invisibly and the symptom reads as a bad relief valve. Zero care is a ruling."
     },
     {
       "id": "well-drilled",
@@ -1270,7 +1445,7 @@
         "last-serviced-and-by-whom"
       ],
       "replacementHorizon": true,
-      "note": "Split from `well-pump` at pass two. It is in the well and cannot be looked at — for a service whose product is documentation, observable-versus-not is the sharpest split there is."
+      "note": "Split from `well-pump` at pass two. It is in the well and cannot be looked at — for a service whose product is documentation, observable-versus-not is the sharpest split there is. Zero care is a ruling and it follows from where it lives — a pump in a well cannot be reached to be maintained."
     },
     {
       "id": "well-pump-jet",
@@ -1295,7 +1470,7 @@
         "last-serviced-and-by-whom"
       ],
       "replacementHorizon": true,
-      "note": "The other half of the split. In the basement and inspectable, which is the whole difference."
+      "note": "The other half of the split. In the basement and inspectable, which is the whole difference. Zero care is a ruling: reachable but sealed. Service is a trade call on a symptom, not a rhythm."
     },
     {
       "id": "well-pressure-switch",
@@ -1314,7 +1489,8 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling — contacts pit and the switch is replaced; nothing is maintained."
     },
     {
       "id": "well-low-water-control",
@@ -1331,7 +1507,8 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling: a protective device that is tested rather than maintained."
     },
     {
       "id": "well-pressure-tank",
@@ -1351,7 +1528,8 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling. Pre-charge is a measurement; correcting it is a trade task fired by the finding, not a rhythm."
     },
     {
       "id": "booster-pump",
@@ -1371,7 +1549,8 @@
       "ownerQuestions": [
         "last-serviced-and-by-whom"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling — sealed, and replaced rather than serviced."
     },
     {
       "id": "lake-intake",
@@ -1380,7 +1559,9 @@
         "water-supply"
       ],
       "componentType": "none",
-      "careCategories": [],
+      "careCategories": [
+        "seasonal-removal-and-reinstall"
+      ],
       "inspectionPoints": [
         "intake-strainer-and-foot-valve",
         "water-clarity-and-odour"
@@ -1393,7 +1574,8 @@
         "last-water-test-and-result",
         "what-do-you-notice-about-the-water"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Corrected 2026-08-05 — an intake line is pulled before ice and returned after. Declared zero care until the reason had to be written down, and there was no reason."
     },
     {
       "id": "cistern",
@@ -1402,7 +1584,9 @@
         "water-supply"
       ],
       "componentType": "cistern",
-      "careCategories": [],
+      "careCategories": [
+        "interior-cleaning"
+      ],
       "inspectionPoints": [
         "cistern-lid-and-vent",
         "water-clarity-and-odour"
@@ -1414,7 +1598,8 @@
         "last-serviced-and-by-whom",
         "what-do-you-notice-about-the-water"
       ],
-      "replacementHorizon": false
+      "replacementHorizon": false,
+      "note": "Corrected 2026-08-05 — a cistern is cleaned and disinfected on a rhythm."
     },
     {
       "id": "water-softener",
@@ -1425,7 +1610,8 @@
       "componentType": "water-softener",
       "careCategories": [
         "salt-replenishment",
-        "brine-tank-service"
+        "brine-tank-service",
+        "interior-cleaning"
       ],
       "inspectionPoints": [
         "salt-level-and-bridging",
@@ -1441,7 +1627,8 @@
         "last-serviced-and-by-whom",
         "what-do-you-notice-about-the-water"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Corrected 2026-08-05 — the brine tank is household work beyond salt and bridging."
     },
     {
       "id": "sediment-filter",
@@ -1486,7 +1673,7 @@
         "what-do-you-notice-about-the-water"
       ],
       "replacementHorizon": true,
-      "note": "Stub type at config v1.11.0 — reported, not an error."
+      "note": "Stub type at config v1.11.0 — reported, not an error. Zero care is a ruling: it backwashes itself, and media replacement is a trade task on a multi-year horizon rather than care."
     },
     {
       "id": "uv-sterilizer",
@@ -1497,7 +1684,8 @@
       "componentType": "uv-sterilizer",
       "careCategories": [
         "uv-lamp-replacement",
-        "uv-sleeve-cleaning"
+        "uv-sleeve-cleaning",
+        "interior-cleaning"
       ],
       "inspectionPoints": [
         "uv-lamp-hours-and-alarm",
@@ -1510,7 +1698,7 @@
         "last-serviced-and-by-whom"
       ],
       "replacementHorizon": true,
-      "note": "A spent lamp keeps glowing. The schedule has no recurring item for it at all — this is where the engine earns its place in this system."
+      "note": "A spent lamp keeps glowing. The schedule has no recurring item for it at all — this is where the engine earns its place in this system. Corrected 2026-08-05 — housing wipe-down at lamp change."
     },
     {
       "id": "reverse-osmosis",
@@ -1552,7 +1740,7 @@
         "last-serviced-and-by-whom"
       ],
       "replacementHorizon": false,
-      "note": "Declares zero care by design — this kind of thing bears no dependable maintenance and saying so is the point. The fifth output rescued it: its most useful question is whether the household can name it."
+      "note": "Declares zero care by design — this kind of thing bears no dependable maintenance and saying so is the point. The fifth output rescued it: its most useful question is whether the household can name it. Zero care is a ruling."
     },
     {
       "id": "septic-tank",
@@ -1621,7 +1809,8 @@
       "ownerQuestions": [
         "where-are-the-lids"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling — a d-box is inspected and levelled when found wrong, never maintained."
     },
     {
       "id": "septic-bed",
@@ -1643,7 +1832,7 @@
         "has-this-ever-backed-up"
       ],
       "replacementHorizon": true,
-      "note": "componentType `none`, resolving F-30. A bed is an area, not a point — no lid checklist applies to it, and `none` needs no config change. Its inspection points come from this class, and every one is `direct`."
+      "note": "componentType `none`, resolving F-30. A bed is an area, not a point — no lid checklist applies to it, and `none` needs no config change. Its inspection points come from this class, and every one is `direct`. Zero care is a ruling and it is the whole point of the class: a bed is protected, not maintained. Everything that helps it is something not done to it."
     },
     {
       "id": "septic-alarm",
@@ -1662,7 +1851,8 @@
       "ownerQuestions": [
         "has-this-ever-backed-up"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling — tested, not maintained."
     },
     {
       "id": "septic-pump-chamber",
@@ -1682,7 +1872,8 @@
       "ownerQuestions": [
         "where-are-the-lids"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling: the chamber is a vessel. Its pump is a separate class."
     },
     {
       "id": "septic-effluent-pump",
@@ -1702,7 +1893,8 @@
       "ownerQuestions": [
         "last-serviced-and-by-whom"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling — sealed and submerged, serviced only when pulled."
     },
     {
       "id": "holding-tank",
@@ -1953,7 +2145,7 @@
         "last-serviced-and-by-whom"
       ],
       "replacementHorizon": true,
-      "note": "A boiler may have several and any one failing disables a zone — which is why the owner question about a cold room is on the radiator and the boiler both."
+      "note": "A boiler may have several and any one failing disables a zone — which is why the owner question about a cold room is on the radiator and the boiler both. Zero care is a ruling: modern circulators are sealed and maintenance-free by design."
     },
     {
       "id": "air-conditioner-central",
@@ -2078,7 +2270,7 @@
       "componentType": "none",
       "careCategories": [
         "air-filter-replacement",
-        "coil-cleaning"
+        "condenser-coil-cleaning"
       ],
       "inspectionPoints": [
         "outdoor-coil-condition"
@@ -2087,7 +2279,8 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Corrected 2026-08-05 — an appliance coil, not an airstream coil."
     },
     {
       "id": "hrv-erv",
@@ -2147,7 +2340,8 @@
       "careCategories": [
         "air-filter-replacement",
         "coil-cleaning",
-        "condensate-drain-service"
+        "condensate-drain-service",
+        "condenser-coil-cleaning"
       ],
       "inspectionPoints": [
         "condensate-path-clear",
@@ -2159,7 +2353,8 @@
       "ownerQuestions": [
         "last-serviced-and-by-whom"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Corrected 2026-08-05."
     },
     {
       "id": "dehumidifier-portable",
@@ -2170,7 +2365,8 @@
       "componentType": "none",
       "careCategories": [
         "air-filter-replacement",
-        "coil-cleaning"
+        "interior-cleaning",
+        "condenser-coil-cleaning"
       ],
       "inspectionPoints": [
         "condensate-path-clear"
@@ -2180,7 +2376,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "No checklist, and it has a filter nobody cleans."
+      "note": "No checklist, and it has a filter nobody cleans. Corrected 2026-08-05 — bucket and coil are household care, and `coil-cleaning` was the wrong token: this is an appliance coil."
     },
     {
       "id": "attic-fan",
@@ -2219,7 +2415,7 @@
         "does-any-room-never-get-comfortable"
       ],
       "replacementHorizon": false,
-      "note": "Merged supply and return at v0.2 — they share every care task, and balance is a property-level diagnostic the property pass handles rather than object care. No replacement horizon: a grille is replaced when a room is renovated, not on a lifespan."
+      "note": "Merged supply and return at v0.2 — they share every care task, and balance is a property-level diagnostic the property pass handles rather than object care. No replacement horizon: a grille is replaced when a room is renovated, not on a lifespan. Zero care is a ruling."
     },
     {
       "id": "condensate-pump",
@@ -2228,7 +2424,9 @@
         "heating-and-cooling"
       ],
       "componentType": "none",
-      "careCategories": [],
+      "careCategories": [
+        "interior-cleaning"
+      ],
       "inspectionPoints": [
         "condensate-pump-operation",
         "condensate-path-clear"
@@ -2239,7 +2437,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Fails silently and floods the mechanical room while the appliance it serves is fine."
+      "note": "Fails silently and floods the mechanical room while the appliance it serves is fine. Corrected 2026-08-05 — the reservoir grows biofilm and clearing it is household work."
     },
     {
       "id": "condensate-drain",
@@ -2265,7 +2463,9 @@
         "heating-and-cooling"
       ],
       "componentType": "none",
-      "careCategories": [],
+      "careCategories": [
+        "interior-cleaning"
+      ],
       "inspectionPoints": [
         "thermostat-function-and-schedule"
       ],
@@ -2276,7 +2476,7 @@
         "does-any-room-never-get-comfortable"
       ],
       "replacementHorizon": true,
-      "note": "Very common in older rural stock and in additions."
+      "note": "Very common in older rural stock and in additions. Corrected 2026-08-05 — the fins collect dust and vacuuming them is household work that measurably affects output."
     },
     {
       "id": "fireplace-wood",
@@ -2288,7 +2488,8 @@
       "componentType": "fireplace",
       "careCategories": [
         "chimney-sweep",
-        "burn-pot-and-ash-service"
+        "burn-pot-and-ash-service",
+        "glass-and-surface-care"
       ],
       "inspectionPoints": [
         "firebox-and-refractory-condition",
@@ -2305,7 +2506,8 @@
         "do-you-burn-wood-and-how-often",
         "do-you-have-a-wett-certificate"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Corrected 2026-08-05."
     },
     {
       "id": "wood-stove",
@@ -2317,7 +2519,8 @@
       "componentType": "fireplace",
       "careCategories": [
         "chimney-sweep",
-        "burn-pot-and-ash-service"
+        "burn-pot-and-ash-service",
+        "glass-and-surface-care"
       ],
       "inspectionPoints": [
         "firebox-and-refractory-condition",
@@ -2335,7 +2538,8 @@
         "do-you-burn-wood-and-how-often",
         "do-you-have-a-wett-certificate"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Corrected 2026-08-05 — door glass is household care, distinct from the sweep."
     },
     {
       "id": "pellet-stove",
@@ -2348,7 +2552,8 @@
       "careCategories": [
         "burn-pot-and-ash-service",
         "blower-and-fan-cleaning",
-        "chimney-sweep"
+        "chimney-sweep",
+        "glass-and-surface-care"
       ],
       "inspectionPoints": [
         "firebox-and-refractory-condition",
@@ -2366,7 +2571,7 @@
         "do-you-have-a-wett-certificate"
       ],
       "replacementHorizon": true,
-      "note": "Its care is unlike a wood stove's — a blower, an auger and a burn pot, and no creosote point because it vents differently."
+      "note": "Its care is unlike a wood stove's — a blower, an auger and a burn pot, and no creosote point because it vents differently. Corrected 2026-08-05."
     },
     {
       "id": "fireplace-gas",
@@ -2376,7 +2581,9 @@
       ],
       "componentType": "fireplace",
       "careCategories": [
-        "burner-and-combustion-service"
+        "burner-and-combustion-service",
+        "glass-and-surface-care",
+        "interior-cleaning"
       ],
       "inspectionPoints": [
         "vent-condition-and-connection",
@@ -2389,7 +2596,8 @@
       "ownerQuestions": [
         "last-serviced-and-by-whom"
       ],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Corrected 2026-08-05. Declared only the annual service until the owner pointed out that glass, logs and dust are real recurring care and the household's. The trade question was asked and the household question was not."
     },
     {
       "id": "fireplace-electric",
@@ -2405,7 +2613,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Almost no care and no inspection point that is not a general electrical one. Worth the class precisely to say so — an empty row is an answer."
+      "note": "Almost no care and no inspection point that is not a general electrical one. Worth the class precisely to say so — an empty row is an answer. Zero care is a ruling."
     },
     {
       "id": "chimney-masonry",
@@ -2475,7 +2683,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Separately replaceable, and animals and water get in while the chimney itself is sound."
+      "note": "Separately replaceable, and animals and water get in while the chimney itself is sound. Zero care is a ruling — a cap is inspected and replaced, never serviced."
     },
     {
       "id": "stovepipe",
@@ -2485,7 +2693,9 @@
         "solid-fuel"
       ],
       "componentType": "chimney",
-      "careCategories": [],
+      "careCategories": [
+        "chimney-sweep"
+      ],
       "inspectionPoints": [
         "connector-clearance-to-combustibles",
         "creosote-accumulation"
@@ -2495,7 +2705,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "The connector between appliance and chimney. WETT treats appliance, connector and chimney as one system with three parts, and this is the part with no other home."
+      "note": "The connector between appliance and chimney. WETT treats appliance, connector and chimney as one system with three parts, and this is the part with no other home. Corrected 2026-08-05 — the connector is swept with the chimney. Declaring zero implied it was not."
     },
     {
       "id": "fuel-tank-propane",
@@ -2520,7 +2730,7 @@
         "who-fills-the-tank"
       ],
       "replacementHorizon": true,
-      "note": "Usually leased, and the lease is a fact worth carrying — `owned-or-rented` does the same job here it does for a rented water heater."
+      "note": "Usually leased, and the lease is a fact worth carrying — `owned-or-rented` does the same job here it does for a rented water heater. Zero care is a ruling, and it is a contractual fact as much as a technical one: the tank is usually leased and the supplier maintains it."
     },
     {
       "id": "fuel-tank-oil",
@@ -2547,7 +2757,7 @@
         "do-you-have-the-paperwork"
       ],
       "replacementHorizon": true,
-      "note": "Insurance-relevant rather than merely condition-relevant. Age and type drive coverage, which is why the opportunity fires on age rather than on a finding."
+      "note": "Insurance-relevant rather than merely condition-relevant. Age and type drive coverage, which is why the opportunity fires on age rather than on a finding. Zero care is a ruling — the shell and fittings are inspected, and everything else is a licensed trade's."
     },
     {
       "id": "propane-regulator",
@@ -2565,7 +2775,8 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling: a regulator is inspected and replaced on a horizon. HouseSteady labour cannot touch gas at all."
     },
     {
       "id": "oil-tank-fittings",
@@ -2583,7 +2794,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "TSSA-regulated and separate from the shell — a sound tank with a wrong fill or vent is a real and separate finding."
+      "note": "TSSA-regulated and separate from the shell — a sound tank with a wrong fill or vent is a real and separate finding. Zero care is a ruling — TSSA-regulated and inspected only."
     },
     {
       "id": "oil-filter",
@@ -2630,7 +2841,7 @@
         "do-you-have-the-paperwork"
       ],
       "replacementHorizon": true,
-      "note": "Zero care categories, and that is the ruling rather than an omission: every act that would maintain a panel is licensed electrical work. Three of its four inspection points are the whole of what can be honestly said from outside the enclosure, and the fourth is access-gated on an electrician already being there."
+      "note": "Zero care categories, and that is the ruling rather than an omission: every act that would maintain a panel is licensed electrical work. Three of its four inspection points are the whole of what can be honestly said from outside the enclosure, and the fourth is access-gated on an electrician already being there. Zero care is a ruling."
     },
     {
       "id": "surge-protector-panel",
@@ -2649,7 +2860,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Sacrificial by design and it reports its own death on a small light nobody looks at. One inspection point, high value, and it is exactly the kind of thing a documented house catches and an undocumented one does not."
+      "note": "Sacrificial by design and it reports its own death on a small light nobody looks at. One inspection point, high value, and it is exactly the kind of thing a documented house catches and an undocumented one does not. Zero care is a ruling and it follows from the design: it is sacrificial. Nothing maintains it; the status light reports its death."
     },
     {
       "id": "service-mast",
@@ -2668,7 +2879,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Exposed to trees, ice and storms on rural lots while the interior panel is untouched. Regional."
+      "note": "Exposed to trees, ice and storms on rural lots while the interior panel is untouched. Regional. Zero care is a ruling — inspected from the ground, and every remedy is a licensed electrician's."
     },
     {
       "id": "receptacle-gfci",
@@ -2687,7 +2898,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Its one care-adjacent act — pressing test and reset — is inspection under the owner's line: operating a device to learn is not altering a circuit."
+      "note": "Its one care-adjacent act — pressing test and reset — is inspection under the owner's line: operating a device to learn is not altering a circuit. Zero care is a ruling."
     },
     {
       "id": "generator-standby",
@@ -2762,7 +2973,8 @@
         "age-past-band-midpoint"
       ],
       "ownerQuestions": [],
-      "replacementHorizon": true
+      "replacementHorizon": true,
+      "note": "Zero care is a ruling: it is exercised as part of the generator's run rather than on its own rhythm."
     },
     {
       "id": "generator-inlet",
@@ -2782,7 +2994,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "A portable generator often connects through one of these rather than a transfer switch, and a cord back-feeding a dryer outlet with no interlock is the failure this class exists to name."
+      "note": "A portable generator often connects through one of these rather than a transfer switch, and a cord back-feeding a dryer outlet with no interlock is the failure this class exists to name. Zero care is a ruling — an inlet and an interlock are inspected, not maintained."
     },
     {
       "id": "solar-array",
@@ -2827,7 +3039,7 @@
         "do-you-have-the-paperwork"
       ],
       "replacementHorizon": true,
-      "note": "Shortest lifespan in a solar system by a wide margin, which is the entire reason it is not merged with the array."
+      "note": "Shortest lifespan in a solar system by a wide margin, which is the entire reason it is not merged with the array. Zero care is a ruling: sealed, and its ventilation clearance is an inspection point rather than a task."
     },
     {
       "id": "ev-charger",
@@ -2851,11 +3063,578 @@
       ],
       "replacementHorizon": true,
       "note": "Stub component type at config v1.11.0 — reported, not an error. Fourth stub mapping in the frame."
+    },
+    {
+      "id": "refrigerator",
+      "label": "Refrigerator",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-refrigerator",
+      "careCategories": [
+        "condenser-coil-cleaning",
+        "door-seal-cleaning",
+        "water-filter-cartridge-replacement",
+        "interior-cleaning",
+        "manual-defrost"
+      ],
+      "inspectionPoints": [
+        "door-seal-condition",
+        "supply-line-and-shutoff",
+        "levelling-and-stability"
+      ],
+      "opportunityConditions": [
+        "no-leak-protection-on-supply",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Four care categories, all household-level and all frequent. The water filter is the consumable and carries a part identity. Manual defrost added 2026-08-05 for non-frost-free models."
+    },
+    {
+      "id": "refrigerator-garage",
+      "label": "Garage refrigerator",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-refrigerator",
+      "careCategories": [
+        "condenser-coil-cleaning",
+        "door-seal-cleaning",
+        "interior-cleaning",
+        "manual-defrost"
+      ],
+      "inspectionPoints": [
+        "door-seal-condition",
+        "ambient-temperature-suitability"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "§1.2's exposure exception working. An ambient-temperature kit and cold-weather coil behaviour a kitchen unit never needs — and the failure is silent, because it stops cooling in the season nobody opens it. Manual defrost added 2026-08-05."
+    },
+    {
+      "id": "freezer",
+      "label": "Freezer",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-freezer",
+      "careCategories": [
+        "condenser-coil-cleaning",
+        "door-seal-cleaning",
+        "interior-cleaning",
+        "manual-defrost"
+      ],
+      "inspectionPoints": [
+        "door-seal-condition",
+        "ambient-temperature-suitability",
+        "levelling-and-stability"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Stub component type at v1.11.0 — reported, not an error. Fifth stub. Manual defrost added 2026-08-05."
+    },
+    {
+      "id": "dishwasher",
+      "label": "Dishwasher",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-dishwasher",
+      "careCategories": [
+        "descale-appliance",
+        "door-seal-cleaning",
+        "interior-cleaning",
+        "drain-filter-cleaning",
+        "self-clean-cycle"
+      ],
+      "inspectionPoints": [
+        "door-seal-condition",
+        "supply-line-and-shutoff",
+        "drain-hose-and-standpipe"
+      ],
+      "opportunityConditions": [
+        "no-leak-protection-on-supply",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it",
+        "has-it-ever-flooded-or-overflowed"
+      ],
+      "replacementHorizon": true,
+      "note": "Drain filter added 2026-08-05 — the most-neglected recurring item in a modern kitchen."
+    },
+    {
+      "id": "range-gas",
+      "label": "Gas range",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-range",
+      "careCategories": [
+        "interior-cleaning",
+        "glass-and-surface-care",
+        "self-clean-cycle"
+      ],
+      "inspectionPoints": [
+        "gas-connection-and-shutoff",
+        "anti-tip-bracket-present",
+        "levelling-and-stability"
+      ],
+      "opportunityConditions": [
+        "no-anti-tip-bracket",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Its care is the household's entirely. Anything at the gas connection beyond looking is a gas fitter's — HouseSteady labour cannot do gas work at all, per the owner 2026-08-05. Self-clean cycle added 2026-08-05."
+    },
+    {
+      "id": "range-electric-coil",
+      "label": "Coil-top electric range",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-range",
+      "careCategories": [
+        "drip-pan-replacement",
+        "interior-cleaning",
+        "self-clean-cycle"
+      ],
+      "inspectionPoints": [
+        "anti-tip-bracket-present",
+        "levelling-and-stability"
+      ],
+      "opportunityConditions": [
+        "no-anti-tip-bracket",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "The split three outside reviewers missed. Drip pans are a consumable with a part number and elements unplug — neither exists on a smooth-top, and `glass-and-surface-care` does not apply here at all. Self-clean cycle added 2026-08-05."
+    },
+    {
+      "id": "range-electric-smoothtop",
+      "label": "Smooth-top electric range",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-range",
+      "careCategories": [
+        "glass-and-surface-care",
+        "interior-cleaning",
+        "self-clean-cycle"
+      ],
+      "inspectionPoints": [
+        "anti-tip-bracket-present",
+        "levelling-and-stability"
+      ],
+      "opportunityConditions": [
+        "no-anti-tip-bracket",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Absorbs induction — ceramic and induction share glass-top care exactly. A specific cleaner and a scraper; the wrong cleaner scratches. Self-clean cycle added 2026-08-05."
+    },
+    {
+      "id": "wall-oven",
+      "label": "Wall oven",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-range",
+      "careCategories": [
+        "interior-cleaning",
+        "self-clean-cycle"
+      ],
+      "inspectionPoints": [
+        "levelling-and-stability"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Self-clean cycle added 2026-08-05."
+    },
+    {
+      "id": "cooktop-gas",
+      "label": "Gas cooktop",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-range",
+      "careCategories": [
+        "interior-cleaning"
+      ],
+      "inspectionPoints": [
+        "gas-connection-and-shutoff"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "cooktop-electric-coil",
+      "label": "Coil cooktop",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-range",
+      "careCategories": [
+        "drip-pan-replacement",
+        "interior-cleaning"
+      ],
+      "inspectionPoints": [],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "cooktop-electric-smoothtop",
+      "label": "Smooth-top cooktop",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-range",
+      "careCategories": [
+        "glass-and-surface-care",
+        "interior-cleaning"
+      ],
+      "inspectionPoints": [],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "range-hood-ducted",
+      "label": "Ducted range hood",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-range-hood",
+      "careCategories": [
+        "grease-filter-cleaning",
+        "interior-cleaning",
+        "termination-clearing"
+      ],
+      "inspectionPoints": [
+        "grease-filter-condition",
+        "duct-run-and-termination"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Termination clearing added 2026-08-05."
+    },
+    {
+      "id": "range-hood-recirculating",
+      "label": "Recirculating range hood",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-range-hood",
+      "careCategories": [
+        "grease-filter-cleaning",
+        "charcoal-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "grease-filter-condition"
+      ],
+      "opportunityConditions": [
+        "charcoal-filter-never-replaced",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Charcoal filter, no duct — and nobody replaces it, which is why the opportunity fires on almost every one."
+    },
+    {
+      "id": "microwave-over-range",
+      "label": "Over-range microwave",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-microwave",
+      "careCategories": [
+        "grease-filter-cleaning",
+        "charcoal-filter-replacement",
+        "interior-cleaning"
+      ],
+      "inspectionPoints": [
+        "grease-filter-condition",
+        "duct-run-and-termination"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Often doubles as the hood, which is why it carries hood care rather than microwave care alone."
+    },
+    {
+      "id": "microwave-countertop",
+      "label": "Countertop microwave",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "interior-cleaning"
+      ],
+      "inspectionPoints": [],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "washer-front-load",
+      "label": "Front-load washer",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-washer",
+      "careCategories": [
+        "drum-and-gasket-service",
+        "door-seal-cleaning",
+        "self-clean-cycle",
+        "drain-filter-cleaning"
+      ],
+      "inspectionPoints": [
+        "door-seal-condition",
+        "levelling-and-stability",
+        "supply-line-and-shutoff",
+        "drain-hose-and-standpipe"
+      ],
+      "opportunityConditions": [
+        "no-leak-protection-on-supply",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it",
+        "has-it-ever-flooded-or-overflowed"
+      ],
+      "replacementHorizon": true,
+      "note": "Gasket and drum care a top-loader has no equivalent of, and the whole of the split. Pump trap and tub-clean cycle added 2026-08-05."
+    },
+    {
+      "id": "washer-top-load",
+      "label": "Top-load washer",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-washer",
+      "careCategories": [
+        "self-clean-cycle",
+        "drain-filter-cleaning"
+      ],
+      "inspectionPoints": [
+        "levelling-and-stability",
+        "supply-line-and-shutoff",
+        "drain-hose-and-standpipe"
+      ],
+      "opportunityConditions": [
+        "no-leak-protection-on-supply",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it",
+        "has-it-ever-flooded-or-overflowed"
+      ],
+      "replacementHorizon": true,
+      "note": "Zero care categories, and it is a ruling: a top-loader has no gasket to dry and no drum cycle to run. Its whole risk is the supply line, which is inspection. CORRECTED 2026-08-05 by outside review, and this is the one that matters: it declared zero care with a stated reason, and the reason was wrong. A top-loader runs a tub-clean cycle and many carry a pump trap. A ruling with a reason is harder to catch than an omission, which is exactly why it was caught from outside rather than by the internal pass."
+    },
+    {
+      "id": "dryer-electric",
+      "label": "Electric dryer",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-dryer",
+      "careCategories": [
+        "lint-and-duct-clearing",
+        "interior-cleaning",
+        "termination-clearing"
+      ],
+      "inspectionPoints": [
+        "lint-accumulation",
+        "levelling-and-stability"
+      ],
+      "opportunityConditions": [
+        "dryer-duct-run-excessive",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Drum and moisture-sensor cleaning, and termination clearing, added 2026-08-05."
+    },
+    {
+      "id": "dryer-gas",
+      "label": "Gas dryer",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-dryer",
+      "careCategories": [
+        "lint-and-duct-clearing",
+        "interior-cleaning",
+        "termination-clearing"
+      ],
+      "inspectionPoints": [
+        "lint-accumulation",
+        "gas-connection-and-shutoff",
+        "levelling-and-stability"
+      ],
+      "opportunityConditions": [
+        "dryer-duct-run-excessive",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "A gas connection and a different venting risk — the split earns itself on one inspection point and a fuel HouseSteady labour cannot touch. Drum and moisture-sensor cleaning, and termination clearing, added 2026-08-05."
+    },
+    {
+      "id": "dryer-duct",
+      "label": "Dryer duct",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "dryer-duct",
+      "careCategories": [
+        "lint-and-duct-clearing",
+        "termination-clearing"
+      ],
+      "inspectionPoints": [
+        "duct-run-and-termination",
+        "lint-accumulation"
+      ],
+      "opportunityConditions": [
+        "dryer-duct-run-excessive"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": false,
+      "note": "The highest-consequence unglamorous item in the house. No replacement horizon — a duct is rerouted or corrected, never replaced on a lifespan. Termination clearing added 2026-08-05 — the frame had the inspection point and not the task."
+    },
+    {
+      "id": "central-vacuum",
+      "label": "Central vacuum",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "bag-and-filter-service"
+      ],
+      "inspectionPoints": [
+        "vacuum-suction-and-inlets"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Common in 1990s–2010s stock and ignored until suction dies."
+    },
+    {
+      "id": "food-waste-disposer",
+      "label": "Food waste disposer",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "interior-cleaning"
+      ],
+      "inspectionPoints": [
+        "drain-hose-and-standpipe",
+        "supply-line-and-shutoff"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "Added 2026-08-05 from outside review. Common, absent from v0.2 entirely, and it sits on the boundary between appliances and plumbing — filed here because it is an appliance, and flagged in case plumbing wants it."
     }
   ],
   "contentPassProgress": {
     "written": [
       "heating-and-cooling (29)",
+      "appliances (22)",
       "water-supply (16)",
       "electrical (11)",
       "domestic-hot-water (8)",
@@ -2865,7 +3644,7 @@
       "fuel (5)",
       "ventilation (2)"
     ],
-    "remaining": "appliances · plumbing · envelope and structure · site and exterior · safety · tier two. Fuel is no longer on this list unqualified — five fuel classes arrived with heating and cooling (tanks, regulator, fittings, filter). Whether that completes the system is the design session's to say.",
+    "remaining": "plumbing · envelope and structure · site and exterior · safety · tier two. Fuel is no longer on this list unqualified — five fuel classes arrived with heating and cooling (tanks, regulator, fittings, filter). Whether that completes the system is the design session's to say.",
     "classCountNote": "173, not 172. `well-pump` split into `well-pump-submersible` and `well-pump-jet` during pass two — one is in the well and cannot be looked at, the other is in the basement and can. For a service whose product is documentation, observable-versus-not is the sharpest split there is.",
     "whatWritingTheContentAudited": "Four of five presumptive splits held. `water-heater-indirect` held on a different axis than it was split on — its care is identical to the electric tank and it survives on inspection alone. That is evidence the identity pass could not produce, and it is the argument for pass two auditing pass one rather than merely extending it.",
     "reuseSoFar": "Five of water heating's seven care categories were shared with systems not yet written. Wells and septic reused only `valve-exercise`, `age-past-band-midpoint` and `unheated-space-exposure` — water supply and hot water share less than two adjacent systems will. Heating and cooling is the real test: it is where `air-filter-replacement`, `condensate-drain-service` and `burner-and-combustion-service` get their second use.",
