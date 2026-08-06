@@ -2,7 +2,7 @@
   "schemaId": "housesteady.class-frame",
   "version": "1.0.0",
   "date": "2026-08-04",
-  "status": "CONTENT PASS IN PROGRESS — 68 of 173 classes. Water heating, wells and water treatment, septic, and heating and cooling are written; the rest remain. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
+  "status": "CONTENT PASS IN PROGRESS — 79 of 173 classes. Water heating, wells and water treatment, septic, heating and cooling, and electrical are written; the rest remain. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
   "sourceDocument": "HouseSteady_Class-Frame_v1-1_2026-08-02, as corrected by Increment 5 Build Spec Amendment 3 §B and Amendment 4 §D.",
   "note": "What kinds of thing live in a house, and what each kind needs. The engine recognises a thing, looks up its class, and generates work from what the class declares. This file is the declaration; the research pass supplies model-specific detail inside it.",
   "whyTheFrameShipsBeforeTheContent": "Pass two written as prose and translated into this shape later is a hand transformation applied to ~172 rows, which is the shape of every drift failure in this project. Written against this file, it is authored in its final form. Amendment 3 §C.",
@@ -238,6 +238,36 @@
       "id": "ground-loop-fluid-service",
       "label": "Ground loop fluid service",
       "note": "Antifreeze concentration and loop pressure. Ground-source only."
+    },
+    {
+      "id": "generator-exercise",
+      "label": "Generator exercise run",
+      "note": "The one care item in this system that is not licensed work — running a machine, not altering a circuit."
+    },
+    {
+      "id": "engine-oil-and-filter-service",
+      "label": "Engine oil and filter service",
+      "note": "Standby and portable generators. Consumable — §1b part identity."
+    },
+    {
+      "id": "battery-replacement",
+      "label": "Battery replacement",
+      "note": "Consumable — §1b. Shared with safety devices and controls."
+    },
+    {
+      "id": "stored-fuel-rotation",
+      "label": "Stored fuel rotation",
+      "note": "Portable generators only. Fuel that sat two winters is why the generator does not start in the outage it was bought for."
+    },
+    {
+      "id": "array-surface-cleaning",
+      "label": "Panel surface cleaning",
+      "note": "Solar. Height work, which the owner ruled is HouseSteady labour."
+    },
+    {
+      "id": "connector-cleaning",
+      "label": "Connector cleaning",
+      "note": "EV charging handles and their contacts."
     }
   ],
   "inspectionPoints": [
@@ -624,6 +654,101 @@
       "id": "secondary-containment-present",
       "label": "Secondary containment present",
       "kind": "look"
+    },
+    {
+      "id": "enclosure-exterior-condition",
+      "label": "Enclosure exterior condition",
+      "kind": "look",
+      "note": "Visual only, from outside the enclosure — the schedule's own caution. Everything inside a panel is an electrician's, so this point is the whole of what we can honestly say."
+    },
+    {
+      "id": "panel-labelling-legibility",
+      "label": "Circuit labelling legibility",
+      "kind": "look",
+      "note": "A legible directory is the single most useful thing in a panel to a household in an emergency, and it needs nothing opened."
+    },
+    {
+      "id": "panel-clearance-and-access",
+      "label": "Working clearance in front of the panel",
+      "kind": "look"
+    },
+    {
+      "id": "panel-interior-condition",
+      "label": "Panel interior condition",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "electrical-service",
+      "note": "Behind the dead front. Never ours — the schedule's caution says visual only from outside. Seen when an electrician is already there."
+    },
+    {
+      "id": "gfci-test-function",
+      "label": "GFCI test and reset function",
+      "kind": "look",
+      "note": "Pressing a test button is operating a device to learn, not altering a circuit — the line the owner drew. Direct."
+    },
+    {
+      "id": "service-mast-and-drop-condition",
+      "label": "Service mast and drop condition",
+      "kind": "look",
+      "note": "Exposed to trees, ice and storms on rural lots while the interior panel is untouched."
+    },
+    {
+      "id": "meter-base-seal-and-mounting",
+      "label": "Meter base seal and mounting",
+      "kind": "look"
+    },
+    {
+      "id": "surge-protector-status",
+      "label": "Surge protector status indicator",
+      "kind": "look",
+      "note": "Sacrificial by design. It reports its own death on a small light nobody looks at."
+    },
+    {
+      "id": "transfer-or-interlock-present",
+      "label": "Transfer switch or interlock present",
+      "kind": "look",
+      "note": "A portable generator back-feeding through a cord and no interlock is the failure this exists to find."
+    },
+    {
+      "id": "generator-start-and-run",
+      "label": "Generator start and run behaviour",
+      "kind": "look"
+    },
+    {
+      "id": "generator-enclosure-and-clearance",
+      "label": "Generator enclosure and clearance",
+      "kind": "look"
+    },
+    {
+      "id": "stored-fuel-condition",
+      "label": "Stored fuel condition and quantity",
+      "kind": "look"
+    },
+    {
+      "id": "array-surface-and-shading",
+      "label": "Array surface and shading",
+      "kind": "look"
+    },
+    {
+      "id": "array-mounting-and-flashing",
+      "label": "Array mounting and roof flashing",
+      "kind": "look",
+      "note": "The roof penetration is the part that leaks, and it is nobody's job by default — not the roofer's after installation and not the solar company's after warranty."
+    },
+    {
+      "id": "inverter-status-and-output",
+      "label": "Inverter status and reported output",
+      "kind": "look"
+    },
+    {
+      "id": "charger-cable-and-handle",
+      "label": "Charging cable and handle condition",
+      "kind": "look"
+    },
+    {
+      "id": "charger-mounting-and-strain",
+      "label": "Charger mounting and cable strain relief",
+      "kind": "look"
     }
   ],
   "opportunityConditions": [
@@ -711,6 +836,34 @@
       "id": "no-condensate-overflow-protection",
       "label": "Condensate pump with no overflow shutdown",
       "note": "The pump fails silently and floods the mechanical room while the appliance it serves is fine."
+    },
+    {
+      "id": "no-panel-directory",
+      "label": "Panel with no legible circuit directory",
+      "note": "Cheap, coordinated, and the household feels it the first time a breaker trips at night."
+    },
+    {
+      "id": "no-surge-protection",
+      "label": "No whole-home surge protection"
+    },
+    {
+      "id": "spent-surge-protector",
+      "label": "Surge protector already spent",
+      "note": "It is still installed, still looks right, and has been protecting nothing since the storm that killed it."
+    },
+    {
+      "id": "generator-without-interlock",
+      "label": "Generator with no transfer switch or interlock"
+    },
+    {
+      "id": "no-gfci-in-wet-location",
+      "label": "Wet location with no GFCI protection",
+      "note": "Coordinated work — an electrician's, per the owner's ruling on electrical for compensation."
+    },
+    {
+      "id": "no-generator-on-well-and-septic",
+      "label": "Well or septic with no backup power",
+      "note": "Regional. A power cut on a well-and-septic property takes water and wastewater with it, and that is a habitability question rather than a comfort one."
     }
   ],
   "ownerQuestions": [
@@ -793,6 +946,20 @@
       "id": "who-fills-the-tank",
       "label": "Who fills the tank?",
       "note": "Names the coordination partner, the same way `owned-or-rented` does for a rental heater."
+    },
+    {
+      "id": "has-anything-tripped-repeatedly",
+      "label": "Has anything tripped or lost power repeatedly?",
+      "note": "Households know exactly which breaker misbehaves and it appears in no record."
+    },
+    {
+      "id": "when-was-the-generator-last-run",
+      "label": "When was the generator last run under load?"
+    },
+    {
+      "id": "who-installed-it-and-is-it-under-warranty",
+      "label": "Who installed it, and is it still under warranty?",
+      "note": "Solar and EV equipment are young enough that warranty is usually live and usually unfiled."
     }
   ],
   "classes": [
@@ -2438,12 +2605,259 @@
         "last-serviced-and-by-whom"
       ],
       "replacementHorizon": true
+    },
+    {
+      "id": "electrical-panel",
+      "label": "Electrical panel",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "electrical-panel",
+      "careCategories": [],
+      "inspectionPoints": [
+        "enclosure-exterior-condition",
+        "panel-labelling-legibility",
+        "panel-clearance-and-access",
+        "panel-interior-condition"
+      ],
+      "opportunityConditions": [
+        "no-panel-directory",
+        "no-surge-protection",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-anything-tripped-repeatedly",
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true,
+      "note": "Zero care categories, and that is the ruling rather than an omission: every act that would maintain a panel is licensed electrical work. Three of its four inspection points are the whole of what can be honestly said from outside the enclosure, and the fourth is access-gated on an electrician already being there."
+    },
+    {
+      "id": "surge-protector-panel",
+      "label": "Whole-home surge protector",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "electrical-panel",
+      "careCategories": [],
+      "inspectionPoints": [
+        "surge-protector-status"
+      ],
+      "opportunityConditions": [
+        "spent-surge-protector",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Sacrificial by design and it reports its own death on a small light nobody looks at. One inspection point, high value, and it is exactly the kind of thing a documented house catches and an undocumented one does not."
+    },
+    {
+      "id": "service-mast",
+      "label": "Service mast and meter base",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "electrical-panel",
+      "careCategories": [],
+      "inspectionPoints": [
+        "service-mast-and-drop-condition",
+        "meter-base-seal-and-mounting"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Exposed to trees, ice and storms on rural lots while the interior panel is untouched. Regional."
+    },
+    {
+      "id": "receptacle-gfci",
+      "label": "GFCI outlet",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "receptacle-gfci",
+      "careCategories": [],
+      "inspectionPoints": [
+        "gfci-test-function"
+      ],
+      "opportunityConditions": [
+        "no-gfci-in-wet-location",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Its one care-adjacent act — pressing test and reset — is inspection under the owner's line: operating a device to learn is not altering a circuit."
+    },
+    {
+      "id": "generator-standby",
+      "label": "Standby generator",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "generator",
+      "careCategories": [
+        "generator-exercise",
+        "engine-oil-and-filter-service",
+        "battery-replacement"
+      ],
+      "inspectionPoints": [
+        "generator-start-and-run",
+        "generator-enclosure-and-clearance",
+        "transfer-or-interlock-present"
+      ],
+      "opportunityConditions": [
+        "no-generator-on-well-and-septic",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "when-was-the-generator-last-run",
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true,
+      "note": "The exception in this system: a generator is an engine, and running and servicing an engine is not electrical work. Three care categories where the panel has none."
+    },
+    {
+      "id": "generator-portable",
+      "label": "Portable generator",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "generator",
+      "careCategories": [
+        "generator-exercise",
+        "engine-oil-and-filter-service",
+        "stored-fuel-rotation"
+      ],
+      "inspectionPoints": [
+        "generator-start-and-run",
+        "stored-fuel-condition",
+        "transfer-or-interlock-present"
+      ],
+      "opportunityConditions": [
+        "generator-without-interlock",
+        "no-generator-on-well-and-septic",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-generator-last-run"
+      ],
+      "replacementHorizon": true,
+      "note": "Splits from standby on stored fuel and on the interlock question. Fuel that sat two winters is why it does not start in the outage it was bought for."
+    },
+    {
+      "id": "transfer-switch",
+      "label": "Transfer switch",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "generator",
+      "careCategories": [],
+      "inspectionPoints": [
+        "transfer-or-interlock-present",
+        "enclosure-exterior-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "generator-inlet",
+      "label": "Generator inlet and interlock",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "generator",
+      "careCategories": [],
+      "inspectionPoints": [
+        "transfer-or-interlock-present",
+        "enclosure-exterior-condition"
+      ],
+      "opportunityConditions": [
+        "generator-without-interlock",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "A portable generator often connects through one of these rather than a transfer switch, and a cord back-feeding a dryer outlet with no interlock is the failure this class exists to name."
+    },
+    {
+      "id": "solar-array",
+      "label": "Solar panels",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "solar-inverter",
+      "careCategories": [
+        "array-surface-cleaning"
+      ],
+      "inspectionPoints": [
+        "array-surface-and-shading",
+        "array-mounting-and-flashing"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "who-installed-it-and-is-it-under-warranty"
+      ],
+      "replacementHorizon": true,
+      "note": "The panels are not the inverter and outlive it by decades. Its highest-value inspection point is the roof penetration, which is nobody's job by default."
+    },
+    {
+      "id": "solar-inverter",
+      "label": "Solar inverter",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "solar-inverter",
+      "careCategories": [],
+      "inspectionPoints": [
+        "inverter-status-and-output",
+        "enclosure-exterior-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "who-installed-it-and-is-it-under-warranty",
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true,
+      "note": "Shortest lifespan in a solar system by a wide margin, which is the entire reason it is not merged with the array."
+    },
+    {
+      "id": "ev-charger",
+      "label": "EV charger",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "ev-charger",
+      "careCategories": [
+        "connector-cleaning"
+      ],
+      "inspectionPoints": [
+        "charger-cable-and-handle",
+        "charger-mounting-and-strain"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "who-installed-it-and-is-it-under-warranty"
+      ],
+      "replacementHorizon": true,
+      "note": "Stub component type at config v1.11.0 — reported, not an error. Fourth stub mapping in the frame."
     }
   ],
   "contentPassProgress": {
     "written": [
       "heating-and-cooling (29)",
       "water-supply (16)",
+      "electrical (11)",
       "domestic-hot-water (8)",
       "wastewater (8)",
       "solid-fuel (7)",
@@ -2451,7 +2865,7 @@
       "fuel (5)",
       "ventilation (2)"
     ],
-    "remaining": "electrical · appliances · plumbing · envelope and structure · site and exterior · safety · tier two. Fuel is no longer on this list unqualified — five fuel classes arrived with heating and cooling (tanks, regulator, fittings, filter). Whether that completes the system is the design session's to say.",
+    "remaining": "appliances · plumbing · envelope and structure · site and exterior · safety · tier two. Fuel is no longer on this list unqualified — five fuel classes arrived with heating and cooling (tanks, regulator, fittings, filter). Whether that completes the system is the design session's to say.",
     "classCountNote": "173, not 172. `well-pump` split into `well-pump-submersible` and `well-pump-jet` during pass two — one is in the well and cannot be looked at, the other is in the basement and can. For a service whose product is documentation, observable-versus-not is the sharpest split there is.",
     "whatWritingTheContentAudited": "Four of five presumptive splits held. `water-heater-indirect` held on a different axis than it was split on — its care is identical to the electric tank and it survives on inspection alone. That is evidence the identity pass could not produce, and it is the argument for pass two auditing pass one rather than merely extending it.",
     "reuseSoFar": "Five of water heating's seven care categories were shared with systems not yet written. Wells and septic reused only `valve-exercise`, `age-past-band-midpoint` and `unheated-space-exposure` — water supply and hot water share less than two adjacent systems will. Heating and cooling is the real test: it is where `air-filter-replacement`, `condensate-drain-service` and `burner-and-combustion-service` get their second use.",
