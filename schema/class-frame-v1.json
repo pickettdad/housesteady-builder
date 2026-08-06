@@ -39,7 +39,10 @@
   "vocabularyShape": {
     "id": "kebab-case token. The thing a class references and the review queue counts.",
     "label": "what a person reads. Client-facing where the stream is client-facing.",
-    "note": "optional, for the author of the next class rather than for a client."
+    "note": "optional, for the author of the next class rather than for a client.",
+    "audience": "careCategories ONLY. One of `owner`, `professional`, `both` — the schedule's own three, measured at 117/44/29 across its 190 items. REQUIRED with no default: an unstated audience and a deliberate `both` are different facts, and allowing absence makes them indistinguishable. Amendment 8 §B2, tenth instance of declared-versus-absent deciding a shape here. The 69 values are sequenced behind the outside review across all 173 classes (§C), so `checkCareAudience` fails against this file until they land — which is the point: a declared-and-unfilled field reporting green is the state the amendment exists to prevent.",
+    "whyBothIsNotADodge": "`both` is what keeps audience at CATEGORY grain. 13 of 26 care categories were shared across classes when this was measured and `air-filter-replacement` alone spans 13 — so one value has to cover a bathroom fan and a furnace, and some categories genuinely vary: `gutter-clearing` is owner work on a bungalow and professional work at three storeys. `both` carries that honestly, and the per-household override at `s15.owner-pro-split` is where it resolves — which is where the schedule already resolves its own 44. Without `both` this needs class × care-category grain, turning `careCategories` from an array of ids into an array of objects across 173 classes. A breaking shape change avoided by using a vocabulary that already exists rather than inventing a finer one. Amendment 8 §B1.",
+    "theSixtyNineValuesAreOwedAndSequenced": "The field is declared and unfilled ON PURPOSE, and `checkCareAudience` fails against this file until it is filled. Outside review across all 173 classes is due now the content pass is complete — Document Register §6 #45, owner-agreed — and a review that moves, splits or merges a category rewrites any value written before it. Its first use already corrected a ruling with a stated reason that neither internal pass caught. So the shape lands now and the content lands with the review's corrections: the same reasoning that shipped this file empty rather than approximated. Amendment 8 §C."
   },
   "inspectionPointShape": {
     "id": "kebab-case token.",
@@ -5724,7 +5727,7 @@
       "note": "Filter and sanitising, and a supply line behind a cabinet."
     },
     {
-      "id": "range-water-line",
+      "id": "refrigerator-water-line",
       "label": "Refrigerator water line",
       "systems": [
         "tier-two"
@@ -5742,7 +5745,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "The flood risk hiding behind the fridge, and it fails where nobody looks until the floor is wet. Zero care is a ruling."
+      "note": "The flood risk hiding behind the fridge, and it fails where nobody looks until the floor is wet. Zero care is a ruling. Id corrected 2026-08-06 before merge — it read `range-water-line` over a label and a note that both say refrigerator. Rule 12 on an id, caught inside the one window where the duplicate-resolution rule had not yet locked it."
     },
     {
       "id": "instant-hot-dispenser",

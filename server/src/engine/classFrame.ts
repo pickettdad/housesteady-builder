@@ -144,6 +144,46 @@ export interface VocabularyTerm {
   note?: string
 }
 
+/**
+ * Who a care item is for by default. **Amendment 8 §B, and the three values are
+ * the schedule's own** — measured across its 190 items at 117 `professional`,
+ * 44 `both`, 29 `owner`.
+ *
+ * **It assigns no labour.** The frame answers *what does this kind of thing
+ * need*, and a licensed-work flag and a procedure-render flag were both proposed
+ * and withdrawn in one day for answering *who may do it* instead. This one
+ * survives on a different argument: the schedule and the engine feed **one
+ * list**, one of them declares an audience and the other does not, so
+ * `s15.owner-pro-split` renders populated for 190 items and blank for everything
+ * the engine produces. A consistency fact, not a labour fact.
+ *
+ * **`both` is load-bearing rather than a dodge, and it is what keeps this at
+ * category grain.** `gutter-clearing` is owner work on a bungalow and
+ * professional work at three storeys; `air-filter-replacement` spans 13 classes.
+ * Without `both`, audience would need class × care-category grain — turning
+ * `careCategories` from an array of ids into an array of objects across 173
+ * classes. The per-household override at `s15.owner-pro-split` is where the real
+ * split resolves, which is where the schedule already resolves its own 44.
+ */
+export type CareAudience = 'owner' | 'professional' | 'both'
+
+/** The three, declared once so no check writes them as literals. */
+export const CARE_AUDIENCES: readonly CareAudience[] = ['owner', 'professional', 'both']
+
+export interface CareCategory extends VocabularyTerm {
+  /**
+   * **Required, with no default — Amendment 8 §B2.** An unstated audience and a
+   * deliberate `both` are different facts, and allowing absence makes them
+   * indistinguishable. Tenth instance of declared-versus-absent deciding a shape
+   * here, and the same rule `unit` holds on a measure point.
+   *
+   * Optional in the *type* only because the file is mid-flight: §C sequences the
+   * 69 values behind the outside review, so the field is declared before it is
+   * filled. `checkCareAudience` is what makes that state loud instead of silent.
+   */
+  audience?: CareAudience
+}
+
 export interface InspectionPoint extends VocabularyTerm {
   kind: InspectionKind
   /**
@@ -188,7 +228,7 @@ export interface ClassEntry {
 
 export interface ClassFrame {
   version: string
-  careCategories: VocabularyTerm[]
+  careCategories: CareCategory[]
   inspectionPoints: InspectionPoint[]
   opportunityConditions: VocabularyTerm[]
   ownerQuestions: VocabularyTerm[]
@@ -242,7 +282,7 @@ export function readClassFrame(path: string = DEFAULT_PATH): ClassFrame {
   const classes = arr<ClassEntry>('classes')
   const frame: ClassFrame = {
     version: typeof parsed.version === 'string' ? parsed.version : 'unknown',
-    careCategories: arr<VocabularyTerm>('careCategories'),
+    careCategories: arr<CareCategory>('careCategories'),
     inspectionPoints: arr<InspectionPoint>('inspectionPoints'),
     opportunityConditions: arr<VocabularyTerm>('opportunityConditions'),
     ownerQuestions: arr<VocabularyTerm>('ownerQuestions'),
@@ -340,6 +380,44 @@ export function checkUnits(frame: ClassFrame): FrameProblem[] {
     }))
 }
 
+/**
+ * Every care category declares an audience, and it is one of the three.
+ * **Amendment 8 §B2.**
+ *
+ * Two distinct failures, reported separately because they are different facts:
+ * an **absent** key is nobody having written it, and an **unrecognised value**
+ * is somebody writing something the vocabulary does not hold. Collapsing them
+ * would lose exactly the distinction this field exists to preserve.
+ *
+ * **This check fails against the shipped file today, and that is its job.** §C
+ * sequences the 69 values behind the outside review across all 173 classes,
+ * because a review that moves, splits or merges a category rewrites any value
+ * written before it. A declared-and-unfilled field reporting green is the state
+ * the amendment exists to prevent — the same reason the frame shipped empty
+ * rather than approximated.
+ */
+export function checkCareAudience(frame: ClassFrame): FrameProblem[] {
+  const problems: FrameProblem[] = []
+  for (const c of frame.careCategories) {
+    if (!('audience' in c) || c.audience === undefined) {
+      problems.push({
+        classId: c.id,
+        problem: `The care category \`${c.id}\` declares no audience. One of ${CARE_AUDIENCES.join(', ')} is required and there is no default — an unstated audience and a deliberate \`both\` are different facts, and allowing absence makes them indistinguishable.`,
+        code: 'care-audience-absent',
+      })
+      continue
+    }
+    if (!CARE_AUDIENCES.includes(c.audience)) {
+      problems.push({
+        classId: c.id,
+        problem: `The care category \`${c.id}\` declares the audience \`${String(c.audience)}\`, which is not one of ${CARE_AUDIENCES.join(', ')}. The three are the schedule's own, so a fourth value would render into \`s15.owner-pro-split\` beside items that cannot carry it.`,
+        code: 'care-audience-unrecognised',
+      })
+    }
+  }
+  return problems
+}
+
 export interface ComponentTypeCheck {
   problems: FrameProblem[]
   /** What each class's declared type resolved to. Reported, not only counted. */
@@ -410,7 +488,7 @@ export function auditClassFrame(
   configSnapshot: Record<string, unknown>,
 ): { problems: FrameProblem[]; stubs: string[]; note: string } {
   const types = checkComponentTypes(frame, configSnapshot)
-  const problems = [...types.problems, ...checkVocabulary(frame), ...checkUnits(frame), ...checkAccess(frame)]
+  const problems = [...types.problems, ...checkVocabulary(frame), ...checkUnits(frame), ...checkAccess(frame), ...checkCareAudience(frame)]
   return {
     problems,
     stubs: types.stubs,
