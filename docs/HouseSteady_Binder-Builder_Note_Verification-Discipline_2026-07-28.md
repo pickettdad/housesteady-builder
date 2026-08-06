@@ -434,6 +434,42 @@ converting a deliberate design decision into dead code by accretion.
 and fixing the tests that went red is a symptom fix when the same event silenced tests that
 stayed green.
 
+#### 11b · A check whose two sides cannot disagree has not been passing
+
+*(Added 2026-08-05. Ratified as Increment 5 Amendment 6 §B2, and the worst of the three
+because no fixture can fix it.)*
+
+Rule 11 is about a fixture that cannot exercise a check. 11a is about a fixture that stops.
+**This one is about a check that was never able to fail, by construction** — where the two
+things being compared share an author, a source, or a generator, so agreement is guaranteed
+rather than earned.
+
+The repo already knew this shape in one place and did not know it was general. The class
+frame's §B3 vocabulary check is documented as weak *because both sides live in one file and
+one session wrote them*, and the file states in its own text that the vocabularies must be
+authored before the classes — because **a vocabulary harvested from the classes afterwards
+makes the check unfailable from birth.**
+
+Amendment 6 is what generalised it. The design session proposed making the class frame
+generate the field checklist. It would have been a tidying change, and it would have destroyed
+`checkComponentTypes` — §1a is the *strong* cross-check precisely because the class list and
+the field config are maintained separately and can disagree. Generated from one another, they
+never could. **The only cross-vocabulary check the engine has would have kept reporting green
+forever, and the commit that killed it would have read as a simplification.**
+
+> **Before trusting a green comparison, ask what would have to be true for the two sides to
+> differ. If the answer is "nothing, given how they are produced", the check is decoration.**
+
+**Why it is the most dangerous of the three.** Rules 11 and 11a describe idleness a better
+fixture cures — construct the input, and the check starts working. This kind survives every
+fixture, every run and every review, because the defect is in the topology of the data rather
+than in the data. **The only moment it is visible is the moment somebody proposes the
+unification**, which is exactly when it looks like an improvement.
+
+**The tell is always the same, and it is a question about provenance, not about code:** two
+values agree — were they *derived from* each other? Same author, same file, same generator,
+same import. Where the answer is yes, the agreement carries no information.
+
 ### 12. The name of an act is part of what it claims
 
 **Proposed by the design session 2026-08-03, after the second instance in a fortnight.**

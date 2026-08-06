@@ -1130,6 +1130,98 @@ describe('doctrine — the checklist master is reference, never an input', () =>
   })
 })
 
+describe('Amendment 6 §A — the class frame reaches the field app only as a component type', () => {
+  /**
+   * **The field checklist is what the concierge is asked to do at the visit; the
+   * class frame's inspection points are what the binder expects to know.** A
+   * class seeds a pin's *component type*, and the type brings whatever the field
+   * config declares. Nothing about a class's own points crosses the wire.
+   *
+   * Two reasons, and the second is why this is a scan rather than a comment.
+   * Generating checklist items from points would put the eight
+   * `requires-access-event` points on a visit list as work the concierge cannot
+   * do — the failure Amendment 5 exists to prevent. **And it would make
+   * `checkComponentTypes` idle from birth**, because §1a is strong only while the
+   * class list and the field config are maintained separately and can disagree.
+   * *A check whose two sides cannot disagree has not been passing*, and the
+   * change that destroyed it would have looked like tidying.
+   *
+   * **What this scan can and cannot claim.** `engine/classFrame.ts` has no
+   * consumers yet, so a scan over its consumers would match nothing and report
+   * green forever — writing that would be the exact error Amendment 6 ratifies.
+   * What exists today is the session plan, which is the real wire to the field
+   * app. So the assertion is narrow and true: **the plan path does not read the
+   * frame.** It fires the moment somebody wires them together, which is the
+   * moment worth catching.
+   */
+  const planPath = join(serverSrc, 'plan')
+
+  /** Extracted so the negative test can run it over a file that does offend. */
+  const readsTheFrame = (source: string): boolean =>
+    /from\s+['"][^'"]*engine\/classFrame(\.js)?['"]/.test(source) || /\breadClassFrame\b/.test(source)
+
+  it('has a plan path to scan, so this is not vacuous', () => {
+    // §9b. The whole scan rests on these files existing.
+    const files = sourceFiles(planPath)
+    assert.ok(files.length > 0, 'the session plan is the wire this scan is about')
+    assert.ok(files.some((f) => /sessionPlan/.test(f)), 'and it is the file that composes the export')
+  })
+
+  it('composes the session plan without reading the class frame', () => {
+    const offenders = sourceFiles(planPath)
+      .filter((f) => readsTheFrame(codeOf(f)))
+      .map((f) => f.replace(repoRoot, ''))
+    assert.deepEqual(offenders, [],
+      'a class seeds a component type and the field config supplies the items; points do not travel')
+  })
+
+  it('catches the wiring when there is some, proved on constructed source', () => {
+    // §9b again — negative-tested where it is written, because the shipped files
+    // pass and a scan nothing can fail is a scan nobody has run.
+    assert.equal(readsTheFrame(`import { readClassFrame } from '../engine/classFrame.js'`), true)
+    assert.equal(readsTheFrame(`const f = readClassFrame()`), true)
+    assert.equal(readsTheFrame(`import { componentGraph } from '../audit/components.js'`), false)
+  })
+})
+
+describe('Amendment 6 §E — a care category and an access event may share an id', () => {
+  /**
+   * `chimney-sweep` is both, and that is an identity rather than a collision:
+   * sweeping the chimney is the care task and is what opens the flue. **The two
+   * are separate namespaces and are not required to align in either direction.**
+   *
+   * Recorded as a test because the amendment's own reason for recording it is
+   * that a later author would tidy the inconsistency into false precision — and
+   * a rule forcing them to match would invent a care item for every trade visit,
+   * while one forbidding the match would split a single act in two.
+   */
+  const frame = (): { careCategories: { id: string }[]; inspectionPoints: { accessEvent?: string }[] } =>
+    JSON.parse(readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8'))
+
+  it('carries all three relationships, so neither alignment rule can be inferred', () => {
+    const f = frame()
+    const care = new Set(f.careCategories.map((c) => c.id))
+    const events = new Set(f.inspectionPoints.flatMap((p) => (p.accessEvent ? [p.accessEvent] : [])))
+
+    assert.ok([...events].some((e) => care.has(e)),
+      'at least one event IS a care category — the same act being work and occasion')
+    assert.ok([...events].some((e) => !care.has(e)),
+      'at least one event is nobody’s care item — somebody else’s trade visit')
+    assert.ok([...care].some((c) => !events.has(c)),
+      'and most care categories gate nothing')
+  })
+
+  it('says so in the file, where the author who would tidy it is reading', () => {
+    const raw = JSON.parse(
+      readFileSync(join(repoRoot, 'schema', 'class-frame-v1.json'), 'utf8'),
+    ) as Record<string, unknown>
+    const note = JSON.stringify(raw.anEventMayShareAnIdWithACareCategory)
+    assert.match(note, /identity rather than a collision/)
+    assert.match(note, /NOT required to align in either direction/)
+    assert.match(note, /invent a care item for every trade visit/)
+  })
+})
+
 describe('rule 13 — a worked example never collides with the data it explains', () => {
   /**
    * Three schema files carry a worked example beside the array it explains:
