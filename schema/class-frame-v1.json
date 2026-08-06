@@ -118,344 +118,425 @@
     {
       "id": "tank-flush",
       "label": "Tank flush",
-      "note": "Sediment removal from a storage tank."
+      "note": "Sediment removal from a storage tank.",
+      "audience": "both"
     },
     {
       "id": "anode-service",
       "label": "Anode inspection and replacement",
-      "note": "Sacrificial anode. Consumable — §1b part identity."
+      "note": "Sacrificial anode. Consumable — §1b part identity.",
+      "audience": "professional"
     },
     {
       "id": "descale",
       "label": "Descaling",
-      "note": "Scale removal from a heat exchanger."
+      "note": "Scale removal from a heat exchanger.",
+      "audience": "professional"
     },
     {
       "id": "air-filter-replacement",
       "label": "Air filter replacement",
-      "note": "Shared with HVAC and appliances. Consumable — §1b."
+      "note": "Shared with HVAC and appliances. Consumable — §1b.",
+      "audience": "owner"
     },
     {
       "id": "condensate-drain-service",
       "label": "Condensate drain service",
-      "note": "Shared with HVAC."
+      "note": "Shared with HVAC.",
+      "audience": "both"
     },
     {
       "id": "burner-and-combustion-service",
       "label": "Burner and combustion service",
-      "note": "Shared with heating. Schedule caution: combustion equipment by certified trades only."
+      "note": "Shared with heating. Schedule caution: combustion equipment by certified trades only.",
+      "audience": "professional"
     },
     {
       "id": "valve-exercise",
       "label": "Valve exercise",
-      "note": "Operating a valve so it does not seize. Shared with plumbing and fuel."
+      "note": "Operating a valve so it does not seize. Shared with plumbing and fuel.",
+      "audience": "both"
     },
     {
       "id": "well-shock-chlorination",
       "label": "Well disinfection",
-      "note": "Schedule caution: no shock chlorination in the seven days before sampling — it invalidates the result."
+      "note": "Schedule caution: no shock chlorination in the seven days before sampling — it invalidates the result.",
+      "audience": "both"
     },
     {
       "id": "salt-replenishment",
-      "label": "Salt replenishment"
+      "label": "Salt replenishment",
+      "audience": "owner"
     },
     {
       "id": "brine-tank-service",
       "label": "Brine tank service",
-      "note": "Salt bridging and residue. Distinct from replenishment."
+      "note": "Salt bridging and residue. Distinct from replenishment.",
+      "audience": "both"
     },
     {
       "id": "water-filter-cartridge-replacement",
       "label": "Water filter cartridge replacement",
-      "note": "Consumable — §1b. A wrong cartridge costs a trip."
+      "note": "Consumable — §1b. A wrong cartridge costs a trip.",
+      "audience": "owner"
     },
     {
       "id": "uv-lamp-replacement",
       "label": "UV lamp replacement",
-      "note": "Consumable — §1b. A spent lamp keeps glowing, which is the whole reason this is care and not inspection."
+      "note": "Consumable — §1b. A spent lamp keeps glowing, which is the whole reason this is care and not inspection.",
+      "audience": "owner"
     },
     {
       "id": "uv-sleeve-cleaning",
       "label": "Quartz sleeve cleaning",
-      "note": "A different part from the lamp, and therefore a different category."
+      "note": "A different part from the lamp, and therefore a different category.",
+      "audience": "owner"
     },
     {
       "id": "ro-membrane-replacement",
       "label": "Membrane replacement",
-      "note": "Consumable — §1b. Years, not months; different rhythm from the cartridges."
+      "note": "Consumable — §1b. Years, not months; different rhythm from the cartridges.",
+      "audience": "both"
     },
     {
       "id": "pump-out",
       "label": "Tank pump-out",
-      "note": "Also the access event that gates the tank interior — see `accessEvent: septic-pump-out`."
+      "note": "Also the access event that gates the tank interior — see `accessEvent: septic-pump-out`.",
+      "audience": "professional"
     },
     {
       "id": "effluent-filter-cleaning",
-      "label": "Effluent filter cleaning"
+      "label": "Effluent filter cleaning",
+      "audience": "both"
     },
     {
       "id": "coil-cleaning",
       "label": "Coil cleaning",
-      "note": "Condenser and evaporator coils. Shared across cooling, heat pumps and dehumidification."
+      "note": "Condenser and evaporator coils. Shared across cooling, heat pumps and dehumidification.",
+      "audience": "professional"
     },
     {
       "id": "blower-and-fan-cleaning",
       "label": "Blower and fan cleaning",
-      "note": "A fouled squirrel cage is not a dirty filter — distinct work, distinct rhythm."
+      "note": "A fouled squirrel cage is not a dirty filter — distinct work, distinct rhythm.",
+      "audience": "both"
     },
     {
       "id": "core-cleaning",
-      "label": "Ventilator core cleaning"
+      "label": "Ventilator core cleaning",
+      "audience": "owner"
     },
     {
       "id": "chimney-sweep",
       "label": "Chimney sweeping",
-      "note": "Also the access event gating the liner and creosote points — see `accessEvent: chimney-sweep`."
+      "note": "Also the access event gating the liner and creosote points — see `accessEvent: chimney-sweep`.",
+      "audience": "professional"
     },
     {
       "id": "burn-pot-and-ash-service",
       "label": "Burn pot and ash service",
-      "note": "Wood and pellet. Frequent, owner-level, and the item most likely to be skipped in February."
+      "note": "Wood and pellet. Frequent, owner-level, and the item most likely to be skipped in February.",
+      "audience": "owner"
     },
     {
       "id": "humidifier-pad-replacement",
       "label": "Evaporator pad replacement",
-      "note": "Consumable — §1b part identity."
+      "note": "Consumable — §1b part identity.",
+      "audience": "both"
     },
     {
       "id": "oil-filter-replacement",
       "label": "Oil filter replacement",
-      "note": "Consumable — §1b part identity."
+      "note": "Consumable — §1b part identity.",
+      "audience": "professional"
     },
     {
       "id": "radiator-bleeding",
       "label": "Radiator bleeding",
-      "note": "Seasonal, owner-level, and the reason a cold radiator is usually not a failed boiler."
+      "note": "Seasonal, owner-level, and the reason a cold radiator is usually not a failed boiler.",
+      "audience": "owner"
     },
     {
       "id": "damper-and-louvre-service",
       "label": "Damper and louvre service",
-      "note": "Louvres seize long before anyone notices, because nobody looks in the season they are not used."
+      "note": "Louvres seize long before anyone notices, because nobody looks in the season they are not used.",
+      "audience": "both"
     },
     {
       "id": "ground-loop-fluid-service",
       "label": "Ground loop fluid service",
-      "note": "Antifreeze concentration and loop pressure. Ground-source only."
+      "note": "Antifreeze concentration and loop pressure. Ground-source only.",
+      "audience": "professional"
     },
     {
       "id": "generator-exercise",
       "label": "Generator exercise run",
-      "note": "The one care item in this system that is not licensed work — running a machine, not altering a circuit."
+      "note": "The one care item in this system that is not licensed work — running a machine, not altering a circuit.",
+      "audience": "both"
     },
     {
       "id": "engine-oil-and-filter-service",
       "label": "Engine oil and filter service",
-      "note": "Standby and portable generators. Consumable — §1b part identity."
+      "note": "Standby and portable generators. Consumable — §1b part identity.",
+      "audience": "both"
     },
     {
       "id": "battery-replacement",
       "label": "Battery replacement",
-      "note": "Consumable — §1b. Shared with safety devices and controls."
+      "note": "Consumable — §1b. Shared with safety devices and controls.",
+      "audience": "owner"
     },
     {
       "id": "stored-fuel-rotation",
       "label": "Stored fuel rotation",
-      "note": "Portable generators only. Fuel that sat two winters is why the generator does not start in the outage it was bought for."
+      "note": "Portable generators only. Fuel that sat two winters is why the generator does not start in the outage it was bought for.",
+      "audience": "owner"
     },
     {
       "id": "array-surface-cleaning",
       "label": "Panel surface cleaning",
-      "note": "Solar. Height work, which the owner ruled is HouseSteady labour."
+      "note": "Solar. Height work, which the owner ruled is HouseSteady labour.",
+      "audience": "both"
     },
     {
       "id": "connector-cleaning",
       "label": "Connector cleaning",
-      "note": "EV charging handles and their contacts."
+      "note": "EV charging handles and their contacts.",
+      "audience": "owner"
     },
     {
       "id": "door-seal-cleaning",
       "label": "Door seal cleaning",
-      "note": "Household-level, frequent, and it is what makes a gasket last. Shared across refrigeration, dishwashers and front-load washers."
+      "note": "Household-level, frequent, and it is what makes a gasket last. Shared across refrigeration, dishwashers and front-load washers.",
+      "audience": "owner"
     },
     {
       "id": "grease-filter-cleaning",
       "label": "Grease filter cleaning",
-      "note": "Household-level and monthly in a kitchen that cooks."
+      "note": "Household-level and monthly in a kitchen that cooks.",
+      "audience": "owner"
     },
     {
       "id": "charcoal-filter-replacement",
       "label": "Charcoal filter replacement",
-      "note": "Recirculating hoods. Consumable — §1b part identity. Nobody replaces it, which is why it is declared."
+      "note": "Recirculating hoods. Consumable — §1b part identity. Nobody replaces it, which is why it is declared.",
+      "audience": "owner"
     },
     {
       "id": "lint-and-duct-clearing",
       "label": "Lint and duct clearing",
-      "note": "The dryer duct's whole reason for existing as a class."
+      "note": "The dryer duct's whole reason for existing as a class.",
+      "audience": "both"
     },
     {
       "id": "drum-and-gasket-service",
       "label": "Drum and gasket service",
-      "note": "Front-load washers. Leaving the door ajar is half of it and costs nothing."
+      "note": "Front-load washers. Leaving the door ajar is half of it and costs nothing.",
+      "audience": "owner"
     },
     {
       "id": "descale-appliance",
       "label": "Appliance descaling",
-      "note": "Dishwashers and kettles in hard water. Distinct from `descale`, which is a heat exchanger."
+      "note": "Dishwashers and kettles in hard water. Distinct from `descale`, which is a heat exchanger.",
+      "audience": "owner"
     },
     {
       "id": "interior-cleaning",
       "label": "Interior cleaning",
-      "note": "Household-level. Ovens, refrigerators, microwaves — the care that keeps a thing working rather than merely clean."
+      "note": "Household-level. Ovens, refrigerators, microwaves — the care that keeps a thing working rather than merely clean.",
+      "audience": "owner"
     },
     {
       "id": "glass-and-surface-care",
       "label": "Glass and surface care",
-      "note": "Smooth-top ranges and cooktops need a specific cleaner and a scraper; the wrong one scratches. Also gas fireplace glass."
+      "note": "Smooth-top ranges and cooktops need a specific cleaner and a scraper; the wrong one scratches. Also gas fireplace glass.",
+      "audience": "owner"
     },
     {
       "id": "drip-pan-replacement",
       "label": "Drip pan replacement",
-      "note": "Coil ranges and cooktops. Consumable — §1b, and the part number is why the coil-versus-smooth split earns itself."
+      "note": "Coil ranges and cooktops. Consumable — §1b, and the part number is why the coil-versus-smooth split earns itself.",
+      "audience": "owner"
     },
     {
       "id": "condenser-coil-cleaning",
       "label": "Appliance condenser coil cleaning",
-      "note": "Refrigeration. Distinct from `coil-cleaning`, which is an HVAC coil in an airstream."
+      "note": "Refrigeration. Distinct from `coil-cleaning`, which is an HVAC coil in an airstream.",
+      "audience": "both"
     },
     {
       "id": "bag-and-filter-service",
       "label": "Bag and filter service",
-      "note": "Central vacuum."
+      "note": "Central vacuum.",
+      "audience": "owner"
     },
     {
       "id": "seasonal-removal-and-reinstall",
       "label": "Seasonal removal and reinstallation",
-      "note": "Pulled before ice and returned after. Lake intakes and floating docks — a whole category the first four systems missed because it is care that happens to a thing rather than on it."
+      "note": "Pulled before ice and returned after. Lake intakes and floating docks — a whole category the first four systems missed because it is care that happens to a thing rather than on it.",
+      "audience": "both"
     },
     {
       "id": "drain-filter-cleaning",
       "label": "Drain filter or trap cleaning",
-      "note": "A debris trap in a drain path — a dishwasher filter, a front-load washer pump trap. Owner-accessible on most models, neglected on nearly all. Added 2026-08-05 from outside review."
+      "note": "A debris trap in a drain path — a dishwasher filter, a front-load washer pump trap. Owner-accessible on most models, neglected on nearly all. Added 2026-08-05 from outside review.",
+      "audience": "owner"
     },
     {
       "id": "self-clean-cycle",
       "label": "Running the appliance's own cleaning cycle",
-      "note": "Tub-clean, clean-washer, self-clean oven. Distinct from `interior-cleaning`: this is the appliance cleaning itself on a rhythm somebody has to remember, which is why it is the one that gets skipped. Added 2026-08-05."
+      "note": "Tub-clean, clean-washer, self-clean oven. Distinct from `interior-cleaning`: this is the appliance cleaning itself on a rhythm somebody has to remember, which is why it is the one that gets skipped. Added 2026-08-05.",
+      "audience": "owner"
     },
     {
       "id": "manual-defrost",
       "label": "Manual defrosting",
-      "note": "Non-frost-free freezers and refrigerators. Chest freezers are common in rural stock. Added 2026-08-05."
+      "note": "Non-frost-free freezers and refrigerators. Chest freezers are common in rural stock. Added 2026-08-05.",
+      "audience": "owner"
     },
     {
       "id": "termination-clearing",
       "label": "Exterior vent termination clearing",
-      "note": "Snow, ice, nests, leaves, and a backdraft damper that must move freely. Cross-system — dryers, range hoods, and bathroom fans when interior is written. Added 2026-08-05; the frame had the inspection point and not the task."
+      "note": "Snow, ice, nests, leaves, and a backdraft damper that must move freely. Cross-system — dryers, range hoods, and bathroom fans when interior is written. Added 2026-08-05; the frame had the inspection point and not the task.",
+      "audience": "both"
     },
     {
       "id": "seasonal-drain-down",
       "label": "Seasonal draining",
-      "note": "Standard hose bibs, irrigation, seasonal lines. Care that must happen before a date rather than on an interval — and the date is set by the weather, not the calendar."
+      "note": "Standard hose bibs, irrigation, seasonal lines. Care that must happen before a date rather than on an interval — and the date is set by the weather, not the calendar.",
+      "audience": "both"
     },
     {
       "id": "trap-priming",
       "label": "Trap priming",
-      "note": "Pouring water into a seldom-used drain so its trap does not dry and admit sewer gas. Household work, costs nothing, and nobody does it."
+      "note": "Pouring water into a seldom-used drain so its trap does not dry and admit sewer gas. Household work, costs nothing, and nobody does it.",
+      "audience": "owner"
     },
     {
       "id": "drain-clearing",
       "label": "Drain clearing",
-      "note": "Hair, grease and debris from an accessible trap or strainer — not a snaking job."
+      "note": "Hair, grease and debris from an accessible trap or strainer — not a snaking job.",
+      "audience": "both"
     },
     {
       "id": "aerator-and-showerhead-descaling",
       "label": "Aerator and showerhead descaling",
-      "note": "Hard water in a limestone region. Household work with a visible result."
+      "note": "Hard water in a limestone region. Household work with a visible result.",
+      "audience": "owner"
     },
     {
       "id": "pump-basin-clearing",
       "label": "Pump basin clearing",
-      "note": "Silt, gravel and debris from a sump or ejector basin. Cleared, the pump lasts; uncleared, the impeller does not."
+      "note": "Silt, gravel and debris from a sump or ejector basin. Cleared, the pump lasts; uncleared, the impeller does not.",
+      "audience": "both"
     },
     {
       "id": "gutter-clearing",
       "label": "Eavestrough and downspout clearing",
-      "note": "The group-buy item — seasonal, universal, and height work, which the owner ruled 2026-08-05 is HouseSteady labour."
+      "note": "The group-buy item — seasonal, universal, and height work, which the owner ruled 2026-08-05 is HouseSteady labour.",
+      "audience": "both"
     },
     {
       "id": "weatherseal-and-caulk-renewal",
       "label": "Weatherseal and caulk renewal",
-      "note": "Doors, windows, penetrations. Household-level and the highest-return small task in the envelope."
+      "note": "Doors, windows, penetrations. Household-level and the highest-return small task in the envelope.",
+      "audience": "both"
     },
     {
       "id": "track-and-roller-service",
       "label": "Track and roller service",
-      "note": "Sliding patio doors and garage doors. Cleaned and lubricated, not adjusted — spring adjustment is a trade's."
+      "note": "Sliding patio doors and garage doors. Cleaned and lubricated, not adjusted — spring adjustment is a trade's.",
+      "audience": "both"
     },
     {
       "id": "hardware-lubrication",
       "label": "Hardware lubrication",
-      "note": "Hinges, latches, locks, operators. Cheap, and it is what stops a window being painted shut by neglect."
+      "note": "Hinges, latches, locks, operators. Cheap, and it is what stops a window being painted shut by neglect.",
+      "audience": "owner"
     },
     {
       "id": "deck-sealing",
       "label": "Deck sealing or staining",
-      "note": "Wood only. The composite split exists to declare that this does NOT apply."
+      "note": "Wood only. The composite split exists to declare that this does NOT apply.",
+      "audience": "both"
     },
     {
       "id": "surface-washing",
       "label": "Surface washing",
-      "note": "Composite decking, siding, walkways. Cleaned rather than treated."
+      "note": "Composite decking, siding, walkways. Cleaned rather than treated.",
+      "audience": "both"
     },
     {
       "id": "vegetation-clearance",
       "label": "Vegetation clearance",
-      "note": "Keeping growth off structures, terminations, beds and walls. The care that is mostly about what you cut back."
+      "note": "Keeping growth off structures, terminations, beds and walls. The care that is mostly about what you cut back.",
+      "audience": "both"
     },
     {
       "id": "seasonal-blow-out",
       "label": "Seasonal blow-out",
-      "note": "Irrigation lines before freezing. A hard date in this climate, not an interval."
+      "note": "Irrigation lines before freezing. A hard date in this climate, not an interval.",
+      "audience": "professional"
     },
     {
       "id": "water-chemistry-management",
       "label": "Water chemistry management",
-      "note": "Pools and hot tubs. Frequent, household-level, and the whole of what keeps the equipment alive."
+      "note": "Pools and hot tubs. Frequent, household-level, and the whole of what keeps the equipment alive.",
+      "audience": "both"
     },
     {
       "id": "filter-and-basket-cleaning",
       "label": "Filter and basket cleaning",
-      "note": "Pool and hot tub skimmers, pumps and cartridges."
+      "note": "Pool and hot tub skimmers, pumps and cartridges.",
+      "audience": "owner"
     },
     {
       "id": "culvert-and-drain-clearing",
       "label": "Culvert and drain clearing",
-      "note": "Silt, leaves and ice from culverts, yard drains and catch basins. Rural essential — the driveway washes out when it is skipped."
+      "note": "Silt, leaves and ice from culverts, yard drains and catch basins. Rural essential — the driveway washes out when it is skipped.",
+      "audience": "both"
     },
     {
       "id": "sanitising",
       "label": "Sanitising",
-      "note": "Water coolers, ice makers, instant-hot dispensers. Standing water at room temperature — the care nobody does because nothing looks wrong."
+      "note": "Water coolers, ice makers, instant-hot dispensers. Standing water at room temperature — the care nobody does because nothing looks wrong.",
+      "audience": "owner"
     },
     {
       "id": "firmware-and-account-review",
       "label": "Firmware and account review",
-      "note": "Smart devices. A camera on abandoned firmware and an account nobody can log into are both failures, and neither is visible in the house."
+      "note": "Smart devices. A camera on abandoned firmware and an account nobody can log into are both failures, and neither is visible in the house.",
+      "audience": "owner"
     },
     {
       "id": "blade-and-direction-service",
       "label": "Blade cleaning and seasonal direction reversal",
-      "note": "Ceiling fans. The reversal is a real seasonal item and almost nobody does it."
+      "note": "Ceiling fans. The reversal is a real seasonal item and almost nobody does it.",
+      "audience": "owner"
     },
     {
       "id": "caulk-and-grout-renewal",
       "label": "Caulk and grout renewal",
-      "note": "Not mechanical, and it is what stands between a shower and rot in the wall cavity."
+      "note": "Not mechanical, and it is what stands between a shower and rot in the wall cavity.",
+      "audience": "both"
     },
     {
       "id": "monitoring-contract-review",
       "label": "Monitoring contract review",
-      "note": "Security panels. The contract is the thing that fails, not the panel."
+      "note": "Security panels. The contract is the thing that fails, not the panel.",
+      "audience": "owner"
+    },
+    {
+      "id": "regulatory-testing",
+      "label": "Regulatory testing",
+      "note": "A mandated recurring test performed by a licensed party, producing a record. Backflow preventers and lifts. **It is care because somebody must arrange it and remember when** — not because of who performs it. Added 2026-08-06 from outside review.",
+      "audience": "professional"
+    },
+    {
+      "id": "seasonal-position-change",
+      "label": "Seasonal position change",
+      "note": "Opened in spring and closed in autumn, or the reverse. Foundation vents. Care that changes a thing's state without servicing it. Added 2026-08-06.",
+      "audience": "owner"
     }
   ],
   "inspectionPoints": [
@@ -1586,6 +1667,11 @@
       "id": "bathroom-fan-venting-to-attic",
       "label": "Bathroom fan venting into the attic",
       "note": "The moisture failure that hides best — it looks like it is working from inside the room."
+    },
+    {
+      "id": "vented-crawlspace-in-freezing-climate",
+      "label": "Vented crawlspace in a freezing climate",
+      "note": "Regional. Current practice here is a sealed, conditioned crawlspace; exterior venting invites frozen pipes. **Added 2026-08-06 because two reviews disagreed about the same class and both were right** — the correctness pass said the seasonal care exists and was undeclared, the regional pass said the practice is wrong for this climate. The care describes what happens; the opportunity carries the correction."
     }
   ],
   "ownerQuestions": [
@@ -1751,6 +1837,11 @@
       "id": "does-the-app-still-work",
       "label": "Can you still sign in to it?",
       "note": "Smart devices outlive their accounts. A camera nobody can reach is a device that is not there."
+    },
+    {
+      "id": "do-you-know-where-the-gas-shutoff-is",
+      "label": "Do you know where the gas shutoff is?",
+      "note": "Added 2026-08-06 — the class reused the water-shutoff question. Outside review's cleanest catch and a straight clerical error."
     }
   ],
   "classes": [
@@ -3348,7 +3439,7 @@
         "who-fills-the-tank"
       ],
       "replacementHorizon": true,
-      "note": "Usually leased, and the lease is a fact worth carrying — `owned-or-rented` does the same job here it does for a rented water heater. Zero care is a ruling, and it is a contractual fact as much as a technical one: the tank is usually leased and the supplier maintains it."
+      "note": "Usually leased, and the lease is a fact worth carrying — `owned-or-rented` does the same job here it does for a rented water heater. Zero care is a ruling: nothing recurring has to be scheduled or remembered. Whatever the supplier does on refill happens without anyone arranging it."
     },
     {
       "id": "fuel-tank-oil",
@@ -3375,7 +3466,7 @@
         "do-you-have-the-paperwork"
       ],
       "replacementHorizon": true,
-      "note": "Insurance-relevant rather than merely condition-relevant. Age and type drive coverage, which is why the opportunity fires on age rather than on a finding. Zero care is a ruling — the shell and fittings are inspected, and everything else is a licensed trade's."
+      "note": "Insurance-relevant rather than merely condition-relevant. Age and type drive coverage, which is why the opportunity fires on age rather than on a finding. Zero care is a ruling: a tank shell has no recurring service. It is inspected, and it is replaced when inspection says so."
     },
     {
       "id": "propane-regulator",
@@ -3394,7 +3485,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Zero care is a ruling: a regulator is inspected and replaced on a horizon. HouseSteady labour cannot touch gas at all."
+      "note": "Zero care is a ruling: a regulator is inspected and replaced on a horizon, with nothing recurring in between."
     },
     {
       "id": "oil-tank-fittings",
@@ -3459,7 +3550,7 @@
         "do-you-have-the-paperwork"
       ],
       "replacementHorizon": true,
-      "note": "Zero care categories, and that is the ruling rather than an omission: every act that would maintain a panel is licensed electrical work. Three of its four inspection points are the whole of what can be honestly said from outside the enclosure, and the fourth is access-gated on an electrician already being there. Zero care is a ruling."
+      "note": "Zero care categories, and that is the ruling rather than an omission: every act that would maintain a panel is licensed electrical work. Three of its four inspection points are the whole of what can be honestly said from outside the enclosure, and the fourth is access-gated on an electrician already being there. Zero care is a ruling: nothing about a residential panel is done on a rhythm. Everything it needs is a repair fired by a finding."
     },
     {
       "id": "surge-protector-panel",
@@ -3497,7 +3588,7 @@
       ],
       "ownerQuestions": [],
       "replacementHorizon": true,
-      "note": "Exposed to trees, ice and storms on rural lots while the interior panel is untouched. Regional. Zero care is a ruling — inspected from the ground, and every remedy is a licensed electrician's."
+      "note": "Exposed to trees, ice and storms on rural lots while the interior panel is untouched. Regional. Zero care is a ruling: a mast and meter base have no recurring service at all. They are looked at, and a fault is a repair rather than a rhythm."
     },
     {
       "id": "receptacle-gfci",
@@ -4668,7 +4759,9 @@
         "plumbing"
       ],
       "componentType": "gas-shutoff",
-      "careCategories": [],
+      "careCategories": [
+        "valve-exercise"
+      ],
       "inspectionPoints": [
         "shutoff-operation-and-labelling"
       ],
@@ -4676,10 +4769,10 @@
         "unlabelled-shutoff"
       ],
       "ownerQuestions": [
-        "do-you-know-where-the-main-shutoff-is"
+        "do-you-know-where-the-gas-shutoff-is"
       ],
       "replacementHorizon": true,
-      "note": "Inspected and labelled, never operated. HouseSteady labour cannot touch gas at all, per the owner 2026-08-05, and exercising a gas valve is not an exception to that. Zero care is a ruling."
+      "note": "CORRECTED 2026-08-06 by outside review. It declared zero care and the stated reason was that HouseSteady labour cannot touch gas — **which is a labour fact deciding a care declaration, and the class list assigns no labour.** A gas shutoff needs exercising; who may do it is the `audience` field's job and the answer is `professional`. First real use of Amendment 8, and it arrived as a correction rather than as a feature. Superseded reason, kept because the correction is evidence of it: Inspected and labelled, never operated. HouseSteady labour cannot touch gas at all, per the owner 2026-08-05, and exercising a gas valve is not an exception to that."
     },
     {
       "id": "pressure-reducing-valve",
@@ -5107,16 +5200,20 @@
         "envelope"
       ],
       "componentType": "none",
-      "careCategories": [],
+      "careCategories": [
+        "seasonal-position-change"
+      ],
       "inspectionPoints": [
         "foundation-vent-position"
       ],
-      "opportunityConditions": [],
+      "opportunityConditions": [
+        "vented-crawlspace-in-freezing-climate"
+      ],
       "ownerQuestions": [
         "who-opens-and-closes-it-seasonally"
       ],
       "replacementHorizon": false,
-      "note": "Seasonal open and close. Seized, or left wrong for the season, invites freeze damage one way and pests the other. No horizon. Zero care is a ruling."
+      "note": "CORRECTED 2026-08-06. Seasonal open and close was written as an owner question and never as care, so the frame asked about it and never generated it. Superseded reason, kept because the correction is evidence of it: Seasonal open and close. Seized, or left wrong for the season, invites freeze damage one way and pests the other. No horizon. Regional pass, same day: exterior crawlspace venting is a cold-climate hazard here, so the class also carries an opportunity to seal. Care describes the practice; the opportunity corrects it."
     },
     {
       "id": "outbuilding",
@@ -5223,7 +5320,9 @@
         "waterfront"
       ],
       "componentType": "dock",
-      "careCategories": [],
+      "careCategories": [
+        "seasonal-removal-and-reinstall"
+      ],
       "inspectionPoints": [
         "de-icer-operation-and-placement"
       ],
@@ -5234,7 +5333,7 @@
         "who-opens-and-closes-it-seasonally"
       ],
       "replacementHorizon": true,
-      "note": "A bubbler is neither dock hardware nor irrigation, and it runs unattended all winter doing the one job nobody checks. Zero care is a ruling."
+      "note": "CORRECTED 2026-08-06. Same shape as the foundation vent — the seasonal action was asked of the household and never declared. Superseded reason, kept because the correction is evidence of it: A bubbler is neither dock hardware nor irrigation, and it runs unattended all winter doing the one job nobody checks."
     },
     {
       "id": "shoreline-structure",
@@ -5312,7 +5411,9 @@
         "site"
       ],
       "componentType": "backflow-preventer",
-      "careCategories": [],
+      "careCategories": [
+        "regulatory-testing"
+      ],
       "inspectionPoints": [
         "backflow-preventer-test-record"
       ],
@@ -5324,7 +5425,7 @@
         "do-you-have-a-service-contract"
       ],
       "replacementHorizon": true,
-      "note": "Annual testing is a licensed tester's and produces a certificate. The record is the inspectable thing; the test is not ours. Stub type at v1.11.0. Zero care is a ruling."
+      "note": "CORRECTED 2026-08-06. It declared zero care because the annual test is a licensed tester's. **Somebody has to arrange it and remember when** — that is care with an audience, not an absence of care. The record stays an inspection point. Superseded reason, kept because the correction is evidence of it: Annual testing is a licensed tester's and produces a certificate. The record is the inspectable thing; the test is not ours. Stub type at v1.11.0."
     },
     {
       "id": "pool",
@@ -5385,7 +5486,9 @@
         "site"
       ],
       "componentType": "elevator-lift",
-      "careCategories": [],
+      "careCategories": [
+        "regulatory-testing"
+      ],
       "inspectionPoints": [
         "lift-service-record"
       ],
@@ -5396,7 +5499,7 @@
         "do-you-have-a-service-contract"
       ],
       "replacementHorizon": true,
-      "note": "Inspected under regulation by a licensed contractor. The record is what we hold; the inspection is not ours. Stub type at v1.11.0. Zero care is a ruling."
+      "note": "CORRECTED 2026-08-06. Same error as the backflow preventer: a regulated inspection somebody must arrange is care, and the licensed contractor is the audience rather than the reason. Superseded reason, kept because the correction is evidence of it: Inspected under regulation by a licensed contractor. The record is what we hold; the inspection is not ours. Stub type at v1.11.0."
     },
     {
       "id": "culvert",

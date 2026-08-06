@@ -146,19 +146,14 @@ describe('the reader reports what the file holds, whatever that is', () => {
  * rather than carried across a handover.
  */
 describe('the shipped content, checked rather than taken on trust', () => {
-  it('audits clean against the walk’s own config snapshot, but for the one open field', () => {
-    // **Renamed, because it no longer claims what it used to — rule 12.** Amendment
-    // 8 declares `audience` on every care category and §C sequences the 69 values
-    // behind the outside review, so the audit legitimately carries
-    // `care-audience-absent` until that lands.
-    //
-    // Filtered here rather than softened: this test's job is *no UNEXPECTED
-    // problem*, and it still fails on any other code. The deliberate red lives in
-    // its own test below, where it can be read as a single named thing instead of
-    // making every audit assertion ambiguous.
+  it('audits clean against the walk’s own config snapshot', () => {
+    // Briefly carried a filter for `care-audience-absent`, between Amendment 8
+    // declaring `audience` and §C's 71 values landing. **Both arrived in one
+    // merge**, so the exemption existed for exactly as long as the gap it
+    // described and is gone with it — rewritten whole rather than left with a
+    // superseded first line, which is rule 14 applied to a test comment.
     const a = auditClassFrame(readClassFrame(), walkConfig())
-    const unexpected = a.problems.filter((p) => p.code !== 'care-audience-absent')
-    assert.deepEqual(unexpected.map((p) => `${p.code} · ${p.classId}`), [])
+    assert.deepEqual(a.problems.map((p) => `${p.code} · ${p.classId}`), [])
   })
 
   it('reports the classes that map to a stub, because a stub seeds an empty checklist', () => {
@@ -813,26 +808,25 @@ describe('every care category declares an audience — Amendment 8 §B2', () => 
   })
 
   /**
-   * **THIS TEST IS EXPECTED TO FAIL, AND ITS FAILURE IS THE POINT.**
+   * **Green, and it closed itself exactly as designed.** This test shipped
+   * failing: Amendment 8 declared `audience` on every care category and §C
+   * sequenced the 71 values behind the outside review, because a review that
+   * moves, splits or merges a category rewrites anything written before it.
    *
-   * Amendment 8 §C: the shape lands now and the 69 values land with the outside
-   * review's corrections, because a review that moves, splits or merges a
-   * category rewrites anything written before it. **A declared-and-unfilled field
-   * reporting green is the state the amendment exists to prevent** — the same
-   * reason this file shipped empty rather than approximated.
+   * The values landed in the same merge as the shape, so the red never reached
+   * `main` — and the test needed no edit to go green, which was the property
+   * being aimed at. **What made that safe was the check being negative-tested
+   * from both directions above**, so its passing now means the vocabulary is
+   * filled rather than that the check stopped looking.
    *
-   * **How to tell this failure from a real one:** it names only
-   * `care-audience-absent`, and the count equals the whole vocabulary. Any other
-   * code, or a partial count, means something else is wrong.
-   *
-   * **It closes itself.** When the values land this passes with no edit here.
+   * It stays as the standing guard: a category added later without an audience
+   * fails here, and that is the state the whole field exists to prevent.
    */
-  it('every shipped care category declares one — fails until §C’s values land', () => {
+  it('every shipped care category declares one', () => {
     const f = readClassFrame()
     const problems = checkCareAudience(f)
     assert.deepEqual(problems, [],
       `${problems.length} of ${f.careCategories.length} care categories declare no audience. ` +
-        `Amendment 8 §C sequences these behind the outside review (Document Register §6 #45); ` +
-        `this closes when the values land and needs no change here.`)
+        `There is no default — an unstated audience and a deliberate \`both\` are different facts.`)
   })
 })
