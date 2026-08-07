@@ -1,0 +1,2500 @@
+{
+  "schemaId": "housesteady.class-frame",
+  "version": "1.0.0",
+  "date": "2026-08-04",
+  "status": "CONTENT PASS IN PROGRESS — 68 of 173 classes. Water heating, wells and water treatment, septic, and heating and cooling with fuel are written; eight systems remain. A class or term absent here is unwritten, not declined — the frame fails open on vocabulary per §8.",
+  "sourceDocument": "HouseSteady_Class-Frame_v1-1_2026-08-02, as corrected by Increment 5 Build Spec Amendment 3 §B and Amendment 4 §D.",
+  "note": "What kinds of thing live in a house, and what each kind needs. The engine recognises a thing, looks up its class, and generates work from what the class declares. This file is the declaration; the research pass supplies model-specific detail inside it.",
+  "whyTheFrameShipsBeforeTheContent": "Pass two written as prose and translated into this shape later is a hand transformation applied to ~172 rows, which is the shape of every drift failure in this project. Written against this file, it is authored in its final form. Amendment 3 §C.",
+  "theVocabulariesMustComeFirst": {
+    "rule": "`careCategories`, `inspectionPoints`, `opportunityConditions` and `ownerQuestions` are authored FROM THE SYSTEMS, before the classes that reference them — never harvested from the classes afterwards.",
+    "whyItIsNotAPreference": "Amendment 3 §B3's second stated weakness, and it is rule 11. If the vocabulary is written by collecting whatever the classes happen to say, then no class can name an undeclared term, the cross-check can never fail, and it is idle from birth — a green check that proves nothing. Authored first, it catches the drift it exists for.",
+    "theDriftItCatches": "Across ~172 classes written as free text, three classes say `filter change`, `filter replacement` and `replace filter`, and nothing notices. That is Increment 5 §1a's two-taxonomies failure occurring inside one file.",
+    "andTheReviewQueueDependsOnIt": "Increment 5 §7 must be able to say 'three water heaters this quarter returned expansion tank inspection and the class does not declare it'. Counting proposals against the frame requires the frame's entries to be tokens rather than prose.",
+    "measuredFromThePilot": "Eight classes produced 7 care categories, 15 inspection points and 7 opportunity conditions (owner questions arrived with Amendment 4 and the pilot has not been re-counted for them) — and five of the seven care categories were already shared with systems not yet written. As prose, `air-filter-replacement` would have been written five times, differently."
+  },
+  "whatThisCrossCheckCannotDo": "Stated so it is not over-trusted. Amendment 3 §B3's first weakness: unlike §1a's component-type check, which reads an EXTERNAL config this file does not own, both sides of this one live in this file and are authored by one session. It catches typos and drift. It cannot catch a judgement error — a category that is declared, referenced, and simply wrong.",
+  "careVersusInspection": {
+    "rule": "Care changes the state of the thing. Inspection looks at the thing and reports.",
+    "theCaseThatForcedIt": "A TPR valve. Operating it is an action on a rhythm — care. Looking at its discharge piping is a look — inspection.",
+    "whyTheLineMatters": "Care feeds the schedule's calendar; inspection feeds the Inspection Visit. §0.4's four streams stay uncollapsed because of it.",
+    "source": "Amendment 3 §B4."
+  },
+  "howThisMeetsTheMaintenanceSchedule": {
+    "theLine": "Granularity, not rhythm. The schedule asks whether the HOUSE has water treatment and emits one row; this frame asks what THIS OBJECT is and emits one row per object. One system fires without identification; the other cannot fire without it.",
+    "theJoin": "`componentType` below. The schedule keys on `house.<component-type>`; every class here declares the type it maps to or an explicit `none`. No new field and no mapping layer.",
+    "whoOwnsWhat": "The schedule owns the calendar slot and the default cadence. This frame owns identity, multiplicity, and model-specific detail rendered inside that slot — one calendar entry expanded to two lines where the engine knows there are two pumps.",
+    "intervalConflicts": "There is no second calendar item. `maintenance-schedule-v1.json`'s own `overrideRule` already governs it: manufacturer instructions, specialist advice, insurer requirements and actual condition override generic intervals, per property, carrying a reason and a source, never editing that file. A research-pass finding of 'every six months for this model' is a manufacturer-instruction override and must be written as one.",
+    "source": "Amendment 3 §A, from Builder Code's parse of 2026-08-04."
+  },
+  "vocabularyShape": {
+    "id": "kebab-case token. The thing a class references and the review queue counts.",
+    "label": "what a person reads. Client-facing where the stream is client-facing.",
+    "note": "optional, for the author of the next class rather than for a client."
+  },
+  "inspectionPointShape": {
+    "id": "kebab-case token.",
+    "label": "what a person reads.",
+    "kind": "`look` or `measure`. A `measure` point records a value; a `look` point records a state.",
+    "access": "`direct` | `requires-access-found` | `requires-access-event`. DEFAULTS TO `direct` and most points are it. Amendment 5 §B. `requires-access-found` needs an access point to exist and be exposed — a riser at grade, an uncovered lid — and is an Inspection Visit item only if Discovery found the access. `requires-access-event` needs the thing opened by a third party on their own schedule, RIDES THAT EVENT, and is never an Inspection Visit item.",
+    "accessEvent": "REQUIRED when `access` is `requires-access-event`, and meaningless otherwise. `septic-pump-out` · `annual-combustion-service` · `panel-service`. A gated point that cannot name its event is a point nobody can schedule.",
+    "unit": "REQUIRED ON A `measure` POINT, and `null` is a legitimate value meaning deliberately unitless. Amendment 3 §B2. `delivery-temperature` is °C and `expansion-tank-charge` is kPa, and the shape had nowhere to say so — while the field app already carries three deliberately unitless measure items because %WME, %MC and relative 0–100 are different scales. So: a unit is declared, or its absence is explicit. An ABSENT key is neither, and is an error. Ninth instance of declared-versus-absent deciding a shape here."
+  },
+  "classShape": {
+    "id": "kebab-case token, unique across this file.",
+    "label": "the client-facing name, used when no specific model has been identified. The config declares no label for a component type — checked 2026-08-04, the id is all it has — so this is the class list's own to write.",
+    "systems": "ARRAY, and holding two is ordinary rather than exceptional. Amendment 3 §B1: `water-heater-indirect` is domestic hot water AND hydronic, and dropping either loses a real property-pass question. An empty array is legitimate — a pod coffee maker belongs to no system.",
+    "componentType": "the field-config component type this class maps to, or the string `none`. REQUIRED — see `componentTypeRules`.",
+    "careCategories": "array of ids declared in `careCategories`.",
+    "inspectionPoints": "array of ids declared in `inspectionPoints`.",
+    "opportunityConditions": "array of ids declared in `opportunityConditions`.",
+    "ownerQuestions": "array of ids declared in `ownerQuestions`. Amendment 4 §A — the fifth output.",
+    "replacementHorizon": "boolean — whether a replacement horizon applies to this kind of thing. The class declares only THAT one applies; the horizon itself is entirely generated by the research pass, per Increment 5 §4c."
+  },
+  "componentTypeRules": {
+    "checkedAgainstTheImport": "Every class declaring a component type is validated against the IMPORT'S OWN config snapshot, never against a list kept here or anywhere else in this repo. Increment 5 §1a — the named failure is the class list and the field config drifting apart and nobody noticing until a session plan seeds the wrong checklist.",
+    "explicitNoneIsNotAnAbsentKey": "A class may map to no component type and that is ordinary — a pod coffee maker is on no checklist and never will be. `componentType: \"none\"` says THIS KIND OF THING IS NOT INSPECTED. An absent key says NOBODY FILLED THIS IN. Eighth instance of that distinction, and they are different facts.",
+    "stubTypesAreThirdThing": "Config v1.11.0 declares 71 component types: 62 typed and 9 stubs with ids reserved and no items. A class mapping to a stub is mapping to a name with nothing behind it — different from `none`, and different from a typed component. It seeds an empty checklist today. Checked 2026-08-04.",
+    "thisCheckIsIdleUntilThereAreClasses": "With `classes` empty it iterates nothing and reports green forever. Rule 11. Its behavioural test must CONSTRUCT a class naming a type the config does not declare, because the shipped file can never exercise it.",
+    "septicTankResolved": "Config v1.11.0 declares `septic-lid` and `septic-alarm` and no `septic-tank`. The worked class left this open. Resolved to `septic-lid`: the lid is the physical thing at a location a concierge pins, and the checklist attaching to it is tank-access work. `septic-bed` resolved the other way, to `none` — a bed is an area, not a point, no lid checklist applies to it, and `none` needs no config change. That retires field change request F-30 as a blocker."
+  },
+  "ownerQuestionsNote": {
+    "whatItIs": "The questions this kind of thing raises for the person who lives there. Amendment 4 §A, ratified by the owner 2026-08-04. A declared vocabulary like the other three, for the same reasons: reuse is heavy across serviceable classes, and the review queue must be able to count them.",
+    "theNamedFailure": "The desk pass identifies a fifteen-year-old gas water heater and the Inspection Visit arrives to test its relief valve without ever asking the one person who might know when it was last tested. The concierge either operates a valve nobody has touched in fifteen years, or does not — and either way the household's own knowledge, which was free, was never collected.",
+    "whyAPhotographCannotSupplyIt": "A Discovery capture can show mineral crust at the discharge, staining on the pan, corrosion, a capped discharge pipe — prior weeping leaves a mark and is the strongest available predictor. What no photograph shows is the seat. So `there is mineral deposit at the discharge` is Observed, `this valve may not reseat` is Inferred, and `it was replaced in 2023` is reported-by-homeowner and only the household has it.",
+    "itIsNotASixthStream": "§0.4 stands. An owner question is ENGINE OUTPUT. Its unanswered state becomes a gap only after a human has signed and sent it — the engine never writes a gap row.",
+    "sharedAcrossMostServiceableClasses": "when was this last serviced and by whom · has this ever leaked or failed · is this owned or on a rental agreement · do you have the paperwork for it",
+    "classSpecific": "the TPR question · when was the well last shock-chlorinated · when was the tank last pumped",
+    "whereTheWordingLives": "`owner-question-wording-v1.json`, a sibling of `client-names-v1.json`. The class declares the id; a human writes and signs the wording. Doctrine 5.",
+    "howAnAnswerIsLabelled": "reported-by-homeowner from the point it enters, per Amendment 4 §C2 — and §0.2 stands, no path assigns a label at render."
+  },
+  "accessConditions": {
+    "whyThisExists": "Amendment 5, raised by the owner from field experience rather than from the documents. The desk pass generates 'measure the sludge and scum depth' for a septic tank; the concierge arrives and the lids are under eight inches of sod, because between pump-outs that is where rural lids live. Either the visit becomes an excavation nobody agreed to, or the item is silently skipped and the record shows an inspection that did not happen.",
+    "theOwnersFraming": "A concierge will not ask an owner to unbury septic lids for Discovery photographs and then not really do anything.",
+    "itIsNotOneSystemsQuirk": "The maintenance schedule's own cautions already describe the same shape: `never remove panel covers — visual only, from outside the enclosure`. The interior of an electrical panel is access-gated on an electrician's visit, and that caution has been saying so all along without anything downstream being able to represent it. Others in the class: a sealed combustion chamber opened at annual service · a chimney interior opened at a WETT inspection or a sweep · duct interiors opened at cleaning · a crawlspace or attic with no built hatch.",
+    "anAccessGatedPointIsNotAGap": "`We did not look inside the tank` is not a failure to inspect. It is a thing that happens when the tank is next opened, and we will be there. §5a already requires an absence to state its basis; this is the same rule one step earlier, and a gated point must never render as a gap.",
+    "theCoordinationRole": "A `requires-access-event` point is a COORDINATION item, not a visit item — and the event is one the concierge coordinates anyway. That is the role the service actually performs. Amendment 5 §E1.",
+    "andTheHomeProfileShouldSayIt": "`We have not seen inside the tank. Here is what your access looks like. We will document the interior when it is next pumped.` Honest, specific, and the first place the Home Profile carries a forward commitment rather than a finding. Amendment 5 §E2."
+  },
+  "discoveryIsNotOursToDirect": {
+    "rule": "Every engine output lands AFTER identification. Discovery precedes identification, so NOTHING THE ENGINE PRODUCES CAN DIRECT A DISCOVERY CAPTURE.",
+    "whyItIsStatedHereRatherThanOnce": "Amendment 5 §C states it for the whole engine, and this file is where somebody writing a class would be tempted to break it — an access condition is exactly the kind of thing that reads like a capture instruction.",
+    "soWhereDoesTheCaptureComeFrom": "The Checklist Master, driven by a property flag. `property.septic` asks for the access. That makes it an F-4 content item in the capture-versus-inspection split the owner already carries — named here so it is not rediscovered as a question later.",
+    "nothingFoundIsARealAnswer": "No visible access is exactly what the Home Profile should say, and the class's own owner question — `where-are-the-lids` — is how the household fills the gap the camera could not."
+  },
+  "consumables": {
+    "note": "A distinct kind of care category, because an interval alone does not let anyone act. 'Replace the fridge filter every six months' is useless without which cartridge.",
+    "partIdentity": "Inferred until it has been bought and fitted once, then Documented from the purchase record — and it never needs asking again for that house.",
+    "whereItLands": "`s9.consumables` already exists in the Binder Schema as a `presentWhenPopulated` slot, declared and never fed. This is what feeds it.",
+    "whyAbstentionMattersMostHere": "A wrong part number costs a trip.",
+    "source": "Increment 5 §1b."
+  },
+  "workedClass": {
+    "note": "NOT AN ENTRY — kept outside `classes` so nothing reading the array treats it as declared. This is what one complete class looks like with all four vocabularies and Amendment 5's access conditions, drawn from Amendment 5 §B1 which is ratified content rather than an invention.",
+    "shape": {
+      "id": "septic-tank",
+      "label": "Septic tank",
+      "systems": [
+        "wastewater"
+      ],
+      "componentType": "none",
+      "componentTypeNote": "NOT PART OF THE SHAPE — explaining this row. Config v1.11.0 declares `septic-lid` and `septic-alarm` but no `septic-tank`. Whether this class maps to `septic-lid` or genuinely to `none` is the class author's call and the §1a check will report whichever is chosen.",
+      "careCategories": [
+        "pump-out"
+      ],
+      "inspectionPoints": [
+        "tank-lid-security",
+        "riser-and-access-condition",
+        "sludge-and-scum-depth"
+      ],
+      "opportunityConditions": [
+        "overdue-pump-out"
+      ],
+      "ownerQuestions": [
+        "where-are-the-lids",
+        "when-was-it-last-pumped"
+      ],
+      "replacementHorizon": true
+    },
+    "andTheInspectionPointsItReferences": [
+      {
+        "id": "tank-lid-security",
+        "label": "Lid secure and intact",
+        "kind": "look",
+        "access": "requires-access-found"
+      },
+      {
+        "id": "riser-and-access-condition",
+        "label": "Riser and access condition",
+        "kind": "look",
+        "access": "requires-access-found"
+      },
+      {
+        "id": "sludge-and-scum-depth",
+        "label": "Sludge and scum depth",
+        "kind": "measure",
+        "unit": "cm",
+        "access": "requires-access-event",
+        "accessEvent": "septic-pump-out"
+      }
+    ],
+    "theContrastWorthSeeing": "`septic-bed` is the useful opposite: every one of its points is `direct`, because a leaching bed is entirely observable from the surface — and it is the most consequential component in the system. The tank is where the access problem lives; the bed is where the failures show."
+  },
+  "careCategories": [
+    {
+      "id": "tank-flush",
+      "label": "Tank flush",
+      "note": "Sediment removal from a storage tank."
+    },
+    {
+      "id": "anode-service",
+      "label": "Anode inspection and replacement",
+      "note": "Sacrificial anode. Consumable — §1b part identity."
+    },
+    {
+      "id": "descale",
+      "label": "Descaling",
+      "note": "Scale removal from a heat exchanger."
+    },
+    {
+      "id": "air-filter-replacement",
+      "label": "Air filter replacement",
+      "note": "Shared with HVAC and appliances. Consumable — §1b."
+    },
+    {
+      "id": "condensate-drain-service",
+      "label": "Condensate drain service",
+      "note": "Shared with HVAC."
+    },
+    {
+      "id": "burner-and-combustion-service",
+      "label": "Burner and combustion service",
+      "note": "Shared with heating. Schedule caution: combustion equipment by certified trades only."
+    },
+    {
+      "id": "valve-exercise",
+      "label": "Valve exercise",
+      "note": "Operating a valve so it does not seize. Shared with plumbing and fuel."
+    },
+    {
+      "id": "well-shock-chlorination",
+      "label": "Well disinfection",
+      "note": "Schedule caution: no shock chlorination in the seven days before sampling — it invalidates the result."
+    },
+    {
+      "id": "salt-replenishment",
+      "label": "Salt replenishment"
+    },
+    {
+      "id": "brine-tank-service",
+      "label": "Brine tank service",
+      "note": "Salt bridging and residue. Distinct from replenishment."
+    },
+    {
+      "id": "water-filter-cartridge-replacement",
+      "label": "Water filter cartridge replacement",
+      "note": "Consumable — §1b. A wrong cartridge costs a trip."
+    },
+    {
+      "id": "uv-lamp-replacement",
+      "label": "UV lamp replacement",
+      "note": "Consumable — §1b. A spent lamp keeps glowing, which is the whole reason this is care and not inspection."
+    },
+    {
+      "id": "uv-sleeve-cleaning",
+      "label": "Quartz sleeve cleaning",
+      "note": "A different part from the lamp, and therefore a different category."
+    },
+    {
+      "id": "ro-membrane-replacement",
+      "label": "Membrane replacement",
+      "note": "Consumable — §1b. Years, not months; different rhythm from the cartridges."
+    },
+    {
+      "id": "pump-out",
+      "label": "Tank pump-out",
+      "note": "Also the access event that gates the tank interior — see `accessEvent: septic-pump-out`."
+    },
+    {
+      "id": "effluent-filter-cleaning",
+      "label": "Effluent filter cleaning"
+    },
+    {
+      "id": "coil-cleaning",
+      "label": "Coil cleaning",
+      "note": "Condenser and evaporator coils. Shared across cooling, heat pumps and dehumidification."
+    },
+    {
+      "id": "blower-and-fan-cleaning",
+      "label": "Blower and fan cleaning",
+      "note": "A fouled squirrel cage is not a dirty filter — distinct work, distinct rhythm."
+    },
+    {
+      "id": "core-cleaning",
+      "label": "Ventilator core cleaning"
+    },
+    {
+      "id": "chimney-sweep",
+      "label": "Chimney sweeping",
+      "note": "Also the access event gating the liner and creosote points — see `accessEvent: chimney-sweep`."
+    },
+    {
+      "id": "burn-pot-and-ash-service",
+      "label": "Burn pot and ash service",
+      "note": "Wood and pellet. Frequent, owner-level, and the item most likely to be skipped in February."
+    },
+    {
+      "id": "humidifier-pad-replacement",
+      "label": "Evaporator pad replacement",
+      "note": "Consumable — §1b part identity."
+    },
+    {
+      "id": "oil-filter-replacement",
+      "label": "Oil filter replacement",
+      "note": "Consumable — §1b part identity."
+    },
+    {
+      "id": "radiator-bleeding",
+      "label": "Radiator bleeding",
+      "note": "Seasonal, owner-level, and the reason a cold radiator is usually not a failed boiler."
+    },
+    {
+      "id": "damper-and-louvre-service",
+      "label": "Damper and louvre service",
+      "note": "Louvres seize long before anyone notices, because nobody looks in the season they are not used."
+    },
+    {
+      "id": "ground-loop-fluid-service",
+      "label": "Ground loop fluid service",
+      "note": "Antifreeze concentration and loop pressure. Ground-source only."
+    }
+  ],
+  "inspectionPoints": [
+    {
+      "id": "vent-condition-and-connection",
+      "label": "Vent condition and connection",
+      "kind": "look"
+    },
+    {
+      "id": "combustion-air-availability",
+      "label": "Combustion air availability",
+      "kind": "look"
+    },
+    {
+      "id": "draft-and-spillage",
+      "label": "Draft and spillage",
+      "kind": "look"
+    },
+    {
+      "id": "tpr-discharge-piping",
+      "label": "Relief valve discharge piping",
+      "kind": "look"
+    },
+    {
+      "id": "drip-pan-and-drain",
+      "label": "Drip pan and drain",
+      "kind": "look"
+    },
+    {
+      "id": "corrosion-at-connections",
+      "label": "Corrosion at connections",
+      "kind": "look",
+      "note": "Split from a single token that would not hold: a corroded union is a connection problem."
+    },
+    {
+      "id": "vessel-corrosion",
+      "label": "Corrosion of the vessel",
+      "kind": "look",
+      "note": "The other half of the split: a corroded seam is a failing vessel."
+    },
+    {
+      "id": "dielectric-union-condition",
+      "label": "Dielectric union condition",
+      "kind": "look"
+    },
+    {
+      "id": "shutoff-present-and-operable",
+      "label": "Shutoff present and operable",
+      "kind": "look",
+      "note": "Schedule caution: crusty old gate valves are NOT forced."
+    },
+    {
+      "id": "delivery-temperature",
+      "label": "Delivered water temperature",
+      "kind": "measure",
+      "unit": "°C"
+    },
+    {
+      "id": "expansion-tank-charge",
+      "label": "Expansion tank charge pressure",
+      "kind": "measure",
+      "unit": "kPa"
+    },
+    {
+      "id": "condensate-path-clear",
+      "label": "Condensate path clear",
+      "kind": "look"
+    },
+    {
+      "id": "air-clearance-and-ambient",
+      "label": "Air clearance and ambient conditions",
+      "kind": "look"
+    },
+    {
+      "id": "heating-loop-controls",
+      "label": "Heating loop controls",
+      "kind": "look"
+    },
+    {
+      "id": "inlet-screen-condition",
+      "label": "Inlet screen condition",
+      "kind": "look"
+    },
+    {
+      "id": "well-cap-integrity",
+      "label": "Well cap integrity",
+      "kind": "look"
+    },
+    {
+      "id": "casing-height-and-condition",
+      "label": "Casing height and condition",
+      "kind": "look"
+    },
+    {
+      "id": "pitless-adapter-and-seal",
+      "label": "Pitless adapter and seal",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "well-pump-service",
+      "note": "Below the frost line at the casing. Not visible at any visit; it is seen when the pump is pulled."
+    },
+    {
+      "id": "pressure-switch-contacts",
+      "label": "Pressure switch contacts",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "well-pump-service",
+      "note": "Live under its cover. The concierge does not open it — same boundary as the panel caution."
+    },
+    {
+      "id": "well-cribbing-and-cover",
+      "label": "Cribbing and cover",
+      "kind": "look"
+    },
+    {
+      "id": "wellhead-surface-grading",
+      "label": "Surface grading at the wellhead",
+      "kind": "look"
+    },
+    {
+      "id": "pressure-tank-precharge",
+      "label": "Pressure tank pre-charge",
+      "kind": "measure",
+      "unit": "kPa"
+    },
+    {
+      "id": "system-pressure-range",
+      "label": "System cut-in and cut-out pressure",
+      "kind": "measure",
+      "unit": "kPa"
+    },
+    {
+      "id": "pump-cycle-behaviour",
+      "label": "Pump cycling behaviour",
+      "kind": "look"
+    },
+    {
+      "id": "low-water-protection-present",
+      "label": "Low-water protection present",
+      "kind": "look"
+    },
+    {
+      "id": "water-clarity-and-odour",
+      "label": "Water clarity and odour",
+      "kind": "look"
+    },
+    {
+      "id": "bypass-valve-position",
+      "label": "Bypass valve position",
+      "kind": "look",
+      "note": "A treatment system in bypass is present, plumbed, powered and doing nothing — and looks identical in a photograph."
+    },
+    {
+      "id": "filter-housing-and-seal",
+      "label": "Filter housing and seal",
+      "kind": "look"
+    },
+    {
+      "id": "salt-level-and-bridging",
+      "label": "Salt level and bridging",
+      "kind": "look"
+    },
+    {
+      "id": "regeneration-cycle-function",
+      "label": "Regeneration cycle function",
+      "kind": "look"
+    },
+    {
+      "id": "uv-lamp-hours-and-alarm",
+      "label": "Lamp hours and alarm state",
+      "kind": "look"
+    },
+    {
+      "id": "intake-strainer-and-foot-valve",
+      "label": "Intake strainer and foot valve",
+      "kind": "look",
+      "access": "requires-access-found"
+    },
+    {
+      "id": "cistern-lid-and-vent",
+      "label": "Cistern lid and vent",
+      "kind": "look",
+      "access": "requires-access-found"
+    },
+    {
+      "id": "tank-lid-security",
+      "label": "Lid secure and intact",
+      "kind": "look",
+      "access": "requires-access-found"
+    },
+    {
+      "id": "riser-and-access-condition",
+      "label": "Riser and access condition",
+      "kind": "look",
+      "access": "requires-access-found"
+    },
+    {
+      "id": "sludge-and-scum-depth",
+      "label": "Sludge and scum depth",
+      "kind": "measure",
+      "unit": "cm",
+      "access": "requires-access-event",
+      "accessEvent": "septic-pump-out"
+    },
+    {
+      "id": "effluent-filter-condition",
+      "label": "Effluent filter condition",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "septic-pump-out"
+    },
+    {
+      "id": "float-and-pump-operation",
+      "label": "Float and pump operation",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "septic-pump-out"
+    },
+    {
+      "id": "alarm-function-test",
+      "label": "Alarm function test",
+      "kind": "look"
+    },
+    {
+      "id": "bed-surface-condition",
+      "label": "Bed surface condition",
+      "kind": "look",
+      "note": "Direct. The bed is above ground — the tank is where the access problem lives and the bed is where the failures show."
+    },
+    {
+      "id": "bed-encroachment-and-loading",
+      "label": "Bed encroachment and loading",
+      "kind": "look"
+    },
+    {
+      "id": "heat-exchanger-condition",
+      "label": "Heat exchanger condition",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "annual-combustion-service",
+      "note": "Not visible without disassembly. Seen when the trade opens the appliance — and a cracked exchanger is the highest-consequence thing in this system."
+    },
+    {
+      "id": "filter-size-and-fit",
+      "label": "Filter size and fit",
+      "kind": "look",
+      "note": "The wrong size fitted is common and looks like a filter that was changed."
+    },
+    {
+      "id": "blower-compartment-condition",
+      "label": "Blower compartment condition",
+      "kind": "look"
+    },
+    {
+      "id": "thermostat-function-and-schedule",
+      "label": "Thermostat function and schedule",
+      "kind": "look"
+    },
+    {
+      "id": "duct-connections-and-sealing",
+      "label": "Duct connections and sealing",
+      "kind": "look"
+    },
+    {
+      "id": "register-airflow",
+      "label": "Register airflow",
+      "kind": "measure",
+      "unit": null,
+      "note": "Deliberately unitless. An anemometer reads m/s and a flow hood reads CFM — the instrument decides the scale, exactly as %WME and %MC do for moisture. Second instance of a declared null unit. Field change request F-19 lands here."
+    },
+    {
+      "id": "condenser-clearance-and-level",
+      "label": "Outdoor unit clearance and level",
+      "kind": "look"
+    },
+    {
+      "id": "outdoor-coil-condition",
+      "label": "Outdoor coil condition",
+      "kind": "look"
+    },
+    {
+      "id": "refrigerant-line-insulation",
+      "label": "Refrigerant line insulation",
+      "kind": "look"
+    },
+    {
+      "id": "defrost-cycle-function",
+      "label": "Defrost cycle function",
+      "kind": "look"
+    },
+    {
+      "id": "core-and-filter-condition",
+      "label": "Core and filter condition",
+      "kind": "look"
+    },
+    {
+      "id": "ventilation-balance-and-flow",
+      "label": "Ventilation balance and flow",
+      "kind": "look"
+    },
+    {
+      "id": "humidifier-pad-and-drain",
+      "label": "Pad and drain condition",
+      "kind": "look"
+    },
+    {
+      "id": "firebox-and-refractory-condition",
+      "label": "Firebox and refractory condition",
+      "kind": "look"
+    },
+    {
+      "id": "door-gasket-and-glass",
+      "label": "Door gasket and glass",
+      "kind": "look"
+    },
+    {
+      "id": "hearth-and-clearances",
+      "label": "Hearth and clearances to combustibles",
+      "kind": "look"
+    },
+    {
+      "id": "connector-clearance-to-combustibles",
+      "label": "Connector clearance to combustibles",
+      "kind": "look",
+      "note": "WETT treats appliance, connector and chimney as one system with three parts. This is the part most often wrong and most often reachable."
+    },
+    {
+      "id": "creosote-accumulation",
+      "label": "Creosote accumulation",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "chimney-sweep"
+    },
+    {
+      "id": "chimney-liner-condition",
+      "label": "Liner condition",
+      "kind": "look",
+      "access": "requires-access-event",
+      "accessEvent": "chimney-sweep",
+      "note": "Wants a camera down the flue. Seen when the sweep is there, not at a visit."
+    },
+    {
+      "id": "chimney-crown-and-flashing",
+      "label": "Crown and flashing",
+      "kind": "look"
+    },
+    {
+      "id": "cap-and-screen-condition",
+      "label": "Cap and screen condition",
+      "kind": "look"
+    },
+    {
+      "id": "condensate-pump-operation",
+      "label": "Condensate pump operation",
+      "kind": "look",
+      "note": "Deliberately distinct from `float-and-pump-operation`, which is gated on a septic pump-out. Same kind of check, different reachability — see `accessIsPerPointNotPerReference`."
+    },
+    {
+      "id": "tank-shell-and-legs",
+      "label": "Tank shell, legs and support",
+      "kind": "look"
+    },
+    {
+      "id": "fill-and-vent-condition",
+      "label": "Fill pipe and vent condition",
+      "kind": "look"
+    },
+    {
+      "id": "tank-gauge-function",
+      "label": "Tank gauge function",
+      "kind": "look"
+    },
+    {
+      "id": "fuel-line-condition",
+      "label": "Fuel line condition",
+      "kind": "look"
+    },
+    {
+      "id": "regulator-and-vent-position",
+      "label": "Regulator and vent position",
+      "kind": "look"
+    },
+    {
+      "id": "secondary-containment-present",
+      "label": "Secondary containment present",
+      "kind": "look"
+    }
+  ],
+  "opportunityConditions": [
+    {
+      "id": "age-past-band-midpoint",
+      "label": "Past the midpoint of its expected life",
+      "note": "Generic — fires across most systems."
+    },
+    {
+      "id": "orphaned-atmospheric-vent",
+      "label": "Left alone on a shared chimney",
+      "note": "Common after a furnace upgrade. Named as a safety concern with a specialist referral — the triggered-flags stream, per the owner 2026-08-04."
+    },
+    {
+      "id": "no-expansion-tank-on-closed-system",
+      "label": "Closed system with no expansion tank"
+    },
+    {
+      "id": "no-drip-pan-above-finished-space",
+      "label": "No drip pan above finished space"
+    },
+    {
+      "id": "no-mixing-valve-at-high-tank-temperature",
+      "label": "Stored hot without a mixing valve"
+    },
+    {
+      "id": "unheated-space-exposure",
+      "label": "Standing in an unheated space"
+    },
+    {
+      "id": "long-tenure-rental",
+      "label": "Long-standing rental agreement",
+      "note": "Rendered as two facts side by side with no conclusion attached — how long it has been on rental, and what agreements cost here. The household draws the inference. Owner-ratified 2026-08-04."
+    },
+    {
+      "id": "no-timer-or-control-on-recirculation",
+      "label": "Recirculation running without a control"
+    },
+    {
+      "id": "no-effluent-filter-on-outlet",
+      "label": "No effluent filter on the tank outlet",
+      "note": "Cheap to retrofit and it protects the bed, which is the expensive half of the system."
+    },
+    {
+      "id": "no-riser-on-buried-lids",
+      "label": "Buried lids with no riser",
+      "note": "Pays for itself in excavation at the next pump-out — and it is what turns three access-gated points into reachable ones."
+    },
+    {
+      "id": "no-low-water-protection",
+      "label": "No low-water protection on the pump"
+    },
+    {
+      "id": "bed-under-vehicle-traffic",
+      "label": "Vehicle traffic over the bed"
+    },
+    {
+      "id": "no-testing-record",
+      "label": "No record of water testing"
+    },
+    {
+      "id": "casing-below-required-height",
+      "label": "Casing below the required height above grade"
+    },
+    {
+      "id": "overdue-pump-out",
+      "label": "Pump-out overdue",
+      "note": "Fires from the owner question's answer against the interval — it cannot be seen, only asked."
+    },
+    {
+      "id": "no-secondary-containment",
+      "label": "Fuel tank with no secondary containment"
+    },
+    {
+      "id": "oil-tank-past-insurable-age",
+      "label": "Oil tank approaching the age insurers decline",
+      "note": "Insurance-relevant rather than condition-relevant, which makes it an opportunity and not a finding. Regional — oil is real in rural Quinte."
+    },
+    {
+      "id": "no-wett-record-on-solid-fuel",
+      "label": "Solid fuel appliance with no WETT record",
+      "note": "Insurers ask for it and households often do not know they need one."
+    },
+    {
+      "id": "no-condensate-overflow-protection",
+      "label": "Condensate pump with no overflow shutdown",
+      "note": "The pump fails silently and floods the mechanical room while the appliance it serves is fine."
+    }
+  ],
+  "ownerQuestions": [
+    {
+      "id": "last-serviced-and-by-whom",
+      "label": "When was this last serviced, and by whom?"
+    },
+    {
+      "id": "owned-or-rented",
+      "label": "Is this owned, or on a rental agreement?",
+      "note": "The answer decides who the concierge coordinates with — the rental company rather than a trade. Owner-ratified 2026-08-04."
+    },
+    {
+      "id": "do-you-have-the-paperwork",
+      "label": "Do you have the paperwork for this?"
+    },
+    {
+      "id": "has-this-ever-leaked",
+      "label": "Has this ever leaked?"
+    },
+    {
+      "id": "tpr-last-tested",
+      "label": "Has the relief valve ever been tested or replaced?",
+      "note": "The question that produced the fifth output. Its wording is drafted in `owner-question-wording-v1.json`'s worked example."
+    },
+    {
+      "id": "when-was-it-last-pumped",
+      "label": "When was the tank last pumped?"
+    },
+    {
+      "id": "where-are-the-lids",
+      "label": "Do you know where the lids are?",
+      "note": "Often the only way to find them, and it is the question that decides whether an access-found point is reachable."
+    },
+    {
+      "id": "do-you-have-the-well-record",
+      "label": "Do you have the well record?"
+    },
+    {
+      "id": "last-water-test-and-result",
+      "label": "When was the water last tested, and what did it say?"
+    },
+    {
+      "id": "what-do-you-notice-about-the-water",
+      "label": "What do you notice about the water — taste, smell, staining?",
+      "note": "Households know this well and it is nowhere in any document."
+    },
+    {
+      "id": "has-this-ever-backed-up",
+      "label": "Has this ever backed up?"
+    },
+    {
+      "id": "does-anything-drive-or-park-over-it",
+      "label": "Does anything drive or park over it?"
+    },
+    {
+      "id": "do-you-know-what-this-does",
+      "label": "Do you know what this does?",
+      "note": "For a treatment canister nobody can identify. The most useful output the weakest class in the list has."
+    },
+    {
+      "id": "does-any-room-never-get-comfortable",
+      "label": "Is there a room that never gets comfortable?",
+      "note": "Households know this precisely and it is nowhere in any document. It feeds the property pass on return air and balance, which no per-object engine can reach."
+    },
+    {
+      "id": "when-was-the-chimney-last-swept",
+      "label": "When was the chimney last swept?"
+    },
+    {
+      "id": "do-you-burn-wood-and-how-often",
+      "label": "Do you burn wood, and how often?",
+      "note": "Care intervals for a solid-fuel appliance depend on use more than on age, and only the household knows the use."
+    },
+    {
+      "id": "do-you-have-a-wett-certificate",
+      "label": "Do you have a WETT certificate?"
+    },
+    {
+      "id": "who-fills-the-tank",
+      "label": "Who fills the tank?",
+      "note": "Names the coordination partner, the same way `owned-or-rented` does for a rental heater."
+    }
+  ],
+  "classes": [
+    {
+      "id": "water-heater-gas",
+      "label": "Gas water heater",
+      "systems": [
+        "domestic-hot-water"
+      ],
+      "componentType": "water-heater",
+      "careCategories": [
+        "tank-flush",
+        "anode-service",
+        "burner-and-combustion-service"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "tpr-discharge-piping",
+        "drip-pan-and-drain",
+        "vessel-corrosion",
+        "corrosion-at-connections",
+        "shutoff-present-and-operable",
+        "delivery-temperature"
+      ],
+      "opportunityConditions": [
+        "orphaned-atmospheric-vent",
+        "no-expansion-tank-on-closed-system",
+        "no-drip-pan-above-finished-space",
+        "no-mixing-valve-at-high-tank-temperature",
+        "long-tenure-rental",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "has-this-ever-leaked",
+        "tpr-last-tested"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "water-heater-electric",
+      "label": "Electric water heater",
+      "systems": [
+        "domestic-hot-water"
+      ],
+      "componentType": "water-heater",
+      "careCategories": [
+        "tank-flush",
+        "anode-service"
+      ],
+      "inspectionPoints": [
+        "tpr-discharge-piping",
+        "drip-pan-and-drain",
+        "vessel-corrosion",
+        "corrosion-at-connections",
+        "shutoff-present-and-operable",
+        "delivery-temperature",
+        "dielectric-union-condition"
+      ],
+      "opportunityConditions": [
+        "no-expansion-tank-on-closed-system",
+        "no-drip-pan-above-finished-space",
+        "unheated-space-exposure",
+        "no-mixing-valve-at-high-tank-temperature",
+        "long-tenure-rental",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "has-this-ever-leaked",
+        "tpr-last-tested"
+      ],
+      "replacementHorizon": true,
+      "note": "One care category and four inspection points apart from gas, every one of them combustion. The fuel split earns itself."
+    },
+    {
+      "id": "water-heater-tankless-gas",
+      "label": "Tankless water heater",
+      "systems": [
+        "domestic-hot-water"
+      ],
+      "componentType": "water-heater",
+      "careCategories": [
+        "descale",
+        "burner-and-combustion-service",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "inlet-screen-condition",
+        "condensate-path-clear",
+        "corrosion-at-connections",
+        "shutoff-present-and-operable",
+        "delivery-temperature"
+      ],
+      "opportunityConditions": [
+        "long-tenure-rental",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true,
+      "note": "The absences distinguish it as much as the descaling: no tank means no flush, no anode, no pan, no relief discharge."
+    },
+    {
+      "id": "water-heater-heat-pump",
+      "label": "Heat pump water heater",
+      "systems": [
+        "domestic-hot-water"
+      ],
+      "componentType": "water-heater",
+      "careCategories": [
+        "tank-flush",
+        "anode-service",
+        "air-filter-replacement",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "tpr-discharge-piping",
+        "drip-pan-and-drain",
+        "vessel-corrosion",
+        "air-clearance-and-ambient",
+        "condensate-path-clear",
+        "shutoff-present-and-operable",
+        "delivery-temperature"
+      ],
+      "opportunityConditions": [
+        "no-expansion-tank-on-closed-system",
+        "unheated-space-exposure",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true,
+      "note": "It cools and dehumidifies the room it stands in — welcome in July, a real load in January."
+    },
+    {
+      "id": "water-heater-indirect",
+      "label": "Indirect water heater",
+      "systems": [
+        "domestic-hot-water",
+        "hydronic-heating"
+      ],
+      "componentType": "water-heater",
+      "careCategories": [
+        "tank-flush",
+        "anode-service"
+      ],
+      "inspectionPoints": [
+        "tpr-discharge-piping",
+        "drip-pan-and-drain",
+        "vessel-corrosion",
+        "heating-loop-controls",
+        "shutoff-present-and-operable",
+        "delivery-temperature"
+      ],
+      "opportunityConditions": [
+        "no-expansion-tank-on-closed-system",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "Care identical to the electric tank. It survives on inspection alone — a heating loop, a circulator and an aquastat no tank heater has. And it is why `systems` is an array."
+    },
+    {
+      "id": "recirculation-pump",
+      "label": "Hot water recirculation pump",
+      "systems": [
+        "domestic-hot-water"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "corrosion-at-connections",
+        "shutoff-present-and-operable"
+      ],
+      "opportunityConditions": [
+        "no-timer-or-control-on-recirculation",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "mixing-valve",
+      "label": "Thermostatic mixing valve",
+      "systems": [
+        "domestic-hot-water"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "valve-exercise"
+      ],
+      "inspectionPoints": [
+        "delivery-temperature",
+        "corrosion-at-connections"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "expansion-tank-domestic",
+      "label": "Expansion tank",
+      "systems": [
+        "domestic-hot-water"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "expansion-tank-charge",
+        "corrosion-at-connections"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Zero care and two inspection points, and one of the higher-value rows in the system — it fails invisibly and the symptom reads as a bad relief valve."
+    },
+    {
+      "id": "well-drilled",
+      "label": "Drilled well",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "wellhead",
+      "careCategories": [
+        "well-shock-chlorination"
+      ],
+      "inspectionPoints": [
+        "well-cap-integrity",
+        "casing-height-and-condition",
+        "pitless-adapter-and-seal",
+        "wellhead-surface-grading",
+        "water-clarity-and-odour"
+      ],
+      "opportunityConditions": [
+        "no-testing-record",
+        "casing-below-required-height"
+      ],
+      "ownerQuestions": [
+        "do-you-have-the-well-record",
+        "last-water-test-and-result",
+        "what-do-you-notice-about-the-water"
+      ],
+      "replacementHorizon": false,
+      "note": "No replacement horizon. A well is deepened, redrilled or abandoned on failure — declaring false is the honest answer and it differs from leaving it blank."
+    },
+    {
+      "id": "well-dug",
+      "label": "Dug well",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "wellhead",
+      "careCategories": [
+        "well-shock-chlorination"
+      ],
+      "inspectionPoints": [
+        "well-cribbing-and-cover",
+        "wellhead-surface-grading",
+        "water-clarity-and-odour"
+      ],
+      "opportunityConditions": [
+        "no-testing-record"
+      ],
+      "ownerQuestions": [
+        "do-you-have-the-well-record",
+        "last-water-test-and-result",
+        "what-do-you-notice-about-the-water"
+      ],
+      "replacementHorizon": false
+    },
+    {
+      "id": "well-pump-submersible",
+      "label": "Well pump — submersible",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "wellhead",
+      "careCategories": [],
+      "inspectionPoints": [
+        "pump-cycle-behaviour",
+        "system-pressure-range",
+        "low-water-protection-present"
+      ],
+      "opportunityConditions": [
+        "no-low-water-protection",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "Split from `well-pump` at pass two. It is in the well and cannot be looked at — for a service whose product is documentation, observable-versus-not is the sharpest split there is."
+    },
+    {
+      "id": "well-pump-jet",
+      "label": "Well pump — jet",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "wellhead",
+      "careCategories": [],
+      "inspectionPoints": [
+        "pump-cycle-behaviour",
+        "system-pressure-range",
+        "intake-strainer-and-foot-valve",
+        "low-water-protection-present"
+      ],
+      "opportunityConditions": [
+        "no-low-water-protection",
+        "unheated-space-exposure",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "The other half of the split. In the basement and inspectable, which is the whole difference."
+    },
+    {
+      "id": "well-pressure-switch",
+      "label": "Well pressure switch",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "wellhead",
+      "careCategories": [],
+      "inspectionPoints": [
+        "pressure-switch-contacts",
+        "pump-cycle-behaviour",
+        "system-pressure-range"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "well-low-water-control",
+      "label": "Low-water protection",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "wellhead",
+      "careCategories": [],
+      "inspectionPoints": [
+        "low-water-protection-present"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "well-pressure-tank",
+      "label": "Well pressure tank",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "well-pressure-tank",
+      "careCategories": [],
+      "inspectionPoints": [
+        "pressure-tank-precharge",
+        "pump-cycle-behaviour",
+        "filter-housing-and-seal"
+      ],
+      "opportunityConditions": [
+        "unheated-space-exposure",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "booster-pump",
+      "label": "Booster pump",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "cistern",
+      "careCategories": [],
+      "inspectionPoints": [
+        "pump-cycle-behaviour",
+        "system-pressure-range"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "lake-intake",
+      "label": "Lake water intake",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "intake-strainer-and-foot-valve",
+        "water-clarity-and-odour"
+      ],
+      "opportunityConditions": [
+        "no-testing-record",
+        "unheated-space-exposure"
+      ],
+      "ownerQuestions": [
+        "last-water-test-and-result",
+        "what-do-you-notice-about-the-water"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "cistern",
+      "label": "Cistern",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "cistern",
+      "careCategories": [],
+      "inspectionPoints": [
+        "cistern-lid-and-vent",
+        "water-clarity-and-odour"
+      ],
+      "opportunityConditions": [
+        "no-testing-record"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "what-do-you-notice-about-the-water"
+      ],
+      "replacementHorizon": false
+    },
+    {
+      "id": "water-softener",
+      "label": "Water softener",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "water-softener",
+      "careCategories": [
+        "salt-replenishment",
+        "brine-tank-service"
+      ],
+      "inspectionPoints": [
+        "salt-level-and-bridging",
+        "regeneration-cycle-function",
+        "bypass-valve-position",
+        "filter-housing-and-seal"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "what-do-you-notice-about-the-water"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "sediment-filter",
+      "label": "Sediment filter",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "sediment-filter",
+      "careCategories": [
+        "water-filter-cartridge-replacement"
+      ],
+      "inspectionPoints": [
+        "filter-housing-and-seal",
+        "bypass-valve-position"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "iron-filter",
+      "label": "Iron filter",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "iron-filter",
+      "careCategories": [],
+      "inspectionPoints": [
+        "regeneration-cycle-function",
+        "bypass-valve-position",
+        "water-clarity-and-odour"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "what-do-you-notice-about-the-water"
+      ],
+      "replacementHorizon": true,
+      "note": "Stub type at config v1.11.0 — reported, not an error."
+    },
+    {
+      "id": "uv-sterilizer",
+      "label": "UV sterilizer",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "uv-sterilizer",
+      "careCategories": [
+        "uv-lamp-replacement",
+        "uv-sleeve-cleaning"
+      ],
+      "inspectionPoints": [
+        "uv-lamp-hours-and-alarm",
+        "bypass-valve-position"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "A spent lamp keeps glowing. The schedule has no recurring item for it at all — this is where the engine earns its place in this system."
+    },
+    {
+      "id": "reverse-osmosis",
+      "label": "Reverse osmosis system",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "reverse-osmosis",
+      "careCategories": [
+        "water-filter-cartridge-replacement",
+        "ro-membrane-replacement"
+      ],
+      "inspectionPoints": [
+        "filter-housing-and-seal"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "water-treatment-other",
+      "label": "Water treatment system",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "water-treatment",
+      "careCategories": [],
+      "inspectionPoints": [
+        "bypass-valve-position",
+        "water-clarity-and-odour"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [
+        "do-you-know-what-this-does",
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": false,
+      "note": "Declares zero care by design — this kind of thing bears no dependable maintenance and saying so is the point. The fifth output rescued it: its most useful question is whether the household can name it."
+    },
+    {
+      "id": "septic-tank",
+      "label": "Septic tank",
+      "systems": [
+        "wastewater"
+      ],
+      "componentType": "septic-lid",
+      "careCategories": [
+        "pump-out"
+      ],
+      "inspectionPoints": [
+        "tank-lid-security",
+        "riser-and-access-condition",
+        "sludge-and-scum-depth"
+      ],
+      "opportunityConditions": [
+        "no-effluent-filter-on-outlet",
+        "no-riser-on-buried-lids",
+        "overdue-pump-out"
+      ],
+      "ownerQuestions": [
+        "when-was-it-last-pumped",
+        "where-are-the-lids",
+        "has-this-ever-backed-up"
+      ],
+      "replacementHorizon": true,
+      "note": "componentType resolved to `septic-lid` rather than `none`, answering the worked class's open question. The lid is the physical thing at a location a concierge pins and the checklist that attaches to it is tank-access work. Config v1.11.0 declares no `septic-tank`."
+    },
+    {
+      "id": "septic-effluent-filter",
+      "label": "Septic effluent filter",
+      "systems": [
+        "wastewater"
+      ],
+      "componentType": "septic-lid",
+      "careCategories": [
+        "effluent-filter-cleaning"
+      ],
+      "inspectionPoints": [
+        "effluent-filter-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "Backs sewage into the house faster than the tank fills. The silent-failure class this engine exists for."
+    },
+    {
+      "id": "septic-distribution-box",
+      "label": "Distribution box",
+      "systems": [
+        "wastewater"
+      ],
+      "componentType": "septic-lid",
+      "careCategories": [],
+      "inspectionPoints": [
+        "riser-and-access-condition"
+      ],
+      "opportunityConditions": [
+        "no-riser-on-buried-lids"
+      ],
+      "ownerQuestions": [
+        "where-are-the-lids"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "septic-bed",
+      "label": "Leaching or filter bed",
+      "systems": [
+        "wastewater"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "bed-surface-condition",
+        "bed-encroachment-and-loading"
+      ],
+      "opportunityConditions": [
+        "bed-under-vehicle-traffic"
+      ],
+      "ownerQuestions": [
+        "does-anything-drive-or-park-over-it",
+        "has-this-ever-backed-up"
+      ],
+      "replacementHorizon": true,
+      "note": "componentType `none`, resolving F-30. A bed is an area, not a point — no lid checklist applies to it, and `none` needs no config change. Its inspection points come from this class, and every one is `direct`."
+    },
+    {
+      "id": "septic-alarm",
+      "label": "Septic alarm",
+      "systems": [
+        "wastewater"
+      ],
+      "componentType": "septic-alarm",
+      "careCategories": [],
+      "inspectionPoints": [
+        "alarm-function-test"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-this-ever-backed-up"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "septic-pump-chamber",
+      "label": "Septic pump chamber",
+      "systems": [
+        "wastewater"
+      ],
+      "componentType": "septic-alarm",
+      "careCategories": [],
+      "inspectionPoints": [
+        "tank-lid-security",
+        "riser-and-access-condition"
+      ],
+      "opportunityConditions": [
+        "no-riser-on-buried-lids"
+      ],
+      "ownerQuestions": [
+        "where-are-the-lids"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "septic-effluent-pump",
+      "label": "Effluent pump",
+      "systems": [
+        "wastewater"
+      ],
+      "componentType": "septic-alarm",
+      "careCategories": [],
+      "inspectionPoints": [
+        "float-and-pump-operation",
+        "alarm-function-test"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "holding-tank",
+      "label": "Sewage holding tank",
+      "systems": [
+        "wastewater"
+      ],
+      "componentType": "septic-lid",
+      "careCategories": [
+        "pump-out"
+      ],
+      "inspectionPoints": [
+        "tank-lid-security",
+        "alarm-function-test"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [
+        "when-was-it-last-pumped",
+        "has-this-ever-backed-up"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "furnace-gas",
+      "label": "Gas furnace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "burner-and-combustion-service",
+        "blower-and-fan-cleaning",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "orphaned-atmospheric-vent",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "owned-or-rented",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "furnace-oil",
+      "label": "Oil furnace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "burner-and-combustion-service",
+        "blower-and-fan-cleaning",
+        "oil-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable",
+        "who-fills-the-tank"
+      ],
+      "replacementHorizon": true,
+      "note": "Regional — real in rural Quinte, rarer in town. One care category apart from gas and it is the oil filter."
+    },
+    {
+      "id": "furnace-electric",
+      "label": "Electric furnace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "blower-and-fan-cleaning"
+      ],
+      "inspectionPoints": [
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "No combustion, so four inspection points fall away including the heat exchanger. The same shape the fuel split takes in water heating."
+    },
+    {
+      "id": "air-handler",
+      "label": "Air handler",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "blower-and-fan-cleaning",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "The config aliases this to `furnace` and it has no burner at all — the indoor half of a heat pump or air conditioner."
+    },
+    {
+      "id": "boiler-gas",
+      "label": "Gas boiler",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "burner-and-combustion-service"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "thermostat-function-and-schedule",
+        "expansion-tank-charge",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "orphaned-atmospheric-vent",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "boiler-oil",
+      "label": "Oil boiler",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "burner-and-combustion-service",
+        "oil-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "thermostat-function-and-schedule",
+        "expansion-tank-charge"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable",
+        "who-fills-the-tank"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "radiator-hydronic",
+      "label": "Radiator",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "radiator-bleeding"
+      ],
+      "inspectionPoints": [
+        "corrosion-at-connections",
+        "shutoff-present-and-operable"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "circulator-pump",
+      "label": "Circulator pump",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [],
+      "inspectionPoints": [
+        "corrosion-at-connections",
+        "shutoff-present-and-operable"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "A boiler may have several and any one failing disables a zone — which is why the owner question about a cold room is on the radiator and the boiler both."
+    },
+    {
+      "id": "air-conditioner-central",
+      "label": "Central air conditioner",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "coil-cleaning",
+        "condensate-drain-service",
+        "air-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "condenser-clearance-and-level",
+        "outdoor-coil-condition",
+        "refrigerant-line-insulation",
+        "condensate-path-clear",
+        "thermostat-function-and-schedule"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "heat-pump-air-source",
+      "label": "Air-source heat pump",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "coil-cleaning",
+        "condensate-drain-service",
+        "air-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "condenser-clearance-and-level",
+        "outdoor-coil-condition",
+        "refrigerant-line-insulation",
+        "defrost-cycle-function",
+        "condensate-path-clear",
+        "thermostat-function-and-schedule"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "heat-pump-ground-source",
+      "label": "Ground-source heat pump",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "coil-cleaning",
+        "air-filter-replacement",
+        "ground-loop-fluid-service",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "condensate-path-clear",
+        "thermostat-function-and-schedule",
+        "filter-size-and-fit"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "do-you-have-the-paperwork",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "Regional and genuinely different service — no outdoor unit at all, so four air-source points fall away and a loop fluid category arrives that nothing else has."
+    },
+    {
+      "id": "mini-split",
+      "label": "Ductless mini-split",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "air-filter-replacement",
+        "coil-cleaning",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "outdoor-coil-condition",
+        "refrigerant-line-insulation",
+        "defrost-cycle-function",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "Its filters are owner-level and never done, which is the whole reason the class exists separately."
+    },
+    {
+      "id": "air-conditioner-window",
+      "label": "Window air conditioner",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "air-filter-replacement",
+        "coil-cleaning"
+      ],
+      "inspectionPoints": [
+        "outdoor-coil-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "hrv-erv",
+      "label": "Heat recovery ventilator",
+      "systems": [
+        "ventilation"
+      ],
+      "componentType": "hrv-erv",
+      "careCategories": [
+        "air-filter-replacement",
+        "core-cleaning"
+      ],
+      "inspectionPoints": [
+        "core-and-filter-condition",
+        "ventilation-balance-and-flow",
+        "condensate-path-clear",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "HRV and ERV merged — the care is filters, core cleaning and balancing either way."
+    },
+    {
+      "id": "humidifier-whole-home",
+      "label": "Whole-home humidifier",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "humidifier",
+      "careCategories": [
+        "humidifier-pad-replacement"
+      ],
+      "inspectionPoints": [
+        "humidifier-pad-and-drain",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "dehumidifier-whole-home",
+      "label": "Whole-home dehumidifier",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "dehumidifier",
+      "careCategories": [
+        "air-filter-replacement",
+        "coil-cleaning",
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "condensate-path-clear",
+        "filter-size-and-fit"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "dehumidifier-portable",
+      "label": "Portable dehumidifier",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "air-filter-replacement",
+        "coil-cleaning"
+      ],
+      "inspectionPoints": [
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "No checklist, and it has a filter nobody cleans."
+    },
+    {
+      "id": "attic-fan",
+      "label": "Attic or whole-house fan",
+      "systems": [
+        "ventilation"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "damper-and-louvre-service"
+      ],
+      "inspectionPoints": [
+        "blower-compartment-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Louvres seize long before anyone notices, because nobody looks in the season it is not used."
+    },
+    {
+      "id": "register",
+      "label": "Register or grille",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "register",
+      "careCategories": [],
+      "inspectionPoints": [
+        "register-airflow",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": false,
+      "note": "Merged supply and return at v0.2 — they share every care task, and balance is a property-level diagnostic the property pass handles rather than object care. No replacement horizon: a grille is replaced when a room is renovated, not on a lifespan."
+    },
+    {
+      "id": "condensate-pump",
+      "label": "Condensate pump",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "condensate-pump-operation",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "no-condensate-overflow-protection",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Fails silently and floods the mechanical room while the appliance it serves is fine."
+    },
+    {
+      "id": "condensate-drain",
+      "label": "Condensate drain",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "condensate-drain-service"
+      ],
+      "inspectionPoints": [
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [],
+      "replacementHorizon": false
+    },
+    {
+      "id": "baseboard-heater-electric",
+      "label": "Electric baseboard heater",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "thermostat-function-and-schedule"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "Very common in older rural stock and in additions."
+    },
+    {
+      "id": "fireplace-wood",
+      "label": "Wood-burning fireplace",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [
+        "chimney-sweep",
+        "burn-pot-and-ash-service"
+      ],
+      "inspectionPoints": [
+        "firebox-and-refractory-condition",
+        "hearth-and-clearances",
+        "connector-clearance-to-combustibles",
+        "creosote-accumulation"
+      ],
+      "opportunityConditions": [
+        "no-wett-record-on-solid-fuel",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-chimney-last-swept",
+        "do-you-burn-wood-and-how-often",
+        "do-you-have-a-wett-certificate"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "wood-stove",
+      "label": "Wood stove",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [
+        "chimney-sweep",
+        "burn-pot-and-ash-service"
+      ],
+      "inspectionPoints": [
+        "firebox-and-refractory-condition",
+        "door-gasket-and-glass",
+        "hearth-and-clearances",
+        "connector-clearance-to-combustibles",
+        "creosote-accumulation"
+      ],
+      "opportunityConditions": [
+        "no-wett-record-on-solid-fuel",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-chimney-last-swept",
+        "do-you-burn-wood-and-how-often",
+        "do-you-have-a-wett-certificate"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "pellet-stove",
+      "label": "Pellet stove",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [
+        "burn-pot-and-ash-service",
+        "blower-and-fan-cleaning",
+        "chimney-sweep"
+      ],
+      "inspectionPoints": [
+        "firebox-and-refractory-condition",
+        "door-gasket-and-glass",
+        "hearth-and-clearances",
+        "connector-clearance-to-combustibles"
+      ],
+      "opportunityConditions": [
+        "no-wett-record-on-solid-fuel",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "do-you-burn-wood-and-how-often",
+        "do-you-have-a-wett-certificate"
+      ],
+      "replacementHorizon": true,
+      "note": "Its care is unlike a wood stove's — a blower, an auger and a burn pot, and no creosote point because it vents differently."
+    },
+    {
+      "id": "fireplace-gas",
+      "label": "Gas fireplace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [
+        "burner-and-combustion-service"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "door-gasket-and-glass",
+        "hearth-and-clearances"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "fireplace-electric",
+      "label": "Electric fireplace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "fireplace",
+      "careCategories": [],
+      "inspectionPoints": [],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Almost no care and no inspection point that is not a general electrical one. Worth the class precisely to say so — an empty row is an answer."
+    },
+    {
+      "id": "chimney-masonry",
+      "label": "Masonry chimney",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "chimney",
+      "careCategories": [
+        "chimney-sweep"
+      ],
+      "inspectionPoints": [
+        "chimney-crown-and-flashing",
+        "cap-and-screen-condition",
+        "chimney-liner-condition",
+        "creosote-accumulation"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-chimney-last-swept"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "chimney-metal",
+      "label": "Metal chimney",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "chimney",
+      "careCategories": [
+        "chimney-sweep"
+      ],
+      "inspectionPoints": [
+        "cap-and-screen-condition",
+        "chimney-liner-condition",
+        "creosote-accumulation",
+        "connector-clearance-to-combustibles"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-chimney-last-swept"
+      ],
+      "replacementHorizon": true,
+      "note": "Class-A insulated, and a different inspection entirely — no crown, no flashing, and clearances that are the manufacturer's rather than the code's."
+    },
+    {
+      "id": "chimney-cap",
+      "label": "Chimney cap",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "chimney",
+      "careCategories": [],
+      "inspectionPoints": [
+        "cap-and-screen-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Separately replaceable, and animals and water get in while the chimney itself is sound."
+    },
+    {
+      "id": "stovepipe",
+      "label": "Stovepipe",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel"
+      ],
+      "componentType": "chimney",
+      "careCategories": [],
+      "inspectionPoints": [
+        "connector-clearance-to-combustibles",
+        "creosote-accumulation"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "The connector between appliance and chimney. WETT treats appliance, connector and chimney as one system with three parts, and this is the part with no other home."
+    },
+    {
+      "id": "fuel-tank-propane",
+      "label": "Propane tank",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [],
+      "inspectionPoints": [
+        "tank-shell-and-legs",
+        "regulator-and-vent-position",
+        "fuel-line-condition",
+        "tank-gauge-function"
+      ],
+      "opportunityConditions": [
+        "long-tenure-rental",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "who-fills-the-tank"
+      ],
+      "replacementHorizon": true,
+      "note": "Usually leased, and the lease is a fact worth carrying — `owned-or-rented` does the same job here it does for a rented water heater."
+    },
+    {
+      "id": "fuel-tank-oil",
+      "label": "Oil tank",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [],
+      "inspectionPoints": [
+        "tank-shell-and-legs",
+        "fuel-line-condition",
+        "tank-gauge-function",
+        "secondary-containment-present"
+      ],
+      "opportunityConditions": [
+        "no-secondary-containment",
+        "oil-tank-past-insurable-age",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-this-ever-leaked",
+        "who-fills-the-tank",
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true,
+      "note": "Insurance-relevant rather than merely condition-relevant. Age and type drive coverage, which is why the opportunity fires on age rather than on a finding."
+    },
+    {
+      "id": "propane-regulator",
+      "label": "Propane regulator",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [],
+      "inspectionPoints": [
+        "regulator-and-vent-position",
+        "fuel-line-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "oil-tank-fittings",
+      "label": "Oil tank fill and vent",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [],
+      "inspectionPoints": [
+        "fill-and-vent-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "TSSA-regulated and separate from the shell — a sound tank with a wrong fill or vent is a real and separate finding."
+    },
+    {
+      "id": "oil-filter",
+      "label": "Oil filter",
+      "systems": [
+        "fuel"
+      ],
+      "componentType": "fuel-tank",
+      "careCategories": [
+        "oil-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "fuel-line-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true
+    }
+  ],
+  "contentPassProgress": {
+    "written": [
+      "domestic-hot-water (8)",
+      "water-supply (16)",
+      "wastewater (8)",
+      "heating-and-cooling, ventilation, solid-fuel and fuel (36)"
+    ],
+    "remaining": "electrical · appliances · plumbing · envelope and structure · site and exterior · safety · interior · tier two",
+    "classCountNote": "173, not 172. `well-pump` split into submersible and jet during pass two — one is in the well and cannot be looked at, the other is in the basement and can.",
+    "theReuseMeasurement": {
+      "why": "Heating and cooling was written third specifically to test the vocabulary argument, because it is where `air-filter-replacement`, `condensate-drain-service` and `burner-and-combustion-service` get their second use. The argument was that reuse would rise. It did, unevenly, and the unevenness is the finding.",
+      "measured": "Of 262 references made by the 36 new classes, 116 resolved to terms that already existed — 44% overall.",
+      "byVocabulary": {
+        "opportunityConditions": "86% reused, 4 new from 43 references. Opportunities are about situations rather than equipment, and situations recur across systems almost completely.",
+        "careCategories": "47% reused, 10 new from 53 references. `air-filter-replacement` alone was referenced by nine classes in this system after being written for a water heater.",
+        "ownerQuestions": "45% reused, 5 new from 49. `last-serviced-and-by-whom` is becoming the most-referenced token in the file.",
+        "inspectionPoints": "27% reused, 28 new from 117 — the lowest, and expected. An inspection point is the most equipment-specific of the four; a heat exchanger has nothing to do with a septic lid."
+      },
+      "whatItSettles": "The vocabulary earns itself and the curve bends where the argument said it would. But it bends at different rates per stream, and inspection points will keep growing roughly with the class count while the other three flatten. Anyone sizing the remaining eight systems should size inspection points near-linearly and the rest as mostly picking."
+    },
+    "accessIsPerPointNotPerReference": {
+      "finding": "The same KIND of check can be reachable on one class and gated on another. A float-and-pump check is direct on a condensate pump beside the furnace and requires-access-event on a septic effluent pump in a buried chamber.",
+      "howItWasHandled": "Two distinct points — `condensate-pump-operation` and `float-and-pump-operation` — rather than moving `access` onto the class's reference.",
+      "whyNotTheShapeChange": "Because the two really are different checks in practice, and no genuine collision has appeared in three systems. Moving `access` to the reference would let one point mean two things, which is the collapse §2 exists to prevent.",
+      "whenToRevisit": "If a later system produces one point that is honestly identical and differs only in reachability. Recorded so the next author sees the choice rather than rediscovering the question."
+    },
+    "authoredDirectlyHere": "Register #37. The per-system markdown documents are the reasoning record; this file is the source."
+  }
+}

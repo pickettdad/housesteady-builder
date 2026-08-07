@@ -1,0 +1,1027 @@
+{
+  "_what": "APPEND-ONLY CONTENT DELTA for schema/class-frame-v1.json — envelope, exterior, site and waterfront. No existing class modified.",
+  "_why": "Two authors. Builder Code owns the structure; the design session owns the five content arrays.",
+  "_cutFrom": "the 124-class state as merged in PR #66, read from the source.",
+  "_howToApply": "Append each array to the array of the same name. Nothing to replace this time.",
+  "_expectedAfterMerge": {
+    "classes": 155,
+    "careCategories": 64,
+    "inspectionPoints": 152,
+    "opportunityConditions": 45,
+    "ownerQuestions": 33
+  },
+  "_newAccessEvents": [],
+  "_noStatusBlock": "Derived and tested. `contentPassProgress.remaining` needs envelope, exterior and site dropped by hand — three systems land in one delta.",
+  "_thisCompletesTheScheduleOverlap": "Your PR #66 note: six `house.*` types remained class-less and all six were envelope or site. **All six land here** — `deck`, `garage-door`, `irrigation-backflow`, `outbuilding`, `retaining-wall`, `tree`. The overlap the parse predicted at fifteen component types is now fully realised, and the precedence rule's worked case has every input it needs.",
+  "_thirdUnitlessMeasure": "`water-chemistry-balance` is deliberately null. pH, free chlorine, alkalinity and hardness are four different scales and the test kit decides which are read — the same reasoning as `register-airflow` and the field app's three unitless moisture items.",
+  "_twoRegionalClassesWorthKnowing": {
+    "waterfront": "`dock-floating`, `dock-fixed`, `boat-lift`, `dock-de-icer` and `shoreline-structure` carry a `waterfront` system tag. `seasonal-removal-and-reinstall` was written for a lake intake two systems ago and five waterfront classes needed it — the vocabulary reaching forward rather than being extended.",
+    "heatTrace": "Older rural stock leans on it hard, and its absence shows up as ice damming rather than as a missing device."
+  },
+  "_oneClassThatEarnsItsSplitByDeclaringAnAbsence": "`deck-composite` declares `surface-washing` and NOT `deck-sealing`, and carries an opportunity that fires when a household is sealing it anyway. **The split's value is the work it says not to do** — which is the first time in the frame that a class exists mainly to prevent an action.",
+  "careCategories": [
+    {
+      "id": "gutter-clearing",
+      "label": "Eavestrough and downspout clearing",
+      "note": "The group-buy item — seasonal, universal, and height work, which the owner ruled 2026-08-05 is HouseSteady labour."
+    },
+    {
+      "id": "weatherseal-and-caulk-renewal",
+      "label": "Weatherseal and caulk renewal",
+      "note": "Doors, windows, penetrations. Household-level and the highest-return small task in the envelope."
+    },
+    {
+      "id": "track-and-roller-service",
+      "label": "Track and roller service",
+      "note": "Sliding patio doors and garage doors. Cleaned and lubricated, not adjusted — spring adjustment is a trade's."
+    },
+    {
+      "id": "hardware-lubrication",
+      "label": "Hardware lubrication",
+      "note": "Hinges, latches, locks, operators. Cheap, and it is what stops a window being painted shut by neglect."
+    },
+    {
+      "id": "deck-sealing",
+      "label": "Deck sealing or staining",
+      "note": "Wood only. The composite split exists to declare that this does NOT apply."
+    },
+    {
+      "id": "surface-washing",
+      "label": "Surface washing",
+      "note": "Composite decking, siding, walkways. Cleaned rather than treated."
+    },
+    {
+      "id": "vegetation-clearance",
+      "label": "Vegetation clearance",
+      "note": "Keeping growth off structures, terminations, beds and walls. The care that is mostly about what you cut back."
+    },
+    {
+      "id": "seasonal-blow-out",
+      "label": "Seasonal blow-out",
+      "note": "Irrigation lines before freezing. A hard date in this climate, not an interval."
+    },
+    {
+      "id": "water-chemistry-management",
+      "label": "Water chemistry management",
+      "note": "Pools and hot tubs. Frequent, household-level, and the whole of what keeps the equipment alive."
+    },
+    {
+      "id": "filter-and-basket-cleaning",
+      "label": "Filter and basket cleaning",
+      "note": "Pool and hot tub skimmers, pumps and cartridges."
+    },
+    {
+      "id": "culvert-and-drain-clearing",
+      "label": "Culvert and drain clearing",
+      "note": "Silt, leaves and ice from culverts, yard drains and catch basins. Rural essential — the driveway washes out when it is skipped."
+    }
+  ],
+  "inspectionPoints": [
+    {
+      "id": "glazing-and-seal-condition",
+      "label": "Glazing and seal condition",
+      "kind": "look",
+      "note": "Fogging between panes is a failed seal and it is only visible in the right light — worth naming because it is missed."
+    },
+    {
+      "id": "operation-and-latching",
+      "label": "Operation and latching",
+      "kind": "look"
+    },
+    {
+      "id": "weatherseal-condition",
+      "label": "Weatherseal and threshold condition",
+      "kind": "look"
+    },
+    {
+      "id": "frame-and-sill-condition",
+      "label": "Frame and sill condition",
+      "kind": "look"
+    },
+    {
+      "id": "track-and-roller-condition",
+      "label": "Track and roller condition",
+      "kind": "look"
+    },
+    {
+      "id": "safety-reverse-and-eyes",
+      "label": "Safety reverse and photo-eye function",
+      "kind": "look",
+      "note": "Garage door openers. An annual test with a real failure mode behind it, and it is done by obstructing the beam rather than by adjusting anything."
+    },
+    {
+      "id": "spring-and-cable-condition",
+      "label": "Spring and cable condition",
+      "kind": "look",
+      "note": "Visual only. A torsion spring under load is a trade's and nothing about it is a household task."
+    },
+    {
+      "id": "deck-structure-and-fasteners",
+      "label": "Structure, fasteners and ledger condition",
+      "kind": "look",
+      "note": "The ledger connection is where a deck fails catastrophically rather than gradually, and it is the one part nobody looks at."
+    },
+    {
+      "id": "deck-surface-and-rails",
+      "label": "Surface, rails and guard condition",
+      "kind": "look"
+    },
+    {
+      "id": "wall-face-and-drainage",
+      "label": "Wall face, batter and drainage",
+      "kind": "look",
+      "note": "Retaining walls fail from water behind them, not from load in front."
+    },
+    {
+      "id": "gutter-slope-and-fastening",
+      "label": "Slope, fastening and joint condition",
+      "kind": "look"
+    },
+    {
+      "id": "downspout-discharge-distance",
+      "label": "Downspout discharge distance and direction",
+      "kind": "look",
+      "note": "Frequently missing, crushed, or aimed straight at the foundation — which is the commonest avoidable source of basement water."
+    },
+    {
+      "id": "vent-screen-and-blockage",
+      "label": "Vent screen and blockage",
+      "kind": "look"
+    },
+    {
+      "id": "soffit-vent-clearance",
+      "label": "Soffit vent clearance at the insulation",
+      "kind": "look",
+      "note": "Insulation shifts and blocks them, which is how attic moisture and ice damming start. Access-found: it wants an attic hatch."
+    },
+    {
+      "id": "roof-jack-and-flashing",
+      "label": "Roof jack and flashing condition",
+      "kind": "look",
+      "access": "requires-access-found"
+    },
+    {
+      "id": "heat-trace-function-and-routing",
+      "label": "Heat trace function and routing",
+      "kind": "look"
+    },
+    {
+      "id": "foundation-vent-position",
+      "label": "Foundation vent position and operation",
+      "kind": "look",
+      "note": "Seasonal open and close. Seized, or left wrong for the season, invites freeze damage one way and pests the other."
+    },
+    {
+      "id": "anchoring-and-ice-exposure",
+      "label": "Anchoring and ice exposure",
+      "kind": "look"
+    },
+    {
+      "id": "dock-structure-and-decking",
+      "label": "Dock structure and decking condition",
+      "kind": "look"
+    },
+    {
+      "id": "cable-and-winch-condition",
+      "label": "Cable, winch and motor condition",
+      "kind": "look"
+    },
+    {
+      "id": "shoreline-face-and-toe",
+      "label": "Shoreline face and toe condition",
+      "kind": "look",
+      "note": "Wave, ice and water-level exposure. Not a garden retaining wall, which is why v0.2 split it."
+    },
+    {
+      "id": "de-icer-operation-and-placement",
+      "label": "De-icer operation and placement",
+      "kind": "look"
+    },
+    {
+      "id": "structure-envelope-and-access",
+      "label": "Outbuilding envelope and access",
+      "kind": "look"
+    },
+    {
+      "id": "tree-form-and-deadwood",
+      "label": "Form, deadwood and lean",
+      "kind": "look"
+    },
+    {
+      "id": "tree-proximity-to-structure",
+      "label": "Proximity to structures and services",
+      "kind": "look"
+    },
+    {
+      "id": "backflow-preventer-test-record",
+      "label": "Backflow preventer test record",
+      "kind": "look",
+      "note": "Annual testing is a licensed tester's and it produces a certificate. The record is the inspectable thing; the test is not ours."
+    },
+    {
+      "id": "zone-coverage-and-heads",
+      "label": "Zone coverage and head condition",
+      "kind": "look"
+    },
+    {
+      "id": "water-chemistry-balance",
+      "label": "Water chemistry balance",
+      "kind": "measure",
+      "unit": null,
+      "note": "Deliberately unitless. pH, free chlorine, alkalinity and hardness are four different scales and the test kit decides which are read. Third explicit null unit in the frame."
+    },
+    {
+      "id": "barrier-and-gate-latching",
+      "label": "Barrier, fence and self-latching gate",
+      "kind": "look",
+      "note": "Pools and hot tubs. A regulated safety requirement rather than a maintenance item, and the failure is a drowning."
+    },
+    {
+      "id": "cover-and-lock-condition",
+      "label": "Cover, lid and lock condition",
+      "kind": "look"
+    },
+    {
+      "id": "lift-service-record",
+      "label": "Lift service record",
+      "kind": "look",
+      "note": "Elevators and lifts are inspected under regulation by a licensed contractor. The record is what we hold; the inspection is not ours."
+    },
+    {
+      "id": "culvert-inlet-and-outlet",
+      "label": "Culvert inlet, outlet and grade",
+      "kind": "look"
+    },
+    {
+      "id": "catch-basin-and-grate",
+      "label": "Catch basin, grate and sump condition",
+      "kind": "look"
+    }
+  ],
+  "opportunityConditions": [
+    {
+      "id": "downspout-discharging-at-foundation",
+      "label": "Downspout discharging at the foundation",
+      "note": "The cheapest fix with the largest consequence in the whole frame."
+    },
+    {
+      "id": "no-gutter-guards-under-trees",
+      "label": "Eavestrough under heavy tree cover with no guards"
+    },
+    {
+      "id": "blocked-soffit-ventilation",
+      "label": "Soffit ventilation blocked at the insulation"
+    },
+    {
+      "id": "no-heat-trace-on-ice-prone-eave",
+      "label": "Ice-prone eave with no heat trace",
+      "note": "Regional. Older rural stock leans on it hard, and its absence shows up as ice damming rather than as a missing device."
+    },
+    {
+      "id": "tree-overhanging-structure",
+      "label": "Tree overhanging a structure or service"
+    },
+    {
+      "id": "no-backflow-test-record",
+      "label": "Irrigation with no backflow test record"
+    },
+    {
+      "id": "no-self-latching-barrier",
+      "label": "Pool or hot tub without a compliant self-latching barrier",
+      "note": "Regulated, and the failure is a drowning. Named as a specialist referral rather than a task."
+    },
+    {
+      "id": "culvert-restricted",
+      "label": "Culvert restricted or silted",
+      "note": "Rural essential — the driveway washes out and the repair is a machine and a day."
+    },
+    {
+      "id": "composite-deck-being-sealed",
+      "label": "Composite decking being sealed or stained",
+      "note": "Fires when a household is doing work that does nothing and may harm the surface. The class split exists to make this visible."
+    }
+  ],
+  "ownerQuestions": [
+    {
+      "id": "does-water-collect-anywhere-after-rain",
+      "label": "Does water collect anywhere after heavy rain?",
+      "note": "Households know their own yard's puddles precisely, and it is the cheapest input to every drainage question."
+    },
+    {
+      "id": "do-you-get-ice-damming",
+      "label": "Do you get ice damming or icicles along the eaves?"
+    },
+    {
+      "id": "who-opens-and-closes-it-seasonally",
+      "label": "Who opens and closes it for the season?",
+      "note": "Docks, irrigation, foundation vents, pools. Names the coordination partner and reveals whether it happens at all."
+    },
+    {
+      "id": "has-anything-shifted-or-settled",
+      "label": "Has anything shifted, settled or moved?",
+      "note": "Walls, decks, shorelines. A household notices a year of movement that a single visit cannot see."
+    },
+    {
+      "id": "do-you-have-a-service-contract",
+      "label": "Is there a service contract on it?",
+      "note": "Pools, hot tubs, lifts and elevators are often already covered, and coordinating against an existing contract beats arranging a second one."
+    }
+  ],
+  "classes": [
+    {
+      "id": "window",
+      "label": "Window",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "window",
+      "careCategories": [
+        "weatherseal-and-caulk-renewal",
+        "hardware-lubrication"
+      ],
+      "inspectionPoints": [
+        "glazing-and-seal-condition",
+        "operation-and-latching",
+        "weatherseal-condition",
+        "frame-and-sill-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Operating style is an attribute, not a class. Its count, storey and access are the per-object attributes the frame does not yet carry — the dimension the monthly service design needs for quotable work."
+    },
+    {
+      "id": "door-exterior",
+      "label": "Exterior door",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "door",
+      "careCategories": [
+        "weatherseal-and-caulk-renewal",
+        "hardware-lubrication"
+      ],
+      "inspectionPoints": [
+        "operation-and-latching",
+        "weatherseal-condition",
+        "frame-and-sill-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "door-patio",
+      "label": "Patio door",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "door",
+      "careCategories": [
+        "track-and-roller-service",
+        "weatherseal-and-caulk-renewal"
+      ],
+      "inspectionPoints": [
+        "track-and-roller-condition",
+        "operation-and-latching",
+        "weatherseal-condition",
+        "glazing-and-seal-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Sliding track and rollers are their own care, which is the whole of the split from a hinged door."
+    },
+    {
+      "id": "door-storm",
+      "label": "Storm door",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "door",
+      "careCategories": [
+        "hardware-lubrication"
+      ],
+      "inspectionPoints": [
+        "operation-and-latching",
+        "glazing-and-seal-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Its closer and its seasonal glass-and-screen change are its own, and neither belongs to the door behind it."
+    },
+    {
+      "id": "garage-door",
+      "label": "Garage door",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "garage-door",
+      "careCategories": [
+        "track-and-roller-service",
+        "hardware-lubrication"
+      ],
+      "inspectionPoints": [
+        "track-and-roller-condition",
+        "spring-and-cable-condition",
+        "weatherseal-condition"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Cleaned and lubricated, never adjusted — a torsion spring under load is a trade's and visual inspection is the whole of our part."
+    },
+    {
+      "id": "garage-door-opener",
+      "label": "Garage door opener",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "garage-door",
+      "careCategories": [
+        "hardware-lubrication"
+      ],
+      "inspectionPoints": [
+        "safety-reverse-and-eyes",
+        "operation-and-latching"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "A separate object, and the safety-reverse test is annual with a real failure mode behind it. Tested by obstructing the beam, which is operating to learn rather than adjusting."
+    },
+    {
+      "id": "deck-wood",
+      "label": "Wood deck",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "deck",
+      "careCategories": [
+        "deck-sealing",
+        "surface-washing",
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "deck-structure-and-fasteners",
+        "deck-surface-and-rails"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-anything-shifted-or-settled"
+      ],
+      "replacementHorizon": true,
+      "note": "The ledger connection is where a deck fails catastrophically rather than gradually, and it is the part nobody looks at."
+    },
+    {
+      "id": "deck-composite",
+      "label": "Composite deck",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "deck",
+      "careCategories": [
+        "surface-washing",
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "deck-structure-and-fasteners",
+        "deck-surface-and-rails"
+      ],
+      "opportunityConditions": [
+        "composite-deck-being-sealed",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-anything-shifted-or-settled"
+      ],
+      "replacementHorizon": true,
+      "note": "Cleaned, never sealed — and declaring that is the useful half. The opportunity fires when a household is doing work that achieves nothing and may harm the surface."
+    },
+    {
+      "id": "retaining-wall",
+      "label": "Retaining wall",
+      "systems": [
+        "site"
+      ],
+      "componentType": "retaining-wall",
+      "careCategories": [
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "wall-face-and-drainage"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-anything-shifted-or-settled"
+      ],
+      "replacementHorizon": true,
+      "note": "Fails from water behind it, not from load in front."
+    },
+    {
+      "id": "eavestrough",
+      "label": "Eavestrough",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "downspout",
+      "careCategories": [
+        "gutter-clearing",
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "gutter-slope-and-fastening"
+      ],
+      "opportunityConditions": [
+        "no-gutter-guards-under-trees",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-get-ice-damming"
+      ],
+      "replacementHorizon": true,
+      "note": "The group-buy item — cleaning is seasonal and universal, and it is height work, which the owner ruled is HouseSteady labour."
+    },
+    {
+      "id": "downspout",
+      "label": "Downspout",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "downspout",
+      "careCategories": [
+        "gutter-clearing"
+      ],
+      "inspectionPoints": [
+        "downspout-discharge-distance"
+      ],
+      "opportunityConditions": [
+        "downspout-discharging-at-foundation",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-water-collect-anywhere-after-rain"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "downspout-extension",
+      "label": "Downspout extension",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "downspout",
+      "careCategories": [],
+      "inspectionPoints": [
+        "downspout-discharge-distance"
+      ],
+      "opportunityConditions": [
+        "downspout-discharging-at-foundation"
+      ],
+      "ownerQuestions": [
+        "does-water-collect-anywhere-after-rain"
+      ],
+      "replacementHorizon": true,
+      "note": "Frequently missing, crushed, or aimed straight at the foundation. The cheapest fix with the largest consequence in the frame. Zero care is a ruling."
+    },
+    {
+      "id": "soffit-vent",
+      "label": "Soffit vent",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "vent-termination",
+      "careCategories": [
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "soffit-vent-clearance",
+        "vent-screen-and-blockage"
+      ],
+      "opportunityConditions": [
+        "blocked-soffit-ventilation"
+      ],
+      "ownerQuestions": [
+        "do-you-get-ice-damming"
+      ],
+      "replacementHorizon": false,
+      "note": "Insulation shifts and blocks them, which is how attic moisture and ice damming start. No horizon — a vent is part of the soffit."
+    },
+    {
+      "id": "plumbing-vent-stack",
+      "label": "Plumbing vent stack",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "vent-termination",
+      "careCategories": [],
+      "inspectionPoints": [
+        "roof-jack-and-flashing",
+        "vent-screen-and-blockage"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Blocks or leaks at the roof jack, and it is noticed when traps gurgle rather than when it fails. Zero care is a ruling."
+    },
+    {
+      "id": "vent-termination",
+      "label": "Exterior vent",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "vent-termination",
+      "careCategories": [
+        "termination-clearing"
+      ],
+      "inspectionPoints": [
+        "vent-screen-and-blockage",
+        "duct-run-and-termination"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "`ses.termination-reconcile` reconciles against these — every interior fan and duct should arrive at one of them."
+    },
+    {
+      "id": "heat-trace",
+      "label": "Heat trace cable",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "heat-trace-function-and-routing"
+      ],
+      "opportunityConditions": [
+        "no-heat-trace-on-ice-prone-eave",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-get-ice-damming"
+      ],
+      "replacementHorizon": true,
+      "note": "Roof and pipe de-icing. Regional — older rural stock leans on it hard, and its absence shows up as ice damming rather than as a missing device. Zero care is a ruling."
+    },
+    {
+      "id": "foundation-vent",
+      "label": "Foundation vent",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "foundation-vent-position"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [
+        "who-opens-and-closes-it-seasonally"
+      ],
+      "replacementHorizon": false,
+      "note": "Seasonal open and close. Seized, or left wrong for the season, invites freeze damage one way and pests the other. No horizon. Zero care is a ruling."
+    },
+    {
+      "id": "outbuilding",
+      "label": "Outbuilding",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "outbuilding",
+      "careCategories": [
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "structure-envelope-and-access"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-anything-shifted-or-settled"
+      ],
+      "replacementHorizon": true,
+      "note": "Stub component type at v1.11.0 — reported, not an error."
+    },
+    {
+      "id": "dock-floating",
+      "label": "Floating dock",
+      "systems": [
+        "site",
+        "waterfront"
+      ],
+      "componentType": "dock",
+      "careCategories": [
+        "seasonal-removal-and-reinstall",
+        "surface-washing"
+      ],
+      "inspectionPoints": [
+        "anchoring-and-ice-exposure",
+        "dock-structure-and-decking"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "who-opens-and-closes-it-seasonally",
+        "has-anything-shifted-or-settled"
+      ],
+      "replacementHorizon": true,
+      "note": "Seasonal removal, ice heave and anchoring — and `seasonal-removal-and-reinstall` was written for the lake intake before this class needed it."
+    },
+    {
+      "id": "dock-fixed",
+      "label": "Fixed dock",
+      "systems": [
+        "site",
+        "waterfront"
+      ],
+      "componentType": "dock",
+      "careCategories": [
+        "surface-washing"
+      ],
+      "inspectionPoints": [
+        "dock-structure-and-decking",
+        "anchoring-and-ice-exposure"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-anything-shifted-or-settled"
+      ],
+      "replacementHorizon": true,
+      "note": "Stays in the water, so structural inspection replaces seasonal removal. That is the whole split."
+    },
+    {
+      "id": "boat-lift",
+      "label": "Boat lift",
+      "systems": [
+        "site",
+        "waterfront"
+      ],
+      "componentType": "dock",
+      "careCategories": [
+        "seasonal-removal-and-reinstall",
+        "hardware-lubrication"
+      ],
+      "inspectionPoints": [
+        "cable-and-winch-condition",
+        "anchoring-and-ice-exposure"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "who-opens-and-closes-it-seasonally"
+      ],
+      "replacementHorizon": true,
+      "note": "Cables, motor and seasonal exposure. Quinte Conservation names it separately from a dock, which is the regional reason it is its own class."
+    },
+    {
+      "id": "dock-de-icer",
+      "label": "Dock de-icer",
+      "systems": [
+        "site",
+        "waterfront"
+      ],
+      "componentType": "dock",
+      "careCategories": [],
+      "inspectionPoints": [
+        "de-icer-operation-and-placement"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "who-opens-and-closes-it-seasonally"
+      ],
+      "replacementHorizon": true,
+      "note": "A bubbler is neither dock hardware nor irrigation, and it runs unattended all winter doing the one job nobody checks. Zero care is a ruling."
+    },
+    {
+      "id": "shoreline-structure",
+      "label": "Shoreline protection",
+      "systems": [
+        "site",
+        "waterfront"
+      ],
+      "componentType": "retaining-wall",
+      "careCategories": [
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "shoreline-face-and-toe"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-anything-shifted-or-settled"
+      ],
+      "replacementHorizon": true,
+      "note": "Seawall, armour stone, riprap. Wave, ice and water-level exposure is not a garden retaining wall."
+    },
+    {
+      "id": "tree",
+      "label": "Tree",
+      "systems": [
+        "site"
+      ],
+      "componentType": "tree",
+      "careCategories": [
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "tree-form-and-deadwood",
+        "tree-proximity-to-structure"
+      ],
+      "opportunityConditions": [
+        "tree-overhanging-structure"
+      ],
+      "ownerQuestions": [
+        "has-anything-shifted-or-settled"
+      ],
+      "replacementHorizon": false,
+      "note": "The schedule keys on `tree` with four items; this adds the object-grain half. No replacement horizon — a tree is removed or it is not, and a lifespan band would be a claim nobody can make."
+    },
+    {
+      "id": "irrigation-system",
+      "label": "Irrigation system",
+      "systems": [
+        "site"
+      ],
+      "componentType": "irrigation-backflow",
+      "careCategories": [
+        "seasonal-blow-out",
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "zone-coverage-and-heads"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "who-opens-and-closes-it-seasonally"
+      ],
+      "replacementHorizon": true,
+      "note": "Blow-out is a hard seasonal date in this climate rather than an interval — the same shape as `seasonal-drain-down` on a standard hose bib."
+    },
+    {
+      "id": "backflow-preventer",
+      "label": "Backflow preventer",
+      "systems": [
+        "site"
+      ],
+      "componentType": "backflow-preventer",
+      "careCategories": [],
+      "inspectionPoints": [
+        "backflow-preventer-test-record"
+      ],
+      "opportunityConditions": [
+        "no-backflow-test-record",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-have-a-service-contract"
+      ],
+      "replacementHorizon": true,
+      "note": "Annual testing is a licensed tester's and produces a certificate. The record is the inspectable thing; the test is not ours. Stub type at v1.11.0. Zero care is a ruling."
+    },
+    {
+      "id": "pool",
+      "label": "Pool",
+      "systems": [
+        "site"
+      ],
+      "componentType": "pool-equipment",
+      "careCategories": [
+        "water-chemistry-management",
+        "filter-and-basket-cleaning"
+      ],
+      "inspectionPoints": [
+        "water-chemistry-balance",
+        "barrier-and-gate-latching",
+        "cover-and-lock-condition"
+      ],
+      "opportunityConditions": [
+        "no-self-latching-barrier",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-have-a-service-contract",
+        "who-opens-and-closes-it-seasonally"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "hot-tub",
+      "label": "Hot tub",
+      "systems": [
+        "site"
+      ],
+      "componentType": "pool-equipment",
+      "careCategories": [
+        "water-chemistry-management",
+        "filter-and-basket-cleaning"
+      ],
+      "inspectionPoints": [
+        "water-chemistry-balance",
+        "cover-and-lock-condition",
+        "barrier-and-gate-latching"
+      ],
+      "opportunityConditions": [
+        "no-self-latching-barrier",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-have-a-service-contract"
+      ],
+      "replacementHorizon": true,
+      "note": "A very different object from a pool and the config bundles them — different volume, different chemistry rhythm, and a cover that is a safety device rather than a heat measure."
+    },
+    {
+      "id": "elevator-lift",
+      "label": "Lift",
+      "systems": [
+        "site"
+      ],
+      "componentType": "elevator-lift",
+      "careCategories": [],
+      "inspectionPoints": [
+        "lift-service-record"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-have-a-service-contract"
+      ],
+      "replacementHorizon": true,
+      "note": "Inspected under regulation by a licensed contractor. The record is what we hold; the inspection is not ours. Stub type at v1.11.0. Zero care is a ruling."
+    },
+    {
+      "id": "culvert",
+      "label": "Culvert",
+      "systems": [
+        "site"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "culvert-and-drain-clearing"
+      ],
+      "inspectionPoints": [
+        "culvert-inlet-and-outlet"
+      ],
+      "opportunityConditions": [
+        "culvert-restricted"
+      ],
+      "ownerQuestions": [
+        "does-water-collect-anywhere-after-rain"
+      ],
+      "replacementHorizon": true,
+      "note": "Rural essential. Silts, collapses, freezes — and the driveway washes out, which is a machine and a day rather than a repair."
+    },
+    {
+      "id": "yard-drain",
+      "label": "Yard drain or catch basin",
+      "systems": [
+        "site"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "culvert-and-drain-clearing"
+      ],
+      "inspectionPoints": [
+        "catch-basin-and-grate"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [
+        "does-water-collect-anywhere-after-rain"
+      ],
+      "replacementHorizon": true,
+      "note": "Spring melt and foundation water."
+    }
+  ]
+}

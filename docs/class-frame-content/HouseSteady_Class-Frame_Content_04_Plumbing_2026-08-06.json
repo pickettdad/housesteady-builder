@@ -1,0 +1,756 @@
+{
+  "_what": "CONTENT DELTA for schema/class-frame-v1.json — plumbing, plus one note rewritten whole. NOT purely append-only.",
+  "_why": "Two authors. Builder Code owns the structure; the design session owns the five content arrays.",
+  "_cutFrom": "the 101-class state as merged in PR #64, read from the source.",
+  "_expectedAfterMerge": {
+    "classes": 124,
+    "careCategories": 53,
+    "inspectionPoints": 119,
+    "opportunityConditions": 36,
+    "ownerQuestions": 28
+  },
+  "_newAccessEvents": [],
+  "_noStatusBlock": "Derived and tested. `contentPassProgress.remaining` needs `plumbing` dropped by hand.",
+  "_theNoteYouFlagged": {
+    "yourFinding": "`washer-top-load` opened with a disproved ruling and carried its correction further down, so a skimming reader met the wrong claim first.",
+    "sweptNotPatched": "Rule 13. Eight notes carry an appended correction; the sweep found only ONE whose leading claim is now false — the one you showed me. The other seven lead with statements still true.",
+    "theGeneralForm": "Appending a correction to a note leaves the superseded claim in front. That is the Zone-Audit shape and F-29 §7b's shape, third instance, and this one was the design session's own. **A corrected note is authored whole, never appended** — the whole-file rule one level down. Applied here: the correction leads and the disproved reason is quoted inside it rather than standing alone."
+  },
+  "_yourTwoCountCorrections": "Both right and both the design session's. 22 not 21, 30 not 31 — a tally typed before the last correction landed, while `_expectedAfterMerge` was computed and correct. **Second instance in one day of restating a number that could have been derived**, which is the same lesson your PR #61 guard encodes.",
+  "_thirdQuestionNowAsked": "Outside review's six misses all shared a shape: care that involves REMOVING or EMPTYING something. Every plumbing class was written asking three questions — what a trade does, what the household does, and what the owner removes, empties or clears. `trap-priming`, `drain-clearing`, `pump-basin-clearing` and `seasonal-drain-down` all come from the third.",
+  "_oneMoreSplitPointForTheSameReason": "`float-and-switch-operation` is deliberately distinct from `float-and-pump-operation`, which is gated on a septic pump-out. A sump float is in the basement and can be looked at. Second instance of the same-check-different-reachability pattern recorded at `accessIsPerPointNotPerReference` — still handled by splitting the point rather than moving `access` onto the reference.",
+  "careCategories": [
+    {
+      "id": "seasonal-drain-down",
+      "label": "Seasonal draining",
+      "note": "Standard hose bibs, irrigation, seasonal lines. Care that must happen before a date rather than on an interval — and the date is set by the weather, not the calendar."
+    },
+    {
+      "id": "trap-priming",
+      "label": "Trap priming",
+      "note": "Pouring water into a seldom-used drain so its trap does not dry and admit sewer gas. Household work, costs nothing, and nobody does it."
+    },
+    {
+      "id": "drain-clearing",
+      "label": "Drain clearing",
+      "note": "Hair, grease and debris from an accessible trap or strainer — not a snaking job."
+    },
+    {
+      "id": "aerator-and-showerhead-descaling",
+      "label": "Aerator and showerhead descaling",
+      "note": "Hard water in a limestone region. Household work with a visible result."
+    },
+    {
+      "id": "pump-basin-clearing",
+      "label": "Pump basin clearing",
+      "note": "Silt, gravel and debris from a sump or ejector basin. Cleared, the pump lasts; uncleared, the impeller does not."
+    }
+  ],
+  "inspectionPoints": [
+    {
+      "id": "shutoff-operation-and-labelling",
+      "label": "Shutoff operation and labelling",
+      "kind": "look",
+      "note": "Schedule caution: crusty old gate valves are NOT forced — note them for replacement and know the curb-stop fallback. The label matters as much as the valve, because the household reads it in an emergency."
+    },
+    {
+      "id": "visible-supply-piping",
+      "label": "Visible supply piping condition",
+      "kind": "look"
+    },
+    {
+      "id": "connector-age-and-type",
+      "label": "Connector age and type",
+      "kind": "look",
+      "note": "Braided stainless versus rubber, and how old. One of the highest water-damage risks in a house and it is answered by looking."
+    },
+    {
+      "id": "static-water-pressure",
+      "label": "Static water pressure",
+      "kind": "measure",
+      "unit": "kPa",
+      "note": "A pressure reducing valve fails silently and high pressure destroys fixtures, appliances and softener resin. This measurement is the only thing that catches it."
+    },
+    {
+      "id": "fixture-leak-and-drip",
+      "label": "Fixture leaks and drips",
+      "kind": "look"
+    },
+    {
+      "id": "caulk-and-grout-condition",
+      "label": "Caulk and grout condition",
+      "kind": "look"
+    },
+    {
+      "id": "toilet-flush-and-refill",
+      "label": "Flush and refill behaviour",
+      "kind": "look",
+      "note": "A running fill valve is the commonest silent water cost in a house, and on a well it is also a pump running all night."
+    },
+    {
+      "id": "toilet-base-and-mounting",
+      "label": "Base seal and mounting",
+      "kind": "look"
+    },
+    {
+      "id": "drain-flow-rate",
+      "label": "Drain flow",
+      "kind": "look"
+    },
+    {
+      "id": "trap-and-strainer-condition",
+      "label": "Trap and strainer condition",
+      "kind": "look"
+    },
+    {
+      "id": "trap-primed",
+      "label": "Trap holding water",
+      "kind": "look",
+      "note": "A dried floor-drain trap admits sewer gas and it is invisible until somebody smells it."
+    },
+    {
+      "id": "cleanout-accessible",
+      "label": "Cleanout present and accessible",
+      "kind": "look"
+    },
+    {
+      "id": "backwater-valve-flap",
+      "label": "Backwater valve flap and access",
+      "kind": "look",
+      "access": "requires-access-found"
+    },
+    {
+      "id": "sump-basin-and-inlet",
+      "label": "Sump basin and inlet condition",
+      "kind": "look"
+    },
+    {
+      "id": "float-and-switch-operation",
+      "label": "Float and switch operation",
+      "kind": "look",
+      "note": "Deliberately distinct from `float-and-pump-operation`, which is gated on a septic pump-out. A sump float is in the basement and can be looked at — the same distinction that split `condensate-pump-operation` out."
+    },
+    {
+      "id": "check-valve-function",
+      "label": "Check valve function",
+      "kind": "look",
+      "note": "Backflow makes a healthy pump cycle repeatedly. The pump gets replaced and the check valve stays."
+    },
+    {
+      "id": "discharge-line-and-termination",
+      "label": "Discharge line and termination",
+      "kind": "look",
+      "note": "Blockage, disconnection, and freezing solid in a Quinte winter — a discharge that freezes makes the pump run against a closed pipe."
+    },
+    {
+      "id": "backup-power-and-battery",
+      "label": "Backup power and battery condition",
+      "kind": "look"
+    },
+    {
+      "id": "sensor-placement-and-power",
+      "label": "Sensor placement and power",
+      "kind": "look"
+    },
+    {
+      "id": "automatic-valve-exercise-record",
+      "label": "Automatic valve exercise record",
+      "kind": "look",
+      "note": "A motorised shutoff that has never closed may not close. Most exercise themselves on a schedule and report it; the record is what says so."
+    },
+    {
+      "id": "hose-bib-type-and-drainage",
+      "label": "Tap type and seasonal drainage",
+      "kind": "look",
+      "note": "Frost-free or standard is the whole of the split, and getting it wrong in October splits a pipe inside the wall."
+    },
+    {
+      "id": "window-well-drain-and-cover",
+      "label": "Window well drain and cover",
+      "kind": "look"
+    }
+  ],
+  "opportunityConditions": [
+    {
+      "id": "no-pressure-reducing-valve",
+      "label": "High static pressure with no reducing valve"
+    },
+    {
+      "id": "rubber-supply-connectors",
+      "label": "Rubber supply connectors in use",
+      "note": "Cheap to replace, and the failure is a flooded house rather than a drip."
+    },
+    {
+      "id": "no-leak-detection-on-risk-fixture",
+      "label": "Water-supplied fixture with no leak detection"
+    },
+    {
+      "id": "no-backup-on-sump",
+      "label": "Sump pump with no backup",
+      "note": "A power cut and a wet spring arrive together more often than not."
+    },
+    {
+      "id": "no-backwater-valve",
+      "label": "No backwater valve where one is warranted"
+    },
+    {
+      "id": "unlabelled-shutoff",
+      "label": "Shutoff present but unlabelled",
+      "note": "The §1 emergency sheet is the deliverable this feeds, and an unlabelled valve is one the household will not find at 2am."
+    },
+    {
+      "id": "window-well-without-cover",
+      "label": "Window well with no cover or blocked drain"
+    }
+  ],
+  "ownerQuestions": [
+    {
+      "id": "do-you-know-where-the-main-shutoff-is",
+      "label": "Do you know where the main water shutoff is?",
+      "note": "The single most useful thing a household can know, and the §1 emergency sheet exists because most do not."
+    },
+    {
+      "id": "has-the-basement-ever-taken-water",
+      "label": "Has the basement ever taken water?"
+    },
+    {
+      "id": "does-anything-drip-or-run",
+      "label": "Does anything drip, run or refill on its own?",
+      "note": "Households hear a running toilet for months and do not report it, because it is not broken."
+    },
+    {
+      "id": "do-you-drain-the-outside-taps",
+      "label": "Do you drain the outside taps in the fall?"
+    }
+  ],
+  "classes": [
+    {
+      "id": "water-main-shutoff",
+      "label": "Main water shutoff",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "water-main",
+      "careCategories": [
+        "valve-exercise"
+      ],
+      "inspectionPoints": [
+        "shutoff-operation-and-labelling",
+        "visible-supply-piping",
+        "corrosion-at-connections"
+      ],
+      "opportunityConditions": [
+        "unlabelled-shutoff",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-know-where-the-main-shutoff-is"
+      ],
+      "replacementHorizon": true,
+      "note": "The §1 emergency sheet depends on this one. Its exercise carries the schedule's caution — an old gate valve is not forced, it is noted for replacement, and the curb stop is the fallback."
+    },
+    {
+      "id": "curb-stop",
+      "label": "Curb stop",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "curb-stop",
+      "careCategories": [],
+      "inspectionPoints": [
+        "shutoff-operation-and-labelling"
+      ],
+      "opportunityConditions": [
+        "unlabelled-shutoff"
+      ],
+      "ownerQuestions": [
+        "do-you-know-where-the-main-shutoff-is"
+      ],
+      "replacementHorizon": true,
+      "note": "The municipal fallback when the interior valve fails, and it needs a key and usually a call. Documenting where it is costs nothing and is worth a great deal once. Zero care is a ruling."
+    },
+    {
+      "id": "hose-bib-frost-free",
+      "label": "Frost-free outdoor tap",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "hose-bib",
+      "careCategories": [
+        "valve-exercise"
+      ],
+      "inspectionPoints": [
+        "hose-bib-type-and-drainage",
+        "fixture-leak-and-drip"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-drain-the-outside-taps"
+      ],
+      "replacementHorizon": true,
+      "note": "Must NOT be drained down — the split from the standard tap is that the correct winter action is opposite, and a hose left attached defeats it entirely."
+    },
+    {
+      "id": "hose-bib-standard",
+      "label": "Outdoor tap",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "hose-bib",
+      "careCategories": [
+        "seasonal-drain-down",
+        "valve-exercise"
+      ],
+      "inspectionPoints": [
+        "hose-bib-type-and-drainage",
+        "fixture-leak-and-drip"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-drain-the-outside-taps"
+      ],
+      "replacementHorizon": true,
+      "note": "Must be drained before freezing. Getting the type wrong in October splits a pipe inside the wall, which is why v0.2 split these."
+    },
+    {
+      "id": "sink",
+      "label": "Sink",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "sink",
+      "careCategories": [
+        "drain-clearing",
+        "aerator-and-showerhead-descaling"
+      ],
+      "inspectionPoints": [
+        "fixture-leak-and-drip",
+        "trap-and-strainer-condition",
+        "drain-flow-rate",
+        "supply-line-and-shutoff",
+        "visible-supply-piping"
+      ],
+      "opportunityConditions": [
+        "rubber-supply-connectors",
+        "no-leak-detection-on-risk-fixture"
+      ],
+      "ownerQuestions": [
+        "does-anything-drip-or-run"
+      ],
+      "replacementHorizon": true,
+      "note": "Kitchen and bathroom merged per §1.2 — identical care, identical inspection."
+    },
+    {
+      "id": "laundry-tub",
+      "label": "Laundry tub",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "laundry-tub",
+      "careCategories": [
+        "drain-clearing"
+      ],
+      "inspectionPoints": [
+        "fixture-leak-and-drip",
+        "trap-and-strainer-condition",
+        "drain-flow-rate",
+        "supply-line-and-shutoff"
+      ],
+      "opportunityConditions": [
+        "rubber-supply-connectors"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "toilet",
+      "label": "Toilet",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "toilet",
+      "careCategories": [],
+      "inspectionPoints": [
+        "toilet-flush-and-refill",
+        "toilet-base-and-mounting",
+        "fixture-leak-and-drip",
+        "supply-line-and-shutoff"
+      ],
+      "opportunityConditions": [
+        "rubber-supply-connectors"
+      ],
+      "ownerQuestions": [
+        "does-anything-drip-or-run"
+      ],
+      "replacementHorizon": true,
+      "note": "Its whole risk is a fill valve that runs and a supply connector that fails, and both are answered by looking rather than by doing. Zero care is a ruling."
+    },
+    {
+      "id": "bathtub",
+      "label": "Bathtub",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "bathtub",
+      "careCategories": [
+        "drain-clearing",
+        "aerator-and-showerhead-descaling"
+      ],
+      "inspectionPoints": [
+        "fixture-leak-and-drip",
+        "drain-flow-rate",
+        "caulk-and-grout-condition"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "shower",
+      "label": "Shower",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "shower",
+      "careCategories": [
+        "drain-clearing",
+        "aerator-and-showerhead-descaling"
+      ],
+      "inspectionPoints": [
+        "fixture-leak-and-drip",
+        "drain-flow-rate",
+        "caulk-and-grout-condition"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [],
+      "replacementHorizon": true
+    },
+    {
+      "id": "floor-drain",
+      "label": "Floor drain",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "floor-drain",
+      "careCategories": [
+        "trap-priming"
+      ],
+      "inspectionPoints": [
+        "trap-primed",
+        "drain-flow-rate",
+        "trap-and-strainer-condition"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [],
+      "replacementHorizon": false,
+      "note": "The classic unnoticed one: the trap dries and admits sewer gas, invisible until somebody smells it. Priming is household work, costs nothing, and nobody does it. No replacement horizon — a floor drain is part of the slab."
+    },
+    {
+      "id": "drain-cleanout",
+      "label": "Drain cleanout",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "cleanout",
+      "careCategories": [],
+      "inspectionPoints": [
+        "cleanout-accessible"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [],
+      "replacementHorizon": false,
+      "note": "Inspected for presence and access, never maintained. No horizon — it is a fitting in the drain line. Zero care is a ruling."
+    },
+    {
+      "id": "backwater-valve",
+      "label": "Backwater valve",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "backwater-valve",
+      "careCategories": [],
+      "inspectionPoints": [
+        "backwater-valve-flap",
+        "cleanout-accessible"
+      ],
+      "opportunityConditions": [
+        "no-backwater-valve",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-the-basement-ever-taken-water"
+      ],
+      "replacementHorizon": true,
+      "note": "Access-found: it lives under a floor cover that may or may not be findable. Its flap is inspected when the cover is off. Zero care is a ruling."
+    },
+    {
+      "id": "sump-pump",
+      "label": "Sump pump",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "sump-pump",
+      "careCategories": [
+        "pump-basin-clearing"
+      ],
+      "inspectionPoints": [
+        "sump-basin-and-inlet",
+        "float-and-switch-operation",
+        "check-valve-function",
+        "discharge-line-and-termination"
+      ],
+      "opportunityConditions": [
+        "no-backup-on-sump",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-the-basement-ever-taken-water"
+      ],
+      "replacementHorizon": true,
+      "note": "The schedule keys on `sump-pump` with eight items across eight cadences — the densest house-grain coverage in the file. This class adds the object-grain half."
+    },
+    {
+      "id": "sump-pump-backup",
+      "label": "Backup sump pump",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "sump-pump",
+      "careCategories": [
+        "battery-replacement",
+        "pump-basin-clearing"
+      ],
+      "inspectionPoints": [
+        "float-and-switch-operation",
+        "backup-power-and-battery",
+        "discharge-line-and-termination"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-the-basement-ever-taken-water"
+      ],
+      "replacementHorizon": true,
+      "note": "Battery or water-powered, and the battery is a consumable with its own lifespan — which is the split from the primary."
+    },
+    {
+      "id": "sewage-ejector",
+      "label": "Sewage ejector pump",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "sump-pump",
+      "careCategories": [
+        "pump-basin-clearing"
+      ],
+      "inspectionPoints": [
+        "float-and-switch-operation",
+        "check-valve-function",
+        "discharge-line-and-termination",
+        "alarm-function-test"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-the-basement-ever-taken-water"
+      ],
+      "replacementHorizon": true,
+      "note": "Different job, different failure, same config type — and its failure is sewage rather than groundwater, which is why it is not merged."
+    },
+    {
+      "id": "sump-check-valve",
+      "label": "Sump check valve",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "sump-pump",
+      "careCategories": [],
+      "inspectionPoints": [
+        "check-valve-function"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Backflow makes a healthy pump cycle repeatedly. The pump gets replaced and the check valve stays, which is the failure this class exists to name. Zero care is a ruling."
+    },
+    {
+      "id": "sump-discharge",
+      "label": "Sump discharge line",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "sump-pump",
+      "careCategories": [],
+      "inspectionPoints": [
+        "discharge-line-and-termination"
+      ],
+      "opportunityConditions": [],
+      "ownerQuestions": [],
+      "replacementHorizon": false,
+      "note": "Blockage, disconnection, and freezing solid in a Quinte winter — a frozen discharge makes the pump run against a closed pipe until it burns out. No horizon: it is corrected, not replaced on a lifespan. Zero care is a ruling."
+    },
+    {
+      "id": "leak-sensor",
+      "label": "Leak sensor",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "leak-sensor",
+      "careCategories": [
+        "battery-replacement"
+      ],
+      "inspectionPoints": [
+        "sensor-placement-and-power"
+      ],
+      "opportunityConditions": [
+        "no-leak-detection-on-risk-fixture",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "The schedule keys on `leak-sensor` for review; this adds placement and power, which is where they actually fail — a sensor on a shelf above the floor detects nothing."
+    },
+    {
+      "id": "water-shutoff-automatic",
+      "label": "Automatic water shutoff",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "leak-sensor",
+      "careCategories": [],
+      "inspectionPoints": [
+        "automatic-valve-exercise-record",
+        "sensor-placement-and-power"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "One detects, one acts — and the one that acts has a valve that seizes. Its exercise record is the only evidence it still closes. Zero care is a ruling."
+    },
+    {
+      "id": "gas-shutoff",
+      "label": "Gas shutoff",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "gas-shutoff",
+      "careCategories": [],
+      "inspectionPoints": [
+        "shutoff-operation-and-labelling"
+      ],
+      "opportunityConditions": [
+        "unlabelled-shutoff"
+      ],
+      "ownerQuestions": [
+        "do-you-know-where-the-main-shutoff-is"
+      ],
+      "replacementHorizon": true,
+      "note": "Inspected and labelled, never operated. HouseSteady labour cannot touch gas at all, per the owner 2026-08-05, and exercising a gas valve is not an exception to that. Zero care is a ruling."
+    },
+    {
+      "id": "pressure-reducing-valve",
+      "label": "Pressure reducing valve",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "static-water-pressure",
+        "visible-supply-piping",
+        "corrosion-at-connections"
+      ],
+      "opportunityConditions": [
+        "no-pressure-reducing-valve",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Flagged by all three outside reviewers at v0.2 and they were right. It fails silently and high pressure destroys fixtures, appliances and softener resin — and a measurement is the only thing that catches it. Zero care is a ruling."
+    },
+    {
+      "id": "appliance-water-connector",
+      "label": "Appliance water connector",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "none",
+      "careCategories": [],
+      "inspectionPoints": [
+        "connector-age-and-type",
+        "supply-line-and-shutoff"
+      ],
+      "opportunityConditions": [
+        "rubber-supply-connectors",
+        "no-leak-detection-on-risk-fixture",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Washer, dishwasher, toilet and fridge hoses. One of the highest water-damage risks in a house, answered entirely by looking at what type they are and how old. Zero care is a ruling."
+    },
+    {
+      "id": "window-well",
+      "label": "Window well",
+      "systems": [
+        "plumbing"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "drain-clearing"
+      ],
+      "inspectionPoints": [
+        "window-well-drain-and-cover"
+      ],
+      "opportunityConditions": [
+        "window-well-without-cover"
+      ],
+      "ownerQuestions": [
+        "has-the-basement-ever-taken-water"
+      ],
+      "replacementHorizon": false,
+      "note": "The well, its cover and its drain — a frequent route for unnoticed basement water. No horizon: a well is a hole with a liner."
+    }
+  ],
+  "_modifiedClasses": [
+    {
+      "id": "washer-top-load",
+      "label": "Top-load washer",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "appliance-washer",
+      "careCategories": [
+        "self-clean-cycle",
+        "drain-filter-cleaning"
+      ],
+      "inspectionPoints": [
+        "levelling-and-stability",
+        "supply-line-and-shutoff",
+        "drain-hose-and-standpipe"
+      ],
+      "opportunityConditions": [
+        "no-leak-protection-on-supply",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it",
+        "has-it-ever-flooded-or-overflowed"
+      ],
+      "replacementHorizon": true,
+      "note": "CORRECTED 2026-08-05 by outside review, and this correction leads because the claim it replaces should not be read first. The class originally declared zero care with a stated reason — that a top-loader has no gasket to dry and no drum cycle to run. The reason was wrong: a top-loader runs a tub-clean cycle and many carry a pump trap. **A ruling with a reason is harder to catch than an omission**, because it looks considered; neither internal pass found it. Its remaining risk is still the supply line, which is inspection."
+    }
+  ],
+  "_howToApply": "Append the five arrays. Then REPLACE each entry in `_modifiedClasses` by id — 1 class, change confined to `note`."
+}
