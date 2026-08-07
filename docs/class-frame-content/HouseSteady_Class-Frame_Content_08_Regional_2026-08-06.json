@@ -1,0 +1,553 @@
+{
+  "_what": "CONTENT DELTA — the regional review pass. 176 classes.",
+  "_cutFrom": "the 173-class state as merged in PR #69.",
+  "_expectedAfterMerge": {
+    "classes": 176,
+    "careCategories": 73,
+    "inspectionPoints": 166,
+    "opportunityConditions": 55,
+    "ownerQuestions": 37
+  },
+  "_howToApply": "Append the four arrays, then REPLACE every entry in `_modifiedClasses` by id.",
+  "_whyThisPassWasWorthRunning": "The regional prompt was the one the design session predicted would be weakest — the handoff's rule is that outside models are strong on breadth and weak wherever the answer depends on what HouseSteady covers. **That prediction was wrong for this pass and right for the other two.** Its findings could not have come from general knowledge: hydrogen sulphide from the geology of the local limestone tablelands, and a food waste disposer being a septic load problem because the Ontario Building Code requires a substantially larger tank.",
+  "_theOnlyRealConvergenceInTheRound": "Two classes were named independently by two reviews reaching them by different routes — **sulphur treatment** and the **outdoor wood boiler**. One arrived from a general water-treatment and rural-heating list, the other from local geology and local heating practice. **Agreement is only evidence where the reasoning differs**, and this is the only place in three reviews where it did.",
+  "_twoReviewsOneClass": "`attic-fan` was reached by two reviews from opposite directions — one said attic and whole-house fans should split, the other that a whole-house fan is a warm-climate strategy that does not belong here. **Both resolve the same way**: this is a powered attic ventilator, whole-house fans are out of scope for this climate, and the label carried both and now carries one.",
+  "_oneFindingFiledInTheWrongPlaceOnPurpose": "`no-snow-guards-on-steel-roof` is filed on `eavestrough` because **there is no roof class yet.** A sheet of ice releasing off a steel roof takes the eavestrough with it, so the consequence lands there even though the guard goes on the roof. **It moves when the building-fabric pass lands** — recorded rather than held, so the finding is not lost in the gap.",
+  "_scopeRulingThatClosedAFinding": "The regional pass's largest structural finding was that **the frame assumes a property stays heated year-round**, which seasonal waterfront properties do not — full winterisation being a property-level event no object class can express. **The owner ruled on 2026-08-06 that seasonal and cottage properties are out of scope for the first years**, on the grounds that they are commonly built and patched below code. **So the assumption is correct rather than a gap, and nothing is owed.** Waterfront classes stay — year-round waterfront houses are a real segment and a dock comes out every autumn whichever way the house is occupied.",
+  "_notActedOn": "Oil heating being over-weighted against propane — the gas classes already cover propane by fuel attribute, so no class changes. And a whole-home humidifier in drafty older stock causing condensation, which is real and is a judgement about the house rather than about the equipment — **that is assessment, and it is the line the frame does not cross.**",
+  "careCategories": [
+    {
+      "id": "chemical-solution-refill",
+      "label": "Treatment solution refill",
+      "audience": "both",
+      "note": "Peroxide and chlorine injection systems. Consumable with a part identity — §1b. Regional: it exists here because the groundwater does."
+    },
+    {
+      "id": "boiler-water-treatment",
+      "label": "Boiler water treatment",
+      "audience": "professional",
+      "note": "Outdoor wood boilers and hydronic loops. Untreated water eats a water jacket that costs more than the stove."
+    }
+  ],
+  "inspectionPoints": [
+    {
+      "id": "pest-intrusion-evidence",
+      "label": "Evidence of pest intrusion",
+      "kind": "look",
+      "note": "Mice nesting in a ventilator core, chewed wiring inside a generator enclosure, cluster flies in a window track. **Regional and constant in rural stock**, and it appears in no equipment manual — which is why an outside model that knows the region found it and two that did not, did not."
+    },
+    {
+      "id": "backup-heat-present",
+      "label": "Backup heat present and configured",
+      "kind": "look",
+      "note": "Air-source heat pumps at −25 °C. **The regional question is not whether a room is comfortable but whether there is a second heat source when the pump stops being able to extract any.**"
+    },
+    {
+      "id": "water-jacket-and-treatment",
+      "label": "Water jacket and treatment record",
+      "kind": "look"
+    },
+    {
+      "id": "buried-line-and-insulation",
+      "label": "Buried supply line and insulation",
+      "kind": "look",
+      "note": "Outdoor boilers run insulated lines underground to the house. Heat loss there is invisible and it is most of the complaints."
+    }
+  ],
+  "opportunityConditions": [
+    {
+      "id": "disposer-on-septic",
+      "label": "Food waste disposer on a septic system",
+      "note": "Regional and code-based: the Ontario Building Code requires a substantially larger tank to carry a grinder, so one fitted to an ordinary septic is a load problem rather than a convenience. **Neither of the other two reviews saw this.**"
+    },
+    {
+      "id": "no-backup-heat-on-heat-pump",
+      "label": "Air-source heat pump with no backup heat"
+    },
+    {
+      "id": "no-snow-guards-on-steel-roof",
+      "label": "Steel roof over an eavestrough with no snow guards",
+      "note": "A sheet of ice releasing off a steel roof takes the eavestrough with it. **Filed on the eavestrough because there is no roof class yet** — it moves to the roof when the building-fabric pass lands, and it is recorded here rather than held so the finding is not lost in the gap."
+    }
+  ],
+  "classes": [
+    {
+      "id": "sulphur-treatment",
+      "label": "Sulphur and odour treatment",
+      "systems": [
+        "water-supply"
+      ],
+      "componentType": "water-treatment",
+      "careCategories": [
+        "chemical-solution-refill",
+        "water-filter-cartridge-replacement"
+      ],
+      "inspectionPoints": [
+        "water-clarity-and-odour",
+        "bypass-valve-position",
+        "regeneration-cycle-function",
+        "filter-housing-and-seal"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "what-do-you-notice-about-the-water",
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "Aeration or peroxide injection for hydrogen sulphide. **Named independently by two reviews from different directions** — one from a general water-treatment list, one from the geology of the local limestone tablelands. That is the only agreement in the review round that counts as two checks. It was previously falling into `water-treatment-other`, which is the bucket that exists to say a thing has no dependable maintenance — and this one does."
+    },
+    {
+      "id": "outdoor-wood-boiler",
+      "label": "Outdoor wood boiler",
+      "systems": [
+        "heating-and-cooling",
+        "solid-fuel",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "burn-pot-and-ash-service",
+        "chimney-sweep",
+        "boiler-water-treatment"
+      ],
+      "inspectionPoints": [
+        "water-jacket-and-treatment",
+        "buried-line-and-insulation",
+        "firebox-and-refractory-condition",
+        "cap-and-screen-condition",
+        "pest-intrusion-evidence"
+      ],
+      "opportunityConditions": [
+        "no-wett-record-on-solid-fuel",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-burn-wood-and-how-often",
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "**Named by two reviews independently.** A staple here for heating older houses and detached outbuildings, and it heats the house through buried lines rather than through a chimney in it — which is why nothing in the indoor solid-fuel classes covers it."
+    },
+    {
+      "id": "propane-space-heater",
+      "label": "Direct-vent propane space heater",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "burner-and-combustion-service",
+        "glass-and-surface-care"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "gas-connection-and-shutoff",
+        "hearth-and-clearances"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "Regional. Heavily relied on for additions and seasonal rooms in older rural stock, and it is neither a fireplace nor a furnace. HouseSteady labour cannot touch gas, so its care carries `professional` throughout."
+    }
+  ],
+  "_modifiedClasses": [
+    {
+      "id": "furnace-oil",
+      "label": "Oil furnace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "burner-and-combustion-service",
+        "blower-and-fan-cleaning",
+        "oil-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable",
+        "who-fills-the-tank"
+      ],
+      "replacementHorizon": true,
+      "note": "Regional — real in rural Quinte, rarer in town. One care category apart from gas and it is the oil filter."
+    },
+    {
+      "id": "furnace-electric",
+      "label": "Electric furnace",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "furnace",
+      "careCategories": [
+        "air-filter-replacement",
+        "blower-and-fan-cleaning"
+      ],
+      "inspectionPoints": [
+        "filter-size-and-fit",
+        "blower-compartment-condition",
+        "thermostat-function-and-schedule",
+        "duct-connections-and-sealing"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": "No combustion, so four inspection points fall away including the heat exchanger. The same shape the fuel split takes in water heating."
+    },
+    {
+      "id": "boiler-gas",
+      "label": "Gas boiler",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "burner-and-combustion-service"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "thermostat-function-and-schedule",
+        "expansion-tank-charge",
+        "condensate-path-clear"
+      ],
+      "opportunityConditions": [
+        "orphaned-atmospheric-vent",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "boiler-oil",
+      "label": "Oil boiler",
+      "systems": [
+        "heating-and-cooling",
+        "hydronic-heating"
+      ],
+      "componentType": "boiler",
+      "careCategories": [
+        "burner-and-combustion-service",
+        "oil-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "vent-condition-and-connection",
+        "combustion-air-availability",
+        "draft-and-spillage",
+        "heat-exchanger-condition",
+        "thermostat-function-and-schedule",
+        "expansion-tank-charge"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable",
+        "who-fills-the-tank"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "air-conditioner-central",
+      "label": "Central air conditioner",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "coil-cleaning",
+        "condensate-drain-service",
+        "air-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "condenser-clearance-and-level",
+        "outdoor-coil-condition",
+        "refrigerant-line-insulation",
+        "condensate-path-clear",
+        "thermostat-function-and-schedule"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true
+    },
+    {
+      "id": "heat-pump-air-source",
+      "label": "Air-source heat pump",
+      "systems": [
+        "heating-and-cooling"
+      ],
+      "componentType": "heat-pump",
+      "careCategories": [
+        "coil-cleaning",
+        "condensate-drain-service",
+        "air-filter-replacement"
+      ],
+      "inspectionPoints": [
+        "condenser-clearance-and-level",
+        "outdoor-coil-condition",
+        "refrigerant-line-insulation",
+        "defrost-cycle-function",
+        "condensate-path-clear",
+        "thermostat-function-and-schedule",
+        "backup-heat-present"
+      ],
+      "opportunityConditions": [
+        "no-backup-heat-on-heat-pump",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "owned-or-rented",
+        "last-serviced-and-by-whom",
+        "does-any-room-never-get-comfortable"
+      ],
+      "replacementHorizon": true,
+      "note": " Regional, 2026-08-06: at −25 °C the question is not comfort but whether a second heat source exists when the pump can no longer extract heat."
+    },
+    {
+      "id": "hrv-erv",
+      "label": "Heat recovery ventilator",
+      "systems": [
+        "ventilation"
+      ],
+      "componentType": "hrv-erv",
+      "careCategories": [
+        "air-filter-replacement",
+        "core-cleaning"
+      ],
+      "inspectionPoints": [
+        "core-and-filter-condition",
+        "ventilation-balance-and-flow",
+        "condensate-path-clear",
+        "duct-connections-and-sealing",
+        "pest-intrusion-evidence"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom"
+      ],
+      "replacementHorizon": true,
+      "note": "HRV and ERV merged — the care is filters, core cleaning and balancing either way."
+    },
+    {
+      "id": "attic-fan",
+      "label": "Attic fan",
+      "systems": [
+        "ventilation"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "damper-and-louvre-service"
+      ],
+      "inspectionPoints": [
+        "blower-compartment-condition",
+        "pest-intrusion-evidence"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "CORRECTED 2026-08-06. Two reviews reached this class by different routes — one said attic and whole-house fans should split, the other that a whole-house fan is a warm-climate strategy that does not belong here at all. **Both resolve the same way: this is a powered attic ventilator, and whole-house fans are out of scope for this climate.** The label carried both and now carries one. Louvres seize long before anyone notices, because nobody looks in the season it is not used."
+    },
+    {
+      "id": "generator-standby",
+      "label": "Standby generator",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "generator",
+      "careCategories": [
+        "generator-exercise",
+        "engine-oil-and-filter-service",
+        "battery-replacement"
+      ],
+      "inspectionPoints": [
+        "generator-start-and-run",
+        "generator-enclosure-and-clearance",
+        "transfer-or-interlock-present",
+        "pest-intrusion-evidence"
+      ],
+      "opportunityConditions": [
+        "no-generator-on-well-and-septic",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "last-serviced-and-by-whom",
+        "when-was-the-generator-last-run",
+        "do-you-have-the-paperwork"
+      ],
+      "replacementHorizon": true,
+      "note": "The exception in this system: a generator is an engine, and running and servicing an engine is not electrical work. Three care categories where the panel has none."
+    },
+    {
+      "id": "generator-portable",
+      "label": "Portable generator",
+      "systems": [
+        "electrical"
+      ],
+      "componentType": "generator",
+      "careCategories": [
+        "generator-exercise",
+        "engine-oil-and-filter-service",
+        "stored-fuel-rotation"
+      ],
+      "inspectionPoints": [
+        "generator-start-and-run",
+        "stored-fuel-condition",
+        "transfer-or-interlock-present",
+        "pest-intrusion-evidence"
+      ],
+      "opportunityConditions": [
+        "generator-without-interlock",
+        "no-generator-on-well-and-septic",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "when-was-the-generator-last-run"
+      ],
+      "replacementHorizon": true,
+      "note": "Splits from standby on stored fuel and on the interlock question. Fuel that sat two winters is why it does not start in the outage it was bought for."
+    },
+    {
+      "id": "food-waste-disposer",
+      "label": "Garburator",
+      "systems": [
+        "appliances"
+      ],
+      "componentType": "none",
+      "careCategories": [
+        "interior-cleaning"
+      ],
+      "inspectionPoints": [
+        "drain-hose-and-standpipe",
+        "supply-line-and-shutoff"
+      ],
+      "opportunityConditions": [
+        "disposer-on-septic",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "does-it-still-do-its-job",
+        "do-you-use-it"
+      ],
+      "replacementHorizon": true,
+      "note": "DUPLICATE RESOLVED 2026-08-06, and the correction leads per rule 14. This class and v0.2's `garburator` are one thing under two names — it arrived from outside review as `food-waste-disposer` and shipped before the tier-two pass reached v0.2's own id. **The id stays `food-waste-disposer` because it is already shipped and referenced; the label becomes `Garburator` because that is what a household in this region says.** Common, real, and everyone abuses it — and it sits on the boundary between appliances and plumbing, filed under appliances because it is one."
+    },
+    {
+      "id": "window",
+      "label": "Window",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "window",
+      "careCategories": [
+        "weatherseal-and-caulk-renewal",
+        "hardware-lubrication"
+      ],
+      "inspectionPoints": [
+        "glazing-and-seal-condition",
+        "operation-and-latching",
+        "weatherseal-condition",
+        "frame-and-sill-condition",
+        "pest-intrusion-evidence"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [],
+      "replacementHorizon": true,
+      "note": "Operating style is an attribute, not a class. Its count, storey and access are the per-object attributes the frame does not yet carry — the dimension the monthly service design needs for quotable work."
+    },
+    {
+      "id": "eavestrough",
+      "label": "Eavestrough",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "downspout",
+      "careCategories": [
+        "gutter-clearing",
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "gutter-slope-and-fastening"
+      ],
+      "opportunityConditions": [
+        "no-snow-guards-on-steel-roof",
+        "no-gutter-guards-under-trees",
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "do-you-get-ice-damming"
+      ],
+      "replacementHorizon": true,
+      "note": "The group-buy item — cleaning is seasonal and universal, and it is height work, which the owner ruled is HouseSteady labour."
+    },
+    {
+      "id": "outbuilding",
+      "label": "Outbuilding",
+      "systems": [
+        "envelope"
+      ],
+      "componentType": "outbuilding",
+      "careCategories": [
+        "vegetation-clearance"
+      ],
+      "inspectionPoints": [
+        "structure-envelope-and-access",
+        "pest-intrusion-evidence"
+      ],
+      "opportunityConditions": [
+        "age-past-band-midpoint"
+      ],
+      "ownerQuestions": [
+        "has-anything-shifted-or-settled"
+      ],
+      "replacementHorizon": true,
+      "note": "Stub component type at v1.11.0 — reported, not an error."
+    }
+  ]
+}
