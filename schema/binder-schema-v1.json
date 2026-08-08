@@ -401,7 +401,11 @@
           "kind": "fixed",
           "sources": [
             "human"
-          ]
+          ],
+          "outsideHonestyVocabulary": {
+            "why": "A date HouseSteady chooses, not a fact about the house. Same shape as the reserve figure: a decision we take, not knowledge we hold.",
+            "renderNote": null
+          }
         }
       ],
       "statusCategories": [
@@ -1111,7 +1115,11 @@
           "sources": [
             "human"
           ],
-          "neverAI": true
+          "neverAI": true,
+          "outsideHonestyVocabulary": {
+            "why": "A dollar figure HouseSteady sets as a judgement, not a measurement. It is not observed, documented, reported or inferred, so no honesty label fits it — and an unlabelled number beside labelled ones reads as the most certain thing on the page. The words are how the reader is told which it is.",
+            "renderNote": null
+          }
         }
       ]
     },
