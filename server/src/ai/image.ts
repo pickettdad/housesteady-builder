@@ -77,6 +77,45 @@ export class ImageRefused extends Error {
 }
 
 /**
+ * Above this many image blocks in one request, a stricter per-image dimension
+ * limit applies. Read from the vision documentation 2026-08-08, not recalled.
+ */
+export const MANY_IMAGE_THRESHOLD = 20
+
+/** The stricter limit, in pixels, on either dimension. */
+export const MANY_IMAGE_MAX_EDGE = 2000
+
+/**
+ * The longest edge to send, given how many images this call carries.
+ *
+ * **The failure this prevents is a rejection, not a poor read.** The vision
+ * documentation is explicit:
+ *
+ * > *If a single API request contains more than 20 images, a stricter per-image
+ * > dimension limit applies. … Images exceeding the stricter limit are **rejected
+ * > with an `invalid_request_error`** whose message references "many-image
+ * > requests". … either resize each image so that neither dimension exceeds
+ * > 2000 px, or keep the request to 20 or fewer image and document blocks.*
+ *
+ * **Two mitigations, and this module takes the second.** Dropping to 20 images
+ * would shrink the batch — and §3's whole argument for batching by room is that
+ * splitting a room costs accuracy, because the model sees part of a room. Capping
+ * the edge costs some fidelity on one axis of one decision; splitting costs the
+ * room. **Amendment 10 §B2 makes the choice sharper rather than softer:** the
+ * canvas rides every batch outside the detail budget, so a full call is over
+ * twenty by design and this is now the ordinary case, not the edge.
+ *
+ * **And the trap it closes is a configuration one.** `maxImageEdge` defaults to
+ * 1568 — already inside the limit — but it is an environment variable, and the
+ * reason somebody would raise it is to read nameplates better. Raising it to the
+ * high-resolution tier's 2576 would make every full room's call **fail outright**,
+ * with an error naming a limit nobody had read. The knob that improves fidelity
+ * is the one that breaks the call.
+ */
+export const edgeForCall = (imageCount: number, modelEdge: number): number =>
+  imageCount > MANY_IMAGE_THRESHOLD ? Math.min(modelEdge, MANY_IMAGE_MAX_EDGE) : modelEdge
+
+/**
  * Normalise a photograph for a model call.
  *
  * @param maxEdge longest edge the model accepts. Larger images are downscaled

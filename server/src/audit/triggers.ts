@@ -4,7 +4,14 @@
  * Spec §1: *"This is the piece with the longest reach in the whole product."* It
  * answers one question — **does X apply to this house** — for two consumers that
  * do not know about each other: binder slots (`appliesWhen`, `expectationSource`)
- * and the maintenance schedule's eighteen property triggers.
+ * and the maintenance schedule's property triggers.
+ *
+ * **This comment said "eighteen" and the number was wrong in three documents at
+ * once** — corrected 2026-08-08. Table A, which owns the count, declares
+ * **seventeen**, and `schema/reference/maintenance-schedule-v1.json` carries
+ * seventeen `propertyTriggers`. The count is deliberately not restated here: a
+ * hand-kept number beside the data it describes is the drift this repo has now
+ * caught five times. **Read it from the file.**
  *
  * **It knows nothing about binders or schedules, and a doctrine scan keeps it
  * that way.** The spec is explicit that the alternative is it gets built twice
