@@ -404,7 +404,7 @@
           ],
           "outsideHonestyVocabulary": {
             "why": "A date HouseSteady chooses, not a fact about the house. Same shape as the reserve figure: a decision we take, not knowledge we hold.",
-            "renderNote": null
+            "renderNote": "This is when we think the next look makes sense. It's our judgement, not a date the house has set — tell us if it should be sooner."
           }
         }
       ],
@@ -1118,7 +1118,7 @@
           "neverAI": true,
           "outsideHonestyVocabulary": {
             "why": "A dollar figure HouseSteady sets as a judgement, not a measurement. It is not observed, documented, reported or inferred, so no honesty label fits it — and an unlabelled number beside labelled ones reads as the most certain thing on the page. The words are how the reader is told which it is.",
-            "renderNote": null
+            "renderNote": "This is our recommendation, not a measurement of your house. We've based it on the equipment we found and how old it is — a contractor's quote, or your own plans, may point somewhere different."
           }
         }
       ]

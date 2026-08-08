@@ -10,6 +10,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { loadSchema } from '../src/audit/schema.js'
+import { lint } from '../src/report/houseStyle.js'
 import type { Slot } from '../src/audit/schema.js'
 import {
   blockedSlots, gate, outsideVocabulary, outsideVocabularySlots, RenderGateRefused,
@@ -37,13 +38,30 @@ describe('the two slots that carry no honesty label', () => {
     }
   })
 
-  it('both are blocked today, and that is the honest state', () => {
-    // The words are client-facing copy and this repo does not invent it. A gate
-    // that passed by default would be the field it was built instead of.
-    assert.deepEqual(
-      blockedSlots(loadSchema()).map((b) => b.slotId).sort(),
-      ['s19.reserve-figure', 's2.next-review'],
-    )
+  it('both now carry their words, landed 2026-08-08', () => {
+    // Written by the design session against each slot's own `why`. Until they
+    // arrived the gate refused, which was the honest state and the point of it.
+    assert.deepEqual(blockedSlots(loadSchema()), [])
+    for (const { declared } of outsideVocabularySlots(loadSchema())) {
+      assert.ok((declared.renderNote ?? '').length > 40)
+    }
+  })
+
+  it('each sentence says the value is a judgement rather than a reading', () => {
+    // The `why` on each slot states what its sentence has to convey. This is
+    // that requirement as a check, so a later reword cannot quietly drop it.
+    const byId = new Map(outsideVocabularySlots(loadSchema()).map((d) => [d.slot.id, d.declared.renderNote ?? '']))
+    assert.match(byId.get('s19.reserve-figure')!, /not a measurement/)
+    assert.match(byId.get('s19.reserve-figure')!, /may point somewhere different/)
+    assert.match(byId.get('s2.next-review')!, /our judgement, not a date the house has set/)
+  })
+
+  it('both pass the House Style lint, because the render would otherwise refuse them', () => {
+    // Client copy the render rejects is worse than no copy: it passes this gate
+    // and dies at the next one, with the figure already composed.
+    for (const { slot, declared } of outsideVocabularySlots(loadSchema())) {
+      assert.deepEqual(lint(declared.renderNote ?? '', slot.id), [], `${slot.id} is renderable`)
+    }
   })
 })
 
@@ -129,14 +147,25 @@ describe('a malformed declaration is not an absent one', () => {
 })
 
 describe('reporting is not the gate', () => {
-  it('blockedSlots clears nothing — it only says what is blocking', () => {
-    // The distinction that makes this a gate rather than a field: a screen may
-    // report the state, and reporting it must not become a way to render.
-    const blocked = blockedSlots(loadSchema())
-    assert.ok(blocked.length > 0)
-    for (const b of blocked) {
-      const slot = loadSchema().slots.find((s) => s.id === b.slotId)!
-      assert.throws(() => gate(slot, '$4,200'), RenderGateRefused, `${b.slotId} still refuses`)
-    }
+  /**
+   * The distinction that makes this a gate rather than a field: a screen may
+   * report the state, and reporting it must never become a way to render.
+   * **Constructed rather than read from the schema, deliberately** — both real
+   * slots now carry their words, so a test that read them would assert nothing
+   * and pass forever. Rule 11b: a check whose two sides cannot disagree has not
+   * been passing.
+   */
+  it('a slot blockedSlots names still refuses when handed to the gate', () => {
+    const unwritten = { id: 's19.reserve-figure', outsideHonestyVocabulary: { why: 'A judgement.', renderNote: null } } as unknown as Slot
+    const schema = { slots: [unwritten] } as unknown as Parameters<typeof blockedSlots>[0]
+
+    assert.deepEqual(blockedSlots(schema).map((b) => b.slotId), ['s19.reserve-figure'])
+    assert.throws(() => gate(unwritten, '$4,200'), RenderGateRefused)
+  })
+
+  it('reports the reason, so a screen can say why without reaching for the value', () => {
+    const unwritten = { id: 's2.next-review', outsideHonestyVocabulary: { why: 'A date we choose.', renderNote: null } } as unknown as Slot
+    const schema = { slots: [unwritten] } as unknown as Parameters<typeof blockedSlots>[0]
+    assert.deepEqual(blockedSlots(schema), [{ slotId: 's2.next-review', why: 'A date we choose.' }])
   })
 })
