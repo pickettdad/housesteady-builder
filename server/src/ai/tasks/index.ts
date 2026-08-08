@@ -13,6 +13,7 @@ import type { AiJob } from '../queue.js'
 import type { Prompt } from '../prompts.js'
 import type { ModelConfig } from '../models.js'
 import type { RunArgs } from '../client.js'
+import { IDENTIFY_TASK, runIdentify } from './identify.js'
 import {
   CLASSIFY_TASK, EXTRACT_TASK, queueNameplateReading, runClassify, runExtract,
 } from './nameplate.js'
@@ -34,6 +35,9 @@ export const TASK_RUNNERS: Record<string, TaskRunner> = {
   [EXTRACT_TASK]: runExtract,
   [ROUTING_TASK]: runRoute,
   [PIN_TYPE_TASK]: runPinType,
+  // Runnable by the worker like any other task; **not queued by an import** —
+  // see `queueAssists` below and the head of `identify.ts`.
+  [IDENTIFY_TASK]: runIdentify,
 }
 
 export class UnknownTask extends Error {
@@ -72,6 +76,17 @@ export interface QueuedWork {
  * reference export. Routing runs on room photos, which are the 200+ that
  * classification exists to avoid. The per-visit spend cap is what stands between
  * that and a surprise, and it is checked before each call rather than after.
+ *
+ * **IDENTIFICATION IS NOT HERE, AND ITS ABSENCE IS THE FEATURE.** The AI
+ * Processing Decision's identification addendum §A: *nameplate extraction sends a
+ * data plate; routing sends loose room photographs; **identification sends the
+ * room**.* §B authorizes that on the owner's own property and **§C gates a
+ * client's property behind a disclosure that does not exist yet**. Nothing in
+ * this database records whose house an import is of, so no code can enforce §C —
+ * what it can do is decline to start on its own. `queueIdentification` is called
+ * by the run script and by nothing in the import path. **Adding it to this
+ * function would make the largest send this system performs a side effect of
+ * dropping in a zip file.**
  */
 export function queueAssists(db: Db, propertyId: string, visitId: string, actorId: string): QueuedWork {
   const nameplates = queueNameplateReading(db, propertyId, visitId, actorId)

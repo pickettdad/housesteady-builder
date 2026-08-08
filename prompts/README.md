@@ -8,11 +8,19 @@ against.
 
 | Task | What it does | Tier |
 |---|---|---|
+| `identify_objects` | **What things are in this room?** One call per room, Increment 5 §3. | fast |
 | `nameplate_classify` | Is this photograph a data plate? Gates extraction. | fast |
 | `nameplate_extract` | Make · model · serial · capacity · install date, each independently `unknown`. | fast |
 | `photo_routing` | Does this room photograph belong to a pin in that room? Usually not. | fast |
 | `pin_type` | Which of the config's component types is this untyped pin? | fast |
 | `house-style` | **Not a task — an input to every drafting task.** The writing standard for everything a client reads. | — |
+
+**`identify_objects` is the largest send this system makes**, and its per-call data
+block is correspondingly the biggest: the class projection (176 ids and labels),
+the room's label and type, the property flags, and one line per photograph naming
+its id and any note the concierge wrote at capture. **All of that is per-call data
+and none of it is in the prompt file** — see the rule below, which this task tests
+harder than any other.
 
 **`house-style/v001.md` is House Style v1.1**, and the two numbers are different things
 on purpose. The directory's `vNNN` is a **sequence**, because this loader's rule is that
