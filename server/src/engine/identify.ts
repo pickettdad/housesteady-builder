@@ -71,6 +71,17 @@ export interface MediaRow {
   ownerCanvasId: string | null
   /** Sort key, so a call sees a room in the order it was walked. */
   file: string | null
+  /**
+   * The capture note, where the concierge left one — Amendment 10 §D.
+   *
+   * **The mechanism was in the manifest and did not reach the call.** A
+   * deliberately framed photograph carries no record of why it was framed, and
+   * the injection-point shot failed for exactly that reason: it was framed on
+   * purpose, and the purpose lived in the operator's head and nowhere in the
+   * file. *The capture moment is the only time intent is free* — after that it
+   * is reconstructed, and a reconstruction that fails is the reading document.
+   */
+  note?: string | null
 }
 
 /** Where a pin and a canvas each live, so their media can reach a zone. */
@@ -150,7 +161,27 @@ export interface Batch {
   /** 1-based, and `of` is on every batch so a reader never has to count. */
   index: number
   of: number
+  /**
+   * The detail photographs — what was taken *within* the room. Counted against
+   * the ceiling, split across batches when a room is too large for one call.
+   */
   media: ResolvedMedia[]
+  /**
+   * The zone's canvas frames — Amendment 10 §B2.
+   *
+   * **On every batch, and outside the budget.** The defect this closes produced
+   * the symptom that caused the amendment: a call that pulled 24 nameplates and
+   * no room shot *produces a good parts list with no system in it*, which is
+   * precisely what the first mechanical-room reading produced.
+   *
+   * **What may be concluded from these is narrower than from the rest**, and
+   * §B is explicit about it: a canvas frame can establish that a thing is there
+   * and that two things share a wall. **It cannot name a model, read a plate, or
+   * assert a state.** They are a separate field rather than merged into `media`
+   * so that the distinction survives into the call — merged, the caller would
+   * have to remember it, and Amendment 10 exists because somebody did not.
+   */
+  context: ResolvedMedia[]
 }
 
 export interface ExcludedMedia {
@@ -206,27 +237,52 @@ export function planIdentificationCalls(
     })
   }
 
-  const byZone = new Map<string, ResolvedMedia[]>()
+  // Stable order, so the same import plans the same calls every time and a
+  // cached run can be compared against a fresh one. `file` carries the export's
+  // own path; media id breaks ties and is always present.
+  const inWalkOrder = (a: ResolvedMedia, b: ResolvedMedia): number =>
+    (a.file ?? '').localeCompare(b.file ?? '') || a.mediaId.localeCompare(b.mediaId)
+
+  // Two piles per zone, because Amendment 10 §B2 budgets them differently: the
+  // detail photographs are what the ceiling counts, and the canvas frames ride
+  // every batch outside it.
+  const detail = new Map<string, ResolvedMedia[]>()
+  const context = new Map<string, ResolvedMedia[]>()
   for (const m of usable) {
-    const list = byZone.get(m.zoneId)
+    const into = m.route === 'canvas' ? context : detail
+    const list = into.get(m.zoneId)
     if (list) list.push(m)
-    else byZone.set(m.zoneId, [m])
+    else into.set(m.zoneId, [m])
   }
 
+  const zoneIds = new Set([...detail.keys(), ...context.keys()])
   const batches: Batch[] = []
-  for (const [zoneId, list] of byZone) {
-    // Stable order, so the same import plans the same calls every time and a
-    // cached run can be compared against a fresh one. `file` carries the export's
-    // own path; media id breaks ties and is always present.
-    list.sort((a, b) => (a.file ?? '').localeCompare(b.file ?? '') || a.mediaId.localeCompare(b.mediaId))
-    const of = Math.ceil(list.length / max)
+  for (const zoneId of zoneIds) {
+    const details = (detail.get(zoneId) ?? []).sort(inWalkOrder)
+    const canvas = (context.get(zoneId) ?? []).sort(inWalkOrder)
+
+    // A zone with canvas frames and nothing else still gets ONE call. What it
+    // can answer is narrow — §B's *present, not identified* — but the honest
+    // outcome of a room photographed only on its canvas is a gap, and a gap is
+    // cheap to raise. Planning no call at all would make it silence instead.
+    const of = Math.max(1, Math.ceil(details.length / max))
     for (let i = 0; i < of; i++) {
-      batches.push({ zoneId, index: i + 1, of, media: list.slice(i * max, (i + 1) * max) })
+      batches.push({
+        zoneId,
+        index: i + 1,
+        of,
+        media: details.slice(i * max, (i + 1) * max),
+        context: canvas,
+      })
     }
   }
   batches.sort((a, b) => a.zoneId.localeCompare(b.zoneId) || a.index - b.index)
 
   const split = batches.filter((b) => b.of > 1).length
+  const detailCount = usable.length - [...context.values()].reduce((n, l) => n + l.length, 0)
+  const canvasSends = batches.reduce((n, b) => n + b.context.length, 0)
+  const contextless = batches.filter((b) => b.context.length === 0).length
+
   return {
     batches,
     excluded,
@@ -234,8 +290,12 @@ export function planIdentificationCalls(
     note:
       batches.length === 0
         ? `No calls. ${media.length} media in, none of them a still image reaching a zone — ${excluded.length} excluded by kind, ${unresolved.length} reaching no zone. That is a state, not a pass.`
-        : `${batches.length} calls over ${byZone.size} zones, ${usable.length} photographs. ` +
-          `${excluded.length} excluded by kind, ${unresolved.length} reaching no zone` +
+        : `${batches.length} calls over ${zoneIds.size} zones, ${detailCount} detail photographs. ` +
+          `${canvasSends} canvas sends ride alongside them, outside the ceiling` +
+          (contextless > 0
+            ? ` — and ${contextless} of these calls carry no canvas frame at all, so they see parts and no room.`
+            : '.') +
+          ` ${excluded.length} excluded by kind, ${unresolved.length} reaching no zone` +
           (split > 0 ? `, ${split} calls from zones too large for one.` : '.'),
   }
 }

@@ -116,8 +116,17 @@ describe('media kind is open vocabulary, and exclusion is reported', () => {
       assert.ok(!IMAGE_KINDS.includes(e.kind ?? ''), 'only non-image kinds are excluded')
       assert.ok(e.why.length > 0 && e.zoneId.length > 0, 'and each says which room it was in')
     }
-    const sent = plan.batches.flatMap((b) => b.media).length
-    assert.equal(sent + plan.excluded.length + plan.unresolved.length, 163, 'nothing vanishes')
+    // **The accounting rule, restated for Amendment 10 §B2's two piles.** Detail
+    // media appears in exactly one batch, so it counts once. A canvas frame rides
+    // EVERY batch of its zone, so counting `context` per batch would double it on
+    // any room large enough to split — which is why this counts distinct ids
+    // rather than array lengths. The property is unchanged: every media in the
+    // export is sent, excluded by kind, or reported as reaching no zone.
+    const sent = new Set([
+      ...plan.batches.flatMap((b) => b.media.map((m) => m.mediaId)),
+      ...plan.batches.flatMap((b) => b.context.map((m) => m.mediaId)),
+    ])
+    assert.equal(sent.size + plan.excluded.length + plan.unresolved.length, 163, 'nothing vanishes')
   })
 
   it('a kind the vocabulary has never met is excluded, not crashed on', () => {
@@ -186,6 +195,115 @@ describe('batching is by room, and the ceiling is a relief valve', () => {
       )
     }
     assert.ok(MAX_MEDIA_PER_CALL > 1)
+  })
+})
+
+describe('Amendment 10 §B2 — the canvas rides every batch, outside the budget', () => {
+  /**
+   * **This is the defect that produced the amendment.** A call that pulled 24
+   * nameplates and no room shot *produces a good parts list with no system in
+   * it*, which is precisely what the first mechanical-room reading produced.
+   */
+  const roomOf = (details: number, canvases: number): MediaRow[] => [
+    ...Array.from({ length: details }, (_, i) => ({
+      mediaId: `d${i}`, kind: 'photo', ownerKind: 'zone', ownerZoneId: 'z',
+      ownerPinId: null, ownerCanvasId: null, file: `d${i}.jpg`,
+    })),
+    ...Array.from({ length: canvases }, (_, i) => ({
+      mediaId: `c${i}`, kind: 'photo', ownerKind: 'canvas', ownerZoneId: null,
+      ownerPinId: null, ownerCanvasId: `cv${i}`, file: `c${i}.jpg`,
+    })),
+  ]
+  const routes = (canvases: number): ZoneRoutes => ({
+    pinZone: new Map(),
+    canvasZone: new Map(Array.from({ length: canvases }, (_, i) => [`cv${i}`, 'z'])),
+  })
+
+  it('puts the canvas on every batch when a room splits', () => {
+    const plan = planIdentificationCalls(roomOf(5, 2), routes(2), { maxPerCall: 2 })
+    assert.equal(plan.batches.length, 3, 'five details at two per call is three batches')
+    for (const b of plan.batches) {
+      assert.deepEqual(b.context.map((m) => m.mediaId), ['c0', 'c1'], 'every batch sees the room')
+    }
+  })
+
+  it('does not let the canvas eat the detail budget', () => {
+    // The failure this closes exactly: before, two canvas frames and 24 details
+    // meant two of the details fell off the end of the first call.
+    const plan = planIdentificationCalls(roomOf(4, 2), routes(2), { maxPerCall: 4 })
+    assert.equal(plan.batches.length, 1, 'six media, ceiling of four, and still one call')
+    assert.equal(plan.batches[0]!.media.length, 4, 'all four details ride it')
+    assert.equal(plan.batches[0]!.context.length, 2, 'and both canvas frames as well')
+  })
+
+  it('gives a canvas-only room one call rather than silence', () => {
+    // §B: *where a canvas frame is the only evidence for something, the honest
+    // output is present, not identified* — which is a gap, and gaps are cheap to
+    // raise. Planning nothing at all would make it silence instead.
+    const plan = planIdentificationCalls(roomOf(0, 1), routes(1))
+    assert.equal(plan.batches.length, 1)
+    assert.deepEqual(plan.batches[0]!.media, [], 'no detail photographs')
+    assert.equal(plan.batches[0]!.context.length, 1, 'and the canvas is why there is a call at all')
+  })
+
+  it('says out loud when a call carries no room shot', () => {
+    // Rule 11's shape: the whole point of §B2 is that a parts list with no room
+    // in it looks exactly like a good answer. If it happens, the note says so.
+    const blind = planIdentificationCalls(roomOf(3, 0), routes(0))
+    assert.match(blind.note, /carry no canvas frame at all, so they see parts and no room/)
+
+    const sighted = planIdentificationCalls(roomOf(3, 1), routes(1))
+    assert.doesNotMatch(sighted.note, /no canvas frame at all/)
+    assert.match(sighted.note, /canvas sends ride alongside them, outside the ceiling/)
+  })
+
+  it('the real export is the case the amendment was written for', () => {
+    // **Measured, and it corrected an assumption made writing this test.** Every
+    // room the walk reached carries a canvas, so no call on this export is blind
+    // — the defect was never that the canvas was missing, it was that the canvas
+    // COMPETED WITH THE DETAILS for the same 24 places. The mechanical room is
+    // the proof: 54 detail photographs across three batches, and its four canvas
+    // frames now ride all three instead of consuming slots in the first.
+    const plan = planIdentificationCalls(walkMedia(), walkRoutes())
+    assert.ok(
+      plan.batches.every((b) => b.context.length > 0),
+      'every room the walk reached was photographed whole as well as in detail',
+    )
+
+    const split = plan.batches.filter((b) => b.of > 1)
+    assert.ok(split.length > 0, 'and rooms did split, which is when the riding matters')
+    for (const b of split) {
+      assert.ok(b.media.length <= MAX_MEDIA_PER_CALL, 'the ceiling still bounds the details')
+      const twin = plan.batches.find((o) => o.zoneId === b.zoneId && o.index !== b.index)!
+      assert.deepEqual(
+        b.context.map((m) => m.mediaId),
+        twin.context.map((m) => m.mediaId),
+        'and every batch of a split room sees the same room',
+      )
+    }
+  })
+})
+
+describe('Amendment 10 §D — a capture note travels with its media', () => {
+  it('carries the note through resolution rather than dropping it', () => {
+    // *The capture moment is the only time intent is free.* The field is optional
+    // and most media will not have one; what matters is that the ones that do
+    // still have it by the time the call is assembled.
+    const withNote: MediaRow[] = [
+      {
+        mediaId: 'm1', kind: 'photo', ownerKind: 'zone', ownerZoneId: 'z',
+        ownerPinId: null, ownerCanvasId: null, file: 'a.jpg',
+        note: 'this is where the chlorine injects into the line',
+      },
+      {
+        mediaId: 'm2', kind: 'photo', ownerKind: 'zone', ownerZoneId: 'z',
+        ownerPinId: null, ownerCanvasId: null, file: 'b.jpg',
+      },
+    ]
+    const plan = planIdentificationCalls(withNote, { pinZone: new Map(), canvasZone: new Map() })
+    const sent = plan.batches[0]!.media
+    assert.equal(sent.find((m) => m.mediaId === 'm1')?.note, 'this is where the chlorine injects into the line')
+    assert.equal(sent.find((m) => m.mediaId === 'm2')?.note, undefined, 'and an absent note stays absent')
   })
 })
 
