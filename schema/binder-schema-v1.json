@@ -1118,7 +1118,7 @@
           "neverAI": true,
           "outsideHonestyVocabulary": {
             "why": "A dollar figure HouseSteady sets as a judgement, not a measurement. It is not observed, documented, reported or inferred, so no honesty label fits it — and an unlabelled number beside labelled ones reads as the most certain thing on the page. The words are how the reader is told which it is.",
-            "renderNote": "This is our recommendation, not a measurement of your house. We've based it on the equipment we found and how old it appears to be — a contractor's quote, or your own plans, may point somewhere different."
+            "renderNote": "This is our recommendation, not a measurement of your house. We've based it on the equipment we found and what we know about it — a contractor's quote, or your own plans, may point somewhere different."
           }
         }
       ]

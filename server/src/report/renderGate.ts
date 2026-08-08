@@ -28,21 +28,30 @@
  * passed wrong and two functions can be called in the wrong order* — and this
  * module is that principle applied one slot lower down.
  *
- * ## What it refuses today, and that is not a bug
+ * ## It refused twice before it cleared, and both refusals were the point
  *
- * **Both slots now carry their words, and `s19.reserve-figure` still refuses** —
- * for a different reason than it did on 2026-08-08, and a more interesting one.
- * Its ruled sentence contains *"how old it appears to be"*, and House Style §6
- * bans *appears to be* by name. The collision is between two ratified documents
- * and is not this module's to resolve — see
- * `docs/HouseSteady_Binder-Builder_Note_Reserve-Sentence-Collision_2026-08-08.md`.
- * What this module does is refuse until it is.
+ * **Both slots now carry their words and both clear.** Getting there took two
+ * refusals, and neither was a bug:
  *
- * **A refusal is therefore still the honest state, and it is visible.** The
+ * 1. **No words.** `renderNote` was `null` on both, because the words are
+ *    client-facing copy and **this repo does not invent client-facing copy**.
+ * 2. **Words that could not ship.** The reserve sentence's first correction read
+ *    *"how old it appears to be"*, and House Style §6 bans *appears to be* by
+ *    name. Ruled 2026-08-08f: **reword rather than exempt.** The sentence now
+ *    says *"what we know about it"* — which concedes the limit without a hedge.
+ *
+ * **A refusal was the honest state both times, and it was visible.** The
  * alternative — rendering the figure bare until somebody remembers the sentence
  * — is the failure §6a describes, shipped. Increment 6's binder renderer will
- * meet this gate on its first run and be told what is missing, which is the
- * point of building it before the renderer rather than after.
+ * meet this gate on its first run, which is the point of building it before the
+ * renderer rather than after.
+ *
+ * **One thing is recorded and deliberately not fixed** — register #85. House
+ * Style §6's frame is *a sentence whose confidence exceeds its label*, and these
+ * two slots have no label, so neither remedy it offers applies. Narrowing the
+ * rule would let an unlabelled sentence say *probably fine*, which is worse than
+ * the problem. See
+ * `docs/HouseSteady_Binder-Builder_Note_Reserve-Sentence-Collision_2026-08-08.md`.
  *
  * ## The gate lints, because a gate that clears unrenderable copy is not a gate
  *
