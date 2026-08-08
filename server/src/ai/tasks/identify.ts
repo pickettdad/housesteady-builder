@@ -60,7 +60,7 @@ import { now, type Db } from '../../db/index.js'
 import { readClassFrame } from '../../engine/classFrame.js'
 import { planIdentificationCalls, type Batch, type MediaRow, type ZoneRoutes } from '../../engine/identify.js'
 import { projectClasses } from '../../engine/projection.js'
-import { imageNote, prepareImage, type PreparedImage } from '../image.js'
+import { edgeForCall, imageNote, prepareImage, type PreparedImage } from '../image.js'
 import { requireModel, type ModelConfig } from '../models.js'
 import { currentPrompt, type Prompt } from '../prompts.js'
 import { runVisionTask, type RunArgs } from '../client.js'
@@ -523,13 +523,18 @@ export async function runIdentify(db: Db, job: AiJob, deps: IdentifyDeps): Promi
   const frame = readClassFrame()
   const projection = projectClasses(frame)
 
+  // Over twenty image blocks, a stricter per-image dimension limit applies and
+  // anything above it is REJECTED — see `edgeForCall`. Amendment 10 §B2 puts a
+  // full room over that line by design, so this is the ordinary path.
+  const edge = edgeForCall(context.length + detail.length, model.maxImageEdge)
+
   // CONTEXT FIRST, DETAIL SECOND — Amendment 10 §B1. The finest read must be the
   // last one to touch each object, and that is the only ordering that gives it.
   const prepared: { mediaId: string; image: PreparedImage }[] = []
   for (const m of [...context, ...detail]) {
     prepared.push({
       mediaId: m.mediaId,
-      image: await prepareImage(deps.resolvePath(db, job.visit_id, m.mediaId), model.maxImageEdge),
+      image: await prepareImage(deps.resolvePath(db, job.visit_id, m.mediaId), edge),
     })
   }
 
@@ -591,6 +596,10 @@ export async function runIdentify(db: Db, job: AiJob, deps: IdentifyDeps): Promi
       context: context.map((m) => m.mediaId),
       detail: detail.map((m) => m.mediaId),
       images: prepared.map((p) => ({ mediaId: p.mediaId, prepared: imageNote(p.image) })),
+      // What was sent, and why it was that size. A read that went poorly because
+      // the call was over the many-image threshold has to be explicable without
+      // re-deriving the arithmetic from the batch.
+      imageEdge: { sent: edge, modelLimit: model.maxImageEdge, imageCount: prepared.length },
       captureNotes: withNotes([...context, ...detail]).filter((m) => m.captureNote),
       propertyFlags: flags,
       classFrameVersion: projection.frameVersion,

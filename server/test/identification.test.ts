@@ -22,6 +22,8 @@ import type { ModelConfig } from '../src/ai/models.js'
 import type { RunArgs } from '../src/ai/client.js'
 import { claimNext } from '../src/ai/queue.js'
 import { readClassFrame } from '../src/engine/classFrame.js'
+import { MAX_MEDIA_PER_CALL } from '../src/engine/identify.js'
+import { edgeForCall, MANY_IMAGE_MAX_EDGE, MANY_IMAGE_THRESHOLD } from '../src/ai/image.js'
 import { approximateTokens, projectClasses } from '../src/engine/projection.js'
 import {
   batchTargetId, IDENTIFY_TARGET_KIND, IDENTIFY_TASK, identificationFacts, mediaForImport,
@@ -353,6 +355,81 @@ describe('what the call carries', () => {
       flags: { set: [], declared: [] }, projection: 'CLASSES',
     })
     assert.match(facts, /every object you report is context-only/)
+  })
+})
+
+describe('the many-image threshold — over twenty, images are rejected outright', () => {
+  /**
+   * **The one failure here is not a poor read, it is a 400.** Above twenty image
+   * blocks a stricter per-image dimension limit applies and anything over it is
+   * rejected with an `invalid_request_error`. Amendment 10 §B2 puts a full room
+   * over that line **by design** — 24 details plus the zone's canvas frames — so
+   * this stopped being an edge case the moment the canvas started riding along.
+   */
+  it('leaves the edge alone at or below the threshold', () => {
+    assert.equal(edgeForCall(1, 2576), 2576)
+    assert.equal(edgeForCall(MANY_IMAGE_THRESHOLD, 2576), 2576, 'twenty is inside the limit')
+  })
+
+  it('caps the edge the moment a call goes over twenty', () => {
+    assert.equal(edgeForCall(MANY_IMAGE_THRESHOLD + 1, 2576), MANY_IMAGE_MAX_EDGE)
+    assert.equal(edgeForCall(28, 2576), 2000)
+  })
+
+  it('never raises an edge the model already keeps below the limit', () => {
+    // The default is 1568 and is already inside the stricter limit. Capping must
+    // not become an instruction to send BIGGER images than the model accepts.
+    assert.equal(edgeForCall(28, 1568), 1568)
+  })
+
+  it('closes the configuration trap, which is the dangerous half', async () => {
+    // `maxImageEdge` is an environment variable, and the reason somebody raises
+    // it is to read nameplates better. At 2576 a full room's call would fail
+    // outright, with an error naming a limit nobody had read.
+    seed()
+    addCanvas('cv1')
+    addMedia('c1', { canvas: 'cv1' })
+    for (let i = 0; i < 24; i++) addMedia(`d${i}`, {})
+
+    const highRes: ModelConfig = { ...MODEL, maxImageEdge: 2576 }
+    queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR)
+    const job = claimNext(db, VISIT)!
+    const deps = { ...stub([answer()]), model: highRes }
+    const result = await runIdentify(db, job, deps)
+
+    assert.equal(deps.asked[0]!.images.length, 25, '24 details plus the canvas — over the threshold')
+    const refs = JSON.parse(
+      (db.prepare('SELECT input_refs FROM ai_generations WHERE id = ?').get(result!.generationId) as {
+        input_refs: string
+      }).input_refs,
+    ) as { imageEdge: { sent: number; modelLimit: number; imageCount: number } }
+    assert.deepEqual(refs.imageEdge, { sent: 2000, modelLimit: 2576, imageCount: 25 })
+  })
+
+  it('records the edge even when nothing was capped, so a read is explicable', async () => {
+    seed()
+    addMedia('m1', {})
+    queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR)
+    const job = claimNext(db, VISIT)!
+    const result = await runIdentify(db, job, stub([answer()]))
+
+    const refs = JSON.parse(
+      (db.prepare('SELECT input_refs FROM ai_generations WHERE id = ?').get(result!.generationId) as {
+        input_refs: string
+      }).input_refs,
+    ) as { imageEdge: { sent: number; imageCount: number } }
+    assert.deepEqual(refs.imageEdge.sent, MODEL.maxImageEdge)
+    assert.equal(refs.imageEdge.imageCount, 1)
+  })
+
+  it('the default ceiling and the walk together are the case this protects', () => {
+    // `MAX_MEDIA_PER_CALL` is 24 and the mechanical room carries four canvas
+    // frames, so its full batches are 28 images. Recorded as a test rather than
+    // a comment because the ceiling is a number somebody will change.
+    assert.ok(
+      MAX_MEDIA_PER_CALL > MANY_IMAGE_THRESHOLD,
+      'the detail ceiling alone already exceeds the threshold, before any canvas rides along',
+    )
   })
 })
 
