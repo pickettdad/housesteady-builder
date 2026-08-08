@@ -153,7 +153,18 @@ Full reasoning: `/docs/HouseSteady_Binder-Builder_Design_v1_*.md`.
 
 Real exports are structurally clean and substantively messy. The reference export in `/fixtures/reference/` contains typeless pins, retired pins, unanchored pins, and 28 of 37 photos owned by a zone with nothing pointing at them. That is a normal visit, not a corrupt file. **Graceful handling of mess is a feature requirement.** Never design against a pristine sample.
 
-Scale, measured: 123 MB for two rooms; roughly 1.5–2 GB for a full baseline visit.
+**Scale — and each figure names the export it came from**, because a bare number here is the one a future reader sizes storage against:
+
+| Export | Zones | Media | Declared bytes |
+|---|---:|---:|---:|
+| `fixtures/reference/` | 2 | 37 photos | **117 MB** |
+| `fixtures/walk-2026-07-31/` | 8 | 157 photos · 4 video · 2 voice | **504 MB** — 485 photo, 18 video, 1 voice |
+
+**Both are partial visits, and neither is a baseline.** A full baseline visit is *estimated* at 1.5–2 GB; that figure is a projection from these two and has never been measured.
+
+**Re-derive rather than trust this table** — both manifests declare their own `bytes`, so the figures are one pass over `media[]` and the numbers here are a convenience, not a source. *(This sentence exists because §11 previously carried "123 MB for two rooms" with no artifact named, and it read as the scale of a visit rather than of the smaller of two samples.)*
+
+**Video changes the arithmetic, and the walk shows it starting:** four videos are **2.5% of that export's files and 3.7% of its bytes** — 4.6 MB each against a 3.1 MB photograph. A mild skew today because the clips are short, and nothing about it holds as they lengthen. **That is why bytes are always reported broken out by kind.**
 
 ## 12. How to work here
 
