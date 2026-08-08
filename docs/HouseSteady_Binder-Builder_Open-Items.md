@@ -158,7 +158,7 @@ session's.*
 | Home Binder Master Spec v1 | **Source document, no longer the operative authority.** The Schema governs where they disagree. Still holds the checklist library (§15) and the regional appendix, which the Schema does not touch. |
 | Client Intake Form v1 | Input #2. Needed at Increment 3 — the audit's expectation set derives from its services block. |
 | Baseline Inspection Process v1 | Phase 11 is the gap-report spec. Needed at Increment 4. |
-| Brand Guide + logo assets | **Guide in the repo 2026-07-30**, at `/docs/reference/HouseSteady_Brand-Guide_v1_2026-07-17.html` — authoring reference, and a doctrine scan keeps `/docs/reference/` unread by any code path. The render carries its own tokens, citing the guide. **Logo asset files have not arrived**; `HouseSteady_Brand-Assets.zip` is named in §05 of the guide and is what the render needs for a mark it must not redraw. |
+| Brand Guide + logo assets | **The guide is no longer in this repo.** It was carried at `/docs/reference/` from 2026-07-30 and removed 2026-08-08 by owner ruling — *repos stop keeping design-session copies at all.* Read it in the project folder. **The assets did arrive** and are in `/brand`: the zip, 15 files and `assets.json`, which carries the five hex values and the type rules copied from §03 so the render never reaches for the guide itself. A doctrine scan still asserts nothing under `/brand` is parsed as a source. |
 | Launch Brief v1 (2026-07-24) | **Spent.** It was the design session's agenda; the design is done. Retire it. |
 
 ---
