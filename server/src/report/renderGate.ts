@@ -30,16 +30,32 @@
  *
  * ## What it refuses today, and that is not a bug
  *
- * **Both slots declare `renderNote: null`, so both refuse.** The words are
- * client-facing copy and **this repo does not invent client-facing copy** —
- * they are the design session's to write, exactly like the ratified twenty in
- * `client-names-v1.json`.
+ * **Both slots now carry their words, and `s19.reserve-figure` still refuses** —
+ * for a different reason than it did on 2026-08-08, and a more interesting one.
+ * Its ruled sentence contains *"how old it appears to be"*, and House Style §6
+ * bans *appears to be* by name. The collision is between two ratified documents
+ * and is not this module's to resolve — see
+ * `docs/HouseSteady_Binder-Builder_Note_Reserve-Sentence-Collision_2026-08-08.md`.
+ * What this module does is refuse until it is.
  *
- * **A refusal is therefore the honest state right now, and it is visible.** The
+ * **A refusal is therefore still the honest state, and it is visible.** The
  * alternative — rendering the figure bare until somebody remembers the sentence
  * — is the failure §6a describes, shipped. Increment 6's binder renderer will
  * meet this gate on its first run and be told what is missing, which is the
  * point of building it before the renderer rather than after.
+ *
+ * ## The gate lints, because a gate that clears unrenderable copy is not a gate
+ *
+ * **Words that exist are not the same as words that can ship.** A `renderNote`
+ * carrying a banned word passes the words-are-written check, gets composed into
+ * a document alongside the figure, and dies at the House Style lint in the
+ * render path — *after* the figure is composed, with nothing pointing back at
+ * the sentence that caused it.
+ *
+ * That is the same shape as every other failure this module exists to prevent:
+ * a check satisfied by declaring something, while the failure survives untouched.
+ * **So the lint runs here, at the only point these words can be cleared**, and a
+ * violation refuses by name rather than by regex.
  *
  * ## Scope, stated because it is easy to overrun
  *
@@ -50,6 +66,8 @@
  * has to be in place before the temptation.*
  */
 
+import { lint } from './houseStyle.js'
+import type { Violation } from './houseStyle.js'
 import type { LoadedSchema, Slot } from '../audit/schema.js'
 
 /**
@@ -70,7 +88,13 @@ export interface OutsideVocabulary {
 }
 
 export class RenderGateRefused extends Error {
-  constructor(message: string, readonly code: string, readonly slotId: string) {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly slotId: string,
+    /** Set only on `gate.unrenderable-words`, so a screen can show what to fix. */
+    readonly violations: Violation[] = [],
+  ) {
     super(message)
     this.name = 'RenderGateRefused'
   }
@@ -168,6 +192,19 @@ export function gate(slot: Slot, value: string): GatedValue {
       slot.id,
     )
   }
+  const violations = lint(declared.renderNote, slot.id)
+  if (violations.length > 0) {
+    throw new RenderGateRefused(
+      `\`${slot.id}\`'s words cannot go to a client: ` +
+        violations.map((v) => `${v.rule} ("${v.found}")`).join('; ') +
+        `. ${violations.map((v) => v.because).join(' ')} ` +
+        `**Copy the render rejects is worse than no copy** — it clears this gate and dies at the next one with ` +
+        `the figure already composed. The sentence is the design session's to resolve, not this repo's to reword.`,
+      'gate.unrenderable-words',
+      slot.id,
+      violations,
+    )
+  }
   if (value.trim() === '') {
     throw new RenderGateRefused(
       `\`${slot.id}\` has no value, so there is nothing for the words to stand beside. A blank where a figure ` +
@@ -179,14 +216,35 @@ export function gate(slot: Slot, value: string): GatedValue {
   return { slotId: slot.id, value, note: declared.renderNote } as unknown as GatedValue
 }
 
+export interface BlockedSlot {
+  slotId: string
+  /** The slot's declared reason for carrying no label. Context, not the blockage. */
+  why: string
+  /** Which refusal `gate()` would raise — the same codes, so the two cannot drift. */
+  blocking: 'gate.no-words' | 'gate.unrenderable-words'
+  /** Empty unless `blocking` is `gate.unrenderable-words`. */
+  violations: Violation[]
+}
+
 /**
  * What is blocking, in words, without throwing.
  *
  * For a screen that wants to show *this is why the binder will not render* ahead
  * of somebody pressing the button. **Reporting is not the gate** — nothing here
  * clears anything, and `gate()` remains the only way a value comes out.
+ *
+ * **Both directions have to hold.** Every slot named here refuses at the gate,
+ * and — since the gate started linting — every slot that refuses is named here.
+ * A screen reporting *nothing is blocking* while the render refuses would be the
+ * more dangerous half of that pair, because it reads as done.
  */
-export const blockedSlots = (schema: LoadedSchema): { slotId: string; why: string }[] =>
-  outsideVocabularySlots(schema)
-    .filter(({ declared }) => declared.renderNote === null || declared.renderNote.trim() === '')
-    .map(({ slot, declared }) => ({ slotId: slot.id, why: declared.why }))
+export const blockedSlots = (schema: LoadedSchema): BlockedSlot[] =>
+  outsideVocabularySlots(schema).flatMap(({ slot, declared }): BlockedSlot[] => {
+    if (declared.renderNote === null || declared.renderNote.trim() === '') {
+      return [{ slotId: slot.id, why: declared.why, blocking: 'gate.no-words', violations: [] }]
+    }
+    const violations = lint(declared.renderNote, slot.id)
+    return violations.length > 0
+      ? [{ slotId: slot.id, why: declared.why, blocking: 'gate.unrenderable-words', violations }]
+      : []
+  })
