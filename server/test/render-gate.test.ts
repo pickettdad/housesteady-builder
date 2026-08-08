@@ -38,13 +38,14 @@ describe('the two slots that carry no honesty label', () => {
     }
   })
 
-  it('both now carry their words, landed 2026-08-08', () => {
-    // Written by the design session against each slot's own `why`. Until they
-    // arrived the gate refused for want of words, which was the honest state.
+  it('both carry their words and nothing is blocked, as of 2026-08-08f', () => {
+    // Written by the design session against each slot's own `why`. The gate
+    // refused twice before this: first for want of words, then because the
+    // reserve sentence's words could not pass the House Style lint.
     for (const { declared } of outsideVocabularySlots(loadSchema())) {
       assert.ok((declared.renderNote ?? '').length > 40)
     }
-    assert.deepEqual(blockedSlots(loadSchema()).map((b) => b.blocking), ['gate.unrenderable-words'])
+    assert.deepEqual(blockedSlots(loadSchema()), [])
   })
 
   it('each sentence says the value is a judgement rather than a reading', () => {
@@ -56,71 +57,44 @@ describe('the two slots that carry no honesty label', () => {
     assert.match(byId.get('s2.next-review')!, /our judgement, not a date the house has set/)
   })
 
-  it('the reserve sentence does not state the age of equipment as a fact', () => {
-    // Ruled 2026-08-08e. The old wording — "how old it is" — asserted a firmer
-    // basis than the record supports: doctrine 4 keeps install dates `unknown`
-    // rather than guessing, so most are Inferred at best. That is
-    // identification-never-assessment failing inside the copy written to
-    // enforce it, which is why one word was worth a ruling.
+  it('the reserve sentence names no age at all, hedged or otherwise', () => {
+    /**
+     * **Two rulings, and the second is wider than the first.**
+     *
+     * The original wording named its basis as *"the equipment we found and how
+     * old it is"*, and age is often the least certain thing the record holds —
+     * doctrine 4 keeps install dates `unknown` rather than guessing, so most are
+     * `Inferred` at best. **That is identification-never-assessment failing
+     * inside the copy written to enforce it.**
+     *
+     * The one-word fix, *"how old it appears to be"*, was then banned by name in
+     * House Style §6. **Ruled 2026-08-08f: reword rather than exempt** — and the
+     * reword drops the age claim instead of hedging it. *"What we know about
+     * it"* concedes the limit without a hedge.
+     *
+     * So this asserts the wider thing rather than the narrower: **no age claim,
+     * in any form.** Pinning only the two dead phrases would let a third arrive.
+     */
     const reserve = new Map(
       outsideVocabularySlots(loadSchema()).map((d) => [d.slot.id, d.declared.renderNote ?? '']),
     ).get('s19.reserve-figure')!
-    assert.doesNotMatch(reserve, /how old it is\b/)
-  })
-})
-
-describe('the reserve sentence cannot render, and the reason is a document collision', () => {
-  /**
-   * **Two ratified documents disagree and neither is this repo's to amend.**
-   *
-   * House Style §6, carried verbatim in `prompts/house-style/v001.md`: *"Never
-   * write a sentence whose confidence exceeds its label. Probably, **appears to
-   * be**, seems are usually a sign that an `Inferred` value is trying to pass as
-   * `Observed`. Either the evidence supports the claim or the label changes."*
-   *
-   * The reserve sentence, ruled 2026-08-08e, contains *"how old it appears to
-   * be"* — and it is on a slot declared `outsideHonestyVocabulary`, so it has no
-   * label to exceed and neither remedy the rule offers is available.
-   *
-   * **These tests pin the blocked state rather than approve it.** Every one goes
-   * red the moment either side is resolved, which is correct: a resolution
-   * should force a change here, not slip past. Rule 11b — a check whose two
-   * sides cannot disagree has not been passing.
-   */
-  const reserveSlot = () => outsideVocabularySlots(loadSchema()).find((d) => d.slot.id === 's19.reserve-figure')!
-
-  it('s2.next-review lints clean, so this is one sentence and not a broken lint', () => {
-    const next = outsideVocabularySlots(loadSchema()).find((d) => d.slot.id === 's2.next-review')!
-    assert.deepEqual(lint(next.declared.renderNote ?? '', next.slot.id), [])
+    assert.doesNotMatch(reserve, /\b(how old|age[ds]?\b|the age)\b/i)
+    assert.match(reserve, /what we know about it/)
   })
 
-  it('the reserve sentence trips exactly one rule, and it is the hedge rule', () => {
-    const { slot, declared } = reserveSlot()
-    const violations = lint(declared.renderNote ?? '', slot.id)
-    assert.equal(violations.length, 1)
-    assert.equal(violations[0]?.rule, 'a hedge that outruns its label')
-    assert.equal(violations[0]?.found, 'appears to be')
+  it('both sentences pass the House Style lint, which is what the gate checks', () => {
+    // The reserve sentence failed this for one cut — House Style §6 bans
+    // "appears to be" by name. Resolved 2026-08-08f by rewording rather than by
+    // exempting the slot: an exemption list is a door, and doors get used.
+    for (const { slot, declared } of outsideVocabularySlots(loadSchema())) {
+      assert.deepEqual(lint(declared.renderNote ?? '', slot.id), [], `${slot.id} is renderable`)
+    }
   })
 
-  it('the gate refuses it, rather than clearing words the render will reject', () => {
-    // The failure this closes: words that exist pass the words-are-written
-    // check, get composed beside the figure, and die at the render lint with
-    // nothing pointing back at the sentence that caused it.
-    const { slot } = reserveSlot()
-    assert.throws(
-      () => gate(slot, '$4,200'),
-      (e: unknown) =>
-        e instanceof RenderGateRefused &&
-        e.code === 'gate.unrenderable-words' &&
-        e.violations.length === 1,
-    )
-  })
-
-  it('blockedSlots names it, so a screen cannot report all-clear while the gate refuses', () => {
-    const blocked = blockedSlots(loadSchema())
-    assert.deepEqual(blocked.map((b) => b.slotId), ['s19.reserve-figure'])
-    assert.equal(blocked[0]?.blocking, 'gate.unrenderable-words')
-    assert.equal(blocked[0]?.violations[0]?.found, 'appears to be')
+  it('both clear the gate and hand back their words with the value', () => {
+    const byId = new Map(outsideVocabularySlots(loadSchema()).map((d) => [d.slot.id, d.slot]))
+    assert.match(gate(byId.get('s19.reserve-figure')!, '$4,200').note, /not a measurement/)
+    assert.match(gate(byId.get('s2.next-review')!, 'March 2027').note, /our judgement/)
   })
 })
 

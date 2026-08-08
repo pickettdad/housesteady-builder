@@ -4,6 +4,20 @@
 **Reports:** the one-word correction is landed, and it cannot render. Two ratified documents disagree and neither is this repo's to amend.
 **Needs:** one ruling from the design session. Nothing else is blocked on it.
 
+> ## ⚑ RESOLVED 2026-08-08f — never read §4 without this
+>
+> **Ruled: reword, do not exempt.** `s19.reserve-figure` now reads:
+>
+> > *"This is our recommendation, not a measurement of your house. We've based it on the equipment we found and **what we know about it** — a contractor's quote, or your own plans, may point somewhere different."*
+>
+> **The reword drops the age claim rather than hedging it**, which is wider than the fix this note was asking for. *"What we know about it"* concedes the limit without a hedge, so §6 is not engaged at all. **Both sentences lint clean and both clear the gate.**
+>
+> **The §4 table below is superseded.** Its second and third options were both rejected, and the reasons are worth keeping: **narrowing §6 would let an unlabelled sentence say *probably fine*, which is worse than the problem** — a sharper objection than the one this note made — and an exemption list is a door that gets used.
+>
+> **§2's argument is recorded rather than acted on — register #85.** The reasoning holds: §6's frame does not fit a label-less slot, and the banned hedge lowers certainty where the rule polices raising it. Not fixed now because the reword removes the pressure, **and filed because the next label-less client sentence hits the same wall.** A House Style cut owns it.
+>
+> **§3 stands unchanged.** The gate's lint and `blockedSlots()`' lint reporting were the right build regardless of how the sentence resolved — the hole they close is that words which *exist* are not words that can *ship*.
+
 ---
 
 ## The short version
