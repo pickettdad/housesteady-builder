@@ -51,7 +51,9 @@ import { planIdentificationCalls } from '../src/engine/identify.js'
 import { mediaForImport, zoneRoutes, latestImport } from '../src/ai/tasks/identify.js'
 import { projectClasses, approximateTokens } from '../src/engine/projection.js'
 import { readClassFrame } from '../src/engine/classFrame.js'
-import { assistsBlocked, drainVisit } from '../src/ai/worker.js'
+import { assistsBlocked, drainVisit, liveDeps } from '../src/ai/worker.js'
+import type { AssistDeps } from '../src/ai/tasks/index.js'
+import { requireModel, ModelNotConfigured } from '../src/ai/models.js'
 import { visitSpend, queueProgress } from '../src/ai/queue.js'
 import { currentOperator, OperatorRefused } from '../src/operators/registry.js'
 
@@ -246,8 +248,41 @@ const q = queueIdentification(
 )
 console.log(`\nQueued ${q.jobs} calls over ${q.zones} zones. Draining.\n`)
 
+/**
+ * `--tier strong` — run identification on the strong model instead of the fast one.
+ *
+ * **This exists so a comparison run does not have to lie about which tier it is.**
+ * The alternative is pointing `HOUSESTEADY_MODEL_FAST` at a strong model, which
+ * works and then records the wrong thing: every row in `ai_generations` would say
+ * fast tier, and *"why did the mechanical room read better in August"* would be
+ * unanswerable from the ledger — which is the one question the ledger exists for.
+ *
+ * **Not a change to the tiering doctrine.** Extraction and classification belong
+ * on the cheap tier in production. This is the escape hatch for a measurement,
+ * and a measurement wants its own model id recorded against it.
+ */
+const tier = arg('tier') ?? 'fast'
+if (tier !== 'fast' && tier !== 'strong') {
+  console.error(`--tier is "fast" or "strong". Got: ${tier}`)
+  process.exit(1)
+}
+
+let deps: AssistDeps | undefined
+if (tier === 'strong') {
+  try {
+    deps = { ...liveDeps(), model: requireModel('strong') }
+  } catch (e) {
+    if (e instanceof ModelNotConfigured) {
+      console.error(`\nNo strong model is configured. Set HOUSESTEADY_MODEL_STRONG, or drop --tier strong.\n`)
+      process.exit(1)
+    }
+    throw e
+  }
+  console.log(`Running on the STRONG tier: ${deps.model!.id}\n`)
+}
+
 const limit = arg('limit') ? Number(arg('limit')) : undefined
-const result = await drainVisit(db, visitId, limit ? { limit } : {})
+const result = await drainVisit(db, visitId, { ...(limit ? { limit } : {}), ...(deps ? { deps } : {}) })
 console.log(`\n${result.reason}`)
 console.log(`Ran ${result.ran}, failed ${result.failed}, stopped: ${result.stopped}.`)
 

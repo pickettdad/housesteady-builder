@@ -302,6 +302,28 @@ npm run identify -- --visit <visitId> --zone mechanical --run --owner-property
 
 ---
 
+## 5a. The second run — the mechanical room again, on the strong tier
+
+**This is the run the 2026-08-09 result asked for.** Same room, stronger model, **graded on three specific questions** rather than read.
+
+```bash
+npm run identify -- --visit <visitId> --zone mechanical --run --owner-property --tier strong
+```
+
+Needs `HOUSESTEADY_MODEL_STRONG` set. It refuses clearly if not, and prints the model before spending. **Three calls, 54 detail photographs, 12 canvas sends** — the same shape as the first run, so the two are comparable.
+
+**Report these three answers first, before anything else:**
+
+| | what to look for |
+|---|---|
+| **1 · Does the reverse osmosis persist?** | There is **no RO in that room** — the first run invented one. The frame carries `iron-filter`, `sulphur-treatment` and `water-treatment-other`, all closer, all on the menu |
+| **2 · Does the Vanée persist?** | First run proposed the same ventilator twice, in one batch, as `hrv-erv` labelled *"Water treatment system"* and as `dehumidifier-whole-home`. A Vanée 100H is an HRV; both labels are wrong |
+| **3 · Do the four pressure tanks persist?** | `well-pressure-tank` was proposed **four times** for one tank. If a stronger model still does it, **the ceiling question closes** — raising 24 was never the fix |
+
+**Also worth reporting:** the no-class count (23 last time, 38% of proposals) and the total (60). **A lower total is not automatically better** — it could be better deduplication or it could be a shyer model. Say which, if you can tell.
+
+---
+
 ## 6. Step four — the full walk, only after step three is graded
 
 ```bash
