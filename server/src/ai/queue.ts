@@ -84,6 +84,29 @@ export function enqueue(args: EnqueueArgs): AiJob {
     .get(visitId, task, targetKind, targetId) as AiJob
 }
 
+/**
+ * Put one finished job back in the queue, so it runs again.
+ *
+ * **Separate from `requeueFailed`, and deliberately narrower.** That one exists
+ * for work that broke; this one exists for work that succeeded and is being
+ * asked a second time — a comparison run. Different intention, different name,
+ * and neither can be reached by accident from the other.
+ *
+ * **The job row is reused rather than replaced**, so its history stays one row.
+ * The second run writes a second `ai_generations` row, and that pair — same
+ * target, two models — is the comparison.
+ */
+export function requeueBatch(db: Db, visitId: string, targetId: string): boolean {
+  const r = db
+    .prepare(
+      `UPDATE ai_jobs SET status = 'queued', attempts = 0, run_after = NULL, last_error = NULL,
+                          leased_at = NULL, updated_at = ?
+        WHERE visit_id = ? AND target_id = ? AND status IN ('done', 'skipped', 'failed')`,
+    )
+    .run(now(), visitId, targetId)
+  return r.changes > 0
+}
+
 /** Put failed jobs back in the queue. The hand-retrigger from the UI. */
 export function requeueFailed(db: Db, visitId: string): number {
   const r = db

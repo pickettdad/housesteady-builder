@@ -83,6 +83,7 @@ HOUSESTEADY_FAST_INPUT_PER_MTOK=1.00
 HOUSESTEADY_FAST_OUTPUT_PER_MTOK=5.00
 HOUSESTEADY_STRONG_INPUT_PER_MTOK=[strong model input price]
 HOUSESTEADY_STRONG_OUTPUT_PER_MTOK=[strong model output price]
+HOUSESTEADY_VISIT_SPEND_CAP=2.00
 ```
 
 > ### ⚠ The last two lines are not optional on a `--tier strong` run
@@ -346,15 +347,35 @@ npm run identify -- --visit <visitId> --zone mechanical --run --owner-property
 
 ---
 
-## 5a. The second run — the mechanical room again, on the strong tier
+## 5a. The second run — the same room again, on the strong tier, IN THE SAME CONTAINER
 
-**This is the run the 2026-08-09 result asked for.** Same room, stronger model, **graded on three specific questions** rather than read.
+**Both passes must happen in one session. This is the part to get right.**
+
+The container is ephemeral and the comparison lives in `ai_generations` — two passes over one room, same import, same media, same visit, one variable changed. **Run them in two sessions and the ledger holds neither; you are left comparing two pasted text files.**
 
 ```bash
-npm run identify -- --visit <visitId> --zone mechanical --run --owner-property --tier strong
+# pass one — fast tier
+npm run identify -- --visit <visitId> --zone mechanical --run --owner-property
+
+# pass two — same room, strong tier, in the SAME container
+npm run identify -- --visit <visitId> --zone mechanical --run --owner-property --tier strong --again
 ```
 
-Needs `HOUSESTEADY_MODEL_STRONG` set. It refuses clearly if not, and prints the model before spending. **Three calls, 54 detail photographs, 12 canvas sends** — the same shape as the first run, so the two are comparable.
+> ### ⚠ `--again` is required, and without it pass two silently does nothing
+>
+> **Queueing is idempotent** — `ON CONFLICT DO NOTHING` on `(visit, task, target)`. That is correct for a person unsure whether their first press landed, and it means **a second `--tier strong` on a completed zone queues nothing, drains nothing, and reports success.**
+>
+> `--again` puts the finished batches back. **It requires `--zone`**, because re-running a whole visit would silently re-pay for every room and the only reason to use it is comparing one.
+>
+> **Nothing is overwritten.** The job row is reused so its history stays one row; the first pass's generations and objects are kept, and **every object records the generation that proposed it** — so the two passes stay distinguishable in both the ledger and the objects table. *(That column landed 2026-08-09; before it, a second pass would have written a second set of proposals with no way to tell them apart.)*
+
+**Three calls, 54 detail photographs, 12 canvas sends** — the same shape both times, which is what makes them comparable.
+
+**Cost: about 50 cents for both passes.** Roughly $0.16 on the fast tier plus ~$0.31 on the strong tier at Sonnet 5's rates, for the mechanical room's 121k input and 7.4k output tokens.
+
+**Set `HOUSESTEADY_VISIT_SPEND_CAP=2.00`** — about six times the expected strong-tier cost. **Tight enough to bite on a runaway, loose enough not to false-stop.** It only works if the per-tier rates are set; see §2.
+
+> **The cap is per visit and counts both passes.** Two passes at ~$0.47 combined sit well under $2.00, and a third would too — but if you end up re-running several times, the cap is cumulative and will stop you. That is it working, not failing.
 
 **Report these three answers first, before anything else:**
 
