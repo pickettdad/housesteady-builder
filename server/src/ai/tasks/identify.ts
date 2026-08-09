@@ -290,13 +290,25 @@ export function queueIdentification(
   propertyId: string,
   visitId: string,
   actorId: string,
+  /**
+   * Queue only the zones this accepts. Omit it and every zone is queued.
+   *
+   * **This is what makes "one room, then decide" possible.** `--limit` bounds
+   * how many calls are *drained*, which is a different question: it stops after
+   * N calls in queue order and cannot say *which* room. The first real run wants
+   * the mechanical room specifically — it is the one whose right answer is
+   * already known, so it is the only room that can be graded rather than merely
+   * read.
+   */
+  only?: (zoneId: string) => boolean,
 ): QueuedIdentification {
   const importId = latestImport(db, visitId)
   if (!importId) {
     return { jobs: 0, zones: 0, excluded: 0, unresolved: 0, note: `No import for visit ${visitId}. Nothing to identify.` }
   }
 
-  const plan = planIdentificationCalls(mediaForImport(db, importId), zoneRoutes(db, importId))
+  const all = planIdentificationCalls(mediaForImport(db, importId), zoneRoutes(db, importId))
+  const plan = only ? { ...all, batches: all.batches.filter((b) => only(b.zoneId)) } : all
   for (const b of plan.batches) {
     enqueue({
       db,
@@ -314,6 +326,8 @@ export function queueIdentification(
     zones: new Set(plan.batches.map((b) => b.zoneId)).size,
     excluded: plan.excluded.length,
     unresolved: plan.unresolved.length,
+    // The unfiltered note, deliberately: it describes the whole export, and a
+    // filtered run must not read as though the rest of the house went missing.
     note: plan.note,
   }
 }

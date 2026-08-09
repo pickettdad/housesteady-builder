@@ -245,6 +245,72 @@ describe('queueing identification is a deliberate act', () => {
     assert.equal(q.jobs, 0)
     assert.match(q.note, /No import for visit/)
   })
+
+  describe('one room rather than a house', () => {
+    /**
+     * **The first real run wants the mechanical room specifically**, because it
+     * is the one room whose right answer is already known — so it can be graded
+     * rather than only read. `--limit` bounds how many calls drain, in queue
+     * order, and cannot say which room. This is the other question.
+     */
+    const secondZone = (): string => {
+      const other = 'zone-kitchen'
+      db.prepare(
+        `INSERT INTO zones (zone_id, import_id, property_id, visit_id, type, label, level, created_at)
+         VALUES (?, ?, ?, ?, 'kitchen', 'Kitchen', 'main', ?)`,
+      ).run(other, importId, PROPERTY, VISIT, now())
+      for (let i = 0; i < 3; i++) addMedia(`k${i}`, { zone: other })
+      return other
+    }
+
+    it('queues only the zones the filter accepts', () => {
+      for (let i = 0; i < 3; i++) addMedia(`m${i}`, {})
+      secondZone()
+
+      const q = queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR, (zoneId) => zoneId === ZONE)
+      assert.equal(q.zones, 1)
+      assert.equal(q.jobs, 1)
+      const targets = (
+        db.prepare('SELECT target_id FROM ai_jobs WHERE task = ?').all(IDENTIFY_TASK) as { target_id: string }[]
+      ).map((r) => r.target_id)
+      assert.deepEqual(targets, [batchTargetId(ZONE, 1)])
+    })
+
+    it('queues every zone when no filter is given, so the filter is opt-in', () => {
+      // The two sides of the same call must be able to disagree, or the test
+      // above proves nothing — rule 11b.
+      for (let i = 0; i < 3; i++) addMedia(`m${i}`, {})
+      secondZone()
+
+      const q = queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR)
+      assert.equal(q.zones, 2)
+      assert.equal(q.jobs, 2)
+    })
+
+    it('queues nothing when the filter matches nothing, rather than falling back to all', () => {
+      // A filter that silently widened to the whole house would send the interior
+      // of seven rooms to a model when one was asked for.
+      for (let i = 0; i < 3; i++) addMedia(`m${i}`, {})
+      secondZone()
+
+      const q = queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR, () => false)
+      assert.equal(q.jobs, 0)
+      assert.equal(q.zones, 0)
+      const { n } = db.prepare('SELECT COUNT(*) AS n FROM ai_jobs WHERE task = ?').get(IDENTIFY_TASK) as { n: number }
+      assert.equal(n, 0)
+    })
+
+    it('keeps the note describing the whole export, not the filtered slice', () => {
+      // A filtered run must not read as though the rest of the house went
+      // missing. The note is the export's shape; the filter is this run's scope.
+      for (let i = 0; i < 3; i++) addMedia(`m${i}`, {})
+      secondZone()
+
+      const q = queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR, (zoneId) => zoneId === ZONE)
+      assert.match(q.note, /2 calls over 2 zones/)
+      assert.equal(q.jobs, 1)
+    })
+  })
 })
 
 describe('what the call carries', () => {
