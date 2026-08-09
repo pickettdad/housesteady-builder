@@ -21,6 +21,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { apiKey } from './models.js'
 import type { ModelConfig } from './models.js'
 import type { Prompt } from './prompts.js'
 
@@ -75,8 +76,12 @@ let shared: Anthropic | undefined
  * the queue can look at and leave work alone, not an exception someone catches.
  */
 export function anthropic(): Anthropic | undefined {
-  if (!process.env.ANTHROPIC_API_KEY) return undefined
-  shared ??= new Anthropic()
+  const key = apiKey()
+  if (!key) return undefined
+  // Passed explicitly rather than left to the SDK's own env lookup, because the
+  // key may have come from `HOUSESTEADY_ANTHROPIC_API_KEY` — a name the SDK has
+  // never heard of. See `apiKey()` for why this repo prefers its own variable.
+  shared ??= new Anthropic({ apiKey: key })
   return shared
 }
 

@@ -14,7 +14,9 @@ import { join } from 'node:path'
 import { after, beforeEach, describe, it } from 'node:test'
 import { newId, now, openDb, type Db } from '../src/db/index.js'
 import { prepareImage } from '../src/ai/image.js'
-import { aiAvailable, estimateCost, modelFor, requireModel, ModelNotConfigured } from '../src/ai/models.js'
+import {
+  aiAvailable, apiKey, apiKeySource, estimateCost, modelFor, requireModel, ModelNotConfigured,
+} from '../src/ai/models.js'
 import { currentPrompt, loadPrompts, PromptRefused, promptAt } from '../src/ai/prompts.js'
 import {
   claimNext, completeJob, enqueue, failJob, MAX_ATTEMPTS, queueProgress, recordGeneration,
@@ -209,6 +211,67 @@ describe('the spend cap', () => {
     generation(1_000_000, 0)
     const spend = visitSpend(db, VISIT)
     assert.equal(spend.ratesKnown, false, 'with no rates configured the screen must not print a confident $0.00')
+  })
+})
+
+describe('the API key comes from our own variable first', () => {
+  /**
+   * **`ANTHROPIC_API_KEY` is the SDK's name, not ours, and the surrounding
+   * tooling has opinions about it.** A Claude Code cloud environment
+   * authenticates its own session through the user's account and warns that
+   * setting this variable will not change that — true of the session, not of
+   * this program, and a reader cannot tell those apart from the warning.
+   *
+   * So a name nothing else claims is preferred, and the conventional one still
+   * works because every local shell and SDK example already uses it.
+   */
+  const clear = (): void => {
+    delete process.env.HOUSESTEADY_ANTHROPIC_API_KEY
+    delete process.env.ANTHROPIC_API_KEY
+  }
+
+  it('prefers HOUSESTEADY_ANTHROPIC_API_KEY when both are set', () => {
+    clear()
+    process.env.ANTHROPIC_API_KEY = 'sdk-convention'
+    process.env.HOUSESTEADY_ANTHROPIC_API_KEY = 'ours'
+    try {
+      assert.equal(apiKey(), 'ours')
+      assert.equal(apiKeySource(), 'HOUSESTEADY_ANTHROPIC_API_KEY')
+    } finally {
+      clear()
+    }
+  })
+
+  it('still accepts ANTHROPIC_API_KEY alone, so a normal shell is unbroken', () => {
+    clear()
+    process.env.ANTHROPIC_API_KEY = 'sdk-convention'
+    try {
+      assert.equal(apiKey(), 'sdk-convention')
+      assert.equal(apiKeySource(), 'ANTHROPIC_API_KEY')
+    } finally {
+      clear()
+    }
+  })
+
+  it('reads an empty string as absent, because a blank field is not a key', () => {
+    // An environment UI that writes an empty value for a variable somebody
+    // cleared must not produce a client that authenticates with "".
+    clear()
+    process.env.HOUSESTEADY_ANTHROPIC_API_KEY = ''
+    process.env.ANTHROPIC_API_KEY = ''
+    try {
+      assert.equal(apiKey(), undefined)
+      assert.equal(apiKeySource(), null)
+    } finally {
+      clear()
+    }
+  })
+
+  it('is absent, not throwing, when neither is set — the pass runs without a key', () => {
+    clear()
+    assert.equal(apiKey(), undefined)
+    assert.equal(apiKeySource(), null)
+    assert.equal(aiAvailable(), false)
   })
 })
 

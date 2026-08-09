@@ -95,8 +95,38 @@ export function requireModel(tier: Tier): ModelConfig {
   return m
 }
 
+/**
+ * The API key, from our own variable first and the SDK's conventional one after.
+ *
+ * **`ANTHROPIC_API_KEY` is not ours.** It is the Anthropic SDK's convention and
+ * it is also a name the surrounding tooling has opinions about: a Claude Code
+ * cloud environment authenticates its own session through the user's account,
+ * and warns — correctly — that setting this variable will not change that. The
+ * warning is about the session, not about this program, but **a reader cannot
+ * tell those apart from the warning alone**, and the honest fix is not to argue
+ * with it.
+ *
+ * So this repo reads `HOUSESTEADY_ANTHROPIC_API_KEY` first. A name nothing else
+ * claims cannot be shadowed, stripped or confused with the host's own auth, and
+ * a person setting it is told nothing alarming and untrue.
+ *
+ * **`ANTHROPIC_API_KEY` still works**, because it is what every local shell and
+ * every SDK example already uses, and breaking that to make a point would cost
+ * more than it buys.
+ */
+export const apiKey = (): string | undefined =>
+  process.env.HOUSESTEADY_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY || undefined
+
+/** Which variable supplied the key, for a diagnostic that has to be specific. */
+export const apiKeySource = (): 'HOUSESTEADY_ANTHROPIC_API_KEY' | 'ANTHROPIC_API_KEY' | null =>
+  process.env.HOUSESTEADY_ANTHROPIC_API_KEY
+    ? 'HOUSESTEADY_ANTHROPIC_API_KEY'
+    : process.env.ANTHROPIC_API_KEY
+      ? 'ANTHROPIC_API_KEY'
+      : null
+
 /** Whether any AI work can run at all right now. */
-export const aiAvailable = (): boolean => Boolean(process.env.ANTHROPIC_API_KEY && modelFor('fast'))
+export const aiAvailable = (): boolean => Boolean(apiKey() && modelFor('fast'))
 
 /**
  * What a call cost, in dollars.

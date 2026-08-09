@@ -55,12 +55,39 @@ Expect **typecheck clean** and **all tests passing**. If either fails, stop and 
 >
 > **They belong in the environment's own variables** — the same place the network allowlist is configured — **not in GitHub repository secrets.** Repository secrets are read by GitHub Actions workflows; nothing in a Claude Code session reads them, so a key placed there is a key that is not set.
 
-**Two variables are mandatory.** Neither has a default and nothing runs without both.
+**The field takes `.env` format, one `NAME=value` per line.** Paste this and fill in the key:
 
-| Variable | Secret? | Value | Why |
-|---|---|---|---|
-| `ANTHROPIC_API_KEY` | **yes — one key** | from the Anthropic console | No key, no calls |
-| `HOUSESTEADY_MODEL_FAST` | **no** | a model **id string**, e.g. `claude-haiku-4-5-20251001` | **Identification runs on the fast tier.** There is no default — an unset model is a refusal, not a fallback |
+```
+HOUSESTEADY_ANTHROPIC_API_KEY=[insert API key]
+HOUSESTEADY_MODEL_FAST=claude-haiku-4-5-20251001
+HOUSESTEADY_OPERATOR=Runner session
+```
+
+*(An earlier cut of this brief gave these as a Name/Value table — a screen layout, not a file format — and it produced two variables literally called `Name` and `Value`. A brief claiming every command was executed before it was written down handed over the one block that had not been.)*
+
+> ### Why `HOUSESTEADY_ANTHROPIC_API_KEY` and not `ANTHROPIC_API_KEY`
+>
+> **A Claude Code cloud environment warns that `ANTHROPIC_API_KEY` will not authenticate its requests, because the session authenticates through the user's account.** That warning is **true, and about the session** — `identify.ts` is an ordinary Node program and the SDK reads whatever is in its environment.
+>
+> **But "the host ignores this variable" and "the host removes this variable" are different claims, and the warning does not distinguish them.** Rather than reason from the wording to a conclusion, this repo now reads its own name first: **`HOUSESTEADY_ANTHROPIC_API_KEY`.** Nothing else claims it, so it cannot be shadowed or confused with the host's own auth, and nobody setting it is shown a warning that is true of something else.
+>
+> **`ANTHROPIC_API_KEY` still works** — every local shell and SDK example uses it. Set either; the preflight below prints which one it found.
+
+**Both of the first two are mandatory.** Neither has a default and nothing runs without both.
+
+| Variable | Secret? | Why |
+|---|---|---|
+| `HOUSESTEADY_ANTHROPIC_API_KEY` | **yes — the only one** | No key, no calls |
+| `HOUSESTEADY_MODEL_FAST` | **no** — a model id string | **Identification runs on the fast tier.** An unset model is a refusal, not a fallback |
+| `HOUSESTEADY_OPERATOR` | **no** — a name | Recorded against the import and every generation |
+
+> ### ⚠ That field is not a secret store, and the fix is the key's lifetime
+>
+> The environment screen says plainly: *these are visible to anyone using this environment — don't add secrets or credentials.* **It is right, and no storage location available here changes that.**
+>
+> **So make the key disposable rather than hidden.** A key created for this run, used nowhere else, and **revoked the moment the run finishes** is safe almost anywhere; a key that outlives the run is a problem no storage location fixes. Put a spend limit on it in the console if you can — this run should cost well under a dollar.
+>
+> **And a key that has appeared in a screenshot, a chat, or a log is already spent.** Revoke it and mint a new one; do not reason about who saw it.
 
 > **Which model to put behind `MODEL_FAST`, and it is a real choice rather than a formality.**
 >
@@ -70,15 +97,30 @@ Expect **typecheck clean** and **all tests passing**. If either fails, stop and 
 >
 > **Recommendation: cheap for the bedroom pipe test, and the owner's call for the mechanical room.** Cost is not mine to decide — the trade is real and it is a business fact, so it goes to you rather than being assumed here.
 
-**Three more are strongly recommended, and the reason is not tidiness. None is a secret.**
+**Two optional lines, and neither is a secret.** Add them to the same block if you have the model's published prices to hand:
 
-| Variable | Secret? | Suggested | Why |
-|---|---|---|---|
-| `HOUSESTEADY_FAST_INPUT_PER_MTOK` | no — a number | the model's published input price per million tokens | ⚠ **The spend cap is inert without this.** See below |
-| `HOUSESTEADY_FAST_OUTPUT_PER_MTOK` | no — a number | the same, for output | Same |
-| `HOUSESTEADY_OPERATOR` | no — a name | `"Runner session"` or similar | Recorded against the import and every generation |
+```
+HOUSESTEADY_FAST_INPUT_PER_MTOK=[input price per million tokens]
+HOUSESTEADY_FAST_OUTPUT_PER_MTOK=[output price per million tokens]
+```
 
-**The two rates change nothing about what is sent or what comes back.** They exist so the spend cap can bite and so the cost report is a number rather than an unknown. **If the current prices are not to hand, leave them unset** — the run is identical, the cost prints as unknown rather than as a false zero, and `--zone` and `--limit` are the bound.
+**They change nothing about what is sent or what comes back.** They exist so the spend cap can bite and so the cost report is a number rather than an unknown. **If the prices are not to hand, leave both lines out** — the run is identical, the cost prints as unknown rather than as a false zero, and `--zone` and `--limit` are the bound.
+
+---
+
+## 2a. Step zero — prove the variables arrived, before anything moves
+
+**Run this first. It costs nothing, sends nothing, and takes a second.**
+
+```bash
+npm run preflight
+```
+
+It prints whether the key is present (**never the key itself**), **which variable supplied it**, the model id, whether rates are set, and the image edge. It exits non-zero if either mandatory variable is missing.
+
+**This exists because the expensive way to discover a missing key is to move 178 MB of photographs and find out afterwards.** The first attempt at this run found both mandatory variables unset — after doing everything else.
+
+**What it does not prove:** that the key is *valid*. Only a real call tells you that, and the bedroom step in §4a is the cheapest one available.
 
 > ### ⚠ The spend cap does not work unless rates are set
 >
@@ -92,7 +134,7 @@ Expect **typecheck clean** and **all tests passing**. If either fails, stop and 
 
 ---
 
-## 2a. Getting the bytes onto the machine — the step that failed first time
+## 2b. Getting the bytes onto the machine — the step that failed first time
 
 **A runner session attempted this on 2026-08-08 and got no further than here.** Two independent blockers, and they need separating because only one of them is fixable by a setting.
 
