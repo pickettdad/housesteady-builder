@@ -36,8 +36,13 @@
  * what is excluded and why. It costs nothing and needs no key. The second queues
  * the work and drains it.
  *
- * `--limit N` stops after N calls, which is how a first run is one room rather
- * than a house.
+ * **Two different bounds, and they answer different questions.**
+ *
+ * - `--zone <needle>` picks **which** room, matching label or id. This is how a
+ *   first run is the mechanical room — the one room whose right answer is
+ *   already known, so it can be graded rather than only read.
+ * - `--limit N` bounds **how many** calls are drained, in queue order. It cannot
+ *   say which room, so on its own it buys a bound and not a comparison.
  */
 
 import { openDb } from '../src/db/index.js'
@@ -97,7 +102,7 @@ if (!importId) {
 // ------------------------------------------------------------------- the plan
 
 const media = mediaForImport(db, importId)
-const plan = planIdentificationCalls(media, zoneRoutes(db, importId))
+const wholePlan = planIdentificationCalls(media, zoneRoutes(db, importId))
 const frame = readClassFrame()
 const projection = projectClasses(frame)
 
@@ -111,11 +116,41 @@ const zoneLabels = new Map(
   ).map((z) => [z.zoneId, z.label ?? z.type ?? z.zoneId]),
 )
 
+/**
+ * `--zone <needle>` — one room rather than a house.
+ *
+ * Matches the zone's label or its id, case-insensitively, as a substring. The
+ * same predicate filters the plan and the run, so what is printed is what is
+ * sent. Two variables holding one intention is how a plan and a run come to
+ * disagree.
+ */
+const zoneNeedle = arg('zone')?.toLowerCase()
+const zoneMatches = (zoneId: string): boolean =>
+  zoneNeedle === undefined ||
+  zoneId.toLowerCase().includes(zoneNeedle) ||
+  (zoneLabels.get(zoneId) ?? '').toLowerCase().includes(zoneNeedle)
+
+const plan = { ...wholePlan, batches: wholePlan.batches.filter((b) => zoneMatches(b.zoneId)) }
+
+if (zoneNeedle !== undefined && plan.batches.length === 0) {
+  console.error(`\nNo zone matches "${arg('zone')}". Zones in this import:`)
+  for (const zoneId of new Set(wholePlan.batches.map((b) => b.zoneId))) {
+    console.error(`  ${zoneLabels.get(zoneId) ?? '(no label)'}   ${zoneId}`)
+  }
+  process.exit(1)
+}
+
 const onDisk = new Map(media.map((m) => [m.mediaId, m.fileStatus]))
 const present = (id: string): boolean => onDisk.get(id) === 'present'
 
 console.log(`\nVisit ${visitId} · import ${importId}`)
 console.log(plan.note)
+if (zoneNeedle !== undefined) {
+  console.log(
+    `Filtered to "${arg('zone')}" — ${plan.batches.length} of ${wholePlan.batches.length} calls. ` +
+      `The note above describes the whole export.`,
+  )
+}
 console.log(
   `Class frame v${projection.frameVersion}: ${projection.classCount} classes, ` +
     `≈${approximateTokens(projection.text).toLocaleString()} tokens as a projection.\n`,
@@ -176,7 +211,13 @@ if (blocked) {
   process.exit(1)
 }
 
-const q = queueIdentification(db, visit.propertyId, visitId, process.env.HOUSESTEADY_OPERATOR ?? 'unknown-operator')
+const q = queueIdentification(
+  db,
+  visit.propertyId,
+  visitId,
+  process.env.HOUSESTEADY_OPERATOR ?? 'unknown-operator',
+  zoneNeedle === undefined ? undefined : zoneMatches,
+)
 console.log(`\nQueued ${q.jobs} calls over ${q.zones} zones. Draining.\n`)
 
 const limit = arg('limit') ? Number(arg('limit')) : undefined
