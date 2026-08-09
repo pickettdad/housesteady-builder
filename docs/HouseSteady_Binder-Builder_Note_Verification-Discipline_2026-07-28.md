@@ -666,6 +666,36 @@ Neither report named a denominator, because a grep does not have one.
 
 ---
 
+### Rule 16 · A check whose output does not depend on what it checks is not a check
+
+*(Added 2026-08-09, proposed by Builder Code against itself. **Third instance of this class**, after Table G's retired-value guard and the four no-op generator fixtures.)*
+
+**I reported "typecheck clean" while the typecheck was failing.** The command was:
+
+```bash
+npx tsc --noEmit 2>&1 | head -5; echo "=== TYPECHECK CLEAN ==="
+```
+
+**The `;` prints the word whichever way the compiler exits.** The pipe swallowed the exit code, `head` succeeded because `head` almost always succeeds, and the banner reported a result it had never consulted. Two commits carried that claim before a bare re-run showed `exit: 2`.
+
+**This is rule 11b arriving in a shell rather than in a test**, and the two are the same sentence: *a check whose two sides cannot disagree has not been passing.* The prior instances were both in test code, which is why the class was not recognised as general — Table G's guard compared a backticked string against an unbackticked list and could never fire; four generator fixtures pinned a three-column header, so once the master went four-column every assertion ran against a file it had never edited, **and three of the four still passed.**
+
+**The tell, and it is available before running anything:** the reporting is a *separate statement* from the checking. `A; echo OK` cannot fail. `A && echo OK` can. Anywhere a verdict is printed by a different command from the one that produced it, ask what makes the verdict false.
+
+**In practice, three forms:**
+
+| instead of | write |
+|---|---|
+| `cmd \| head -5; echo CLEAN` | `cmd && echo CLEAN` — and read the exit code, not the banner |
+| a test asserting a state that cannot currently differ | construct the failing case too, so both branches are exercised |
+| a fixture that pins a shape the source no longer has | assert the fixture matched something, not just that the run finished |
+
+**Why it survives knowing better:** the banner is for a human skimming output, and the moment it is wanted is the moment the real output is long and boring. **That is exactly when nobody re-reads the eighty lines above it.**
+
+**And the cost is the same shape as rule 2's:** a wrong verdict is worse than no verdict, because a blank gets chased and a green banner gets believed. **Report the exit code, or report nothing.**
+
+---
+
 ## Consequences already in the code
 
 **Nothing in the builder parses the Checklist Master at runtime.** It is read-only

@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import { buildReport } from '../src/import/report.js'
 import { runImport } from '../src/import/runImport.js'
+import { enqueue } from '../src/ai/queue.js'
+import { createOperator } from '../src/operators/registry.js'
 import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
@@ -2940,5 +2942,108 @@ describe('doctrine — the class frame reads the config, and never re-owns the c
     assert.match(v, /idle from birth/, 'and why it is not a preference')
     // The frame's own limits are recorded rather than left to be rediscovered.
     assert.match(JSON.stringify(raw.whatThisCrossCheckCannotDo ?? ''), /cannot catch a judgement error/)
+  })
+})
+
+describe('an actor is resolved through the registry, never taken from the environment raw', () => {
+  /**
+   * **`--run` was broken for everybody and nothing could see it.**
+   *
+   * `scripts/identify.ts` passed `process.env.HOUSESTEADY_OPERATOR` straight in
+   * as `actorId`. That variable holds a short code or a display name — never an
+   * id — and `ai_jobs.actor_id` is a foreign key to `operators(id)`, so the
+   * insert died with `SQLITE_CONSTRAINT_FOREIGNKEY` on the primary entry point.
+   * The fallback `'unknown-operator'` was worse: it can never be a valid id, so
+   * the unconfigured path was equally dead.
+   *
+   * **984 tests green, typecheck clean, the plan step perfect.** It took a real
+   * call with a real operator on 2026-08-09 to find it.
+   *
+   * So this scans the class rather than the instance. A type cannot catch it —
+   * `actorId` is a `string` and so is a short code. What distinguishes them is
+   * where the string came from, and that is a property of the call site.
+   */
+  it('a script that reads the variable and stores an actor resolves it through the registry', () => {
+    /**
+     * **File-level, and deliberately so.** A line-level scan was written first
+     * and produced three false positives on its first run: the comment in
+     * `identify.ts` describing this very bug, `import-export.ts` reading the
+     * variable on one line and resolving it on the next, and `preflight.ts`
+     * printing it as a diagnostic. **A rule that fires on all three teaches
+     * people to ignore it.**
+     *
+     * So the shape is: *reads the variable* **and** *stores an actor* implies
+     * *resolves through the registry*. A script that only prints the variable —
+     * preflight — stores nothing and is not the subject.
+     *
+     * **Exempting takes an entry with a reason**, the same inversion the
+     * `UNATTRIBUTED` map above uses — and for the same reason. A first draft
+     * keyed on the presence of an `actorId` variable, which **the fix itself
+     * introduced**: the original bug passed the environment string inline and
+     * declared no such variable, so that scan would have passed on the very code
+     * it was written to catch. A scan that reads a symptom of the fix is not
+     * watching the defect.
+     *
+     * **What this cannot do**, said rather than left to be discovered: it cannot
+     * tell that a *resolved* value went to the right parameter. It catches the
+     * class of bug that happened, not every possible one.
+     */
+    const MAY_READ_WITHOUT_RESOLVING: Readonly<Record<string, string>> = {
+      'scripts/preflight.ts':
+        'prints the variable as a diagnostic and stores nothing. Resolving it there would ' +
+        'turn a check that answers "did the value arrive" into one that refuses.',
+    }
+
+    /**
+     * **Comments are stripped first, and that is not tidiness.**
+     *
+     * Twice now this scan has fired on *prose about the bug*: once on
+     * `identify.ts`'s comment explaining the fix, and once on `smoke.ts`'s
+     * header explaining why smoke exists. **A check that a file cannot describe
+     * the defect without being accused of it will be silenced**, and a silenced
+     * scan protects nothing.
+     *
+     * Exempting those files would have papered over a scanner defect with a
+     * policy. Reading only the code is the fix, because the code is the subject.
+     */
+    const codeOnly = (text: string): string =>
+      text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+
+    const offenders: string[] = []
+    for (const file of sourceFiles(join(repoRoot, 'server', 'scripts'))) {
+      const name = file.split('/server/')[1]!
+      const text = codeOnly(readFileSync(file, 'utf8'))
+      if (!/process\.env\.HOUSESTEADY_OPERATOR/.test(text)) continue
+      if (name in MAY_READ_WITHOUT_RESOLVING) continue
+      if (!/\b(currentOperator|resolveOperator)\s*\(/.test(text)) offenders.push(name)
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      'HOUSESTEADY_OPERATOR is a short code or a display name, never an id. Resolve it — ' +
+        '`currentOperator(db).id` — before it reaches anything that stores an actor.',
+    )
+  })
+
+  it('the foreign key really does reject a short code, so the scan above guards something', () => {
+    // Rule 11b — the two sides must be able to disagree. Without this, the scan
+    // could be passing because the constraint is absent rather than honoured.
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db)
+    const operator = createOperator(db, { displayName: 'David Pickett', shortCode: 'dp' })
+
+    assert.throws(
+      () => enqueue({
+        db, ...ids, actorId: 'dp', task: 'identify_objects', targetKind: 'zone-batch', targetId: 'z:1',
+      }),
+      /FOREIGN KEY|SQLITE_CONSTRAINT/,
+      'a short code is not an id, and the database is the thing that knows it',
+    )
+
+    const job = enqueue({
+      db, ...ids, actorId: operator.id, task: 'identify_objects', targetKind: 'zone-batch', targetId: 'z:1',
+    })
+    assert.ok(job.id, 'and the resolved id goes in cleanly')
+    db.close()
   })
 })

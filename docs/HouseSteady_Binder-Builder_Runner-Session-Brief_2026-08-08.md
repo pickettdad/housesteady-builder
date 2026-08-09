@@ -2,6 +2,21 @@
 
 **Date:** 2026-08-08 · **Record of an event. This date never moves.**
 **Written by:** Builder Code (the main session), for a second, bounded Builder session with Google Drive enabled.
+
+> ### ⚑ Check the tree before you start — this is a command, not a claim
+>
+> ```bash
+> ls server/scripts/preflight.ts server/scripts/smoke.ts && \
+>   grep -q currentOperator server/scripts/identify.ts && \
+>   grep -q HOUSESTEADY_ANTHROPIC_API_KEY server/src/ai/models.ts && \
+>   grep -q "tier === 'strong'" server/scripts/identify.ts && echo "TREE OK"
+> ```
+>
+> **`TREE OK` or stop.** Those four files carry everything this brief depends on: the foreign-key fix that makes `--run` work at all, `preflight`, `smoke`, the API-key variable, and `--tier`.
+>
+> **Why a command rather than a commit hash.** The 2026-08-09 runner cloned `main` while the branch this brief described was an open PR, and reported two defects that were real *for them* and already fixed *here* — `preflight` missing and the key variable unread. **Both commands had been executed before being written down, on a commit nobody else had.** A hash would have told them the same thing one step later; **this tells them before they spend anything.**
+>
+> *(And it earned itself immediately: PR #87 merged at commit 1 of 6, stranding the foreign-key fix on a branch. A brief that claimed "merged" would have been wrong for the second time in two runs.)*
 **Answers register #86.** Every command below was executed in this repo before it was written down. Where a number is quoted, it was measured on the walk fixture's manifest, which is the same manifest the real export carries.
 
 ---
@@ -49,20 +64,107 @@ Expect **typecheck clean** and **all tests passing**. If either fails, stop and 
 
 ## 2. Environment
 
-**Two variables are mandatory.** Neither has a default and nothing runs without both.
+> ### There is exactly one secret here
+>
+> **`ANTHROPIC_API_KEY` is the only credential in this brief.** Everything else below is a plain setting — a model name, two prices, an operator's name. **They look alike in a table and they are not alike**, and an earlier cut of this table did not say so.
+>
+> **They belong in the environment's own variables** — the same place the network allowlist is configured — **not in GitHub repository secrets.** Repository secrets are read by GitHub Actions workflows; nothing in a Claude Code session reads them, so a key placed there is a key that is not set.
 
-| Variable | Value | Why |
+**The field takes `.env` format, one `NAME=value` per line.**
+
+**For a run that includes `--tier strong`, this is the complete list.** Every name below is read by this repo — verified at source, not inferred:
+
+```
+HOUSESTEADY_ANTHROPIC_API_KEY=[insert API key]
+HOUSESTEADY_MODEL_FAST=claude-haiku-4-5-20251001
+HOUSESTEADY_MODEL_STRONG=claude-sonnet-5
+HOUSESTEADY_OPERATOR=Runner session
+HOUSESTEADY_FAST_INPUT_PER_MTOK=1.00
+HOUSESTEADY_FAST_OUTPUT_PER_MTOK=5.00
+HOUSESTEADY_STRONG_INPUT_PER_MTOK=[strong model input price]
+HOUSESTEADY_STRONG_OUTPUT_PER_MTOK=[strong model output price]
+```
+
+> ### ⚠ The last two lines are not optional on a `--tier strong` run
+>
+> **The rate variables are per tier**, built as `HOUSESTEADY_{FAST|STRONG}_{INPUT|OUTPUT}_PER_MTOK`. **A strong run reads the STRONG pair.** With only the fast pair set, the spend cap sees $0.00 on every strong call and never fires — the same inert-cap failure as setting no rates at all, arriving through a door that looks configured.
+>
+> *This was worse until 2026-08-09: every generation was priced at the fast tier regardless of what ran, because nothing passed the tier through to the ledger. A strong run would have been costed at Haiku's rates and capped at them. Fixed, and under test.*
+>
+> **`HOUSESTEADY_STRONG_MAX_IMAGE_EDGE` also exists** and defaults to 1568, same as fast. Leave it alone for the comparison run — changing two things at once makes the result unreadable.
+
+*(An earlier cut of this brief gave these as a Name/Value table — a screen layout, not a file format — and it produced two variables literally called `Name` and `Value`. A brief claiming every command was executed before it was written down handed over the one block that had not been.)*
+
+> ### Why `HOUSESTEADY_ANTHROPIC_API_KEY` and not `ANTHROPIC_API_KEY`
+>
+> **A Claude Code cloud environment warns that `ANTHROPIC_API_KEY` will not authenticate its requests, because the session authenticates through the user's account.** That warning is **true, and about the session** — `identify.ts` is an ordinary Node program and the SDK reads whatever is in its environment.
+>
+> **But "the host ignores this variable" and "the host removes this variable" are different claims, and the warning does not distinguish them.** Rather than reason from the wording to a conclusion, this repo now reads its own name first: **`HOUSESTEADY_ANTHROPIC_API_KEY`.** Nothing else claims it, so it cannot be shadowed or confused with the host's own auth, and nobody setting it is shown a warning that is true of something else.
+>
+> **`ANTHROPIC_API_KEY` still works** — every local shell and SDK example uses it. Set either; the preflight below prints which one it found.
+
+**Both of the first two are mandatory.** Neither has a default and nothing runs without both.
+
+| Variable | Secret? | Why |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | David supplies it | No key, no calls |
-| `HOUSESTEADY_MODEL_FAST` | a current fast model id | **Identification runs on the fast tier.** There is no default — an unset model is a refusal, not a fallback |
+| `HOUSESTEADY_ANTHROPIC_API_KEY` | **yes — the only one** | No key, no calls |
+| `HOUSESTEADY_MODEL_FAST` | **no** — a model id string | **Identification runs on the fast tier.** An unset model is a refusal, not a fallback |
+| `HOUSESTEADY_OPERATOR` | **no** — a name | Recorded against the import and every generation |
 
-**Three more are strongly recommended, and the reason is not tidiness.**
+> ### ⚠ That field is not a secret store, and the fix is the key's lifetime
+>
+> The environment screen says plainly: *these are visible to anyone using this environment — don't add secrets or credentials.* **It is right, and no storage location available here changes that.**
+>
+> **So make the key disposable rather than hidden.** A key created for this run, used nowhere else, and **revoked the moment the run finishes** is safe almost anywhere; a key that outlives the run is a problem no storage location fixes. Put a spend limit on it in the console if you can — this run should cost well under a dollar.
+>
+> **And a key that has appeared in a screenshot, a chat, or a log is already spent.** Revoke it and mint a new one; do not reason about who saw it.
 
-| Variable | Suggested | Why |
-|---|---|---|
-| `HOUSESTEADY_FAST_INPUT_PER_MTOK` | the model's real input rate | ⚠ **The spend cap is inert without this.** See below |
-| `HOUSESTEADY_FAST_OUTPUT_PER_MTOK` | the model's real output rate | Same |
-| `HOUSESTEADY_OPERATOR` | `"Runner session"` or similar | Recorded against the import and every generation |
+> **Which model to put behind `MODEL_FAST`, and it is a real choice rather than a formality.**
+>
+> **In production it should be the cheap fast model.** AI Assist §9 is explicit: extraction and classification go to the cheap tier, batched, because at 400–600 photographs per baseline the tier difference *is* the operating cost.
+>
+> **The first run is not production — it is a measurement**, and the cheap model makes one specific question unanswerable. If the pass comes back poor, *"the prompt and the frame are wrong"* and *"the model is too small for this"* look identical. **A stronger model on the mechanical room separates them**, and that room is the only one that can be graded at all.
+>
+> **Recommendation: cheap for the bedroom pipe test, and the owner's call for the mechanical room.** Cost is not mine to decide — the trade is real and it is a business fact, so it goes to you rather than being assumed here.
+
+**Two optional lines, and neither is a secret.** Add them to the same block if you have the model's published prices to hand:
+
+```
+HOUSESTEADY_FAST_INPUT_PER_MTOK=[input price per million tokens]
+HOUSESTEADY_FAST_OUTPUT_PER_MTOK=[output price per million tokens]
+```
+
+**They change nothing about what is sent or what comes back.** They exist so the spend cap can bite and so the cost report is a number rather than an unknown. **If the prices are not to hand, leave both lines out** — the run is identical, the cost prints as unknown rather than as a false zero, and `--zone` and `--limit` are the bound.
+
+---
+
+## 2a. Step zero — prove the variables arrived, before anything moves
+
+**Run this first. It costs nothing, sends nothing, and takes a second.**
+
+```bash
+npm run preflight
+```
+
+It prints whether the key is present (**never the key itself**), **which variable supplied it**, the model id, whether rates are set, and the image edge. It exits non-zero if either mandatory variable is missing.
+
+**This exists because the expensive way to discover a missing key is to move 178 MB of photographs and find out afterwards.** The first attempt at this run found both mandatory variables unset — after doing everything else.
+
+**What it does not prove:** that the key is *valid*. For that, one command:
+
+```bash
+npm run smoke
+```
+
+**One real call against the repo's own synthetic fixture — a few cents, no house involved.** It imports 11 placeholder images across 3 zones, resolves the operator, inserts the job, makes the call and writes the objects, then deletes its scratch database. **It exercises the exact line `--run` used to die on**, and it is the check that would have caught the 2026-08-09 foreign-key bug before a single photograph moved.
+
+> **⚠ What a green smoke does NOT cover** — written here because green starts reading as *covered* the moment nobody re-reads the caveat:
+>
+> - **It never splits a batch.** 11 media against a ceiling of 24, so the multi-batch path — `1/3`, `2/3`, canvas riding every batch, cross-batch duplication — is never exercised. **That is the path that produced four proposals for one pressure tank.**
+> - **It never exercises the image-edge cap.** `edgeForCall` only lowers the edge above 20 images in one call, and 11 total cannot reach it. **The >20-image rejection case stays unproven.**
+> - **It says nothing about identification quality.** The fixture's images are 4–6 KB generated placeholders. **Zero objects proposed is a pass.**
+>
+> **Only a real multi-zone export covers those two paths.** Smoke proves the pipe, not the arithmetic.
 
 > ### ⚠ The spend cap does not work unless rates are set
 >
@@ -76,7 +178,7 @@ Expect **typecheck clean** and **all tests passing**. If either fails, stop and 
 
 ---
 
-## 2a. Getting the bytes onto the machine — the step that failed first time
+## 2b. Getting the bytes onto the machine — the step that failed first time
 
 **A runner session attempted this on 2026-08-08 and got no further than here.** Two independent blockers, and they need separating because only one of them is fixable by a setting.
 
@@ -135,6 +237,16 @@ npx tsx server/scripts/import-export.ts \
   --operator "Runner session"
 ```
 
+> ### The operator does NOT need registering by hand — but the order matters
+>
+> **`import-export.ts` finds or creates it.** Pass `--operator`, or set `HOUSESTEADY_OPERATOR`; if no operator of that name exists the import registers one and prints `Created operator <name> (<code>)`. **Verified on a fresh database 2026-08-09** — no `npm run operator -- add` step is needed.
+>
+> **`identify.ts` does not create one.** It resolves through `currentOperator`, which refuses rather than inventing — *"No operators are registered"* — because an invented actor in an evidence trail is a value somebody has to chase later.
+>
+> **So the import must run before identify.** That is the natural order anyway and it is now the required one. The 2026-08-09 runner registered by hand first; that was harmless and unnecessary.
+>
+> **Keep one name across both commands.** `currentOperator` resolves `HOUSESTEADY_OPERATOR` by short code or display name, and refuses if it matches nothing.
+
 > ### ⚠ The media files are MOVED out of `--export`, not copied
 >
 > This is long-standing import behaviour — with zips the source is a staging tree that gets deleted anyway — but pointed at a real folder it **empties that folder.** Import from a working copy and keep Drive's original untouched.
@@ -150,7 +262,13 @@ npx tsx server/scripts/import-export.ts \
 **Two warnings you should expect and must not treat as failure:**
 
 - **`property.label-mismatch`** — the export names the property from the field app's own label, which will not match whatever you typed for `--property`. Harmless here. **It exists to stop a visit being filed under the wrong house, so read it rather than skipping it.**
-- **Unrecognized vocabulary** — the walk manifest uses four words this builder has not met (`pin.flag: fine`, `event.type: VoiceNoteAdded`, `event.type: ExportProduced`, `resolution.via: choice`). **Fail open on vocabulary is doctrine.** Reported, counted, never fatal.
+- **Unrecognized vocabulary — expect THREE words** on the real export: `pin.flag: fine`, `event.type: VoiceNoteAdded`, `resolution.via: choice`. **Fail open on vocabulary is doctrine.** Reported, counted, never fatal.
+
+> ### ⚠ The repo fixture is a redacted derivative, not a copy — do not size the real export against it
+>
+> An earlier cut of this line predicted **four** words, adding `event.type: ExportProduced`. **That word exists only in the fixture.** The real export has **271 events and zero occurrences of it**; the fixture has **273 and one**.
+>
+> **Nearly everything else matches**, which is worse than if nothing did — a fixture that agrees on 163 media rows, every byte figure and every row of the plan table teaches the next reader to trust it, and then differs somewhere unannounced. **Every §4 number below was derived from the fixture. They were all confirmed correct against the real export on 2026-08-09** — but that is a measurement, not a guarantee, and the next figure taken from the fixture needs the same treatment.
 
 **What would be a real failure:** any `error` severity, a `REFUSED` exit, or a media summary showing files `absent` when you supplied them. Absent means the manifest's declared path did not match what is on disk — report the first few paths rather than trying to fix the layout.
 
@@ -225,6 +343,28 @@ npm run identify -- --visit <visitId> --zone mechanical --run --owner-property
 **`--zone` and `--limit` are different tools.** `--zone` picks *which* room by label or id. `--limit N` bounds *how many* calls drain, in queue order, and cannot say which room. For this step use `--zone`.
 
 **Stop here and report.** Do not proceed to the full walk on your own judgement — the whole point of three steps is that each is cheap to abandon.
+
+---
+
+## 5a. The second run — the mechanical room again, on the strong tier
+
+**This is the run the 2026-08-09 result asked for.** Same room, stronger model, **graded on three specific questions** rather than read.
+
+```bash
+npm run identify -- --visit <visitId> --zone mechanical --run --owner-property --tier strong
+```
+
+Needs `HOUSESTEADY_MODEL_STRONG` set. It refuses clearly if not, and prints the model before spending. **Three calls, 54 detail photographs, 12 canvas sends** — the same shape as the first run, so the two are comparable.
+
+**Report these three answers first, before anything else:**
+
+| | what to look for |
+|---|---|
+| **1 · Does the reverse osmosis persist?** | There is **no RO in that room** — the first run invented one. The frame carries `iron-filter`, `sulphur-treatment` and `water-treatment-other`, all closer, all on the menu |
+| **2 · Does the Vanée persist?** | First run proposed the same ventilator twice, in one batch, as `hrv-erv` labelled *"Water treatment system"* and as `dehumidifier-whole-home`. A Vanée 100H is an HRV; both labels are wrong |
+| **3 · Do the four pressure tanks persist?** | `well-pressure-tank` was proposed **four times** for one tank. If a stronger model still does it, **the ceiling question closes** — raising 24 was never the fix |
+
+**Also worth reporting:** the no-class count (23 last time, 38% of proposals) and the total (60). **A lower total is not automatically better** — it could be better deduplication or it could be a shyer model. Say which, if you can tell.
 
 ---
 

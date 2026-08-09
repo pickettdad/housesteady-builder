@@ -51,8 +51,11 @@ import { planIdentificationCalls } from '../src/engine/identify.js'
 import { mediaForImport, zoneRoutes, latestImport } from '../src/ai/tasks/identify.js'
 import { projectClasses, approximateTokens } from '../src/engine/projection.js'
 import { readClassFrame } from '../src/engine/classFrame.js'
-import { assistsBlocked, drainVisit } from '../src/ai/worker.js'
+import { assistsBlocked, drainVisit, liveDeps } from '../src/ai/worker.js'
+import type { AssistDeps } from '../src/ai/tasks/index.js'
+import { requireModel, ModelNotConfigured } from '../src/ai/models.js'
 import { visitSpend, queueProgress } from '../src/ai/queue.js'
+import { currentOperator, OperatorRefused } from '../src/operators/registry.js'
 
 const ACKNOWLEDGEMENT = `
 This run sends the photographic interior of a house to an AI service — the room,
@@ -211,21 +214,79 @@ if (blocked) {
   process.exit(1)
 }
 
+/**
+ * Who is running this — resolved through the registry, never taken raw.
+ *
+ * **`ai_jobs.actor_id` is a foreign key to `operators(id)`.** This line used to
+ * pass `process.env.HOUSESTEADY_OPERATOR` straight in, which is a short code or
+ * a display name — never an id — so the insert died with
+ * `SQLITE_CONSTRAINT_FOREIGNKEY` and **`--run` could not work for anybody.** The
+ * fallback string `'unknown-operator'` was worse: it can never be a valid id, so
+ * the unconfigured path was equally dead.
+ *
+ * *Found on the first real run, 2026-08-09. 984 tests green, typecheck clean,
+ * the plan step perfect — and the primary entry point could not insert a job.
+ * Nothing that did not spend money could have caught it.*
+ */
+let actorId: string
+try {
+  actorId = currentOperator(db).id
+} catch (e) {
+  if (e instanceof OperatorRefused) {
+    console.error(`\n${e.message}\n`)
+    process.exit(1)
+  }
+  throw e
+}
+
 const q = queueIdentification(
   db,
   visit.propertyId,
   visitId,
-  process.env.HOUSESTEADY_OPERATOR ?? 'unknown-operator',
+  actorId,
   zoneNeedle === undefined ? undefined : zoneMatches,
 )
 console.log(`\nQueued ${q.jobs} calls over ${q.zones} zones. Draining.\n`)
 
+/**
+ * `--tier strong` — run identification on the strong model instead of the fast one.
+ *
+ * **This exists so a comparison run does not have to lie about which tier it is.**
+ * The alternative is pointing `HOUSESTEADY_MODEL_FAST` at a strong model, which
+ * works and then records the wrong thing: every row in `ai_generations` would say
+ * fast tier, and *"why did the mechanical room read better in August"* would be
+ * unanswerable from the ledger — which is the one question the ledger exists for.
+ *
+ * **Not a change to the tiering doctrine.** Extraction and classification belong
+ * on the cheap tier in production. This is the escape hatch for a measurement,
+ * and a measurement wants its own model id recorded against it.
+ */
+const tier = arg('tier') ?? 'fast'
+if (tier !== 'fast' && tier !== 'strong') {
+  console.error(`--tier is "fast" or "strong". Got: ${tier}`)
+  process.exit(1)
+}
+
+let deps: AssistDeps | undefined
+if (tier === 'strong') {
+  try {
+    deps = { ...liveDeps(), model: requireModel('strong') }
+  } catch (e) {
+    if (e instanceof ModelNotConfigured) {
+      console.error(`\nNo strong model is configured. Set HOUSESTEADY_MODEL_STRONG, or drop --tier strong.\n`)
+      process.exit(1)
+    }
+    throw e
+  }
+  console.log(`Running on the STRONG tier: ${deps.model!.id}\n`)
+}
+
 const limit = arg('limit') ? Number(arg('limit')) : undefined
-const result = await drainVisit(db, visitId, limit ? { limit } : {})
+const result = await drainVisit(db, visitId, { ...(limit ? { limit } : {}), ...(deps ? { deps } : {}) })
 console.log(`\n${result.reason}`)
 console.log(`Ran ${result.ran}, failed ${result.failed}, stopped: ${result.stopped}.`)
 
-const spend = visitSpend(db, visitId)
+const spend = visitSpend(db, visitId, tier)
 // An unmeasured cost and a zero cost are different facts. Printing $0.00 where
 // no rates are configured would be the confident-looking version of "no idea".
 console.log(

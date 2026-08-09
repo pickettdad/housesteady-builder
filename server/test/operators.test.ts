@@ -11,7 +11,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { beforeEach, describe, it } from 'node:test'
+import { afterEach, beforeEach, describe, it } from 'node:test'
 import { newId, now, type Db } from '../src/db/index.js'
 import {
   createOperator, currentOperator, deactivateOperator, displayNameFor, LEGACY_OPERATOR_ID,
@@ -168,7 +168,35 @@ describe('the legacy operator', () => {
 
 describe('who is acting', () => {
   let db: Db
-  beforeEach(() => { db = freshDb() })
+
+  /**
+   * **`currentOperator` reads `HOUSESTEADY_OPERATOR`, so these tests have to own
+   * it.** Every case below is about what happens when configuration is *silent*,
+   * and a developer with that variable exported was making the suite red on a
+   * sound repo — which is worse than a failing test, because it teaches people
+   * that red is normal here.
+   *
+   * *Found on the first real run, 2026-08-09: the brief told the runner to set
+   * that variable, and three tests failed on a commit where nothing was wrong.*
+   */
+  let saved: string | undefined
+  beforeEach(() => {
+    saved = process.env.HOUSESTEADY_OPERATOR
+    delete process.env.HOUSESTEADY_OPERATOR
+    db = freshDb()
+  })
+  afterEach(() => {
+    if (saved === undefined) delete process.env.HOUSESTEADY_OPERATOR
+    else process.env.HOUSESTEADY_OPERATOR = saved
+  })
+
+  it('reads the environment when it is set, which is why the block above clears it', () => {
+    // The two sides have to be able to disagree — rule 11b. Without this, the
+    // clearing above could be deleted and every test here would still pass.
+    createOperator(db, { displayName: 'David Pickett', shortCode: 'dp' })
+    process.env.HOUSESTEADY_OPERATOR = 'dp'
+    assert.equal(currentOperator(db).display_name, 'David Pickett')
+  })
 
   it('uses the one active operator when configuration is silent', () => {
     // freshDb registers exactly one. Unambiguous, so no ceremony is needed.

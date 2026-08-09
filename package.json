@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "HouseSteady binder builder \u2014 assembles field captures into the Home Binder",
+  "description": "HouseSteady binder builder — assembles field captures into the Home Binder",
   "workspaces": [
     "server",
     "web"
@@ -15,7 +15,9 @@
     "test": "npm run test --workspace server",
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace web",
     "operator": "npm run operator --workspace server --",
-    "identify": "npm run identify --workspace server --"
+    "identify": "npm run identify --workspace server --",
+    "preflight": "npm run preflight --workspace server --",
+    "smoke": "npm run smoke --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
