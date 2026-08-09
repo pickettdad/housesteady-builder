@@ -80,6 +80,24 @@ Expect **typecheck clean** and **all tests passing**. If either fails, stop and 
 
 Put the export somewhere local. **`--export` is the directory holding the manifest and the `media/` folder** — the export root as the field app wrote it, because `media[].file` paths are relative to it.
 
+**The layout inside, confirmed against a real extraction 2026-08-08:**
+
+```
+<export root>/
+  housesteady-<sessionId>-manifest.json
+  media/
+    <zoneId>/                 ← one folder per zone, named by uuid
+      _canvas/                ← the room's canvas frames
+      _zone/                  ← loose room photographs (and any video)
+      pin-1/ pin-2/ …         ← per-pin media, only where the zone has pins
+```
+
+**Zip per zone extracts straight into this** — so extracting every zone archive into one `media/` directory reproduces the tree the manifest declares. **Do not rename or flatten anything.** Matching is by the manifest's own declared path, so a folder renamed for tidiness is a file reported absent.
+
+**The pin folders are not optional and not uniform.** The kitchen has nine (`pin-1`…`pin-9`); the mechanical room has none at all — its media are all zone- or canvas-owned. **A zone with no `pin-*` folders is normal, not a partial extraction.**
+
+> **`_canvas` is a convention of the export, not how the code finds a canvas.** Routing is by the manifest's `owner_canvas_id`, never by the path — so the folder name is for humans. **The canvas frames still go into every call first** (Amendment 10 §B1, *the finest read is the authoritative one*), and that ordering is under test. But it comes from the manifest, so **a canvas frame the manifest does not declare as canvas-owned will be treated as a detail photograph no matter which folder it sits in.**
+
 ```bash
 npx tsx server/scripts/import-export.ts \
   --export ~/walk-export \
@@ -133,7 +151,9 @@ Plus **6 excluded by kind** — 2 voice, 4 video. The API takes no video nativel
 
 **The bedroom's zero is correct, not a bug.** A zone with a canvas frame and no detail photographs still gets one call — that is Amendment 10 §B2, and a room that had lost its only frame to a batching rule is exactly what the amendment fixed.
 
-**Canvas sends are sends, not pictures.** Twelve canvas sends across the mechanical room's three calls are the same handful of frames riding each batch. The totals line counts distinct photographs; the table counts what each call carries.
+**Canvas sends are sends, not pictures.** The mechanical room holds **four** canvas frames, and they ride **each of its three calls** — 4 × 3 = the twelve in the table. The totals line counts distinct photographs; the table counts what each call carries.
+
+**A cross-check you can do at the folder before spending anything.** The mechanical room's `_zone` holds **55 files — 54 photographs and one video**, and the plan says **54 detail**. The video is excluded by kind, not by folder, so a `.mov` sitting in `_zone` beside the photographs is expected. If `_zone` and the plan differ by more than the videos in it, stop and report.
 
 ---
 

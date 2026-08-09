@@ -164,7 +164,7 @@ Real exports are structurally clean and substantively messy. The reference expor
 
 **Re-derive rather than trust this table** — both manifests declare their own `bytes`, so the figures are one pass over `media[]` and the numbers here are a convenience, not a source. *(§11 once carried "123 MB for two rooms" with no artifact named, so it read as the scale of a visit rather than of the smaller of two samples. Naming the artifact was the fix; changing the number was a mistake inside it.)*
 
-**Video changes the arithmetic, and the walk shows it starting:** four videos are **2.5% of that export's files and 3.7% of its bytes** — 4.9 MB each against a 3.2 MB photograph. A mild skew today because the clips are short, and nothing about it holds as they lengthen. **That is why bytes are always reported broken out by kind.**
+**Video changes the arithmetic, and the walk shows it starting:** four videos are **2.5% of that export's files and 3.7% of its bytes**. Photographs run 1.3–5.2 MB, mean **3.2**; the videos run **3.1–7.7 MB**, mean 4.9. **Quote the range, not the mean** — the mean makes video look like a slightly heavy photograph, and the largest clip is **2.4× the mean photograph and 1.5× the largest one**. A mild skew today because the clips are short, and nothing about it holds as they lengthen. **That is why bytes are always reported broken out by kind.**
 
 ## 12. How to work here
 
