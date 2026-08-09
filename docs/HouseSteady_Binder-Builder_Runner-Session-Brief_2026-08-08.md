@@ -76,6 +76,36 @@ Expect **typecheck clean** and **all tests passing**. If either fails, stop and 
 
 ---
 
+## 2a. Getting the bytes onto the machine — the step that failed first time
+
+**A runner session attempted this on 2026-08-08 and got no further than here.** Two independent blockers, and they need separating because only one of them is fixable by a setting.
+
+**Blocker 1 — egress.** Every Drive download redirects to `drive.usercontent.google.com`, and the environment's network policy answered `403`. `drive.google.com` is permitted but only issues the redirect. **This is the one an admin can fix**, by adding that host to the environment's allowlist at creation.
+
+**Blocker 2 — the connector is a context channel, not a disk channel.** `download_file_content` returns base64 **into the model's context window**. Its schema has no destination-path parameter, so there is no version of it that lands bytes on disk. The smallest zone zip is ~2 MB, which is ~2.6 MB of base64 — already several times a context window. **No setting fixes this.**
+
+> **Which is why the allowlist is the right fix: it makes the connector unnecessary.** With the host reachable, download over plain HTTPS to disk and never involve the connector at all.
+
+**The form to use** — untested from here, so verify the result before trusting it:
+
+```bash
+curl -L -o mechanical.zip \
+  "https://drive.usercontent.google.com/download?id=<FILE_ID>&export=download&confirm=t"
+file mechanical.zip     # must say "Zip archive data", not "HTML document"
+```
+
+**The `confirm=t` matters.** Without it, Drive returns a virus-scan interstitial for anything large, and `curl` will happily save that HTML *as* your zip. `file` catches it in one line.
+
+**⚠ This needs the file link-shared, and that is a real privacy decision.** The session has no Drive OAuth token, so an unauthenticated `curl` only works on "anyone with the link". **That is broader than the connector-scoped access the route was designed around** — it is a folder of a real house's interior, reachable by URL. If you go this way: share, transfer, and **revoke immediately afterwards**. The narrower alternative is running on your own machine, where no transfer happens at all.
+
+**You do not need all 529 MB.** The export is seven per-zone zips plus a manifest. Take only the zones the step needs — **the mechanical room alone is ~178 MB**, and the bedroom is ~2 MB. Extract each into one shared `media/` directory; the tree reassembles because paths are declared per file.
+
+**Partial transfers are a supported state, not a broken one.** Files you did not bring are recorded `absent`, the plan still lists every zone, and `--zone` runs the one you have. **Expect a `media.file-missing` warning naming the count you left behind** — that is the importer being honest, not a failure.
+
+**And a corrupt transfer cannot pass silently.** Every file is checksummed against the manifest's declared `sha256` on import. A truncated download reports as a checksum failure and the file is quarantined rather than used.
+
+---
+
 ## 3. Step one — import the export
 
 Put the export somewhere local. **`--export` is the directory holding the manifest and the `media/` folder** — the export root as the field app wrote it, because `media[].file` paths are relative to it.
@@ -149,11 +179,34 @@ The import prints the visit id; this command needs no key and sends nothing.
 
 Plus **6 excluded by kind** — 2 voice, 4 video. The API takes no video natively, so clips are excluded with a reason rather than silently skipped.
 
+**Two more lines to check, both verified by the 2026-08-08 runner against the fixture:**
+
+- The plan prints **`Class frame v1.0.0: 176 classes, ≈1,527 tokens as a projection`**. That is the whole class list as ids and labels — **the frame itself is 35× larger**, and sending it would put rulings written for a human in front of a model.
+- The mechanical room's three calls split **24 / 24 / 6** detail photographs. **`MAX_MEDIA_PER_CALL` is 24 and this is it biting exactly as intended.** It is still a guess; whether that split *costs* anything is unanswerable until a real run.
+
 **The bedroom's zero is correct, not a bug.** A zone with a canvas frame and no detail photographs still gets one call — that is Amendment 10 §B2, and a room that had lost its only frame to a batching rule is exactly what the amendment fixed.
 
 **Canvas sends are sends, not pictures.** The mechanical room holds **four** canvas frames, and they ride **each of its three calls** — 4 × 3 = the twelve in the table. The totals line counts distinct photographs; the table counts what each call carries.
 
 **A cross-check you can do at the folder before spending anything.** The mechanical room's `_zone` holds **55 files — 54 photographs and one video**, and the plan says **54 detail**. The video is excluded by kind, not by folder, so a `.mov` sitting in `_zone` beside the photographs is expected. If `_zone` and the plan differ by more than the videos in it, stop and report.
+
+---
+
+## 4a. Step two and a half — the bedroom, as a test of the pipe
+
+**Added after the first attempt failed entirely in transfer.** Proving a 178 MB move works by moving 178 MB is the expensive way to find out it does not.
+
+**The bedroom is one call carrying one canvas frame, and its zip is ~2 MB.** Bring only that zone, import it, and run:
+
+```bash
+npm run identify -- --visit <visitId> --zone bedroom --run --owner-property
+```
+
+**One call. It exercises the entire chain** — transfer, checksum, import, queue, the API key, the model, the image encoding, the object write — **for the price of a single request.**
+
+**A canvas-only call runs deliberately.** The code skips a call only when it has *neither* context nor detail, so a room with one canvas frame and no detail photographs is a real call. **Expect a coarse answer and do not judge the pass on it** — §B is explicit that a canvas frame can establish that a thing is there and cannot name a model or read a plate. **This step tests the plumbing, not the model.**
+
+**If this works, everything after it is a question of volume rather than of whether anything works at all.**
 
 ---
 
@@ -214,4 +267,8 @@ Eleven calls. The three mechanical-room calls already ran and will not run twice
 
 **Nothing has ever been through this path with real bytes.** The repo's fixture is manifest-only — 163 rows, every file `absent` — so every number in §4 is derived from the manifest's declarations rather than from a completed run. **The import and the plan have been exercised end to end against that fixture; the model call has not been exercised against a photograph at all.**
 
-That is the honest state, and it is why step three exists.
+That is the honest state, and it is why the steps run smallest-first.
+
+**What the 2026-08-08 attempt established, since it is not nothing.** The repo is sound on a fresh clone — typecheck clean, 984 tests passing. The export in Drive is the right one: session `019fb92d`, seven zone zips plus manifest, **528.7 MB against the manifest's declared 529**. And the whole §4 plan table reproduced exactly from the manifest-only fixture, warnings and unrecognized vocabulary included. **Everything up to the moment bytes have to move is verified. Only the moving failed.**
+
+**That session also declined to solve it the wrong way**, and the reasoning is worth keeping: it would not propose relocating the photographs somewhere more reachable. They hold real personal data and this repo is public. **An access restriction is inconvenient; routing around it by moving the images is a different and worse thing.** That judgement stands and binds any future runner.
