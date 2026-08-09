@@ -2,6 +2,16 @@
 
 **Date:** 2026-08-08 · **Record of an event. This date never moves.**
 **Written by:** Builder Code (the main session), for a second, bounded Builder session with Google Drive enabled.
+
+> ### ⚑ Written against `main` at or after PR #88. Check before you start.
+>
+> ```bash
+> git log --oneline -1
+> ```
+>
+> **A brief describes a commit, not a repo.** The 2026-08-09 runner cloned `main` while the branch this brief was written against was still an open PR, and reported two defects that were real *for them* and fixed *here*: `npm run preflight` did not exist, and the code did not read `HOUSESTEADY_ANTHROPIC_API_KEY`. **Both commands had been executed before being written down — on a commit nobody else had.**
+>
+> **So: a brief names the commit it was written against, and the runner checks.** If the commands below are missing, you are on an older tree — say so rather than working around it.
 **Answers register #86.** Every command below was executed in this repo before it was written down. Where a number is quoted, it was measured on the walk fixture's manifest, which is the same manifest the real export carries.
 
 ---
@@ -208,7 +218,13 @@ npx tsx server/scripts/import-export.ts \
 **Two warnings you should expect and must not treat as failure:**
 
 - **`property.label-mismatch`** — the export names the property from the field app's own label, which will not match whatever you typed for `--property`. Harmless here. **It exists to stop a visit being filed under the wrong house, so read it rather than skipping it.**
-- **Unrecognized vocabulary** — the walk manifest uses four words this builder has not met (`pin.flag: fine`, `event.type: VoiceNoteAdded`, `event.type: ExportProduced`, `resolution.via: choice`). **Fail open on vocabulary is doctrine.** Reported, counted, never fatal.
+- **Unrecognized vocabulary — expect THREE words** on the real export: `pin.flag: fine`, `event.type: VoiceNoteAdded`, `resolution.via: choice`. **Fail open on vocabulary is doctrine.** Reported, counted, never fatal.
+
+> ### ⚠ The repo fixture is a redacted derivative, not a copy — do not size the real export against it
+>
+> An earlier cut of this line predicted **four** words, adding `event.type: ExportProduced`. **That word exists only in the fixture.** The real export has **271 events and zero occurrences of it**; the fixture has **273 and one**.
+>
+> **Nearly everything else matches**, which is worse than if nothing did — a fixture that agrees on 163 media rows, every byte figure and every row of the plan table teaches the next reader to trust it, and then differs somewhere unannounced. **Every §4 number below was derived from the fixture. They were all confirmed correct against the real export on 2026-08-09** — but that is a measurement, not a guarantee, and the next figure taken from the fixture needs the same treatment.
 
 **What would be a real failure:** any `error` severity, a `REFUSED` exit, or a media summary showing files `absent` when you supplied them. Absent means the manifest's declared path did not match what is on disk — report the first few paths rather than trying to fix the layout.
 

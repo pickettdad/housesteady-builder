@@ -53,6 +53,7 @@ import { projectClasses, approximateTokens } from '../src/engine/projection.js'
 import { readClassFrame } from '../src/engine/classFrame.js'
 import { assistsBlocked, drainVisit } from '../src/ai/worker.js'
 import { visitSpend, queueProgress } from '../src/ai/queue.js'
+import { currentOperator, OperatorRefused } from '../src/operators/registry.js'
 
 const ACKNOWLEDGEMENT = `
 This run sends the photographic interior of a house to an AI service — the room,
@@ -211,11 +212,36 @@ if (blocked) {
   process.exit(1)
 }
 
+/**
+ * Who is running this — resolved through the registry, never taken raw.
+ *
+ * **`ai_jobs.actor_id` is a foreign key to `operators(id)`.** This line used to
+ * pass `process.env.HOUSESTEADY_OPERATOR` straight in, which is a short code or
+ * a display name — never an id — so the insert died with
+ * `SQLITE_CONSTRAINT_FOREIGNKEY` and **`--run` could not work for anybody.** The
+ * fallback string `'unknown-operator'` was worse: it can never be a valid id, so
+ * the unconfigured path was equally dead.
+ *
+ * *Found on the first real run, 2026-08-09. 984 tests green, typecheck clean,
+ * the plan step perfect — and the primary entry point could not insert a job.
+ * Nothing that did not spend money could have caught it.*
+ */
+let actorId: string
+try {
+  actorId = currentOperator(db).id
+} catch (e) {
+  if (e instanceof OperatorRefused) {
+    console.error(`\n${e.message}\n`)
+    process.exit(1)
+  }
+  throw e
+}
+
 const q = queueIdentification(
   db,
   visit.propertyId,
   visitId,
-  process.env.HOUSESTEADY_OPERATOR ?? 'unknown-operator',
+  actorId,
   zoneNeedle === undefined ? undefined : zoneMatches,
 )
 console.log(`\nQueued ${q.jobs} calls over ${q.zones} zones. Draining.\n`)
