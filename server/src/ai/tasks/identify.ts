@@ -594,6 +594,13 @@ export async function runIdentify(db: Db, job: AiJob, deps: IdentifyDeps): Promi
     targetKind: job.target_kind,
     targetId: job.target_id,
     model: model.id,
+    // **Priced at the tier that actually ran, not at the default.**
+    // `recordGeneration` falls back to `'fast'`, so a strong-tier run was
+    // costed at the cheap tier's rates — the ledger and the spend cap would
+    // both have under-counted by whatever the spread is. `tier` had been a
+    // declared-and-unconsumed field since the queue was built; `--tier strong`
+    // is what made it load-bearing.
+    tier: model.tier,
     promptId: prompt.id,
     promptVersion: prompt.version,
     promptHash: prompt.hash,

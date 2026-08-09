@@ -110,7 +110,9 @@ export async function drainVisit(db: Db, visitId: string, options: DrainOptions 
   let failed = 0
 
   while (ran < limit) {
-    const spend = visitSpend(db, visitId)
+    // At the tier actually running. Checking a strong-tier drain against the
+    // fast tier's rates is a cap that lets through several times what it says.
+    const spend = visitSpend(db, visitId, deps.model?.tier ?? 'fast')
     if (spend.capReached) {
       return {
         ran, failed, stopped: 'cap',

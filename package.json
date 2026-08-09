@@ -16,7 +16,8 @@
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace web",
     "operator": "npm run operator --workspace server --",
     "identify": "npm run identify --workspace server --",
-    "preflight": "npm run preflight --workspace server --"
+    "preflight": "npm run preflight --workspace server --",
+    "smoke": "npm run smoke --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

@@ -206,6 +206,43 @@ describe('the spend cap', () => {
     }
   })
 
+  it('prices a generation at the tier that ran, not at the default', () => {
+    /**
+     * **`--tier strong` made a dormant field load-bearing.**
+     *
+     * `recordGeneration` falls back to `'fast'`, and no task passed `tier` — so
+     * a strong-tier run was costed at the cheap tier's rates. The ledger would
+     * have under-reported and **the spend cap would have let through the ratio
+     * between them**, which is the whole spread the tiering doctrine turns on.
+     *
+     * *Twelfth instance of the declared-and-unconsumed class: the field existed
+     * from the day the queue was built and nothing set it.*
+     */
+    process.env.HOUSESTEADY_MODEL_FAST = 'a-fast-model'
+    process.env.HOUSESTEADY_FAST_INPUT_PER_MTOK = '1'
+    process.env.HOUSESTEADY_MODEL_STRONG = 'a-strong-model'
+    process.env.HOUSESTEADY_STRONG_INPUT_PER_MTOK = '15'
+    try {
+      recordGeneration({ actorId: TEST_OPERATOR,
+        db, propertyId: PROPERTY, visitId: VISIT, task: 'identify_objects', tier: 'strong',
+        targetKind: 'zone-batch', targetId: newId(), model: 'a-strong-model',
+        promptId: 'identify_objects', promptVersion: 'v001', promptHash: 'abc',
+        inputRefs: [], output: {}, abstained: false, inputTokens: 1_000_000, outputTokens: 0,
+      })
+      // $15, not $1. The number IS the test.
+      assert.equal(visitSpend(db, VISIT, 'strong').dollars, 15)
+
+      // And the cap has to be read at the same tier, or it lets through 15x.
+      process.env.HOUSESTEADY_VISIT_SPEND_CAP = '5'
+      assert.equal(wouldExceedCap(db, VISIT, 'strong'), true, 'the strong run is over its ceiling')
+    } finally {
+      delete process.env.HOUSESTEADY_MODEL_STRONG
+      delete process.env.HOUSESTEADY_STRONG_INPUT_PER_MTOK
+      delete process.env.HOUSESTEADY_FAST_INPUT_PER_MTOK
+      delete process.env.HOUSESTEADY_VISIT_SPEND_CAP
+    }
+  })
+
   it('separates an unmeasured cost from a zero one', () => {
     delete process.env.HOUSESTEADY_MODEL_FAST
     generation(1_000_000, 0)

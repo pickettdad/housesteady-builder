@@ -286,7 +286,7 @@ const result = await drainVisit(db, visitId, { ...(limit ? { limit } : {}), ...(
 console.log(`\n${result.reason}`)
 console.log(`Ran ${result.ran}, failed ${result.failed}, stopped: ${result.stopped}.`)
 
-const spend = visitSpend(db, visitId)
+const spend = visitSpend(db, visitId, tier)
 // An unmeasured cost and a zero cost are different facts. Printing $0.00 where
 // no rates are configured would be the confident-looking version of "no idea".
 console.log(

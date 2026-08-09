@@ -3,15 +3,20 @@
 **Date:** 2026-08-08 · **Record of an event. This date never moves.**
 **Written by:** Builder Code (the main session), for a second, bounded Builder session with Google Drive enabled.
 
-> ### ⚑ Written against `main` at or after PR #88. Check before you start.
+> ### ⚑ Check the tree before you start — this is a command, not a claim
 >
 > ```bash
-> git log --oneline -1
+> ls server/scripts/preflight.ts server/scripts/smoke.ts && \
+>   grep -q currentOperator server/scripts/identify.ts && \
+>   grep -q HOUSESTEADY_ANTHROPIC_API_KEY server/src/ai/models.ts && \
+>   grep -q "tier === 'strong'" server/scripts/identify.ts && echo "TREE OK"
 > ```
 >
-> **A brief describes a commit, not a repo.** The 2026-08-09 runner cloned `main` while the branch this brief was written against was still an open PR, and reported two defects that were real *for them* and fixed *here*: `npm run preflight` did not exist, and the code did not read `HOUSESTEADY_ANTHROPIC_API_KEY`. **Both commands had been executed before being written down — on a commit nobody else had.**
+> **`TREE OK` or stop.** Those four files carry everything this brief depends on: the foreign-key fix that makes `--run` work at all, `preflight`, `smoke`, the API-key variable, and `--tier`.
 >
-> **So: a brief names the commit it was written against, and the runner checks.** If the commands below are missing, you are on an older tree — say so rather than working around it.
+> **Why a command rather than a commit hash.** The 2026-08-09 runner cloned `main` while the branch this brief described was an open PR, and reported two defects that were real *for them* and already fixed *here* — `preflight` missing and the key variable unread. **Both commands had been executed before being written down, on a commit nobody else had.** A hash would have told them the same thing one step later; **this tells them before they spend anything.**
+>
+> *(And it earned itself immediately: PR #87 merged at commit 1 of 6, stranding the foreign-key fix on a branch. A brief that claimed "merged" would have been wrong for the second time in two runs.)*
 **Answers register #86.** Every command below was executed in this repo before it was written down. Where a number is quoted, it was measured on the walk fixture's manifest, which is the same manifest the real export carries.
 
 ---
@@ -65,13 +70,28 @@ Expect **typecheck clean** and **all tests passing**. If either fails, stop and 
 >
 > **They belong in the environment's own variables** — the same place the network allowlist is configured — **not in GitHub repository secrets.** Repository secrets are read by GitHub Actions workflows; nothing in a Claude Code session reads them, so a key placed there is a key that is not set.
 
-**The field takes `.env` format, one `NAME=value` per line.** Paste this and fill in the key:
+**The field takes `.env` format, one `NAME=value` per line.**
+
+**For a run that includes `--tier strong`, this is the complete list.** Every name below is read by this repo — verified at source, not inferred:
 
 ```
 HOUSESTEADY_ANTHROPIC_API_KEY=[insert API key]
 HOUSESTEADY_MODEL_FAST=claude-haiku-4-5-20251001
+HOUSESTEADY_MODEL_STRONG=claude-sonnet-5
 HOUSESTEADY_OPERATOR=Runner session
+HOUSESTEADY_FAST_INPUT_PER_MTOK=1.00
+HOUSESTEADY_FAST_OUTPUT_PER_MTOK=5.00
+HOUSESTEADY_STRONG_INPUT_PER_MTOK=[strong model input price]
+HOUSESTEADY_STRONG_OUTPUT_PER_MTOK=[strong model output price]
 ```
+
+> ### ⚠ The last two lines are not optional on a `--tier strong` run
+>
+> **The rate variables are per tier**, built as `HOUSESTEADY_{FAST|STRONG}_{INPUT|OUTPUT}_PER_MTOK`. **A strong run reads the STRONG pair.** With only the fast pair set, the spend cap sees $0.00 on every strong call and never fires — the same inert-cap failure as setting no rates at all, arriving through a door that looks configured.
+>
+> *This was worse until 2026-08-09: every generation was priced at the fast tier regardless of what ran, because nothing passed the tier through to the ledger. A strong run would have been costed at Haiku's rates and capped at them. Fixed, and under test.*
+>
+> **`HOUSESTEADY_STRONG_MAX_IMAGE_EDGE` also exists** and defaults to 1568, same as fast. Leave it alone for the comparison run — changing two things at once makes the result unreadable.
 
 *(An earlier cut of this brief gave these as a Name/Value table — a screen layout, not a file format — and it produced two variables literally called `Name` and `Value`. A brief claiming every command was executed before it was written down handed over the one block that had not been.)*
 
@@ -130,7 +150,21 @@ It prints whether the key is present (**never the key itself**), **which variabl
 
 **This exists because the expensive way to discover a missing key is to move 178 MB of photographs and find out afterwards.** The first attempt at this run found both mandatory variables unset — after doing everything else.
 
-**What it does not prove:** that the key is *valid*. Only a real call tells you that, and the bedroom step in §4a is the cheapest one available.
+**What it does not prove:** that the key is *valid*. For that, one command:
+
+```bash
+npm run smoke
+```
+
+**One real call against the repo's own synthetic fixture — a few cents, no house involved.** It imports 11 placeholder images across 3 zones, resolves the operator, inserts the job, makes the call and writes the objects, then deletes its scratch database. **It exercises the exact line `--run` used to die on**, and it is the check that would have caught the 2026-08-09 foreign-key bug before a single photograph moved.
+
+> **⚠ What a green smoke does NOT cover** — written here because green starts reading as *covered* the moment nobody re-reads the caveat:
+>
+> - **It never splits a batch.** 11 media against a ceiling of 24, so the multi-batch path — `1/3`, `2/3`, canvas riding every batch, cross-batch duplication — is never exercised. **That is the path that produced four proposals for one pressure tank.**
+> - **It never exercises the image-edge cap.** `edgeForCall` only lowers the edge above 20 images in one call, and 11 total cannot reach it. **The >20-image rejection case stays unproven.**
+> - **It says nothing about identification quality.** The fixture's images are 4–6 KB generated placeholders. **Zero objects proposed is a pass.**
+>
+> **Only a real multi-zone export covers those two paths.** Smoke proves the pipe, not the arithmetic.
 
 > ### ⚠ The spend cap does not work unless rates are set
 >
@@ -202,6 +236,16 @@ npx tsx server/scripts/import-export.ts \
   --property "Owner's own house" \
   --operator "Runner session"
 ```
+
+> ### The operator does NOT need registering by hand — but the order matters
+>
+> **`import-export.ts` finds or creates it.** Pass `--operator`, or set `HOUSESTEADY_OPERATOR`; if no operator of that name exists the import registers one and prints `Created operator <name> (<code>)`. **Verified on a fresh database 2026-08-09** — no `npm run operator -- add` step is needed.
+>
+> **`identify.ts` does not create one.** It resolves through `currentOperator`, which refuses rather than inventing — *"No operators are registered"* — because an invented actor in an evidence trail is a value somebody has to chase later.
+>
+> **So the import must run before identify.** That is the natural order anyway and it is now the required one. The 2026-08-09 runner registered by hand first; that was harmless and unnecessary.
+>
+> **Keep one name across both commands.** `currentOperator` resolves `HOUSESTEADY_OPERATOR` by short code or display name, and refuses if it matches nothing.
 
 > ### ⚠ The media files are MOVED out of `--export`, not copied
 >

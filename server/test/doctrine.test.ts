@@ -2994,10 +2994,25 @@ describe('an actor is resolved through the registry, never taken from the enviro
         'turn a check that answers "did the value arrive" into one that refuses.',
     }
 
+    /**
+     * **Comments are stripped first, and that is not tidiness.**
+     *
+     * Twice now this scan has fired on *prose about the bug*: once on
+     * `identify.ts`'s comment explaining the fix, and once on `smoke.ts`'s
+     * header explaining why smoke exists. **A check that a file cannot describe
+     * the defect without being accused of it will be silenced**, and a silenced
+     * scan protects nothing.
+     *
+     * Exempting those files would have papered over a scanner defect with a
+     * policy. Reading only the code is the fix, because the code is the subject.
+     */
+    const codeOnly = (text: string): string =>
+      text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+
     const offenders: string[] = []
     for (const file of sourceFiles(join(repoRoot, 'server', 'scripts'))) {
       const name = file.split('/server/')[1]!
-      const text = readFileSync(file, 'utf8')
+      const text = codeOnly(readFileSync(file, 'utf8'))
       if (!/process\.env\.HOUSESTEADY_OPERATOR/.test(text)) continue
       if (name in MAY_READ_WITHOUT_RESOLVING) continue
       if (!/\b(currentOperator|resolveOperator)\s*\(/.test(text)) offenders.push(name)
