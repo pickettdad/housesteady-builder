@@ -64,7 +64,7 @@ import { edgeForCall, imageNote, prepareImage, type PreparedImage } from '../ima
 import { requireModel, type ModelConfig } from '../models.js'
 import { currentPrompt, type Prompt } from '../prompts.js'
 import { runVisionTask, type RunArgs } from '../client.js'
-import { completeJob, enqueue, recordGeneration, skipJob, type AiJob } from '../queue.js'
+import { completeJob, enqueue, recordGeneration, requeueBatch, skipJob, type AiJob } from '../queue.js'
 
 /** Matches the prompt directory. Identity comes from the path, in both places. */
 export const IDENTIFY_TASK = 'identify_objects'
@@ -301,6 +301,25 @@ export function queueIdentification(
    * read.
    */
   only?: (zoneId: string) => boolean,
+  /**
+   * Run these batches again even though they are already done.
+   *
+   * **The default idempotency is right and stays.** `enqueue` is
+   * `ON CONFLICT DO NOTHING`, so pressing a button twice costs nothing — which
+   * is the correct answer for a person who is not sure whether the first press
+   * landed.
+   *
+   * **A comparison run is a different intention and has to say so.** Running the
+   * same room on the fast tier and then the strong tier is the only way to
+   * answer *did the reverse osmosis persist* — `ai_generations` was built to
+   * hold exactly that, and the container these runs happen in is ephemeral, so
+   * two sessions cannot share one ledger. Without this flag the second run is a
+   * silent no-op and the comparison degrades to two pasted text files.
+   *
+   * **It costs money by design**, which is why it is a named flag and not a
+   * fallback when a job is found done.
+   */
+  again = false,
 ): QueuedIdentification {
   const importId = latestImport(db, visitId)
   if (!importId) {
@@ -310,6 +329,7 @@ export function queueIdentification(
   const all = planIdentificationCalls(mediaForImport(db, importId), zoneRoutes(db, importId))
   const plan = only ? { ...all, batches: all.batches.filter((b) => only(b.zoneId)) } : all
   for (const b of plan.batches) {
+    if (again) requeueBatch(db, visitId, batchTargetId(b.zoneId, b.index))
     enqueue({
       db,
       propertyId,
@@ -641,6 +661,10 @@ export async function runIdentify(db: Db, job: AiJob, deps: IdentifyDeps): Promi
     zoneId: batch.zoneId,
     actorId: job.actor_id,
     objects: stored.objects,
+    // Doctrine 3. Also what makes a fast-then-strong comparison legible: two
+    // passes over one room write two sets of proposals, and each set knows
+    // which call produced it.
+    generationId,
   })
 
   completeJob(db, job.id, generationId)
@@ -670,12 +694,20 @@ export function writeProposedObjects(
     zoneId: string
     actorId: string
     objects: readonly ProposedObject[]
+    /**
+     * The generation that proposed these — doctrine 3, provenance travels.
+     *
+     * Optional because a later slice lets a human create an object at the desk
+     * from a document, and that object has no generation. **Null means no model
+     * produced this, which is a different fact from unknown.**
+     */
+    generationId?: string | null
   },
 ): string[] {
   const at = now()
   const insertObject = db.prepare(
-    `INSERT INTO objects (id, property_id, zone_id, import_id, class_id, label, confirmed_by, confirmed_at, actor_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
+    `INSERT INTO objects (id, property_id, zone_id, import_id, class_id, label, confirmed_by, confirmed_at, actor_id, generation_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?)`,
   )
   const insertMedia = db.prepare(
     'INSERT OR IGNORE INTO object_media (object_id, media_id, created_at) VALUES (?, ?, ?)',
@@ -685,7 +717,10 @@ export function writeProposedObjects(
   const write = db.transaction(() => {
     for (const o of args.objects) {
       const id = randomUUID()
-      insertObject.run(id, args.propertyId, args.zoneId, args.importId, o.classId, o.label, args.actorId, at)
+      insertObject.run(
+        id, args.propertyId, args.zoneId, args.importId, o.classId, o.label, args.actorId,
+        args.generationId ?? null, at,
+      )
       for (const mediaId of o.evidenceMediaIds) insertMedia.run(id, mediaId, at)
       ids.push(id)
     }

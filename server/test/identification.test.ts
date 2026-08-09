@@ -20,7 +20,7 @@ import { newId, now, type Db } from '../src/db/index.js'
 import { loadPrompts, promptsRoot, currentPrompt, PromptRefused } from '../src/ai/prompts.js'
 import type { ModelConfig } from '../src/ai/models.js'
 import type { RunArgs } from '../src/ai/client.js'
-import { claimNext } from '../src/ai/queue.js'
+import { claimNext, completeJob } from '../src/ai/queue.js'
 import { readClassFrame } from '../src/engine/classFrame.js'
 import { MAX_MEDIA_PER_CALL } from '../src/engine/identify.js'
 import { edgeForCall, MANY_IMAGE_MAX_EDGE, MANY_IMAGE_THRESHOLD } from '../src/ai/image.js'
@@ -298,6 +298,39 @@ describe('queueing identification is a deliberate act', () => {
       assert.equal(q.zones, 0)
       const { n } = db.prepare('SELECT COUNT(*) AS n FROM ai_jobs WHERE task = ?').get(IDENTIFY_TASK) as { n: number }
       assert.equal(n, 0)
+    })
+
+    it('a second queue of a finished batch does nothing without --again', () => {
+      /**
+       * **The default is right and this pins it.** `enqueue` is
+       * `ON CONFLICT DO NOTHING`, so a person unsure whether their first press
+       * landed does not pay twice.
+       */
+      for (let i = 0; i < 3; i++) addMedia(`m${i}`, {})
+      queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR)
+      const job = claimNext(db, VISIT)!
+      completeJob(db, job.id, null)
+
+      queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR)
+      assert.equal(claimNext(db, VISIT), undefined, 'nothing became runnable again')
+    })
+
+    it('--again puts a finished batch back, because a comparison run is a different intention', () => {
+      // Two passes over one room at two tiers is the only way to answer "did the
+      // reverse osmosis persist", and the container is ephemeral — so both
+      // passes have to land in one database or the ledger holds neither.
+      for (let i = 0; i < 3; i++) addMedia(`m${i}`, {})
+      queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR)
+      const first = claimNext(db, VISIT)!
+      completeJob(db, first.id, null)
+
+      queueIdentification(db, PROPERTY, VISIT, TEST_OPERATOR, undefined, true)
+      const second = claimNext(db, VISIT)
+      assert.ok(second, 'the batch is runnable again')
+      assert.equal(second.id, first.id, 'the same job row — its history stays one row, not two')
+
+      const { n } = db.prepare('SELECT COUNT(*) AS n FROM ai_jobs WHERE task = ?').get(IDENTIFY_TASK) as { n: number }
+      assert.equal(n, 1, 'and no duplicate job was created')
     })
 
     it('keeps the note describing the whole export, not the filtered slice', () => {

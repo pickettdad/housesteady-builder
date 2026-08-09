@@ -239,13 +239,41 @@ try {
   throw e
 }
 
+/**
+ * `--again` — run batches that are already done, a second time.
+ *
+ * **This is the fast-then-strong comparison, and it only works in one database.**
+ * `ai_generations` was built to hold two passes over one room; the container
+ * these runs happen in is ephemeral, so two sessions cannot share a ledger.
+ * Without this, a second `--tier strong` on the same zone queues nothing, drains
+ * nothing, and reports success.
+ *
+ * **Requires `--zone`.** `--again` across a whole visit would silently re-pay for
+ * every room, and the one use for it is comparing a single room.
+ */
+const again = flag('again')
+if (again && zoneNeedle === undefined) {
+  console.error(
+    `\n--again re-runs batches that already completed, which costs money again.\n` +
+      `It requires --zone, because the reason to use it is comparing one room across two tiers.\n`,
+  )
+  process.exit(1)
+}
+
 const q = queueIdentification(
   db,
   visit.propertyId,
   visitId,
   actorId,
   zoneNeedle === undefined ? undefined : zoneMatches,
+  again,
 )
+if (again) {
+  console.log(
+    `--again: ${q.jobs} batch(es) re-queued. Their first-pass generations and objects are kept — ` +
+      `every object records the generation that proposed it, so the two passes stay distinguishable.`,
+  )
+}
 console.log(`\nQueued ${q.jobs} calls over ${q.zones} zones. Draining.\n`)
 
 /**
