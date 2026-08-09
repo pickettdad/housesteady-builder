@@ -49,20 +49,36 @@ Expect **typecheck clean** and **all tests passing**. If either fails, stop and 
 
 ## 2. Environment
 
+> ### There is exactly one secret here
+>
+> **`ANTHROPIC_API_KEY` is the only credential in this brief.** Everything else below is a plain setting — a model name, two prices, an operator's name. **They look alike in a table and they are not alike**, and an earlier cut of this table did not say so.
+>
+> **They belong in the environment's own variables** — the same place the network allowlist is configured — **not in GitHub repository secrets.** Repository secrets are read by GitHub Actions workflows; nothing in a Claude Code session reads them, so a key placed there is a key that is not set.
+
 **Two variables are mandatory.** Neither has a default and nothing runs without both.
 
-| Variable | Value | Why |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | David supplies it | No key, no calls |
-| `HOUSESTEADY_MODEL_FAST` | a current fast model id | **Identification runs on the fast tier.** There is no default — an unset model is a refusal, not a fallback |
+| Variable | Secret? | Value | Why |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | **yes — one key** | from the Anthropic console | No key, no calls |
+| `HOUSESTEADY_MODEL_FAST` | **no** | a model **id string**, e.g. `claude-haiku-4-5-20251001` | **Identification runs on the fast tier.** There is no default — an unset model is a refusal, not a fallback |
 
-**Three more are strongly recommended, and the reason is not tidiness.**
+> **Which model to put behind `MODEL_FAST`, and it is a real choice rather than a formality.**
+>
+> **In production it should be the cheap fast model.** AI Assist §9 is explicit: extraction and classification go to the cheap tier, batched, because at 400–600 photographs per baseline the tier difference *is* the operating cost.
+>
+> **The first run is not production — it is a measurement**, and the cheap model makes one specific question unanswerable. If the pass comes back poor, *"the prompt and the frame are wrong"* and *"the model is too small for this"* look identical. **A stronger model on the mechanical room separates them**, and that room is the only one that can be graded at all.
+>
+> **Recommendation: cheap for the bedroom pipe test, and the owner's call for the mechanical room.** Cost is not mine to decide — the trade is real and it is a business fact, so it goes to you rather than being assumed here.
 
-| Variable | Suggested | Why |
-|---|---|---|
-| `HOUSESTEADY_FAST_INPUT_PER_MTOK` | the model's real input rate | ⚠ **The spend cap is inert without this.** See below |
-| `HOUSESTEADY_FAST_OUTPUT_PER_MTOK` | the model's real output rate | Same |
-| `HOUSESTEADY_OPERATOR` | `"Runner session"` or similar | Recorded against the import and every generation |
+**Three more are strongly recommended, and the reason is not tidiness. None is a secret.**
+
+| Variable | Secret? | Suggested | Why |
+|---|---|---|---|
+| `HOUSESTEADY_FAST_INPUT_PER_MTOK` | no — a number | the model's published input price per million tokens | ⚠ **The spend cap is inert without this.** See below |
+| `HOUSESTEADY_FAST_OUTPUT_PER_MTOK` | no — a number | the same, for output | Same |
+| `HOUSESTEADY_OPERATOR` | no — a name | `"Runner session"` or similar | Recorded against the import and every generation |
+
+**The two rates change nothing about what is sent or what comes back.** They exist so the spend cap can bite and so the cost report is a number rather than an unknown. **If the current prices are not to hand, leave them unset** — the run is identical, the cost prints as unknown rather than as a false zero, and `--zone` and `--limit` are the bound.
 
 > ### ⚠ The spend cap does not work unless rates are set
 >
