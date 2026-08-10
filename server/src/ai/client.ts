@@ -25,8 +25,37 @@ import { apiKey } from './models.js'
 import type { ModelConfig } from './models.js'
 import type { Prompt } from './prompts.js'
 
+/**
+ * What a failed call still cost, so the ledger can see it.
+ *
+ * **A call that reached the model and then failed has already been paid for.**
+ * Truncation, a refusal and an unparseable answer all arrive *after* the images
+ * were sent and the tokens consumed — and until 2026-08-09 none of them wrote a
+ * row, so `visitSpend` reported **$0.17 while roughly $1.50 had been spent** and
+ * the cap sat blind through the exact incident it exists to stop.
+ *
+ * Absent on transport failures — a 429 or a 500 never reached the model, so
+ * there is nothing to record and a zero row would be a lie in the other
+ * direction.
+ */
+export interface FailedCallSpend {
+  model: string
+  tier: ModelConfig['tier']
+  promptId: string
+  promptVersion: string
+  promptHash: string
+  inputTokens: number
+  outputTokens: number
+}
+
 export class ModelCallFailed extends Error {
-  constructor(message: string, readonly code: string, readonly retryable: boolean) {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly retryable: boolean,
+    /** Present when the model answered and the answer was unusable. */
+    readonly spend?: FailedCallSpend,
+  ) {
     super(message)
     this.name = 'ModelCallFailed'
   }
@@ -86,6 +115,23 @@ export function anthropic(): Anthropic | undefined {
 }
 
 /**
+ * What this call consumed, for a failure that still has to reach the ledger.
+ *
+ * Reads the model's own usage rather than estimating. A failure whose cost is
+ * guessed is a different lie from a failure whose cost is hidden, and neither
+ * belongs in a spend record.
+ */
+const spendOf = (args: RunArgs, response: Anthropic.Message): FailedCallSpend => ({
+  model: args.model.id,
+  tier: args.model.tier,
+  promptId: args.prompt.id,
+  promptVersion: args.prompt.version,
+  promptHash: args.prompt.hash,
+  inputTokens: response.usage.input_tokens,
+  outputTokens: response.usage.output_tokens,
+})
+
+/**
  * Ask the model one question about one or more images.
  *
  * The answer is schema-constrained, so a malformed reply is the API's problem
@@ -133,11 +179,23 @@ export async function runVisionTask<T>(args: RunArgs): Promise<TaskResult<T>> {
   }
 
   if (response.stop_reason === 'refusal') {
-    throw new ModelCallFailed('The model declined this request.', 'ai.refused', false)
+    throw new ModelCallFailed('The model declined this request.', 'ai.refused', false, spendOf(args, response))
   }
   if (response.stop_reason === 'max_tokens') {
-    // A truncated JSON object is not a partial answer, it is a broken one.
-    throw new ModelCallFailed('The answer was cut off before it finished.', 'ai.truncated', true)
+    /**
+     * A truncated JSON object is not a partial answer, it is a broken one —
+     * **and it is NOT retryable.**
+     *
+     * Same images, same prompt, same ceiling: the second attempt overruns in
+     * exactly the same place. This shipped as retryable and cost real money on
+     * 2026-08-09 — three mechanical-room batches, three attempts each, **nine
+     * full image payloads for nine identical failures.**
+     *
+     * The line was already drawn correctly ten lines above: *"a 400 means the
+     * request is wrong and will be wrong again in thirty seconds."* Truncation
+     * belongs on that side of it.
+     */
+    throw new ModelCallFailed('The answer was cut off before it finished.', 'ai.truncated', false, spendOf(args, response))
   }
 
   const text = response.content
@@ -149,7 +207,9 @@ export async function runVisionTask<T>(args: RunArgs): Promise<TaskResult<T>> {
   try {
     output = JSON.parse(text) as T
   } catch {
-    throw new ModelCallFailed('The model did not return the shape that was asked for.', 'ai.bad-shape', true)
+    throw new ModelCallFailed(
+      'The model did not return the shape that was asked for.', 'ai.bad-shape', true, spendOf(args, response),
+    )
   }
 
   return {

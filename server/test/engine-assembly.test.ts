@@ -264,13 +264,13 @@ describe('the run record — the run’s account of itself', () => {
 
   it('prices a call from reported tokens, and refuses to price without rates', () => {
     const priced = usageFrom(
-      { tier: 'fast', id: 'x', inputPerMTok: 5, outputPerMTok: 25, maxImageEdge: 1568 },
+      { tier: 'fast', id: 'x', inputPerMTok: 5, outputPerMTok: 25, maxImageEdge: 1568, maxOutputTokens: 4096 },
       1_000_000, 1_000_000,
     )
     assert.equal(priced.costUsd, 30)
     // Rates unset is not a free call. A confident $0.00 in a budget is a lie.
     const unpriced = usageFrom(
-      { tier: 'fast', id: 'x', inputPerMTok: 0, outputPerMTok: 0, maxImageEdge: 1568 },
+      { tier: 'fast', id: 'x', inputPerMTok: 0, outputPerMTok: 0, maxImageEdge: 1568, maxOutputTokens: 4096 },
       1000, 100,
     )
     assert.equal(unpriced.costUsd, null)
@@ -293,8 +293,8 @@ describe('the run record — the run’s account of itself', () => {
   })
 
   it('withholds a cost total when any run call was unpriced', () => {
-    const model = { tier: 'fast' as const, id: 'x', inputPerMTok: 5, outputPerMTok: 25, maxImageEdge: 1568 }
-    const free = { tier: 'fast' as const, id: 'x', inputPerMTok: 0, outputPerMTok: 0, maxImageEdge: 1568 }
+    const model = { tier: 'fast' as const, id: 'x', inputPerMTok: 5, outputPerMTok: 25, maxImageEdge: 1568, maxOutputTokens: 4096 }
+    const free = { tier: 'fast' as const, id: 'x', inputPerMTok: 0, outputPerMTok: 0, maxImageEdge: 1568, maxOutputTokens: 4096 }
     const z = plannedRecord(assembleZone(ZONE, [photo('p1'), photo('p2')], { maxPhotosPerBatch: 1 }))
     z.calls[0]!.usage = usageFrom(model, 1000, 10)
     z.calls[1]!.usage = usageFrom(free, 1000, 10)

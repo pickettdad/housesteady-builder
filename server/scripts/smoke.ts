@@ -54,7 +54,8 @@
  *   npm run smoke -- --keep    # leave the scratch database for inspection
  */
 
-import { mkdtempSync, readFileSync, rmSync, cpSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readFileSync, rmSync, cpSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -66,6 +67,22 @@ const fixture = join(repoRoot, 'fixtures', 'synthetic')
 // A scratch data root, set BEFORE anything reads `dataRoot` at module load.
 const scratch = mkdtempSync(join(tmpdir(), 'housesteady-smoke-'))
 process.env.HOUSESTEADY_DATA = scratch
+
+/**
+ * The fixture is generated, not committed — `/fixtures/synthetic/` is gitignored.
+ *
+ * **So on a fresh clone this script had nothing to run against**, and the brief
+ * presented smoke as one command when it was two. Found by the 2026-08-09
+ * runner, who generated it by hand and carried on. Generating it here makes the
+ * one command true rather than documenting the second one.
+ */
+if (!existsSync(join(fixture, 'manifest.json'))) {
+  console.log('Synthetic fixture not present — generating it (it is gitignored, not missing).')
+  execFileSync('npx', ['tsx', join(repoRoot, 'server', 'scripts', 'make-fixture.ts')], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+  })
+}
 
 const { openDb, newId, now } = await import('../src/db/index.js')
 const { runImport } = await import('../src/import/runImport.js')
@@ -100,9 +117,10 @@ if (!apiKey()) throw new Error('unreachable — assistsBlocked would have caught
 const db = openDb()
 
 try {
-  // The media tree is COPIED, because `placeMedia` moves files out of it and the
-  // fixture is committed. A smoke run that empties `fixtures/synthetic/media`
-  // would be a check that destroys the thing it checks.
+  // The media tree is COPIED, because `placeMedia` MOVES files out of it. A
+  // smoke run that empties `fixtures/synthetic/media` would be a check that
+  // destroys what it checks — and the second run would then regenerate it and
+  // quietly pass, which is worse.
   const staging = join(scratch, 'export')
   cpSync(fixture, staging, { recursive: true })
 

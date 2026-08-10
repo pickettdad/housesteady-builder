@@ -42,7 +42,7 @@ import { repoRoot, TEST_OPERATOR, freshDb } from './helpers.js'
 const FIXTURE = join(repoRoot, 'fixtures', 'nameplates', 'images', 'IMG_0004.jpeg')
 
 const MODEL: ModelConfig = {
-  tier: 'fast', id: 'a-pinned-fast-model', inputPerMTok: 1, outputPerMTok: 5, maxImageEdge: 1568,
+  tier: 'fast', id: 'a-pinned-fast-model', inputPerMTok: 1, outputPerMTok: 5, maxImageEdge: 1568, maxOutputTokens: 4096,
 }
 
 let db: Db

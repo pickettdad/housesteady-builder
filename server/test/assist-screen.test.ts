@@ -14,7 +14,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { beforeEach, describe, it } from 'node:test'
+import { afterEach, beforeEach, describe, it } from 'node:test'
 import { join } from 'node:path'
 import { newId, now, openDb, type Db } from '../src/db/index.js'
 import { loadPrompts, promptsRoot } from '../src/ai/prompts.js'
@@ -31,7 +31,7 @@ import { repoRoot, TEST_OPERATOR, freshDb } from './helpers.js'
 const FIXTURE = join(repoRoot, 'fixtures', 'nameplates', 'images', 'IMG_0004.jpeg')
 
 const MODEL: ModelConfig = {
-  tier: 'fast', id: 'a-pinned-fast-model', inputPerMTok: 1, outputPerMTok: 5, maxImageEdge: 1568,
+  tier: 'fast', id: 'a-pinned-fast-model', inputPerMTok: 1, outputPerMTok: 5, maxImageEdge: 1568, maxOutputTokens: 4096,
 }
 
 const TYPES = ['water-heater', 'water-softener', 'electrical-panel']
@@ -379,17 +379,61 @@ describe('what the screen is given', () => {
     assert.match(queue.skips[0]!.reason, /not a nameplate/)
   })
 
-  it('says why nothing can run, before anybody presses anything', () => {
-    const model = buildAssists(db, VISIT)
-    // The suite runs with no key and no pinned model, which is the state the
-    // screen has to be able to explain rather than sit blank in.
-    assert.ok(model.blocked, 'there is a sentence for it')
-    assert.match(model.blocked!, /waiting rather than running/)
-  })
+  /**
+   * **These two describe the UNCONFIGURED machine, so they have to own the
+   * environment rather than inherit it.**
+   *
+   * Both read ambient `process.env`, and the old comment here said *"the suite
+   * runs with no key and no pinned model"* — an assumption, not a fact. Anyone
+   * following the runner brief's §2 sets those variables, and then a sound repo
+   * reports **992/994**. That happened on 2026-08-09 and cost the runner a
+   * diagnosis before they could start.
+   *
+   * **A test that a correctly-configured machine cannot pass is worse than a
+   * missing test**, because it teaches people that red is normal here. Second
+   * instance of this class after `operators.test.ts`; the fix is the same, and
+   * the sweep is why it is written out rather than just applied.
+   */
+  describe('the unconfigured machine', () => {
+    const VARS = [
+      'HOUSESTEADY_ANTHROPIC_API_KEY', 'ANTHROPIC_API_KEY',
+      'HOUSESTEADY_MODEL_FAST', 'HOUSESTEADY_MODEL_STRONG',
+      'HOUSESTEADY_FAST_INPUT_PER_MTOK', 'HOUSESTEADY_FAST_OUTPUT_PER_MTOK',
+      'HOUSESTEADY_STRONG_INPUT_PER_MTOK', 'HOUSESTEADY_STRONG_OUTPUT_PER_MTOK',
+    ]
+    let saved: Record<string, string | undefined> = {}
+    beforeEach(() => {
+      saved = Object.fromEntries(VARS.map((v) => [v, process.env[v]]))
+      for (const v of VARS) delete process.env[v]
+    })
+    afterEach(() => {
+      for (const v of VARS) {
+        if (saved[v] === undefined) delete process.env[v]
+        else process.env[v] = saved[v]!
+      }
+    })
 
-  it('reports cost as unknown rather than as zero when no rates are configured', () => {
-    const model = buildAssists(db, VISIT)
-    assert.equal(model.spend.ratesKnown, false, 'an unmeasured cost and a zero cost are different facts')
+    it('says why nothing can run, before anybody presses anything', () => {
+      const model = buildAssists(db, VISIT)
+      assert.ok(model.blocked, 'there is a sentence for it')
+      assert.match(model.blocked!, /waiting rather than running/)
+    })
+
+    it('reports cost as unknown rather than as zero when no rates are configured', () => {
+      const model = buildAssists(db, VISIT)
+      assert.equal(model.spend.ratesKnown, false, 'an unmeasured cost and a zero cost are different facts')
+    })
+
+    it('and is NOT blocked once a key and a model are set — so the clearing above is load-bearing', () => {
+      // Rule 11b. Without this, the clearing could be deleted and both tests
+      // above would still pass on an unconfigured machine.
+      process.env.HOUSESTEADY_ANTHROPIC_API_KEY = 'sk-ant-test'
+      process.env.HOUSESTEADY_MODEL_FAST = 'a-model'
+      process.env.HOUSESTEADY_FAST_INPUT_PER_MTOK = '1'
+      const model = buildAssists(db, VISIT)
+      assert.equal(model.blocked, null, 'a configured machine has nothing to explain')
+      assert.equal(model.spend.ratesKnown, true)
+    })
   })
 })
 

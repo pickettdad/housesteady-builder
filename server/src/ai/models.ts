@@ -42,6 +42,8 @@ export interface ModelConfig {
    * records what it sent.
    */
   maxImageEdge: number
+  /** Output ceiling for this tier. See `modelFor` for why it is not one number. */
+  maxOutputTokens: number
 }
 
 export class ModelNotConfigured extends Error {
@@ -86,6 +88,24 @@ export function modelFor(tier: Tier): ModelConfig | undefined {
     inputPerMTok: num(`${prefix}_INPUT_PER_MTOK`, 0),
     outputPerMTok: num(`${prefix}_OUTPUT_PER_MTOK`, 0),
     maxImageEdge: num(`${prefix}_MAX_IMAGE_EDGE`, 1568),
+    /**
+     * How much room an answer gets, **per tier**, because verbosity is a
+     * property of the model rather than of the question.
+     *
+     * **4096 was sized against the cheap tier and it is not enough for a strong
+     * one.** Measured on the mechanical room 2026-08-09: Haiku answered three
+     * batches in 2,185 / 2,877 / 1,507 output tokens; Sonnet overran 4,096 on
+     * **all three — including the six-photograph batch Haiku finished in
+     * 1,507.** Every attempt truncated, and truncation is not retryable, so the
+     * strong tier could not complete a dense room at all.
+     *
+     * The default is therefore tier-shaped: the same 4096 on the fast tier,
+     * four times that on the strong one. **A ceiling is not free** — it is the
+     * cap on a runaway answer — so this is raised deliberately rather than
+     * removed, and it is an environment variable because the next model's
+     * verbosity is not knowable from here.
+     */
+    maxOutputTokens: num(`${prefix}_MAX_OUTPUT_TOKENS`, tier === 'strong' ? 16_384 : 4_096),
   }
 }
 

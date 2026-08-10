@@ -79,10 +79,31 @@ export const batchTargetId = (zoneId: string, index: number): string => `${zoneI
  *
  * A kitchen can hold a dozen objects and each carries a clause of evidence. The
  * default 1024 truncates that, and a truncated JSON object is not a partial
- * answer — `client.ts` treats it as broken and retries, which pays for the
- * images twice. Cheaper to leave room.
+ * answer but a broken one.
+ *
+ * **This is the FAST tier's ceiling and the floor for every tier** — see
+ * `identifyMaxTokens`. *(An earlier version of this comment said truncation
+ * "pays for the images twice" because `client.ts` retried it. It did, nine
+ * times, on 2026-08-09. It no longer retries.)*
  */
 export const IDENTIFY_MAX_TOKENS = 4096
+
+/**
+ * How much room the answer gets, from the model rather than from this constant.
+ *
+ * **`IDENTIFY_MAX_TOKENS` was sized against the cheap tier and it is not enough
+ * for a strong one.** Measured on the mechanical room 2026-08-09: Haiku answered
+ * three batches in 2,185 / 2,877 / 1,507 output tokens; Sonnet overran 4,096 on
+ * **all three, including the six-photograph batch Haiku finished in 1,507.**
+ * With truncation correctly non-retryable, that is a strong tier that simply
+ * cannot complete a dense room.
+ *
+ * The constant stays as the fast tier's value and as the floor, so a model
+ * config that forgets to declare one cannot make the ceiling *smaller* than what
+ * already worked.
+ */
+export const identifyMaxTokens = (model: ModelConfig): number =>
+  Math.max(IDENTIFY_MAX_TOKENS, model.maxOutputTokens)
 
 /** What the model may say about how well it saw a thing. Not a confidence score. */
 export type Basis = 'detail' | 'context-only'
@@ -595,7 +616,7 @@ export async function runIdentify(db: Db, job: AiJob, deps: IdentifyDeps): Promi
     prompt,
     facts,
     schema: IDENTIFY_SCHEMA,
-    maxTokens: IDENTIFY_MAX_TOKENS,
+    maxTokens: identifyMaxTokens(model),
     images: prepared.map(({ image }) => ({ data: image.data, mediaType: image.mediaType })),
   })
 
