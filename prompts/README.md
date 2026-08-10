@@ -89,3 +89,28 @@ like different companies. The house style lives in these files, not in anyone's 
 
 See `/docs/HouseSteady_Binder-Builder_AI-Assist-Plan_v1-1_2026-07-31.md` for the full plan
 and `CLAUDE.md` §7 for the governing doctrine.
+
+## Drafting a new version
+
+**`currentPrompt` returns the LAST version in a task directory.** So a file added
+here is live on the next model call — no review, no ruling, no signal. That is a
+defect in a system where everything else about a prompt is versioned and
+content-hashed, and it is worked around rather than fixed.
+
+**Draft into `<task>/drafts/`.** `loadPrompts` reads `*.md` only at the task
+directory level and does not recurse, so a draft there is invisible to it.
+
+```
+prompts/identify_objects/v001.md          <- live
+prompts/identify_objects/drafts/v002.md   <- invisible to the loader
+```
+
+⚠ **A top-level `prompts/drafts/` is NOT safe.** Every directory at this level is
+read as a task, so it would be loaded and would refuse on the first file not
+named `vNNN.md`.
+
+**Going live is a deliberate act.** `doctrine.test.ts` pins the live version of
+every task; moving a draft up fails that test until the pin is updated in the
+same commit. **It cannot check that a version was ruled on — nothing can — but
+it makes shipping one something a person did rather than something that
+happened.**
