@@ -19,7 +19,7 @@
 import { anthropic, ModelCallFailed } from './client.js'
 import { modelFor } from './models.js'
 import { loadPrompts } from './prompts.js'
-import { claimNext, failJob, MAX_ATTEMPTS, visitSpend, type AiJob } from './queue.js'
+import { claimNext, failJob, MAX_ATTEMPTS, recordGeneration, visitSpend, type AiJob } from './queue.js'
 import { runnerFor, UnknownTask, type AssistDeps } from './tasks/index.js'
 import type { Db } from '../db/index.js'
 import { findMedia, originalPath } from '../pass/thumbs.js'
@@ -174,6 +174,44 @@ async function runOne(db: Db, job: AiJob, deps: AssistDeps): Promise<boolean> {
 function abandonOrRetry(db: Db, job: AiJob, e: unknown): void {
   const message = e instanceof Error ? e.message : String(e)
   const permanent = (e instanceof ModelCallFailed && !e.retryable) || e instanceof UnknownTask
+
+  /**
+   * **A call that reached the model has been paid for whether or not it worked.**
+   *
+   * Nothing wrote a row for a failure, so on 2026-08-09 nine truncated calls —
+   * nine full image payloads — cost roughly $1.30 that `visitSpend` could not
+   * see. It reported **$0.17 against a $2.00 cap while about $1.50 had gone**,
+   * and the cap therefore sat blind through the one situation it exists for:
+   * **a run failing repeatedly is exactly when spend runs away.**
+   *
+   * `spend` is absent on a transport failure, which never reached the model. A
+   * zero row there would be the same dishonesty pointing the other way.
+   */
+  if (e instanceof ModelCallFailed && e.spend) {
+    recordGeneration({
+      db,
+      propertyId: job.property_id,
+      visitId: job.visit_id,
+      task: job.task,
+      targetKind: job.target_kind,
+      targetId: job.target_id,
+      actorId: job.actor_id,
+      model: e.spend.model,
+      tier: e.spend.tier,
+      promptId: e.spend.promptId,
+      promptVersion: e.spend.promptVersion,
+      promptHash: e.spend.promptHash,
+      inputRefs: { attempt: job.attempts },
+      // The failure IS the output. A row whose output looks like an answer would
+      // be worse than no row — this one is legible as a cost with no result.
+      output: { failed: true, code: e.code, message: e.message },
+      // Not an abstention. Abstaining is the model declining to guess, which is
+      // a success; this is a call that produced nothing usable.
+      abstained: false,
+      inputTokens: e.spend.inputTokens,
+      outputTokens: e.spend.outputTokens,
+    })
+  }
 
   if (permanent) {
     // Burn the remaining attempts so the shared failure path records it,
