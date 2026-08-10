@@ -408,8 +408,15 @@ Eleven calls. The three mechanical-room calls already ran and will not run twice
 3. **The count that matched no class.** The script prints it separately. **This is a gap in the frame, not a failure of the object** — it is the single most valuable number in the whole run, because it is what the review queue and the next content pass are built from.
 4. **Spend and token counts.** The script prints `visitSpend`. If it says the cost is unknown because no rates are configured, **say that rather than reporting zero.**
 5. **Anything that failed.** `Ran N, failed M` — and for any failure, the error text. An `invalid_request_error` mentioning image dimensions is the ceiling case and is worth quoting exactly.
-6. **The `unsure` list from every generation, and the `readable` string from every proposal.** Redacted per §0. **These are offered by the run and impossible to recover once the container dies** — `unsure` is the abstention machinery working, and it is the closest measure of what the pass knows it does not know.
-7. **Your own read on `MAX_MEDIA_PER_CALL`.** It is 24 and it is still a guess. The mechanical room splitting into three calls is the first real evidence anyone has about whether that number is right. **Did the split cost anything a reader can see** — did the same object get proposed twice from different batches, did a nameplate land in one batch and its equipment in another?
+6. **⚑ Do the duplicate proposals share evidence photographs?** One query, no cost — and it is the measurement that decides how the comparison pass gets built. For any class proposed more than once in a zone, report whether its proposals cite any `media_id` in common:
+   ```sql
+   SELECT o.class_id, om.media_id, COUNT(DISTINCT o.id) AS proposals
+     FROM objects o JOIN object_media om ON om.object_id = o.id
+    WHERE o.import_id = ? GROUP BY o.class_id, om.media_id HAVING proposals > 1;
+   ```
+   **Any row returned means two proposals were looking at the same picture** — near-conclusive evidence they are one object, obtainable without a model call. **Report it even if empty**, because empty is the answer that makes the cheap path impossible.
+7. **The `unsure` list from every generation, and the `readable` string from every proposal.** Redacted per §0. **These are offered by the run and impossible to recover once the container dies** — `unsure` is the abstention machinery working, and it is the closest measure of what the pass knows it does not know.
+8. **Your own read on `MAX_MEDIA_PER_CALL`.** It is 24 and it is still a guess. The mechanical room splitting into three calls is the first real evidence anyone has about whether that number is right. **Did the split cost anything a reader can see** — did the same object get proposed twice from different batches, did a nameplate land in one batch and its equipment in another?
 
 **On labels specifically:** report the *shape* of what came back, not the contents, wherever the contents are personal. *"Read a pressure-test tag and returned an installer's registration number correctly"* is the finding. The number is not.
 
