@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import { buildReport } from '../src/import/report.js'
 import { runImport } from '../src/import/runImport.js'
 import { enqueue } from '../src/ai/queue.js'
 import { createOperator } from '../src/operators/registry.js'
+import { loadPrompts } from '../src/ai/prompts.js'
 import { freshDb, makePropertyAndVisit, readReference, repoRoot, scratchDir, TEST_OPERATOR } from './helpers.js'
 
 /**
@@ -3045,5 +3047,62 @@ describe('an actor is resolved through the registry, never taken from the enviro
     })
     assert.ok(job.id, 'and the resolved id goes in cleanly')
     db.close()
+  })
+})
+
+describe('a prompt version cannot go live by being added', () => {
+  /**
+   * **`/prompts` has no draft state, and that is a defect in a system where
+   * everything else about a prompt is versioned and content-hashed.**
+   *
+   * `currentPrompt` returns the LAST version in a task directory. So dropping
+   * `v002.md` beside `v001.md` changes production behaviour on the next call —
+   * **no review, no ruling, no signal.** On 2026-08-09 a drafted `identify_objects`
+   * v002 was kept out of `/prompts` by remembering, which is not a mechanism.
+   *
+   * **The safe place already exists and nothing said so.** `loadPrompts` reads
+   * `*.md` only at the task-directory level and does not recurse, so
+   * `prompts/<task>/drafts/v002.md` is invisible to it. *(A top-level
+   * `prompts/drafts/` is NOT safe — it would be read as a task and refuse on the
+   * first file not named vNNN.md.)*
+   *
+   * **This pin is the other half.** Adding a version now fails here until
+   * somebody updates this list, which turns *shipped by being written* into
+   * *shipped by being acknowledged*. It cannot check that a version was ruled
+   * on — nothing can — but it makes going live a deliberate act.
+   */
+  const LIVE: Readonly<Record<string, string>> = {
+    'house-style': 'v001',
+    identify_objects: 'v001',
+    nameplate_classify: 'v001',
+    nameplate_extract: 'v002',
+    photo_routing: 'v002',
+    pin_type: 'v001',
+  }
+
+  it('the live version of every task is the one recorded here', () => {
+    const library = loadPrompts(join(repoRoot, 'prompts'))
+    const live = Object.fromEntries([...library].map(([task, versions]) => [task, versions[versions.length - 1]!.version]))
+    assert.deepEqual(
+      live,
+      LIVE,
+      'A prompt version changed. If that was intended, update LIVE in the same commit — and if it was not, ' +
+        'a file added to /prompts just changed what every binder sounds like.',
+    )
+  })
+
+  it('a drafts subdirectory is invisible to the loader, which is what makes it the safe place', () => {
+    // Rule 11b — asserted rather than assumed, because the whole convention
+    // rests on `loadPrompts` not recursing.
+    const scratch = mkdtempSync(join(tmpdir(), 'housesteady-prompts-'))
+    try {
+      mkdirSync(join(scratch, 'a-task', 'drafts'), { recursive: true })
+      writeFileSync(join(scratch, 'a-task', 'v001.md'), 'the live one')
+      writeFileSync(join(scratch, 'a-task', 'drafts', 'v002.md'), 'the draft')
+      const library = loadPrompts(scratch)
+      assert.deepEqual(library.get('a-task')!.map((p) => p.version), ['v001'], 'the draft is not loaded')
+    } finally {
+      rmSync(scratch, { recursive: true, force: true })
+    }
   })
 })

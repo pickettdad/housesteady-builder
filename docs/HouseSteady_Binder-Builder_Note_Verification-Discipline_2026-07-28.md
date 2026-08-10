@@ -666,7 +666,7 @@ Neither report named a denominator, because a grep does not have one.
 
 ---
 
-### Rule 16 · A check whose output does not depend on what it checks is not a check
+### 16. A check whose output does not depend on what it checks is not a check
 
 *(Added 2026-08-09, proposed by Builder Code against itself. **Third instance of this class**, after Table G's retired-value guard and the four no-op generator fixtures.)*
 
