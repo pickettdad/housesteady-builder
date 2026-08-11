@@ -169,7 +169,7 @@ describe('rule 6 — a model number off by a character is the plate, not the eng
         photographs: ['a.jpg'], confirmed_by: { product: 'plate', role: 'household' },
       }],
     }
-    const r = scoreRun(key, [proposal({ id: 'p1', label: 'circulation pump', model: 'UP26-99U', mediaIds: ['a'] })], matches)
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'circulation pump', models: ['UP26-99U'], mediaIds: ['a'] })], matches)
     assert.equal(r.counts['plate-legibility'], 1)
     assert.equal(r.counts.wrong, 0)
     assert.match(r.judged[0]!.why, /one character/)
@@ -194,7 +194,7 @@ describe('rule 6 — a model number off by a character is the plate, not the eng
         photographs: ['a.jpg'], confirmed_by: { product: 'plate', role: 'household' },
       }],
     }
-    const r = scoreRun(key, [proposal({ id: 'p1', label: 'left circulator', model: 'UP26-99U', mediaIds: ['a'] })], matches)
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'left circulator', models: ['UP26-99U'], mediaIds: ['a'] })], matches)
     assert.equal(r.counts.correct, 1)
     assert.equal(r.counts['plate-legibility'], 0)
   })

@@ -88,8 +88,19 @@ export interface ScoredProposal {
   label: string
   classId: string | null
   mediaIds: readonly string[]
-  /** Any model number the run read, for rule 6. */
-  model?: string | null
+  /**
+   * Model numbers the run read off a NAMEPLATE, for rule 6.
+   *
+   * **A list, not a string, and that is the same argument the storage makes.**
+   * One photograph can hold two plates — `UP26-99F` and `UPS26-99U` are two real
+   * pumps in one frame — so a proposal citing that photograph has two model
+   * numbers behind it. **Collapsing them to one here would pick arbitrarily and
+   * could report a legibility miss on a plate that was read correctly**, which
+   * is the failure rule 6 exists to prevent, arriving at the last step.
+   *
+   * Empty until Amendment 11 pass 1 has run against the import.
+   */
+  models?: readonly string[]
 }
 
 export type Outcome = 'correct' | 'wrong' | 'key-uncertain' | 'plate-legibility'
@@ -223,14 +234,17 @@ export function scoreRun(
 
     // Rule 6, before the verdict — a one-character model difference is the
     // photograph's fault and must not be counted against identification.
-    const legibility = k.model
-      ? hits.find((h) => h.model && nearlySameModel(k.model!, h.model))
+    // Any plate the run read, not one of them — see `ScoredProposal.models`.
+    const near = k.model
+      ? hits
+          .flatMap((h) => (h.models ?? []).map((m) => ({ proposal: h, model: m })))
+          .find((c) => nearlySameModel(k.model!, c.model))
       : undefined
-    if (legibility && !hits.some((h) => matches(k.role!, h))) {
+    if (near && !hits.some((h) => matches(k.role!, h))) {
       judged.push({
         ...base,
         outcome: 'plate-legibility',
-        why: `Model read as ${legibility.model} against the key's ${k.model} — one character, so this is the plate, not the engine.`,
+        why: `Model read as ${near.model} against the key's ${k.model} — one character, so this is the plate, not the engine.`,
       })
       counts['plate-legibility']++
       continue

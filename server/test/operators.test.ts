@@ -65,6 +65,9 @@ const UNATTRIBUTED: Readonly<Record<string, string>> = {
   report_editions: 'derived from the edition that produced it',
   object_media: 'derived from the object, which carries the actor',
   object_provenance: 'derived from the decision — and it carries `actor_id` anyway',
+  // Ten cells off one plate are one person reading one plate once. Attribution
+  // belongs to the act, and the act is the label — `readings` carries it.
+  reading_fields: 'derived from the reading, which carries the actor',
 }
 
 describe('the operator registry', () => {
