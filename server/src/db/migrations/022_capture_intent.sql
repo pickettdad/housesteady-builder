@@ -1,0 +1,45 @@
+-- Capture intent — which door the concierge chose, never what the frame holds.
+--
+-- Field Code's PR #86: `pan` · `room-shot` · `run-trace`, absent = ordinary,
+-- riding PhotoAdded -> MediaRef -> MediaFileEntryV3.
+--
+-- #132 — THE SEAM NEITHER REPO COULD SEE FROM INSIDE ITSELF.
+--
+-- `zones[].canvases[]` is EMPTY on every Discovery export, by design, and always
+-- will be: the canvas route does not exist on a Discovery visit, so the room
+-- shot travels the ordinary photo path. **Emptiness there is not absence** — it
+-- is §7a-ii's empty-list failure arriving through a seam, and this repo would
+-- have read it as "this zone has no room shot" forever.
+--
+-- What breaks without the intent, and both silently:
+--
+--   * Amendment 10 §B2 puts a zone's canvas frames on every identification batch
+--     as context. With no canvases, EVERY Discovery batch is contextless — which
+--     is the exact defect §B2 was written to close, restored by a seam.
+--   * Amendment 11 pass 1 drops the canvas because it carries no legible text.
+--     With no canvases, the room shot arrives as a detail photograph and pass 1
+--     pays to read text off a wide frame of a room.
+--
+-- So context is now the UNION: canvas-routed OR `intent = 'room-shot'`. Not a
+-- replacement — a canvas route still exists on visits that have one.
+--
+-- #133 — A RUN TRACE IS NOT IN ONE ROOM.
+--
+-- A trace files to the zone it started in. That is true and it is the only
+-- locational fact available — **and §6.7's room batching assumes every frame in
+-- the batch is in that room.** A cross-zone trace violates that by definition,
+-- and crawlspace equipment attributed to the mechanical room is the
+-- four-pressure-tanks error arriving through geography.
+--
+-- Excluded from zone batching, WITH ITS REASON NAMED. Doctrine 6: it is a row
+-- somebody can find, not a difference between two numbers nobody compares.
+--
+-- OPEN VOCABULARY, like every other word from the field. A value this build has
+-- not met is stored, reported, and treated as ordinary — never a reason to
+-- refuse a row. The safety property matches `surface`: an unrecognised intent is
+-- not `room-shot` and not `run-trace`, so a new word can neither gain context
+-- authority nor silently remove a photograph from a call.
+
+ALTER TABLE media ADD COLUMN capture_intent TEXT;
+
+CREATE INDEX idx_media_intent ON media(import_id, capture_intent);

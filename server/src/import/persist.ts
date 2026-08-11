@@ -195,10 +195,11 @@ export function persistImport(input: PersistInput): string {
     // ---------------------------------------------------------------- media
     const insMedia = db.prepare(
       `INSERT INTO media (media_id, import_id, property_id, visit_id, kind, owner_kind,
-        owner_zone_id, owner_pin_id, owner_pin_number, owner_canvas_id, group_key, file,
+        owner_zone_id, owner_pin_id, owner_pin_number, owner_canvas_id, capture_intent,
+        group_key, file,
         mime, bytes, sha256, sha_verified, file_status, bytes_on_disk, captured_at,
         duration_ms, source, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     for (const x of c.media) {
       // With no media supplied the honest values are "not verified" and "not
@@ -220,6 +221,7 @@ export function persistImport(input: PersistInput): string {
         x.ownerPinId,
         x.ownerPinNumber,
         x.ownerCanvasId,
+        x.captureIntent,
         x.groupKey,
         x.file,
         x.mime,

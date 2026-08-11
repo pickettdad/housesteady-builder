@@ -224,6 +224,9 @@ export function toCanonical(m: Manifest): { canonical: CanonicalImport; checks: 
       ownerPinId: str(x.owner?.pinId),
       ownerPinNumber: num(x.owner?.pinNumber),
       ownerCanvasId: str(x.owner?.canvasId),
+      // Field Code PR #86. Absent on every export before 2026-08-11 and on every
+      // ordinary capture after it, which is why it is read and never required.
+      captureIntent: str(x.intent),
       groupKey: str(x.group),
       file: str(x.file),
       mime: str(x.mime),

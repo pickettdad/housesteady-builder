@@ -137,6 +137,14 @@ export interface CanonicalMedia {
   ownerPinId: string | null
   ownerPinNumber: number | null
   ownerCanvasId: string | null
+  /**
+   * Which capture door the concierge chose — `pan`, `room-shot`, `run-trace`.
+   *
+   * **Null is ordinary capture and is the common case.** Open vocabulary: it
+   * records the door, never what the frame holds, so a word this build has not
+   * met is stored and treated as ordinary.
+   */
+  captureIntent: string | null
   groupKey: string | null
   file: string | null
   mime: string | null
