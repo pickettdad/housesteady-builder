@@ -3078,6 +3078,7 @@ describe('a prompt version cannot go live by being added', () => {
     nameplate_extract: 'v002',
     photo_routing: 'v002',
     pin_type: 'v001',
+    read_surfaces: 'v001',
   }
 
   it('the live version of every task is the one recorded here', () => {

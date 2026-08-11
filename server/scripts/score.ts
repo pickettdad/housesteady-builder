@@ -44,8 +44,10 @@
 import { readFileSync } from 'node:fs'
 import { openDb } from '../src/db/index.js'
 import { latestImport } from '../src/ai/tasks/identify.js'
+import { claimsForImport } from '../src/ai/tasks/readSurfaces.js'
 import { proposalsForImport } from '../src/engine/compare.js'
 import { scoreRun, type RoomKey, type ScoredProposal } from '../src/engine/score.js'
+import { plateModels } from '../src/engine/surfaces.js'
 
 const arg = (name: string): string | undefined => {
   const i = process.argv.indexOf(`--${name}`)
@@ -94,16 +96,34 @@ const zones = (
     (z.label ?? z.type ?? '').toLowerCase().includes(needle),
 )
 
+/**
+ * Model numbers per photograph, from Amendment 11 pass 1.
+ *
+ * **Rule 6's legibility bucket was empty by construction until this existed** —
+ * the run stored no model string anywhere, so the rule was built, tested and
+ * unreachable on a real run. Pass 1 is what fills it.
+ *
+ * **Nameplate only**, which `plateModels` enforces: rule 6's whole claim is that
+ * a one-character difference is a photograph of a plate rather than an engine
+ * error, and a model number read off a carton is a different kind of evidence.
+ */
+const platedModels = new Map<string, string[]>()
+for (const m of plateModels(claimsForImport(db, importId))) {
+  const list = platedModels.get(m.mediaId)
+  if (list) list.push(m.value)
+  else platedModels.set(m.mediaId, [m.value])
+}
+
 const proposals: ScoredProposal[] = zones.flatMap((z) =>
   proposalsForImport(db, importId, z.zoneId).map((p) => ({
     id: p.id,
     label: p.label,
     classId: p.classId,
     mediaIds: p.mediaIds,
-    // The run does not store a model string on the object yet — that is
-    // Amendment 11 pass 1's output. Until it exists, rule 6's legibility bucket
-    // has nothing to read, and a run scores without it rather than pretending.
-    model: null,
+    // Every plate model read from any photograph this proposal cites. A list,
+    // because one photograph can hold two plates and choosing between them here
+    // would hide exactly what rule 6 separates.
+    models: [...new Set(p.mediaIds.flatMap((id) => platedModels.get(id) ?? []))],
   })),
 )
 

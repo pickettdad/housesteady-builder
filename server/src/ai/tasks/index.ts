@@ -18,6 +18,7 @@ import {
   CLASSIFY_TASK, EXTRACT_TASK, queueNameplateReading, runClassify, runExtract,
 } from './nameplate.js'
 import { PIN_TYPE_TASK, queuePinTypes, runPinType } from './pinType.js'
+import { READ_TASK, runReadSurfaces } from './readSurfaces.js'
 import { queuePhotoRouting, ROUTING_TASK, runRoute } from './routing.js'
 
 /** What every runner needs. Injected so a test can supply all of it. */
@@ -38,6 +39,11 @@ export const TASK_RUNNERS: Record<string, TaskRunner> = {
   // Runnable by the worker like any other task; **not queued by an import** —
   // see `queueAssists` below and the head of `identify.ts`.
   [IDENTIFY_TASK]: runIdentify,
+  // Amendment 11 pass 1, and it is out of `queueAssists` for the same reason
+  // identification is: it sends detail photographs of the inside of a house.
+  // **Narrower than identification — no canvas, no room shot — but the gate is
+  // about whose house it is, not how wide the frame is.**
+  [READ_TASK]: runReadSurfaces,
 }
 
 export class UnknownTask extends Error {

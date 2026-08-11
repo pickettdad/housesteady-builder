@@ -19,7 +19,8 @@
     "preflight": "npm run preflight --workspace server --",
     "smoke": "npm run smoke --workspace server --",
     "compare": "npm run compare --workspace server --",
-    "score": "npm run score --workspace server --"
+    "score": "npm run score --workspace server --",
+    "read": "npm run read --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

@@ -88,6 +88,7 @@ const { openDb, newId, now } = await import('../src/db/index.js')
 const { runImport } = await import('../src/import/runImport.js')
 const { createOperator } = await import('../src/operators/registry.js')
 const { queueIdentification } = await import('../src/ai/tasks/identify.js')
+const { queueSurfaceReading, READ_TASK } = await import('../src/ai/tasks/readSurfaces.js')
 const { drainVisit } = await import('../src/ai/worker.js')
 const { assistsBlocked } = await import('../src/ai/worker.js')
 const { visitSpend, queueProgress } = await import('../src/ai/queue.js')
@@ -178,8 +179,34 @@ try {
   )
   console.log(`${objects.n} objects proposed. On placeholder images, any number is fine — including zero.`)
 
+  // ---------------------------------------------------------------- pass 1
+  //
+  // **A second entry point, and it is a second chance to be broken for
+  // everybody.** Pass 1 queues on the same table with a different task and a
+  // different planner, so nothing the identification call proved above covers
+  // it. One more call, a few more cents.
+  const read = queueSurfaceReading(db, propertyId, visitId, operator.id)
+  console.log(`\nPass 1: queued ${read.jobs} calls, ${read.photographs} photographs. ${read.note}`)
+  if (read.jobs === 0) throw new Error('Pass 1 queued nothing from a fixture that has detail photographs.')
+
+  const readRun = await drainVisit(db, visitId, { limit: 1 })
+  if (readRun.ran === 0) {
+    console.error(`\nSMOKE FAILED — pass 1 completed no call. ${JSON.stringify(queueProgress(db, visitId).failures)}\n`)
+    cleanUp()
+    process.exit(1)
+  }
+  const labels = db.prepare('SELECT COUNT(*) AS n FROM readings WHERE import_id = ?').get(importId) as { n: number }
+  const fields = db
+    .prepare('SELECT COUNT(*) AS n FROM reading_fields WHERE reading_id IN (SELECT id FROM readings WHERE import_id = ?)')
+    .get(importId) as { n: number }
+  const readGen = db
+    .prepare(`SELECT COUNT(*) AS n FROM ai_generations WHERE visit_id = ? AND task = ?`)
+    .get(visitId, READ_TASK) as { n: number }
+  if (readGen.n === 0) throw new Error('Pass 1 drained a call and recorded no generation.')
+  console.log(`Pass 1 read ${labels.n} labels and ${fields.n} fields. Placeholder images have no text — zero is the expected answer.`)
+
   console.log(
-    `\nSMOKE PASSED. The entry point works end to end.\n` +
+    `\nSMOKE PASSED. Both entry points work end to end.\n` +
       `NOT covered: batch splitting (11 media, ceiling is 24) and the >20-image edge cap.\n` +
       `Both need a real multi-zone export. See this file's header.\n`,
   )

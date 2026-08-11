@@ -17,7 +17,8 @@
     "preflight": "tsx scripts/preflight.ts",
     "smoke": "tsx scripts/smoke.ts",
     "compare": "tsx scripts/compare.ts",
-    "score": "tsx scripts/score.ts"
+    "score": "tsx scripts/score.ts",
+    "read": "tsx scripts/read.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
