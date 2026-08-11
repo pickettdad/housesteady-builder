@@ -1,0 +1,190 @@
+/**
+ * The scoring harness — register #116.
+ *
+ * **The key used here is invented.** The real room record is one house's
+ * complete equipment inventory with serials, and it lives in `/data`, not in a
+ * public repo — see `scripts/score.ts`. What these tests defend is the six
+ * rules, and rules do not need a real basement to be checked.
+ */
+
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+import { mediaIdOf, nearlySameModel, scoreRun, type RoomKey, type ScoredProposal } from '../src/engine/score.js'
+
+/** Substring matching, so the tests exercise the harness rather than a matcher. */
+const matches = (expected: string, p: ScoredProposal): boolean =>
+  p.label.toLowerCase().includes(expected.toLowerCase())
+
+const proposal = (over: Partial<ScoredProposal> & { id: string }): ScoredProposal => ({
+  label: '', classId: null, mediaIds: [], ...over,
+})
+
+describe('rule 2 — matching is on photograph overlap, never on names', () => {
+  it('matches a proposal whose words are nothing like the key\'s', () => {
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: 'GSW automatic storage water heater',
+        role: 'domestic hot-water tank',
+        photographs: ['photo-a.jpg'],
+        confirmed_by: { product: 'plate', role: 'household' },
+      }],
+    }
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'domestic hot-water tank', mediaIds: ['photo-a'] })], matches)
+    assert.equal(r.counts.correct, 1)
+    assert.equal(r.matched, 1)
+  })
+
+  it('does NOT match on a shared name when no photograph is shared', () => {
+    // The two-sided version of rule 2 — rule 11b. If names could match, the
+    // four-pressure-tank bug would score as four correct answers.
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: null, role: 'water softener', photographs: ['photo-a.jpg'],
+        confirmed_by: { product: null, role: 'household' },
+      }],
+    }
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'water softener', mediaIds: ['photo-zzz'] })], matches)
+    assert.equal(r.counts.correct, 0)
+    assert.equal(r.missed.length, 1, 'the key object is missed')
+    assert.equal(r.falsePositives.length, 1, 'and the proposal is a false positive — it answers nothing')
+  })
+
+  it('strips the download suffix, because the key names files and the database holds ids', () => {
+    // `019fb96f-…(1).jpg` is one photograph downloaded twice. Not stripping it
+    // would score every duplicated photograph as a miss, silently.
+    assert.equal(mediaIdOf('019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg'), '019fb96f-014e-792c-ab36-3cfe3b09e737')
+    assert.equal(mediaIdOf('019fb96f-014e-792c-ab36-3cfe3b09e737.jpg'), '019fb96f-014e-792c-ab36-3cfe3b09e737')
+  })
+})
+
+describe('the reason the key has two fields — scoring uses ROLE', () => {
+  it('scores the WellMate wrong, which a product-only key would have scored right', () => {
+    /**
+     * **The case the whole harness exists for.** The UT-450 genuinely IS a
+     * Pentair pressure vessel, so a key recording only the product would mark
+     * `well-pressure-tank` CORRECT — **validating the exact bug it was built to
+     * catch.** Its role here is a chlorine contact tank, and only the household
+     * knew.
+     */
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: 'Pentair pressure vessel',
+        role: 'chlorine contact tank',
+        model: 'UT-450 CE',
+        photographs: ['photo-tank.jpg'],
+        confirmed_by: { product: 'plate', role: 'household' },
+      }],
+    }
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'Well pressure tank', mediaIds: ['photo-tank'] })], matches)
+
+    assert.equal(r.counts.wrong, 1, 'wrong on role')
+    assert.equal(r.judged[0]!.expected, 'chlorine contact tank')
+
+    // And the counter-check: the same proposal against the PRODUCT would pass.
+    assert.ok(matches('pressure', proposal({ id: 'p1', label: 'Well pressure tank' })),
+      'which is precisely why product must not be the thing scored')
+  })
+
+  it('carries confirmed_by as the weight rather than averaging it away', () => {
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: 'Burcam Series 600', role: 'well-water pressure tank', photographs: ['a.jpg'],
+        confirmed_by: { product: 'plate', role: 'household' },
+      }],
+    }
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'well-water pressure tank', mediaIds: ['a'] })], matches)
+    assert.deepEqual(r.judged[0]!.weight, { product: 'plate', role: 'household' })
+  })
+})
+
+describe('rule 3 — role: null lands in key-uncertain automatically', () => {
+  it('does not mark the engine wrong about something the key has not settled', () => {
+    // Two of the real room's objects are confirmed vessels with unresolved
+    // function. The key does not know what they are for; the engine cannot be
+    // wrong about it.
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: 'Waterite treatment vessel', role: null, photographs: ['a.jpg'],
+        confirmed_by: { product: 'plate', role: null },
+      }],
+    }
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'iron filter', mediaIds: ['a'] })], matches)
+    assert.equal(r.counts['key-uncertain'], 1)
+    assert.equal(r.counts.wrong, 0)
+    assert.match(r.judged[0]!.why, /no role/)
+  })
+})
+
+describe('rule 6 — a model number off by a character is the plate, not the engine', () => {
+  it('separates a one-character misread from a wrong identification', () => {
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: 'Grundfos circulator', role: 'left circulator', model: 'UP26-99F',
+        photographs: ['a.jpg'], confirmed_by: { product: 'plate', role: 'household' },
+      }],
+    }
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'circulation pump', model: 'UP26-99U', mediaIds: ['a'] })], matches)
+    assert.equal(r.counts['plate-legibility'], 1)
+    assert.equal(r.counts.wrong, 0)
+    assert.match(r.judged[0]!.why, /one character/)
+  })
+
+  it('does not swallow two genuinely different pumps', () => {
+    // `UP26-99F` and `UPS26-99U` are two edits apart and two real objects in
+    // that room. A tolerant matcher would merge them and hide a real duplicate.
+    assert.equal(nearlySameModel('UP26-99F', 'UPS26-99U'), false)
+    assert.equal(nearlySameModel('UP26-99U', 'UPS26-99U'), true, 'one insertion')
+    assert.equal(nearlySameModel('600545B', '600545C'), true, 'one substitution')
+    assert.equal(nearlySameModel('AB1', 'AB2'), false, 'too short to mean anything')
+  })
+
+  it('a correct role wins over the legibility bucket', () => {
+    // Getting the object right with a mistyped model is a correct answer, not a
+    // legibility note — the bucket is for the case where the misread is the only
+    // thing that went wrong.
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: 'Grundfos circulator', role: 'left circulator', model: 'UP26-99F',
+        photographs: ['a.jpg'], confirmed_by: { product: 'plate', role: 'household' },
+      }],
+    }
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'left circulator', model: 'UP26-99U', mediaIds: ['a'] })], matches)
+    assert.equal(r.counts.correct, 1)
+    assert.equal(r.counts['plate-legibility'], 0)
+  })
+})
+
+describe('rules 1 and 5 — it gates nothing, and every disagreement resolves both ways', () => {
+  it('returns a report on total failure rather than throwing', () => {
+    const key: RoomKey = {
+      confirmed_objects: [{ product: 'x', role: 'y', photographs: ['a.jpg'], confirmed_by: { product: 'plate', role: 'household' } }],
+    }
+    const r = scoreRun(key, [], matches)
+    assert.equal(r.counts.wrong, 1)
+    assert.ok(r.note.length > 0, 'a report, not an exception')
+  })
+
+  it('offers key-wrong on every disagreement, so the key cannot outrank the house', () => {
+    const key: RoomKey = {
+      confirmed_objects: [{ product: 'x', role: 'a water softener', photographs: ['a.jpg'], confirmed_by: { product: 'plate', role: 'household' } }],
+    }
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'iron filter', mediaIds: ['a'] })], matches)
+    assert.deepEqual(r.judged[0]!.resolvableAs, ['engine-wrong', 'key-wrong'])
+    // And on a miss too — the key can be wrong about a thing existing.
+    const miss = scoreRun(key, [], matches)
+    assert.deepEqual(miss.missed[0]!.resolvableAs, ['engine-wrong', 'key-wrong'])
+  })
+
+  it('reports false positives, which only the completeness attestation makes scoreable', () => {
+    const key: RoomKey = {
+      confirmed_objects: [{ product: 'x', role: 'y', photographs: ['a.jpg'], confirmed_by: { product: 'plate', role: 'household' } }],
+    }
+    const r = scoreRun(key, [
+      proposal({ id: 'p1', label: 'y', mediaIds: ['a'] }),
+      proposal({ id: 'p2', label: 'reverse osmosis system', classId: 'reverse-osmosis', mediaIds: ['b'] }),
+    ], matches)
+    assert.equal(r.counts.correct, 1)
+    assert.deepEqual(r.falsePositives.map((f) => f.classId), ['reverse-osmosis'])
+    assert.match(r.note, /complete for existence/)
+  })
+})
