@@ -43,11 +43,23 @@
  *
  * ## Product and role are separate, and scoring uses ROLE
  *
- * **This is the whole reason the key has two fields.** The WellMate UT-450 is
- * genuinely a Pentair pressure vessel — **so a key recording only the product
- * would score `well-pressure-tank` as CORRECT, validating the exact bug it was
- * built to catch.** Its role in this house is a chlorine contact tank, and only
- * the household knew.
+ * **This is the whole reason the key has two fields — and the example that
+ * proves it had to move once.**
+ *
+ * The WellMate UT-450 was the original case, on the premise that it *is*
+ * genuinely a pressure vessel. **It is not.** It is a universal retention tank:
+ * a contact tank by default, a pressure tank only when adapted. So a *correct*
+ * product string scores `well-pressure-tank` wrong as well, and the case never
+ * discriminated the two fields at all. **It now proves something better — plate,
+ * lookup and household all agree, which is what a working lookup looks like.**
+ *
+ * **The GSW water heater is the case that does discriminate.** Its product is
+ * exactly what the plate says and what a lookup returns — *an automatic storage
+ * water heater* — so a proposal calling it one is **right about the product**.
+ * Its role in this house is a geothermal preheat store with its breaker
+ * deliberately off. **A key recording only the product would score that proposal
+ * CORRECT and lose the only fact that matters:** an intentional state that reads
+ * as a defect, which a well-meaning technician would "fix".
  *
  * **The plate says what the product is. The household says what it is for.**
  * A harness that scores the first is measuring whether the model can read.
@@ -248,8 +260,8 @@ export function scoreRun(
     counts,
     note:
       `Scored against ${key.confirmed_objects.length} confirmed objects on photograph overlap, never on names. ` +
-      `Role decides, not product — a key recording only the product would score the WellMate as a pressure ` +
-      `tank, validating the bug it exists to catch. ${falsePositives.length} proposal(s) matched no key ` +
+      `Role decides, not product — a key recording only the product would score "electric water heater" on the ` +
+      `GSW as correct and lose that its breaker is off on purpose. ${falsePositives.length} proposal(s) matched no key ` +
       `object; those are scoreable only because the owner attested the key complete for existence. ` +
       `**This report gates nothing.** Every disagreement is resolvable in both directions.`,
   }

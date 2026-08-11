@@ -1,23 +1,36 @@
 /**
  * Score a run against the confirmed room record — `npm run score`.
  *
- *   npm run score -- --visit <id> --key /path/to/room-record.json [--zone mechanical]
+ *   npm run score -- --visit <id> [--key /path/to/room-record.json] [--zone mechanical]
  *
  * **Free. No model call.** It reads proposals already in the database and a key
  * from disk, and prints a report.
  *
  * ---
  *
- * ## ⚠ The key is NOT in this repository and must not be put in it
+ * ## Where the key lives — the owner ruled it into the repository
  *
- * The mechanical-room record is one real house's complete equipment inventory —
- * **model numbers, serial numbers, every photograph filename, and roles naming
- * which breaker is deliberately off.** CLAUDE.md §14: this repo is public, and
- * test data from a friend's house gets the same treatment as client data.
+ * **It is committed, at `fixtures/room-records/mechanical-room_2026-08-10.json`,
+ * and `--key` defaults to it.**
  *
- * **So the key lives in `/data` or outside the repo entirely, and its path is an
- * argument.** The harness is code and is public; the house is not. *(Register
- * #106 reserves the room record's home as the project folder, which agrees.)*
+ * This file previously argued the opposite, on CLAUDE.md §14. **The argument was
+ * wrong about whose house it is:** §14 was written about other people's homes
+ * and never scoped the owner's own. He ruled it in, **because a correction has
+ * to be recorded and git is the mechanism that records it** — a key living
+ * outside version control cannot show what it used to say, which is exactly what
+ * rule 5 needs of it.
+ *
+ * **Checked before committing:** no street address, no postal code, no phone
+ * number, no licence or registration number, no personal name. Model numbers,
+ * serials, photograph filenames and roles — his own equipment and nobody else's.
+ *
+ * ⚠ **A client's room record is a different question and this ruling does not
+ * reach it.** Those stay in `/data`, which is gitignored and stays that way.
+ * `--key` still takes a path, precisely so the harness never assumes the
+ * committed one is the only one.
+ *
+ * *(Register #106 reserved the record's home as the project folder. Superseded
+ * by the owner on 2026-08-11.)*
  *
  * ## It gates nothing
  *
@@ -39,13 +52,17 @@ const arg = (name: string): string | undefined => {
   return i === -1 ? undefined : process.argv[i + 1]
 }
 
+/** The owner's own mechanical room, committed by his ruling of 2026-08-11. */
+const DEFAULT_KEY = 'fixtures/room-records/mechanical-room_2026-08-10.json'
+
 const visitId = arg('visit')
-const keyPath = arg('key')
-if (!visitId || !keyPath) {
+const keyPath = arg('key') ?? DEFAULT_KEY
+if (!visitId) {
   console.error(
-    'Usage: npx tsx server/scripts/score.ts --visit <visitId> --key <room-record.json> [--zone <needle>]\n\n' +
-      'The key is a real house\'s inventory and does not belong in this repository.\n' +
-      'Keep it in /data or outside the repo and pass its path.',
+    'Usage: npx tsx server/scripts/score.ts --visit <visitId> [--key <room-record.json>] [--zone <needle>]\n\n' +
+      `--key defaults to ${DEFAULT_KEY} — the owner's own mechanical room, which\n` +
+      "he ruled into the repository. A client's room record is a different thing: it lives in\n" +
+      '/data, which is gitignored, and you pass its path.',
   )
   process.exit(1)
 }
