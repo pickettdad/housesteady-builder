@@ -1,10 +1,15 @@
 /**
  * The scoring harness — register #116.
  *
- * **The key used here is invented.** The real room record is one house's
- * complete equipment inventory with serials, and it lives in `/data`, not in a
- * public repo — see `scripts/score.ts`. What these tests defend is the six
- * rules, and rules do not need a real basement to be checked.
+ * **The keys built here are miniature, not the real one.** The room record is
+ * committed at `fixtures/room-records/mechanical-room_2026-08-10.json` by the
+ * owner's ruling — it is his own house and §14 was written about other people's
+ * — but a test that loaded it would be checking one basement rather than the six
+ * rules. **Rules do not need a real basement to be checked**, so each test
+ * builds the smallest key that exercises one.
+ *
+ * Where a case is drawn from the real room it says so, because a rule argued
+ * from an invented example is a rule nobody has tested against a house.
  */
 
 import assert from 'node:assert/strict'
@@ -21,15 +26,18 @@ const proposal = (over: Partial<ScoredProposal> & { id: string }): ScoredProposa
 
 describe('rule 2 — matching is on photograph overlap, never on names', () => {
   it('matches a proposal whose words are nothing like the key\'s', () => {
+    // A real one: identification proposed `water-treatment-other` for this,
+    // because it is a grey box in a mechanical room. The role shares not one
+    // word with the product, and the photograph is what joins them.
     const key: RoomKey = {
       confirmed_objects: [{
-        product: 'GSW automatic storage water heater',
-        role: 'domestic hot-water tank',
+        product: 'TRU-SPEC TSMS-4/8 4x8 HDTV Digital Multiswitch',
+        role: 'legacy television/satellite distribution',
         photographs: ['photo-a.jpg'],
         confirmed_by: { product: 'plate', role: 'household' },
       }],
     }
-    const r = scoreRun(key, [proposal({ id: 'p1', label: 'domestic hot-water tank', mediaIds: ['photo-a'] })], matches)
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'legacy television/satellite distribution', mediaIds: ['photo-a'] })], matches)
     assert.equal(r.counts.correct, 1)
     assert.equal(r.matched, 1)
   })
@@ -58,31 +66,69 @@ describe('rule 2 — matching is on photograph overlap, never on names', () => {
 })
 
 describe('the reason the key has two fields — scoring uses ROLE', () => {
-  it('scores the WellMate wrong, which a product-only key would have scored right', () => {
+  it('scores the GSW heater wrong, which a product-only key would have scored right', () => {
     /**
-     * **The case the whole harness exists for.** The UT-450 genuinely IS a
-     * Pentair pressure vessel, so a key recording only the product would mark
-     * `well-pressure-tank` CORRECT — **validating the exact bug it was built to
-     * catch.** Its role here is a chlorine contact tank, and only the household
-     * knew.
+     * **The case the whole harness exists for.** *Automatic storage water
+     * heater* is exactly what the plate says and exactly what a lookup on
+     * `G9-50SDE-30 250` returns, so a proposal calling it an electric water
+     * heater is **right about the product** — a product-only key marks it
+     * CORRECT and stops.
+     *
+     * Its role in this house is a geothermal preheat store whose breaker is off
+     * **on purpose**. That is the fact worth having: an intentional state that
+     * reads as a defect, which a well-meaning technician would "fix". Only the
+     * household knew it, and scoring the product loses it.
      */
     const key: RoomKey = {
       confirmed_objects: [{
-        product: 'Pentair pressure vessel',
+        product: 'GSW automatic storage water heater',
+        role: 'geothermal preheat store; breaker intentionally off',
+        model: 'G9-50SDE-30 250',
+        photographs: ['photo-heater.jpg'],
+        confirmed_by: { product: 'plate', role: 'household' },
+      }],
+    }
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'Electric storage water heater', mediaIds: ['photo-heater'] })], matches)
+
+    assert.equal(r.counts.wrong, 1, 'wrong on role')
+    assert.equal(r.judged[0]!.expected, 'geothermal preheat store; breaker intentionally off')
+
+    // And the counter-check: the same proposal against the PRODUCT would pass.
+    assert.ok(matches('storage water heater', proposal({ id: 'p1', label: 'Electric storage water heater' })),
+      'which is precisely why product must not be the thing scored')
+  })
+
+  it('no longer uses the WellMate for that, because a correct product scores it wrong too', () => {
+    /**
+     * **The premise this test used to carry was false, and the correction is the
+     * test.** The UT-450 is a *universal retention tank* — a contact tank by
+     * default, a pressure tank only when adapted — not a pressure vessel that
+     * happens to be used as a contact tank.
+     *
+     * So `well-pressure-tank` is wrong against the role **and wrong against the
+     * product**, and this case never discriminated the two fields. What it
+     * proves instead is worth more: **plate, lookup and household agree.** The
+     * plate's `Precharge: N/A` and `N/A` drawdown at all three ranges say what
+     * it is not, the lookup says what it is, and the household says what it is
+     * for — three independent sources, no disagreement.
+     */
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: 'Pentair WellMate UT-450 universal retention tank',
         role: 'chlorine contact tank',
         model: 'UT-450 CE',
         photographs: ['photo-tank.jpg'],
         confirmed_by: { product: 'plate', role: 'household' },
       }],
     }
-    const r = scoreRun(key, [proposal({ id: 'p1', label: 'Well pressure tank', mediaIds: ['photo-tank'] })], matches)
+    const p = proposal({ id: 'p1', label: 'Well pressure tank', mediaIds: ['photo-tank'] })
+    const r = scoreRun(key, [p], matches)
 
-    assert.equal(r.counts.wrong, 1, 'wrong on role')
-    assert.equal(r.judged[0]!.expected, 'chlorine contact tank')
-
-    // And the counter-check: the same proposal against the PRODUCT would pass.
-    assert.ok(matches('pressure', proposal({ id: 'p1', label: 'Well pressure tank' })),
-      'which is precisely why product must not be the thing scored')
+    assert.equal(r.counts.wrong, 1, 'wrong on role, as before')
+    assert.equal(
+      matches(key.confirmed_objects[0]!.product!, p), false,
+      'and wrong on the product too — which is why this case cannot prove the split',
+    )
   })
 
   it('carries confirmed_by as the weight rather than averaging it away', () => {

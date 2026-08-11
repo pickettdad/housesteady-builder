@@ -1,0 +1,719 @@
+{
+  "confirmed_objects": [
+    {
+      "product": "ClimateMaster heat pump",
+      "role": "main geothermal heating/cooling unit",
+      "system": "FS1 · Geothermal heating/cooling",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb970-84d6-75c3-9d67-59d6665408c3(1).jpg",
+        "019fb970-bffa-7921-b998-114f03a1e52f(1).jpg",
+        "019fb970-df80-7ae5-8a3c-4d4498920528(1).jpg",
+        "019fb971-2bc3-788d-b940-a5202e0564b5(1).jpg"
+      ],
+      "model": "TTV049BGC01ARKS",
+      "serial": "Q13734509",
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "geothermal ground-loop flow centre",
+      "system": "FS1 · Geothermal heating/cooling",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb971-726f-73cf-b676-68d7790592b7(1).jpg",
+        "019fb972-8a29-755e-af99-821fb1635853(1).jpg",
+        "019fb972-aa5e-728f-968d-d19f3786ba45(1).jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "Geo-Flo / Grundfos nonsubmersible circulation pump",
+      "role": "left circulator in geothermal flow centre",
+      "system": "FS1 · Geothermal heating/cooling",
+      "photographs": [
+        "019fb972-8a29-755e-af99-821fb1635853(1).jpg"
+      ],
+      "model": "UP26-99F",
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "Geo-Flo / Grundfos nonsubmersible circulation pump",
+      "role": "right circulator in geothermal flow centre",
+      "system": "FS1 · Geothermal heating/cooling",
+      "photographs": [
+        "019fb972-8a29-755e-af99-821fb1635853(1).jpg"
+      ],
+      "model": "UPS26-99U",
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "Axiom DMF150 Digital Mini Feeder",
+      "role": "10% ethanol ground-loop makeup feeder",
+      "system": "FS2 · Ground-loop makeup",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb971-726f-73cf-b676-68d7790592b7(1).jpg",
+        "019fb971-e82b-7ce7-8a5b-285b02e342d2(1).jpg",
+        "019fb972-4098-7d46-a5c5-105831169b51(1).jpg"
+      ],
+      "model": "DMF150",
+      "serial": "25-21219-DMF",
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "ground-loop makeup gauge assembly",
+      "system": "FS2 · Ground-loop makeup",
+      "photographs": [
+        "019fb971-9bba-72fd-9770-2e32259dd647(1).jpg",
+        "019fb971-726f-73cf-b676-68d7790592b7(1).jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "Flex 2 hydronic expansion tank",
+      "role": "ground-loop makeup expansion tank",
+      "system": "FS2 · Ground-loop makeup",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb971-9bba-72fd-9770-2e32259dd647(1).jpg",
+        "019fb971-726f-73cf-b676-68d7790592b7(1).jpg",
+        "019fb971-becb-746b-8ffb-f353c2994b39(1).jpg",
+        "019fb971-e82b-7ce7-8a5b-285b02e342d2(1).jpg"
+      ],
+      "model": "HTX 30",
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "10% ethanol supply for ground-loop makeup feeder",
+      "system": "FS2 · Ground-loop makeup",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb971-726f-73cf-b676-68d7790592b7(1).jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "GSW automatic storage water heater",
+      "role": "first/left geothermal-connected hot-water tank; panel label HWT #2; breaker intentionally off",
+      "system": "FS3 · Domestic hot-water heating/storage",
+      "photographs": [
+        "019fb96f-4880-7c24-b6a7-f263940ae382.jpg",
+        "019fb974-69d7-739d-b42c-43cbfb2f635a.jpg",
+        "019fb974-a4a3-720c-85f8-daff214c52c7.jpg",
+        "019fb974-f730-7d5c-a7a9-1567301df4d0.jpg",
+        "019fb975-1f7a-76ec-ad50-3e25cbef87e0.jpg",
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb972-aa5e-728f-968d-d19f3786ba45(1).jpg"
+      ],
+      "model": "G9-50SDE-30 250",
+      "serial": "2439140768401",
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "John Wood automatic storage water heater",
+      "role": "second domestic hot-water tank in the row",
+      "system": "FS3 · Domestic hot-water heating/storage",
+      "photographs": [
+        "019fb96f-4880-7c24-b6a7-f263940ae382.jpg",
+        "019fb974-69d7-739d-b42c-43cbfb2f635a.jpg",
+        "019fb975-1f7a-76ec-ad50-3e25cbef87e0.jpg",
+        "019fb975-8c7c-7666-ab68-9c12701b3a0f.jpg",
+        "019fb975-57ce-77a1-b38a-1fdf53645b71.jpg"
+      ],
+      "model": "JW80SDE145",
+      "serial": "U1244 F703987",
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "QD Control Box",
+      "role": "well-pump motor control",
+      "system": "FS4 · Well-water supply and pressure control",
+      "photographs": [
+        "019fb976-da9b-7055-b563-f4d54c29218f.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "Burcam Series 600 captive-air pressure tank",
+      "role": "well-water pressure tank",
+      "system": "FS4 · Well-water supply and pressure control",
+      "photographs": [
+        "019fb96f-4880-7c24-b6a7-f263940ae382.jpg",
+        "019fb974-69d7-739d-b42c-43cbfb2f635a.jpg",
+        "019fb975-8c7c-7666-ab68-9c12701b3a0f.jpg",
+        "019fb975-e19e-7fea-8739-b76ab6c63cb3.jpg",
+        "019fb975-fd63-7b56-a13b-51b4fe298fa7.jpg",
+        "019fb976-2c67-78c0-97f2-bebae7069ce2.jpg",
+        "019fb976-476a-73f4-96dd-d3e865d5a8cd.jpg",
+        "019fb976-ae53-74f7-88af-22d67789a6a7.jpg"
+      ],
+      "model": "600545B",
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "Boshart 0–100 psi pressure gauge",
+      "role": "well-system pressure gauge",
+      "system": "FS4 · Well-water supply and pressure control",
+      "photographs": [
+        "019fb975-fd63-7b56-a13b-51b4fe298fa7.jpg",
+        "019fb976-2c67-78c0-97f2-bebae7069ce2.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "chlorine-solution mix/storage tank",
+      "system": "FS5 · Well-water treatment / chlorination",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb972-aa5e-728f-968d-d19f3786ba45(1).jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "Stenner chemical metering pump",
+      "role": "chlorine metering pump",
+      "system": "FS5 · Well-water treatment / chlorination",
+      "photographs": [
+        "019fb96f-4880-7c24-b6a7-f263940ae382.jpg",
+        "019fb974-69d7-739d-b42c-43cbfb2f635a.jpg",
+        "019fb976-7549-7fa5-baba-d29b7ab4a06c.jpg",
+        "019fb976-ae53-74f7-88af-22d67789a6a7.jpg"
+      ],
+      "model": "45MHP2",
+      "serial": "082312210030",
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "chlorine chemical-draw/delivery tubing",
+      "system": "FS5 · Well-water treatment / chlorination",
+      "photographs": [
+        "019fb976-7549-7fa5-baba-d29b7ab4a06c.jpg",
+        "019fb976-ae53-74f7-88af-22d67789a6a7.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "chlorine injection point upstream of contact tank",
+      "system": "FS5 · Well-water treatment / chlorination",
+      "photographs": [
+        "019fb976-ae53-74f7-88af-22d67789a6a7.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "Pentair WellMate UT-450 universal retention tank",
+      "role": "chlorine contact tank",
+      "system": "FS5 · Well-water treatment / contact-retention",
+      "photographs": [
+        "019fb96f-4880-7c24-b6a7-f263940ae382.jpg",
+        "019fb974-69d7-739d-b42c-43cbfb2f635a.jpg",
+        "019fb975-1f7a-76ec-ad50-3e25cbef87e0.jpg",
+        "019fb975-8c7c-7666-ab68-9c12701b3a0f.jpg",
+        "019fb975-be4a-738f-92a7-17590e01bc44.jpg"
+      ],
+      "model": "UT-450 CE",
+      "serial": "271110171",
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "whole-house sediment-filter housing",
+      "system": "FS5 · Well-water treatment / sediment filtration",
+      "photographs": [
+        "019fb978-3b8c-764b-b99d-93c14ffa7b50.jpg",
+        "019fb977-c453-723b-b66d-e71ec0474d24.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "Water Depot Platinum / Waterite treatment vessel",
+      "role": "water softener",
+      "system": "FS5 · Well-water treatment / softener",
+      "photographs": [
+        "019fb978-3b8c-764b-b99d-93c14ffa7b50.jpg",
+        "019fb979-a1ef-760f-965b-4876e1b362f7.jpg",
+        "019fb979-c64e-7ebd-8a15-b447ab5505b1.jpg",
+        "019fb979-eb06-7f30-8547-c7d86b19c82b.jpg"
+      ],
+      "model": "CJD SP35BFJCT",
+      "serial": "155758",
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "Water Depot Platinum / Waterite treatment vessel",
+      "role": null,
+      "system": "FS5 · Well-water treatment / middle media stage — function unresolved",
+      "photographs": [
+        "019fb978-3b8c-764b-b99d-93c14ffa7b50.jpg",
+        "019fb97a-4e06-7f4d-980f-53aac83800ae.jpg",
+        "019fb97a-18e0-79bd-af2e-f5608b984cba.jpg",
+        "019fb97a-8075-7de1-88c5-c21fdf8c7664.jpg"
+      ],
+      "model": "F2110 1054PB or FZ110 1054PB",
+      "serial": "155543",
+      "confirmed_by": {
+        "product": "plate",
+        "role": null
+      }
+    },
+    {
+      "product": "Water Depot Platinum / Waterite treatment vessel",
+      "role": null,
+      "system": "FS5 · Well-water treatment / right media stage — function unresolved",
+      "photographs": [
+        "019fb978-3b8c-764b-b99d-93c14ffa7b50.jpg",
+        "019fb97a-ec2c-75d5-b727-cafb35784aaa.jpg",
+        "019fb97a-a946-71c0-87ae-3d6a033933fe.jpg",
+        "019fb97a-c552-7e41-9d03-d308636d42d7.jpg"
+      ],
+      "model": "WDBJ PC1",
+      "serial": "153713",
+      "confirmed_by": {
+        "product": "plate",
+        "role": null
+      }
+    },
+    {
+      "product": null,
+      "role": "water-softener brine/salt tank",
+      "system": "FS5 · Well-water treatment / softener",
+      "photographs": [
+        "019fb978-3b8c-764b-b99d-93c14ffa7b50.jpg",
+        "019fb978-75c8-71a9-9b85-ca7abce8383a.jpg",
+        "019fb978-a90a-7886-af42-f26a81fdef98.jpg",
+        "019fb979-0579-7811-8586-9b43ae4db430.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "Franklin Water Treatment FWPS20B20 polypropylene cartridge",
+      "role": "replacement sediment-filter cartridge",
+      "system": "FS5 · Well-water treatment / sediment filtration",
+      "photographs": [
+        "019fb979-5212-7702-b55e-eb3ff51ae900.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "Riepert Salt Solar Plus Professional Series water-softener crystals",
+      "role": "water-softener salt",
+      "system": "FS5 · Well-water treatment / softener",
+      "photographs": [
+        "019fb979-1aef-7445-86ad-c832533d8719(1).jpg",
+        "019fb96f-4880-7c24-b6a7-f263940ae382.jpg",
+        "019fb979-1aef-7445-86ad-c832533d8719.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "Pro Products Res Care #1 All-Purpose Resin Cleaner",
+      "role": "water-softener resin cleaner",
+      "system": "FS5 · Well-water treatment / softener",
+      "photographs": [
+        "019fb979-3dd0-726e-86c8-e88944211b35.jpg",
+        "019fb979-a1ef-760f-965b-4876e1b362f7.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": "vänEE 100H ducted heat recovery ventilator",
+      "role": "house heat-recovery ventilation unit",
+      "system": "FS6 · Heat-recovery ventilation",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb972-d0b1-7cfd-8d10-2b1dc2b8424a(1).jpg",
+        "019fb973-76c7-7c06-b911-442ab509659f(1).jpg",
+        "019fb973-e306-7de1-8fbd-01a30120bf44(1).jpg",
+        "019fb974-1ba4-7a97-ad57-4a79501d856d(1).jpg"
+      ],
+      "model": "1601706",
+      "serial": "JR32121020220",
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "removable HRV filter element",
+      "system": "FS6 · Heat-recovery ventilation",
+      "photographs": [
+        "019fb973-e306-7de1-8fbd-01a30120bf44(1).jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "Siemens EQ Loadcentre, Type 1",
+      "role": "main house electrical distribution panel",
+      "system": "FS7 · House electrical distribution",
+      "photographs": [
+        "019fb96f-4880-7c24-b6a7-f263940ae382.jpg",
+        "019fb976-da9b-7055-b563-f4d54c29218f.jpg",
+        "019fb977-5e1e-7d19-b05e-c6a32fcae9e5.jpg",
+        "019fb977-85cd-747e-a8ad-552a508144a2.jpg",
+        "019fb977-124a-77c1-aac4-b551369f22b0.jpg",
+        "019fb977-4406-7232-bc75-927f13815bfc.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "gas distribution to upstairs fireplace and BBQ hookup",
+      "system": "FS8 · Gas distribution",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb97b-9c07-7306-bbbe-a7ce138f1ac0(1).jpg",
+        "019fb97b-b2cb-7e29-88d2-f44a00676dab(1).jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "Liberty Pumps Pro380",
+      "role": "lower-level sewage/wastewater ejector to septic",
+      "system": "FS9 · Lower-level sewage/wastewater ejector",
+      "photographs": [
+        "019fb978-3b8c-764b-b99d-93c14ffa7b50.jpg",
+        "019fb97b-0974-777e-94f0-e33be369030a.jpg",
+        "019fb97b-4600-7c64-a60f-a5be8e2b7a08.jpg"
+      ],
+      "model": "P382LE41",
+      "serial": "B10208434",
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "mechanical-room floor drain; HRV drain ties into the same drain piping",
+      "system": "FS10 · Room drainage / floor drains",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    },
+    {
+      "product": "TRU-SPEC TSMS-4/8 4x8 HDTV Digital Multiswitch",
+      "role": "legacy television/satellite distribution",
+      "system": "FS11 · Legacy coax / television distribution",
+      "photographs": [
+        "019fb977-a231-78be-82ba-b0bb1879b8dc.jpg"
+      ],
+      "model": "TSMS-4/8",
+      "serial": null,
+      "confirmed_by": {
+        "product": "plate",
+        "role": "household"
+      }
+    },
+    {
+      "product": null,
+      "role": "brine-well / float-valve assembly",
+      "system": "FS5 · Well-water treatment / softener",
+      "photographs": [
+        "019fb978-a90a-7886-af42-f26a81fdef98.jpg",
+        "019fb979-0579-7811-8586-9b43ae4db430.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": "household"
+      }
+    }
+  ],
+  "unconfirmed_objects": [
+    {
+      "product": null,
+      "role": null,
+      "proposal": "Forced-air ductwork and heat-pump transitions",
+      "system": "FS1 · Geothermal heating/cooling",
+      "photographs": [
+        "019fb96f-014e-792c-ab36-3cfe3b09e737(1).jpg",
+        "019fb97b-9c07-7306-bbbe-a7ce138f1ac0(1).jpg",
+        "019fb970-84d6-75c3-9d67-59d6665408c3(1).jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": null
+      }
+    },
+    {
+      "product": null,
+      "role": null,
+      "proposal": "Possible well-pump shutoff / disconnect switch",
+      "system": "FS4 · Well-water supply and pressure control",
+      "photographs": [
+        "019fb976-da9b-7055-b563-f4d54c29218f.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": null
+      }
+    },
+    {
+      "product": null,
+      "role": null,
+      "proposal": "Possible well-pump pressure switch / electrical control",
+      "system": "FS4 · Well-water supply and pressure control",
+      "photographs": [
+        "019fb975-e19e-7fea-8739-b76ab6c63cb3.jpg",
+        "019fb975-fd63-7b56-a13b-51b4fe298fa7.jpg",
+        "019fb976-2c67-78c0-97f2-bebae7069ce2.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": null
+      }
+    },
+    {
+      "product": null,
+      "role": null,
+      "proposal": "Pressure-tank tee/manifold with valves and ports",
+      "system": "FS4 · Well-water supply and pressure control",
+      "photographs": [
+        "019fb975-e19e-7fea-8739-b76ab6c63cb3.jpg",
+        "019fb975-fd63-7b56-a13b-51b4fe298fa7.jpg",
+        "019fb976-2c67-78c0-97f2-bebae7069ce2.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": null
+      }
+    },
+    {
+      "product": null,
+      "role": null,
+      "proposal": "HRV internal blower/fan assembly",
+      "system": "FS6 · Heat-recovery ventilation",
+      "photographs": [
+        "019fb973-e306-7de1-8fbd-01a30120bf44(1).jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": null
+      }
+    },
+    {
+      "product": null,
+      "role": null,
+      "proposal": "Branch breakers in Siemens loadcentre",
+      "system": "FS7 · House electrical distribution",
+      "photographs": [
+        "019fb976-da9b-7055-b563-f4d54c29218f.jpg",
+        "019fb977-85cd-747e-a8ad-552a508144a2.jpg",
+        "019fb977-124a-77c1-aac4-b551369f22b0.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": null
+      }
+    },
+    {
+      "product": null,
+      "role": null,
+      "proposal": "Possible Liberty ejector discharge pipe",
+      "system": "FS9 · Lower-level sewage/wastewater ejector",
+      "photographs": [
+        "019fb978-3b8c-764b-b99d-93c14ffa7b50.jpg",
+        "019fb97b-0974-777e-94f0-e33be369030a.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": null
+      }
+    },
+    {
+      "product": null,
+      "role": null,
+      "proposal": "Possible Liberty ejector vent pipe",
+      "system": "FS9 · Lower-level sewage/wastewater ejector",
+      "photographs": [
+        "019fb978-3b8c-764b-b99d-93c14ffa7b50.jpg",
+        "019fb97b-0974-777e-94f0-e33be369030a.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": null
+      }
+    },
+    {
+      "product": null,
+      "role": null,
+      "proposal": "Possible legacy telephone terminal / distribution block",
+      "system": "FS12 · Legacy telephone wiring",
+      "photographs": [
+        "019fb977-e4b2-7398-98fc-a498cecf5a7c.jpg"
+      ],
+      "model": null,
+      "serial": null,
+      "confirmed_by": {
+        "product": null,
+        "role": null
+      }
+    }
+  ],
+  "readings": [
+    {
+      "attached_to": {
+        "product": null,
+        "role": "whole-house sediment-filter housing"
+      },
+      "system": "FS5 · Well-water treatment / sediment filtration",
+      "photographs": [
+        "019fb977-e4b2-7398-98fc-a498cecf5a7c.jpg",
+        "019fb977-c453-723b-b66d-e71ec0474d24.jpg"
+      ],
+      "reading_type": "replacement-part reference card",
+      "read_from": "separate reference card attached above/near the housing",
+      "product_reference": "Excelpure spun polypropylene sediment filter cartridge",
+      "part_number": "PP20B-20",
+      "nominal_filtration": "20 micron",
+      "compatibility": "fits 20\" full flow housings"
+    }
+  ]
+}
