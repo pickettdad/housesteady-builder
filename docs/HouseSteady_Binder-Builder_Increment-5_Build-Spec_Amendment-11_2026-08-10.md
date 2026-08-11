@@ -2,7 +2,8 @@
 
 **Identification is four acts in one call. Split them, and build the known inventory first.**
 
-**Date:** 2026-08-09 · **Type:** amendment to the Increment 5 Build Spec (2026-08-02)
+**Date:** 2026-08-10 · **Type:** amendment to the Increment 5 Build Spec (2026-08-02)
+**Revision 1, 2026-08-10:** §C pass 1 gains *a nameplate is a table, not a paragraph*, and §C pass 3 gains the measured share of objects that never need to reach an appearance decision.
 **Author:** design session · **Builds on:** the 2026-08-09 identification runs against the owner's mechanical room, and two independent structured reads of the same room.
 **Supersedes in scope:** the standing ask for a "comparison pass" and for a `parent_id` relation. **Both are addressed here, and neither is the shape it was asked for.**
 
@@ -57,6 +58,20 @@ Seeing what is there · reading text · deciding what a thing is · assigning a 
 
 **Rule that becomes enforceable here: a label may not assert a manufacturer that only a non-nameplate surface supports.**
 
+### ⚑ A nameplate is a table, not a paragraph — and an `N/A` in a named field is a fact
+
+**Read a plate field by field.** `Model` · `Part Number` · `Factory Precharge pressure` · `Tank Volume`. **Flatten it into one string and every empty cell disappears**, because absence has no text to carry it.
+
+**The WellMate UT-450 CE proves it, and it disproves itself twice in its own fields.** `Factory Precharge pressure: N/A`, and `N/A` across all three drawdown columns — 20–40, 30–50 and 40–60 psig. **Drawdown is the entire function of a pressure tank and the only figure anyone looks up on one. A vessel with no precharge and no drawdown at any range cannot be a pressure tank in any house** — before a lookup, before a household says anything.
+
+**And the plate's prose points the other way, loudly.** *Hazardous Pressure · Risk of explosion · install a pressure relief valve between the pump and tank · Maximum Operating Pressure 75 psig.* **The word *pressure* appears roughly a dozen times. The two cells that settle it say `N/A` and nothing else.**
+
+> **Read as prose, this label says *pressure tank* repeatedly. Read as a table, it says the opposite.**
+
+**Identification proposed `well-pressure-tank` from it four times with the plate in frame** — which is the tell for what it was doing: **not reading a table, pattern-matching a grey cylinder with a label on it.**
+
+**So pass 1 emits fields, not a string** — `{ field, value, surface }` — **and a field present with an `N/A` value is emitted, never dropped.** It is the strongest negative evidence a plate can carry.
+
 ⚑ **The join to the object is free and already in the manifest.** Capture convention is object, then plate, then plate. **Capture sequence proposes which plates belong to which object** — no tap, no detection. And **a plate arriving with no object photograph before it becomes a detectable orphan** rather than a silent one.
 
 ### Pass 2 · Resolve — *what product is that model number*
@@ -85,6 +100,8 @@ Seeing what is there · reading text · deciding what a thing is · assigning a 
 
 **Output:** each known product located, with the photographs showing it · **each additional object proposed, flagged as appearance-derived** · and **an explicit could-not-locate list** for known products not found.
 
+⚑ **The guessing half is smaller than it looks, and that is the point of the ordering.** **Recognition from appearance is the least reliable act in the pipeline and the most expensive.** Reading text is reliable; looking text up is reliable and nearly free; **deciding what a grey cylinder is by considering its shape is the guess — and every confident wrong class measured on that room came from it.** **Measured on the confirmed room record: 20 of 34 objects carry a nameplate. Fifty-nine per cent of that room should never reach an appearance decision at all.**
+
 **Two lanes, and they must not merge.** A **plate-derived** object's class follows from its resolution and is close to deterministic. An **appearance-derived** object's class is a guess and carries that mark. *The same field reporting both at one confidence is what this amendment exists to end.*
 
 ⚑ **A known product not found is a finding, not a failure** — it usually means the object photograph is missing, which is exactly what the capture rules are for.
@@ -107,6 +124,10 @@ Seeing what is there · reading text · deciding what a thing is · assigning a 
 ### The desk layer · Role and connection — *what is it for, here*
 
 **Not an AI pass. This is the desk pass and the Home Profile, and it is where the household's answers land.**
+
+**Three layers, and each buys something different.** **The plate says what it is not** — no precharge, no drawdown, 120 gallons, cold water only, 2011. **The lookup says what the product is** — a Pentair retention/contact vessel. **The household says what it is for here** — chlorine contact after the Stenner injects.
+
+**The lookup is the largest automatic win because it is free and takes the product from wrong to right. It stops at the product.** A retention vessel could hold chlorinated water or something else entirely, **so the role remains the desk's and the household's.**
 
 **A plate can never answer it.** The WellMate's nameplate says *pressure vessel* — correct product, wrong role. **In this house it is a chlorine contact tank, and only the household knew.** The Burcam's plate prints *for 20/40 PSI operation… for 30/50 PSI operation…* as **examples**; a single-pass model reads that as the setting in this house.
 
