@@ -71,6 +71,7 @@ import { runVisionTask } from '../client.js'
 import { completeJob, enqueue, recordGeneration, requeueBatch, skipJob, type AiJob } from '../queue.js'
 import type { AssistDeps } from './index.js'
 import { batchTargetId, latestImport, mediaForImport, zoneRoutes } from './identify.js'
+import { readState, type ReadState } from './readSurfaces.js'
 import { knownInventory } from './resolveProduct.js'
 
 /** The room has a scaffold: find these, then say what else. */
@@ -240,7 +241,14 @@ export function planMatch(db: Db, importId: string): MatchPlan {
 export const questionFor = (b: { inventory: unknown[] }): typeof MATCH_TASK | typeof ENUMERATE_TASK =>
   b.inventory.length > 0 ? MATCH_TASK : ENUMERATE_TASK
 
-export interface QueuedMatch { jobs: number; matching: number; enumerating: number; note: string }
+export interface QueuedMatch {
+  jobs: number
+  matching: number
+  enumerating: number
+  /** Zones refused because pass 1 has not settled. Named, never silently dropped. */
+  blocked: ReadState[]
+  note: string
+}
 
 export function queueMatch(
   db: Db,
@@ -251,10 +259,23 @@ export function queueMatch(
   again = false,
 ): QueuedMatch {
   const importId = latestImport(db, visitId)
-  if (!importId) return { jobs: 0, matching: 0, enumerating: 0, note: `No import for visit ${visitId}.` }
+  if (!importId) return { jobs: 0, matching: 0, enumerating: 0, blocked: [], note: `No import for visit ${visitId}.` }
 
   const plan = planMatch(db, importId)
-  const batches = only ? plan.batches.filter((b) => only(b.zoneId)) : plan.batches
+  const wanted = only ? plan.batches.filter((b) => only(b.zoneId)) : plan.batches
+
+  // ⚑ THE GATE. A zone whose pass-1 read has not settled is not queued at all —
+  // not warned about. An unscaffolded run and a scaffolded one produce different
+  // answers and look identical afterwards, so the refusal has to happen before
+  // the money is spent rather than in a sentence somebody reads later.
+  const blocked: ReadState[] = []
+  const batches: MatchBatch[] = []
+  for (const b of wanted) {
+    const state = readState(db, importId, visitId, b.zoneId)
+    if (state.complete) batches.push(b)
+    else blocked.push(state)
+  }
+
   for (const b of batches) {
     const task = questionFor(b)
     if (again) requeueBatch(db, visitId, batchTargetId(b.zoneId, b.index))
@@ -269,7 +290,12 @@ export function queueMatch(
     jobs: batches.length,
     matching: batches.filter((b) => questionFor(b) === MATCH_TASK).length,
     enumerating: batches.filter((b) => questionFor(b) === ENUMERATE_TASK).length,
-    note: plan.note,
+    blocked,
+    note:
+      blocked.length === 0
+        ? plan.note
+        : `${plan.note}  ${blocked.length} zone(s) NOT queued because pass 1 has not settled there — ` +
+          `run \`npm run read\` first, or \`npm run passes\` which does both in order.`,
   }
 }
 
@@ -512,6 +538,15 @@ export async function runMatchComplete(db: Db, job: AiJob, deps: AssistDeps): Pr
   // inventory changed between queueing and running, the job that was paid for
   // is the one that runs — and a mismatch is visible in the ledger rather than
   // silently corrected.
+  // The gate again, at the moment of spending. `queueMatch` refuses to enqueue an
+  // unready zone; this refuses to RUN one — because a job queued when pass 1 had
+  // settled can be drained after a re-import when it has not.
+  const state = readState(db, importId, job.visit_id, batch.zoneId)
+  if (!state.complete) {
+    skipJob(db, job.id, state.why)
+    return null
+  }
+
   const question = job.task === ENUMERATE_TASK ? ENUMERATE_TASK : MATCH_TASK
 
   const model = deps.model ?? requireModel('fast')

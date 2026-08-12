@@ -22,7 +22,9 @@
     "score": "npm run score --workspace server --",
     "read": "npm run read --workspace server --",
     "resolve": "npm run resolve --workspace server --",
-    "match": "npm run match --workspace server --"
+    "match": "npm run match --workspace server --",
+    "passes": "npm run passes --workspace server --",
+    "binder": "npm run binder --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

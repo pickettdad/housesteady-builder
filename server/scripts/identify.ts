@@ -1,6 +1,27 @@
 /**
  * Run identification against a visit's photographs — Increment 5 §3.
  *
+ * ---
+ *
+ * ## ⚑ OFF THE ROUTINE PATH — owner ruling, 2026-08-12
+ *
+ * **The routine path is `npm run passes`: read, then resolve, then match.** This
+ * command still works and is deliberately kept working, but it is not part of
+ * it and `passes` does not call it.
+ *
+ * **Why it came off.** Pass 3 asks *here are the known products, what else is
+ * here*, and it labels every object it writes as plate-derived or
+ * appearance-derived. **This pass asks *what is in this room* and labels
+ * nothing** — so every room it touches produces an unlabelled appearance-derived
+ * list **alongside** a properly laned one. *Two answers to one question, which
+ * is the shape this project keeps paying for.*
+ *
+ * **The condition for deleting it is written down rather than assumed:** once
+ * pass 3 has run against a real room and been scored against the room record,
+ * this file comes out — **or the reason it stayed gets written down.** Not
+ * deleted today, because the scoring has not happened and a pass removed before
+ * its replacement is measured is a pass removed on faith.
+ *
  * **This is the command the roadmap's §4 step 1 needs**: photographs in, objects
  * out, on the owner's own house. There is no screen for it yet and it does not
  * need one — the point of the first run is to find out what the pass gets right
