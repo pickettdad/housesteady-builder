@@ -17,6 +17,7 @@ import { IDENTIFY_TASK, runIdentify } from './identify.js'
 import {
   CLASSIFY_TASK, EXTRACT_TASK, queueNameplateReading, runClassify, runExtract,
 } from './nameplate.js'
+import { ENUMERATE_TASK, MATCH_TASK, runMatchComplete } from './matchComplete.js'
 import { PIN_TYPE_TASK, queuePinTypes, runPinType } from './pinType.js'
 import { READ_TASK, runReadSurfaces } from './readSurfaces.js'
 import { RESOLVE_TASK, runResolveProduct } from './resolveProduct.js'
@@ -50,6 +51,12 @@ export const TASK_RUNNERS: Record<string, TaskRunner> = {
   // it can only run once pass 1 has produced readings, and queueing a pass whose
   // input does not exist yet would skip every job with a reason nobody asked for.
   [RESOLVE_TASK]: runResolveProduct,
+  // Pass 3, and it is **two task names against one runner**. The task records
+  // which question was asked — find these, then say what else, versus say what
+  // is here — and without that a run whose inventory happened to be empty is
+  // indistinguishable in the ledger from one where it was not.
+  [MATCH_TASK]: runMatchComplete,
+  [ENUMERATE_TASK]: runMatchComplete,
 }
 
 export class UnknownTask extends Error {
