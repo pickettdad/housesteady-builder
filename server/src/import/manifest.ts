@@ -149,6 +149,14 @@ export interface MediaRecord {
   mediaId?: string
   kind?: string
   owner?: MediaOwner
+  /**
+   * `CaptureIntent` — which capture door was chosen. Field Code PR #86.
+   *
+   * `pan` · `room-shot` · `run-trace`, and **absent means ordinary capture**,
+   * which is most photographs. Optional because every export produced before
+   * 2026-08-11 lacks it entirely and those imports must keep working.
+   */
+  intent?: string
   group?: string
   file?: string
   mime?: string

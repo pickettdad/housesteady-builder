@@ -19,7 +19,8 @@ import type { ModelConfig } from '../src/ai/models.js'
 import type { RunArgs } from '../src/ai/client.js'
 import { claimNext } from '../src/ai/queue.js'
 import { runnerFor } from '../src/ai/tasks/index.js'
-import { batchTargetId } from '../src/ai/tasks/identify.js'
+import { batchTargetId, mediaForImport, zoneRoutes } from '../src/ai/tasks/identify.js'
+import { planIdentificationCalls } from '../src/engine/identify.js'
 import {
   claimsForImport, MAX_MEDIA_PER_READ_CALL, normaliseRead, planSurfaceReads, queueSurfaceReading,
   READ_SCHEMA, READ_TASK, readingFacts, runReadSurfaces, writeReadings,
@@ -60,14 +61,18 @@ function seed(): void {
   ).run(ZONE, importId, PROPERTY, VISIT, now())
 }
 
-function addMedia(mediaId: string, owner: { canvas?: string; status?: string; kind?: string } = {}): void {
+function addMedia(
+  mediaId: string,
+  owner: { canvas?: string; status?: string; kind?: string; intent?: string } = {},
+): void {
   db.prepare(
     `INSERT INTO media (media_id, import_id, property_id, visit_id, kind, owner_kind, owner_zone_id,
-                        owner_pin_id, owner_canvas_id, file, file_status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+                        owner_pin_id, owner_canvas_id, capture_intent, file, file_status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
   ).run(
     mediaId, importId, PROPERTY, VISIT, owner.kind ?? 'photo', owner.canvas ? 'canvas' : 'zone',
-    owner.canvas ? null : ZONE, owner.canvas ?? null, `${mediaId}.jpg`, owner.status ?? 'present', now(),
+    owner.canvas ? null : ZONE, owner.canvas ?? null, owner.intent ?? null,
+    `${mediaId}.jpg`, owner.status ?? 'present', now(),
   )
 }
 
@@ -412,5 +417,58 @@ describe('the facts block', () => {
 
   it('carries the batch id shape identification uses, so one zone\'s passes line up', () => {
     assert.equal(batchTargetId(ZONE, 1), `${ZONE}#1`)
+  })
+})
+
+describe('#132 and #133 — the capture-intent seam', () => {
+  it('routes a room-shot to CONTEXT even with no canvas, which is every Discovery export', () => {
+    // `zones[].canvases[]` is empty on every Discovery export by design, so the
+    // room shot travels the ordinary photo path. Without this, EVERY Discovery
+    // batch is contextless — the exact defect Amendment 10 §B2 closed, restored
+    // by a seam neither repo could see from inside itself.
+    addMedia('room', { intent: 'room-shot' })
+    addMedia('d1')
+    addMedia('d2')
+
+    const plan = planIdentificationCalls(mediaForImport(db, importId), zoneRoutes(db, importId))
+    assert.deepEqual(plan.batches[0]!.context.map((m) => m.mediaId), ['room'])
+    assert.deepEqual(plan.batches[0]!.media.map((m) => m.mediaId), ['d1', 'd2'])
+
+    // And pass 1 therefore does not pay to read text off a wide frame of a room.
+    const read = planSurfaceReads(db, importId)
+    assert.equal(read.canvasDropped, 1)
+    assert.deepEqual(read.batches.flatMap((b) => b.media.map((m) => m.mediaId)), ['d1', 'd2'])
+  })
+
+  it('keeps the canvas route as well — a union, not a replacement', () => {
+    addCanvas('cv-1')
+    addMedia('c1', { canvas: 'cv-1' })
+    addMedia('room', { intent: 'room-shot' })
+    addMedia('d1')
+    const plan = planIdentificationCalls(mediaForImport(db, importId), zoneRoutes(db, importId))
+    assert.deepEqual(plan.batches[0]!.context.map((m) => m.mediaId).sort(), ['c1', 'room'])
+  })
+
+  it('excludes a run-trace from zone batching, and NAMES why', () => {
+    // A trace files to the zone it started in — true, and the only locational
+    // fact available. Room batching assumes every frame is in that room.
+    addMedia('trace', { intent: 'run-trace' })
+    addMedia('d1')
+    const plan = planIdentificationCalls(mediaForImport(db, importId), zoneRoutes(db, importId))
+    assert.deepEqual(plan.batches[0]!.media.map((m) => m.mediaId), ['d1'])
+    assert.equal(plan.batches[0]!.context.length, 0)
+    const ex = plan.excluded.find((e) => e.mediaId === 'trace')
+    assert.ok(ex, 'excluded, never silently dropped — doctrine 6')
+    assert.match(ex!.why, /across rooms/)
+  })
+
+  it('treats an intent this build has not met as ordinary capture', () => {
+    // Fail open, and safely: an unrecognised word is neither `room-shot` nor
+    // `run-trace`, so it can neither claim context authority nor remove a
+    // photograph from a call.
+    addMedia('odd', { intent: 'macro-detail' })
+    const plan = planIdentificationCalls(mediaForImport(db, importId), zoneRoutes(db, importId))
+    assert.deepEqual(plan.batches[0]!.media.map((m) => m.mediaId), ['odd'])
+    assert.equal(plan.excluded.length, 0)
   })
 })

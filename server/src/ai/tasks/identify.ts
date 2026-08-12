@@ -208,6 +208,7 @@ export function mediaForImport(db: Db, importId: string): MediaFileRow[] {
               m.owner_zone_id AS ownerZoneId,
               m.owner_pin_id  AS ownerPinId,
               m.owner_canvas_id AS ownerCanvasId,
+              m.capture_intent AS captureIntent,
               m.file          AS file,
               m.file_status   AS fileStatus,
               n.text          AS captureNote

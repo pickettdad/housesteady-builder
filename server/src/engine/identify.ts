@@ -52,6 +52,17 @@
 export const IMAGE_KINDS: readonly string[] = ['photo']
 
 /**
+ * Capture intents this module acts on. **Two of them, and everything else is
+ * ordinary capture** — including a word this build has not met.
+ *
+ * The safety property matches `surface` in `engine/surfaces.ts`: an unrecognised
+ * intent is neither of these, so a new word can neither claim context authority
+ * nor silently remove a photograph from a call.
+ */
+export const ROOM_SHOT = 'room-shot'
+export const RUN_TRACE = 'run-trace'
+
+/**
  * Per-call ceiling.
  *
  * **One call per zone is the rule; this is the relief valve, not the unit.** The
@@ -71,6 +82,14 @@ export interface MediaRow {
   ownerCanvasId: string | null
   /** Sort key, so a call sees a room in the order it was walked. */
   file: string | null
+  /**
+   * Which capture door the concierge chose — Field Code PR #86.
+   *
+   * **`room-shot` is context and `run-trace` is excluded**, and both rules exist
+   * because of a seam neither repo could see from inside itself. See
+   * `022_capture_intent.sql`. Open vocabulary; absent is ordinary capture.
+   */
+  captureIntent?: string | null
   /**
    * The capture note, where the concierge left one — Amendment 10 §D.
    *
@@ -222,6 +241,23 @@ export function planIdentificationCalls(
   const excluded: ExcludedMedia[] = []
   const usable: ResolvedMedia[] = []
   for (const m of resolved) {
+    // #133 — a run trace files to the zone it STARTED in, which is true and is
+    // the only locational fact available. Room batching assumes every frame in
+    // the batch is in that room, and a cross-zone trace violates that by
+    // definition: crawlspace equipment attributed to the mechanical room is the
+    // four-pressure-tanks error arriving through geography.
+    if (m.captureIntent === RUN_TRACE) {
+      excluded.push({
+        mediaId: m.mediaId,
+        zoneId: m.zoneId,
+        kind: m.kind,
+        why:
+          'marked `run-trace`, which follows a line across rooms. It files to the zone it started in, ' +
+          'and room batching assumes every frame is in that room — so it is excluded here rather than ' +
+          'attributing whatever it passed through to this zone.',
+      })
+      continue
+    }
     if (m.kind !== null && IMAGE_KINDS.includes(m.kind)) {
       usable.push(m)
       continue
@@ -249,7 +285,11 @@ export function planIdentificationCalls(
   const detail = new Map<string, ResolvedMedia[]>()
   const context = new Map<string, ResolvedMedia[]>()
   for (const m of usable) {
-    const into = m.route === 'canvas' ? context : detail
+    // #132 — the UNION, not a replacement. `zones[].canvases[]` is empty on
+    // every Discovery export by design, so the room shot arrives by the ordinary
+    // photo path and `intent` is the only thing carrying the fact. A canvas
+    // route still exists on visits that have one.
+    const into = m.route === 'canvas' || m.captureIntent === ROOM_SHOT ? context : detail
     const list = into.get(m.zoneId)
     if (list) list.push(m)
     else into.set(m.zoneId, [m])
