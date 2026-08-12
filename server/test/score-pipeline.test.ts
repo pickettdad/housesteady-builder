@@ -1,5 +1,10 @@
 /**
- * The scoring harness end to end, against the REAL room record — rule 18.
+ * The scoring harness end to end, against the REAL room record.
+ *
+ * ⚑ **The rule this file exists for is unnumbered, and that is stated rather
+ * than papered over:** *a measurement is validated against known answers before
+ * its number is used.* The Verification Discipline note stops at rule 16 —
+ * numbering past it is the owner's, not a code session's.
  *
  * **`score.test.ts` deliberately builds miniature keys**, and it is right to:
  * the six rules do not need a real basement to be checked, and a test that
@@ -19,9 +24,10 @@
  * | the same photographs, every label replaced by "a box" | **0 correct, 32 wrong** — same overlap, no role agrees |
  * | no proposals at all | **34 missed** |
  *
- * ⚑ *The second is the one that matters, and it is rule 16 in the harness's own
- * terms: an instrument whose reading does not move when the thing it measures
- * changes is not measuring it.* **The photographs are identical across the first
+ * ⚑ **The second is the one that matters.** It is Verification Discipline rule 16
+ * — *a check whose output does not depend on what it checks is not a check* —
+ * pointed at the instrument instead of at a check: *a reading that does not move
+ * when the thing it measures changes is not measuring it.* **The photographs are identical across the first
  * two runs and the score goes from 32/0 to 0/32**, which is the only way to know
  * the overlap is not doing all the work.
  *
@@ -125,7 +131,7 @@ const proposalsOf = (db: Db, importId: string): ScoredProposal[] =>
 
 // --------------------------------------------------------------- known answers
 
-describe('rule 18 — the harness is validated against known answers before its number is used', () => {
+describe('the harness is validated against known answers before its number is used', () => {
   it('the key is 34 confirmed objects, two of them without a role', () => {
     // Every expected count below is derived from these two numbers, so they are
     // asserted rather than assumed. If the key gains an object this fails first

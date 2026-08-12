@@ -1,5 +1,13 @@
 # Brief for the runner session — identification against the walk photographs
 
+> ## ⚑ SUPERSEDED FOR WHAT TO RUN — see `…Runner-Session-Brief-v2_2026-08-12.md`
+>
+> **§5 and §5a brief `npm run identify`, which is the pass this repo is trying to delete.** Amendment 11 landed 2026-08-10 and split identification into four passes; a runner following §5 today would spend money on the superseded pass and produce an answer **that cannot be compared to anything**, because pass 3's output carries a lane and stage 4's does not.
+>
+> **Everything up to the passes is still current and v2 points back here rather than restating it** — §1 clone and install, §2 environment and the key, §2a preflight and smoke, §2b the Drive transfer, §3 import, §7's reporting discipline, §8 what you must not touch.
+>
+> *Left whole rather than edited. This document was correct when it was written and it went stale because nothing was built against it — which is the finding, not the sentences.*
+
 **Date:** 2026-08-08 · **Record of an event. This date never moves.**
 **Written by:** Builder Code (the main session), for a second, bounded Builder session with Google Drive enabled.
 
