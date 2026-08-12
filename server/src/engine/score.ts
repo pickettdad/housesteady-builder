@@ -39,6 +39,19 @@
  * plates at an angle. **Scoring that as a wrong identification blames the engine
  * for a photograph**, and the fix is a capture rule.
  *
+ * **7 · A score names the lane that earned it.** Added 2026-08-12, when scoring
+ * Amendment 11 pass 3 for the first time. The pass writes two lanes —
+ * `plate`-derived, read off a label and looked up, and `appearance`-derived,
+ * recognised from shape — and **claims they are different acts with different
+ * reliability.** A single blended number cannot test that claim: *the scaffold
+ * working* and *the enumeration carrying it* produce the same total.
+ *
+ * ⚑ *And the sharper version of the same problem: `objects` holds the output of
+ * more than one pass. Scoring an import where both the old identification pass
+ * and pass 3 have run returns the union — twice the false positives, two shots
+ * at every key object, and a number that names neither pass.* **The lane is what
+ * makes that visible instead of silent.**
+ *
  * ---
  *
  * ## Product and role are separate, and scoring uses ROLE
@@ -101,6 +114,19 @@ export interface ScoredProposal {
    * Empty until Amendment 11 pass 1 has run against the import.
    */
   models?: readonly string[]
+  /**
+   * Which lane produced this proposal — `objects.derived_from`.
+   *
+   * ⚑ **Rule 7 — a score that cannot name the lane cannot test pass 3's claim.**
+   * The pass's whole assertion is that a scaffolded `plate` reading and an
+   * unscaffolded `appearance` reading are *different acts with different
+   * reliability*. One blended number hides exactly the distinction being
+   * measured, and would report a scaffold working when the enumeration carried
+   * it — or the reverse.
+   *
+   * `undefined` where the caller has not said. **Never inferred from the label.**
+   */
+  lane?: string | null
 }
 
 export type Outcome = 'correct' | 'wrong' | 'key-uncertain' | 'plate-legibility'
@@ -113,6 +139,18 @@ export interface Judgement {
   proposalLabels: string[]
   /** Rule 4 — how the key knows, so the weights are not averaged away. */
   weight: { product: string | null; role: string | null }
+  /**
+   * Rule 7 — which lane(s) this outcome is credited to.
+   *
+   * **For a `correct` judgement it is the lane of the proposal that actually
+   * matched**, not of every proposal citing the photograph — otherwise a lane
+   * standing next to a right answer is scored as having produced it. For every
+   * other outcome it is the lanes of all the hits, because they all share it.
+   *
+   * `(unlaned)` stands in for a null `derived_from` — an object from the old
+   * identification pass, or from before lanes existed.
+   */
+  lanes: string[]
   why: string
   /**
    * Rule 5 — this disagreement can be resolved either way.
@@ -136,9 +174,31 @@ export interface ScoreReport {
    * without that attestation these would be *unaccounted for*, which is a
    * different and much weaker statement.
    */
-  falsePositives: { id: string; label: string; classId: string | null }[]
+  falsePositives: { id: string; label: string; classId: string | null; lane: string }[]
   counts: Record<Outcome, number>
+  /**
+   * Rule 7 — the same outcomes, attributed to the lane that produced them.
+   *
+   * ⚑ **These are attributions, not a partition, and the difference matters when
+   * reading them.** Two lanes can cite the same photograph, so one key object can
+   * credit two lanes and the rows may sum above `keyObjects`. *Reported as counts
+   * per lane rather than as percentages for exactly that reason* — a percentage
+   * of an overlapping attribution is a number with no denominator.
+   */
+  byLane: Record<string, LaneTally>
   note: string
+}
+
+/** One lane's share of the outcomes. See `ScoreReport.byLane` on what it is not. */
+export interface LaneTally {
+  correct: number
+  wrong: number
+  'key-uncertain': number
+  'plate-legibility': number
+  /** Proposals from this lane matching no key object at all. */
+  falsePositives: number
+  /** Proposals this lane contributed, matched or not. */
+  proposals: number
 }
 
 // ---------------------------------------------------------------- matching
@@ -153,6 +213,44 @@ export interface ScoreReport {
  */
 export const mediaIdOf = (filename: string): string =>
   filename.replace(/\.[a-z0-9]+$/i, '').replace(/\(\d+\)$/, '')
+
+/**
+ * The lane a proposal is credited to, with the null case named rather than blank.
+ *
+ * **`(unlaned)` is deliberately a visible word.** An empty string in a report
+ * column reads as *nothing to say here*, and this is the opposite — it is the
+ * old identification pass, which is a fact worth seeing in the table.
+ */
+export const UNLANED = '(unlaned)'
+const laneOf = (p: ScoredProposal): string => p.lane ?? UNLANED
+
+/**
+ * Which pass wrote a proposal, from its lane alone.
+ *
+ * ⚑ **Here rather than in the script, because it is a rule and not a display
+ * choice.** Pass 3 sets `derived_from`; the identification pass never did. *A
+ * consumer that decides this from a label or a class is inferring what a column
+ * states* — and would get it wrong the first time a pass-3 label happened to
+ * look like a stage-4 one.
+ */
+export type PassName = 'match' | 'identify'
+export const passOf = (lane: string | null | undefined): PassName => (lane == null ? 'identify' : 'match')
+
+/**
+ * Split proposals by the pass that wrote them. **Never scored together.**
+ *
+ * Scoring the union gives one number naming neither pass: two shots at every key
+ * object and twice the false positives. *This is the same "two answers to one
+ * question" that took stage 4 off the routine path, arriving at the measurement
+ * instead of at the data.*
+ */
+export function splitByPass<T extends { lane?: string | null }>(
+  proposals: readonly T[],
+): Record<PassName, T[]> {
+  const out: Record<PassName, T[]> = { match: [], identify: [] }
+  for (const p of proposals) out[passOf(p.lane)].push(p)
+  return out
+}
 
 const overlaps = (key: KeyObject, p: ScoredProposal): boolean => {
   const ids = new Set(key.photographs.map(mediaIdOf))
@@ -206,6 +304,18 @@ export function scoreRun(
     correct: 0, wrong: 0, 'key-uncertain': 0, 'plate-legibility': 0,
   }
 
+  const byLane: Record<string, LaneTally> = {}
+  const tally = (lane: string): LaneTally =>
+    (byLane[lane] ??= { correct: 0, wrong: 0, 'key-uncertain': 0, 'plate-legibility': 0, falsePositives: 0, proposals: 0 })
+  for (const p of proposals) tally(laneOf(p)).proposals++
+
+  /** Credit an outcome to each distinct lane behind it. Rule 7. */
+  const credit = (outcome: Outcome, from: readonly ScoredProposal[]): string[] => {
+    const lanes = [...new Set(from.map(laneOf))].sort()
+    for (const l of lanes) tally(l)[outcome]++
+    return lanes
+  }
+
   for (const k of key.confirmed_objects) {
     const hits = proposals.filter((p) => overlaps(k, p))
     for (const h of hits) claimed.add(h.id)
@@ -220,14 +330,17 @@ export function scoreRun(
     }
 
     if (hits.length === 0) {
-      missed.push({ ...base, outcome: 'wrong', why: 'No proposal cites any of this object\'s photographs.' })
+      // No lane can be credited with a miss: nothing proposed it. **Counted in
+      // the total and absent from every lane row** — which is one of the ways
+      // `byLane` is an attribution rather than a partition.
+      missed.push({ ...base, lanes: [], outcome: 'wrong', why: 'No proposal cites any of this object\'s photographs.' })
       counts.wrong++
       continue
     }
 
     // Rule 3 — an unresolved role cannot make the engine wrong about it.
     if (k.role === null) {
-      judged.push({ ...base, outcome: 'key-uncertain', why: 'The key records no role for this object.' })
+      judged.push({ ...base, lanes: credit('key-uncertain', hits), outcome: 'key-uncertain', why: 'The key records no role for this object.' })
       counts['key-uncertain']++
       continue
     }
@@ -243,6 +356,9 @@ export function scoreRun(
     if (near && !hits.some((h) => matches(k.role!, h))) {
       judged.push({
         ...base,
+        // Credited to the lane that read the plate, not to every hit — the
+        // legibility miss belongs to whoever produced the model string.
+        lanes: credit('plate-legibility', [near.proposal]),
         outcome: 'plate-legibility',
         why: `Model read as ${near.model} against the key's ${k.model} — one character, so this is the plate, not the engine.`,
       })
@@ -250,9 +366,13 @@ export function scoreRun(
       continue
     }
 
-    const right = hits.some((h) => matches(k.role!, h))
+    // The hits that actually answer the key, kept apart from the hits that
+    // merely share a photograph. Rule 7 credits the first; the outcome uses both.
+    const answering = hits.filter((h) => matches(k.role!, h))
+    const right = answering.length > 0
     judged.push({
       ...base,
+      lanes: credit(right ? 'correct' : 'wrong', right ? answering : hits),
       outcome: right ? 'correct' : 'wrong',
       why: right
         ? `Matched on a shared photograph and the role agrees.`
@@ -263,7 +383,8 @@ export function scoreRun(
 
   const falsePositives = proposals
     .filter((p) => !claimed.has(p.id))
-    .map((p) => ({ id: p.id, label: p.label, classId: p.classId }))
+    .map((p) => ({ id: p.id, label: p.label, classId: p.classId, lane: laneOf(p) }))
+  for (const f of falsePositives) tally(f.lane).falsePositives++
 
   return {
     keyObjects: key.confirmed_objects.length,
@@ -272,6 +393,7 @@ export function scoreRun(
     judged,
     falsePositives,
     counts,
+    byLane,
     note:
       `Scored against ${key.confirmed_objects.length} confirmed objects on photograph overlap, never on names. ` +
       `Role decides, not product — a key recording only the product would score "electric water heater" on the ` +
