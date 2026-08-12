@@ -555,3 +555,66 @@ export async function runReadSurfaces(db: Db, job: AiJob, deps: AssistDeps): Pro
 export const READ_MAX_TOKENS = 4096
 export const readMaxTokens = (model: ModelConfig): number =>
   Math.max(READ_MAX_TOKENS, model.maxOutputTokens)
+
+// -------------------------------------------------------------------- the gate
+
+export interface ReadState {
+  zoneId: string
+  /** Batches pass 1's plan produces for this zone. Zero is a real answer. */
+  planned: number
+  /** Of those, how many have reached a terminal state. */
+  settled: number
+  complete: boolean
+  why: string
+}
+
+/**
+ * Has pass 1 finished with this zone?
+ *
+ * **The gate pass 3 refuses on**, and it is here rather than in an orchestrator
+ * script for the reason the ruling gives: *a warning is a sentence.* A check
+ * that only runs when somebody uses the combined command is a check somebody
+ * routes around by typing `npm run match`.
+ *
+ * ⚑ **Zero planned batches is COMPLETE, not pending.** A zone with only canvas
+ * frames plans no pass-1 call and never will — refusing it forever would block
+ * a room on work that is not coming. *There was nothing to read.*
+ *
+ * **`skipped` counts as settled and `failed` does not.** A skip is pass 1
+ * deciding correctly not to run — the photographs are not on this machine — and
+ * the zone's scaffold is genuinely empty. A failure is a call that should have
+ * happened and did not, so matching after it would silently produce the
+ * unscaffolded answer with no record that the scaffold was owed.
+ */
+export function readState(db: Db, importId: string, visitId: string, zoneId: string): ReadState {
+  const planned = planSurfaceReads(db, importId).batches.filter((b) => b.zoneId === zoneId)
+  if (planned.length === 0) {
+    return {
+      zoneId, planned: 0, settled: 0, complete: true,
+      why: 'No pass-1 call is planned for this zone — it carries no detail photographs, so there was nothing to read.',
+    }
+  }
+
+  const settled = planned.filter((b) => {
+    const row = db
+      .prepare(
+        `SELECT status FROM ai_jobs
+          WHERE visit_id = ? AND task = ? AND target_id = ? AND status IN ('done', 'skipped')`,
+      )
+      .get(visitId, READ_TASK, batchTargetId(b.zoneId, b.index)) as { status: string } | undefined
+    return row !== undefined
+  }).length
+
+  return {
+    zoneId,
+    planned: planned.length,
+    settled,
+    complete: settled === planned.length,
+    why:
+      settled === planned.length
+        ? `Pass 1 settled all ${planned.length} of this zone's batches.`
+        : `Pass 1 has settled ${settled} of this zone's ${planned.length} batches. ` +
+          `Matching now would ask the enumeration question with a scaffold that is still coming — ` +
+          `and the two answers look identical afterwards.`,
+  }
+}

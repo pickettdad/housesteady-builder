@@ -15,12 +15,13 @@ import type { ModelConfig } from '../src/ai/models.js'
 import type { RunArgs } from '../src/ai/client.js'
 import { claimNext } from '../src/ai/queue.js'
 import { runnerFor } from '../src/ai/tasks/index.js'
-import { writeReadings } from '../src/ai/tasks/readSurfaces.js'
+import { queueSurfaceReading, READ_TASK, writeReadings } from '../src/ai/tasks/readSurfaces.js'
 import { writeResolutions } from '../src/ai/tasks/resolveProduct.js'
 import {
   ENUMERATE_TASK, MATCH_SCHEMA, MATCH_TASK, matchFacts, normaliseMatch, planMatch, queueMatch,
   questionFor, runMatchComplete, type MatchOutput,
 } from '../src/ai/tasks/matchComplete.js'
+import { readState } from '../src/ai/tasks/readSurfaces.js'
 import { freshDb, repoRoot, TEST_OPERATOR } from './helpers.js'
 
 const FIXTURE = join(repoRoot, 'fixtures', 'nameplates', 'images', 'IMG_0004.jpeg')
@@ -77,6 +78,18 @@ function knowProduct(product: string, mediaId: string, kind = 'equipment'): void
   })
 }
 
+/**
+ * Pass 1 having settled, which is what the gate requires.
+ *
+ * The tests used to write readings straight into the table and queue a match
+ * against them — which the gate now refuses, correctly: a reading with no
+ * settled pass-1 job is a scaffold that arrived from nowhere.
+ */
+function settleRead(): void {
+  queueSurfaceReading(db, PROPERTY, VISIT, TEST_OPERATOR)
+  db.prepare(`UPDATE ai_jobs SET status = 'done' WHERE task = ?`).run(READ_TASK)
+}
+
 function stub(answers: MatchOutput[]): {
   asked: RunArgs[]
   prompts: ReturnType<typeof loadPrompts>
@@ -98,6 +111,9 @@ function stub(answers: MatchOutput[]): {
 const answer = (o: Partial<MatchOutput> = {}): MatchOutput => ({
   located: [], couldNotLocate: [], additional: [], unsure: [], roomNote: '', ...o,
 })
+
+const readStateFor = (zoneId: string): ReturnType<typeof readState> =>
+  readState(db, importId, VISIT, zoneId)
 
 beforeEach(seed)
 
@@ -124,9 +140,12 @@ describe('the question changes with the inventory, and the task name records whi
     // empty must not be indistinguishable from one where it was not.
     addMedia('m1', MECH); addMedia('b1', BED)
     knowProduct('Burcam Series 600 captive-air pressure tank', 'm1')
+    settleRead()
     const q = queueMatch(db, PROPERTY, VISIT, TEST_OPERATOR)
     assert.deepEqual([q.matching, q.enumerating], [1, 1])
-    const tasks = (db.prepare('SELECT task FROM ai_jobs ORDER BY task').all() as { task: string }[]).map((t) => t.task)
+    const tasks = (
+      db.prepare('SELECT task FROM ai_jobs WHERE target_kind = ? ORDER BY task').all('zone-batch') as { task: string }[]
+    ).map((t) => t.task).filter((t) => t !== READ_TASK)
     assert.deepEqual(tasks, [ENUMERATE_TASK, MATCH_TASK])
   })
 
@@ -142,6 +161,54 @@ describe('the question changes with the inventory, and the task name records whi
   it('both tasks reach the same runner', () => {
     assert.equal(runnerFor(MATCH_TASK), runMatchComplete)
     assert.equal(runnerFor(ENUMERATE_TASK), runMatchComplete)
+  })
+})
+
+describe('⚑ the gate — pass 3 refuses a zone whose read has not settled', () => {
+  it('does not queue a zone at all, and names it rather than dropping it', () => {
+    // A warning is a sentence. An unscaffolded run and a scaffolded one produce
+    // different answers and look identical afterwards, so the refusal happens
+    // before the money is spent.
+    addMedia('m1', MECH)
+    const q = queueMatch(db, PROPERTY, VISIT, TEST_OPERATOR)
+    assert.equal(q.jobs, 0)
+    assert.equal(q.blocked.length, 1)
+    assert.equal(q.blocked[0]!.zoneId, MECH)
+    assert.match(q.blocked[0]!.why, /look identical afterwards/)
+    assert.match(q.note, /npm run passes/)
+  })
+
+  it('queues once the read has settled', () => {
+    addMedia('m1', MECH)
+    settleRead()
+    const q = queueMatch(db, PROPERTY, VISIT, TEST_OPERATOR)
+    assert.equal(q.jobs, 1)
+    assert.deepEqual(q.blocked, [])
+  })
+
+  it('refuses at RUN time too, for a job queued before a re-import', async () => {
+    // A job queued when pass 1 had settled can be drained after the plan
+    // changed underneath it.
+    addMedia('m1', MECH)
+    settleRead()
+    queueMatch(db, PROPERTY, VISIT, TEST_OPERATOR)
+    const job = claimNext(db, VISIT)!
+    db.prepare(`UPDATE ai_jobs SET status = 'queued' WHERE task = ?`).run(READ_TASK)
+
+    assert.equal(await runMatchComplete(db, job, stub([])), null)
+    const row = db.prepare('SELECT status, last_error AS why FROM ai_jobs WHERE id = ?').get(job.id) as {
+      status: string; why: string
+    }
+    assert.equal(row.status, 'skipped')
+    assert.match(row.why, /Pass 1 has settled 0 of this zone's 1 batches/)
+  })
+
+  it('treats a zone with nothing to read as complete, not as pending', () => {
+    // A canvas-only zone plans no pass-1 call and never will. Refusing it
+    // forever would block a room on work that is not coming.
+    const s = readStateFor(BED)
+    assert.equal(s.complete, true)
+    assert.match(s.why, /nothing to read/)
   })
 })
 
@@ -240,6 +307,7 @@ describe('the call and the two lanes', () => {
       additional: [{ label: 'Floor drain', classId: null, mediaIds: ['m1'], whatYouCanSee: 'a grate', whatMakesItDifferent: 'in the floor, not a vessel' }],
     })])
 
+    settleRead()
     queueMatch(db, PROPERTY, VISIT, TEST_OPERATOR)
     const job = claimNext(db, VISIT)!
     assert.equal(job.task, MATCH_TASK)
@@ -270,6 +338,7 @@ describe('the call and the two lanes', () => {
       additional: [{ label: 'Smoke alarm', classId: null, mediaIds: ['b1'], whatYouCanSee: 'ceiling disc', whatMakesItDifferent: 'only thing here' }],
       unsure: ['possibly a thermostat on the far wall'],
     })])
+    settleRead()
     queueMatch(db, PROPERTY, VISIT, TEST_OPERATOR)
     const job = claimNext(db, VISIT)!
     assert.equal(job.task, ENUMERATE_TASK)
@@ -291,6 +360,7 @@ describe('the call and the two lanes', () => {
       additional: [{ label: 'Control head', classId: null, mediaIds: ['m1'], whatYouCanSee: 'black head', whatMakesItDifferent: 'sits on the vessel', partOf: 'Waterite treatment vessel' }],
       located: [{ product: 'Waterite treatment vessel', mediaIds: ['m1'], whereItIs: 'left' }],
     })])
+    settleRead()
     queueMatch(db, PROPERTY, VISIT, TEST_OPERATOR)
     await runMatchComplete(db, claimNext(db, VISIT)!, deps)
 
