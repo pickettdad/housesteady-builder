@@ -69,6 +69,7 @@ import { openDb } from '../src/db/index.js'
 import { latestImport } from '../src/ai/tasks/identify.js'
 import { claimsForImport } from '../src/ai/tasks/readSurfaces.js'
 import { proposalsForImport } from '../src/engine/compare.js'
+import { parseFixture, proposalsOf } from '../src/engine/proposalFixture.js'
 import { scoreRun, splitByPass, type RoomKey, type ScoredProposal } from '../src/engine/score.js'
 import { plateModels } from '../src/engine/surfaces.js'
 
@@ -91,9 +92,13 @@ const DEFAULT_KEY = join(repoRoot, 'fixtures', 'room-records', 'mechanical-room_
 
 const visitId = arg('visit')
 const keyPath = arg('key') ?? DEFAULT_KEY
-if (!visitId) {
+if (!visitId && !arg('proposals')) {
   console.error(
-    'Usage: npm run score -- --visit <visitId> [--key <room-record.json>] [--zone <needle>] [--pass match|identify|all]\n\n' +
+    'Usage: npm run score -- --visit <visitId> [--key <room-record.json>] [--zone <needle>] [--pass match|identify|all]\n' +
+      '   or: npm run score -- --proposals <fixture.json> [--key <room-record.json>] [--pass …]\n\n' +
+      '--proposals scores a fixture written by `npm run proposals` and NEVER opens the\n' +
+      'database. Generating proposals and scoring them are separate jobs, and only the\n' +
+      'first needs photographs, a key or a database.\n\n' +
       '--pass picks which pass to score. Omitted, every pass that wrote objects is\n' +
       'scored separately — never added together, because their union names neither.\n\n' +
       `--key defaults to ${DEFAULT_KEY} — the owner's own mechanical room, which\n` +
@@ -108,6 +113,157 @@ if (!Array.isArray(key.confirmed_objects)) {
   console.error(`${keyPath} has no confirmed_objects array. Wrong file?`)
   process.exit(1)
 }
+
+/**
+ * Which pass wrote a proposal. **Two passes, never one number.**
+ *
+ * `derived_from` is the whole test: pass 3 sets it, the old identification pass
+ * does not. *Nothing here reads a label or a class to decide* — that would be
+ * inference where a column already states the fact.
+ */
+const PASSES = [
+  { key: 'match', title: 'Amendment 11 pass 3 — match and complete' },
+  { key: 'identify', title: 'the identification pass (stage 4)' },
+] as const
+
+const wanted = arg('pass')
+if (wanted !== undefined && !PASSES.some((p) => p.key === wanted) && wanted !== 'all') {
+  console.error(`--pass takes ${PASSES.map((p) => p.key).join(', ')} or all. Got "${wanted}".`)
+  process.exit(1)
+}
+
+/**
+ * Does a proposal answer this key object?
+ *
+ * **Deliberately crude and deliberately here rather than inside the engine.**
+ * The matching rule is a judgement about wording, and a judgement buried in a
+ * similarity function is one nobody audits. A word from the key's role appearing
+ * in the label is the floor; anything cleverer should be argued for first.
+ */
+const STOP = new Set(['the', 'and', 'for', 'with', 'in', 'of', 'to', 'a', 'an', 'house', 'system'])
+const matches = (expected: string, p: ScoredProposal): boolean => {
+  const want = expected.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w))
+  const label = p.label.toLowerCase()
+  return want.length > 0 && want.every((w) => label.includes(w))
+}
+
+/**
+ * Score one set of proposals and print it. **The only reporting path**, so a
+ * fixture and a database produce byte-identical output for the same proposals.
+ */
+function report(proposals: readonly ScoredProposal[], header: string): void {
+  const split = splitByPass(proposals)
+  const present = PASSES.map((p) => ({ ...p, proposals: split[p.key] })).filter(
+    (p) => p.proposals.length > 0 && (wanted === undefined || wanted === 'all' || wanted === p.key),
+  )
+
+    console.log(`\nScoring ${header}\nagainst ${keyPath}`)
+
+  if (present.length === 0) {
+    // Doctrine 6 — say so rather than print a clean zero, which reads as a run
+    // that found nothing rather than as a run that never happened.
+    console.log(
+      `\n${proposals.length} object(s) in this import, and none belongs to a pass this harness scores` +
+        `${wanted ? ` under --pass ${wanted}` : ''}.\n\nNothing scored. This is not a score of zero.\n`,
+    )
+    return
+    }
+
+  if (present.length > 1) {
+    console.log(
+      `\n⚑ ${present.length} passes have written objects for this import, and they are scored APART.\n` +
+        `  Adding them would give one number naming neither: two shots at every key object\n` +
+        `  and twice the false positives. Two answers to one question is the condition itself.\n`,
+    )
+  }
+
+  const line = (o: string, n: number): string => `  ${o.padEnd(18)}${String(n).padStart(4)}`
+
+  for (const pass of present) {
+    const r = scoreRun(key, pass.proposals, matches)
+
+    console.log(`\n${'='.repeat(72)}\n${pass.title}`)
+    console.log(`${pass.proposals.length} proposals against ${r.keyObjects} confirmed objects.\n`)
+
+    console.log(line('correct', r.counts.correct))
+    console.log(line('wrong', r.counts.wrong))
+    console.log(line('key-uncertain', r.counts['key-uncertain']))
+    console.log(line('plate-legibility', r.counts['plate-legibility']))
+    console.log(line('false positives', r.falsePositives.length))
+
+    /**
+     * Rule 7 — the same outcomes, by lane.
+     *
+     * Only for a pass that has more than one, because a single-lane table says
+     * nothing the totals above do not already say.
+     */
+    const lanes = Object.entries(r.byLane).sort(([a], [b]) => a.localeCompare(b))
+    if (lanes.length > 1) {
+      console.log(`\n  by lane — which half of the pass earned each outcome:`)
+      console.log(`    ${'lane'.padEnd(14)}${'props'.padStart(7)}${'correct'.padStart(9)}${'wrong'.padStart(7)}${'uncert'.padStart(8)}${'legib'.padStart(7)}${'false+'.padStart(8)}`)
+      for (const [l, t] of lanes) {
+        console.log(
+          `    ${l.padEnd(14)}${String(t.proposals).padStart(7)}${String(t.correct).padStart(9)}` +
+            `${String(t.wrong).padStart(7)}${String(t['key-uncertain']).padStart(8)}` +
+            `${String(t['plate-legibility']).padStart(7)}${String(t.falsePositives).padStart(8)}`,
+        )
+      }
+      console.log(
+        `\n    These rows are attributions, not a partition — two lanes can cite one\n` +
+          `    photograph, and a key object nothing proposed credits no lane at all.\n` +
+          `    So they need not sum to the totals above, and that is not an error.`,
+      )
+    }
+
+    if (r.missed.length > 0) {
+      console.log(`\nKey objects no proposal cites a photograph of (${r.missed.length}):`)
+      for (const m of r.missed) console.log(`  ${m.expected}`)
+    }
+
+    const wrong = r.judged.filter((j) => j.outcome === 'wrong')
+    if (wrong.length > 0) {
+      console.log(`\nDisagreements (${wrong.length}) — each resolvable as engine-wrong OR key-wrong:`)
+      for (const j of wrong) {
+        console.log(`  expected: ${j.expected}`)
+        for (const l of j.proposalLabels) console.log(`      got: ${l}`)
+      }
+    }
+
+    if (r.falsePositives.length > 0) {
+      console.log(`\nProposals matching no key object (${r.falsePositives.length}):`)
+      for (const f of r.falsePositives) {
+        console.log(`  ${f.lane.padEnd(12)} ${(f.classId ?? '(no class)').padEnd(30)} ${f.label}`)
+      }
+    }
+
+    console.log(`\n${r.note}`)
+  }
+
+  console.log('\nThis report gates nothing. Exit 0.\n')
+}
+
+/**
+ * ⚑ The fixture path — the ruling of 2026-08-12.
+ *
+ * **With `--proposals`, this script never opens the database.** Generating
+ * proposals and scoring them are separate jobs, and only the first needs
+ * photographs, a key or a database. *So the harness is fixable and re-runnable
+ * on any machine with two files: this fixture and the key.*
+ */
+const fixturePath = arg('proposals')
+if (fixturePath) {
+  const fixture = parseFixture(JSON.parse(readFileSync(fixturePath, 'utf8')))
+  report(
+    proposalsOf(fixture),
+    `${fixture.provenance.visitId}${fixture.provenance.zone ? ` · zone ${fixture.provenance.zone}` : ''}` +
+      ` · proposals generated ${fixture.provenance.producedAt || 'at an unrecorded time'}` +
+      `${fixture.provenance.note ? `\n${fixture.provenance.note}` : ''}`,
+  )
+  process.exit(0)
+}
+
+// Past the fixture branch, so a visit id is required and the type says so.
+if (!visitId) process.exit(1)
 
 const db = openDb()
 const importId = latestImport(db, visitId)
@@ -162,124 +318,3 @@ const proposals: ScoredProposal[] = zones.flatMap((z) =>
   })),
 )
 
-/**
- * Which pass wrote a proposal. **Two passes, never one number.**
- *
- * `derived_from` is the whole test: pass 3 sets it, the old identification pass
- * does not. *Nothing here reads a label or a class to decide* — that would be
- * inference where a column already states the fact.
- */
-const split = splitByPass(proposals)
-const PASSES = [
-  { key: 'match', title: 'Amendment 11 pass 3 — match and complete' },
-  { key: 'identify', title: 'the identification pass (stage 4)' },
-] as const
-
-const wanted = arg('pass')
-if (wanted !== undefined && !PASSES.some((p) => p.key === wanted) && wanted !== 'all') {
-  console.error(`--pass takes ${PASSES.map((p) => p.key).join(', ')} or all. Got "${wanted}".`)
-  process.exit(1)
-}
-
-const present = PASSES.map((p) => ({ ...p, proposals: split[p.key] })).filter(
-  (p) => p.proposals.length > 0 && (wanted === undefined || wanted === 'all' || wanted === p.key),
-)
-
-/**
- * Does a proposal answer this key object?
- *
- * **Deliberately crude and deliberately here rather than inside the engine.**
- * The matching rule is a judgement about wording, and a judgement buried in a
- * similarity function is one nobody audits. A word from the key's role appearing
- * in the label is the floor; anything cleverer should be argued for first.
- */
-const STOP = new Set(['the', 'and', 'for', 'with', 'in', 'of', 'to', 'a', 'an', 'house', 'system'])
-const matches = (expected: string, p: ScoredProposal): boolean => {
-  const want = expected.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w))
-  const label = p.label.toLowerCase()
-  return want.length > 0 && want.every((w) => label.includes(w))
-}
-
-console.log(`\nScoring visit ${visitId} against ${keyPath}`)
-
-if (present.length === 0) {
-  // Doctrine 6 — say so rather than print a clean zero, which reads as a run
-  // that found nothing rather than as a run that never happened.
-  console.log(
-    `\n${proposals.length} object(s) in this import, and none belongs to a pass this harness scores` +
-      `${wanted ? ` under --pass ${wanted}` : ''}.\n\nNothing scored. This is not a score of zero.\n`,
-  )
-  process.exit(0)
-}
-
-if (present.length > 1) {
-  console.log(
-    `\n⚑ ${present.length} passes have written objects for this import, and they are scored APART.\n` +
-      `  Adding them would give one number naming neither: two shots at every key object\n` +
-      `  and twice the false positives. Two answers to one question is the condition itself.\n`,
-  )
-}
-
-const line = (o: string, n: number): string => `  ${o.padEnd(18)}${String(n).padStart(4)}`
-
-for (const pass of present) {
-  const r = scoreRun(key, pass.proposals, matches)
-
-  console.log(`\n${'='.repeat(72)}\n${pass.title}`)
-  console.log(`${pass.proposals.length} proposals against ${r.keyObjects} confirmed objects.\n`)
-
-  console.log(line('correct', r.counts.correct))
-  console.log(line('wrong', r.counts.wrong))
-  console.log(line('key-uncertain', r.counts['key-uncertain']))
-  console.log(line('plate-legibility', r.counts['plate-legibility']))
-  console.log(line('false positives', r.falsePositives.length))
-
-  /**
-   * Rule 7 — the same outcomes, by lane.
-   *
-   * Only for a pass that has more than one, because a single-lane table says
-   * nothing the totals above do not already say.
-   */
-  const lanes = Object.entries(r.byLane).sort(([a], [b]) => a.localeCompare(b))
-  if (lanes.length > 1) {
-    console.log(`\n  by lane — which half of the pass earned each outcome:`)
-    console.log(`    ${'lane'.padEnd(14)}${'props'.padStart(7)}${'correct'.padStart(9)}${'wrong'.padStart(7)}${'uncert'.padStart(8)}${'legib'.padStart(7)}${'false+'.padStart(8)}`)
-    for (const [l, t] of lanes) {
-      console.log(
-        `    ${l.padEnd(14)}${String(t.proposals).padStart(7)}${String(t.correct).padStart(9)}` +
-          `${String(t.wrong).padStart(7)}${String(t['key-uncertain']).padStart(8)}` +
-          `${String(t['plate-legibility']).padStart(7)}${String(t.falsePositives).padStart(8)}`,
-      )
-    }
-    console.log(
-      `\n    These rows are attributions, not a partition — two lanes can cite one\n` +
-        `    photograph, and a key object nothing proposed credits no lane at all.\n` +
-        `    So they need not sum to the totals above, and that is not an error.`,
-    )
-  }
-
-  if (r.missed.length > 0) {
-    console.log(`\nKey objects no proposal cites a photograph of (${r.missed.length}):`)
-    for (const m of r.missed) console.log(`  ${m.expected}`)
-  }
-
-  const wrong = r.judged.filter((j) => j.outcome === 'wrong')
-  if (wrong.length > 0) {
-    console.log(`\nDisagreements (${wrong.length}) — each resolvable as engine-wrong OR key-wrong:`)
-    for (const j of wrong) {
-      console.log(`  expected: ${j.expected}`)
-      for (const l of j.proposalLabels) console.log(`      got: ${l}`)
-    }
-  }
-
-  if (r.falsePositives.length > 0) {
-    console.log(`\nProposals matching no key object (${r.falsePositives.length}):`)
-    for (const f of r.falsePositives) {
-      console.log(`  ${f.lane.padEnd(12)} ${(f.classId ?? '(no class)').padEnd(30)} ${f.label}`)
-    }
-  }
-
-  console.log(`\n${r.note}`)
-}
-
-console.log('\nThis report gates nothing. Exit 0.\n')

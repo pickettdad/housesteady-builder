@@ -77,6 +77,8 @@ Each also gets its own prompt file, its own version pin and its own golden-set g
 
 **Last turn's rule 18 finding was that a validation which fails can mean the instrument is wrong rather than the claim.** *It recurred here in a smaller way and it is worth naming as a pattern rather than an incident.*
 
+> ⚑ **Correction, 2026-08-12: there is no rule 18.** The Verification Discipline note stops at **rule 16**, and this citation — plus two more I wrote into test files the same day — pointed past the end of it. *The rule is real and load-bearing; the number was mine and I had no business minting it.* **The sentence stands and the number is withdrawn.** Left visible because a wrong citation that vanishes teaches nobody why it happened.
+
 **Two type errors in this build were the test's fault and not the code's:** `MATCH_TASK as const` on a constant that already infers a literal type, and a `base` fixture whose object literal widened `question` to `string`. **Both looked like the runner's types being wrong. Neither was.**
 
 ⚑ **The tell is the same one both times: the check's method was never stated.** *A test that asserts a shape without saying where the shape came from is asserting its own restatement of it.* The fix was to derive the fixture's type from the function's own signature — `Parameters<typeof normaliseMatch>[1]` — **so the test cannot disagree with the thing it tests.** That is rule 11b in the type system.

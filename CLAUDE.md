@@ -192,6 +192,10 @@ Real exports are structurally clean and substantively messy. The reference expor
 
 This repo will hold complete records of real people's homes — interior photos, documents, addresses. Test data from friends' houses gets the same treatment as client data. `/data` is gitignored and stays that way. Nothing goes to a third-party service without an explicit decision recorded in `/docs`.
 
+**⚑ This section is about other people's houses, and it never scoped the owner's own.** Ruled by the owner 2026-08-11, when this paragraph read as absolute and a session applied it one step past the class it was written for. **His own mechanical room's record is committed at `fixtures/room-records/`** — because rule 5 of the scoring harness requires every disagreement to be resolvable in both directions *and the correction recorded*, and a ground truth outside version control cannot show what it used to say. **A client's room record is a different question and this ruling does not reach it:** those stay in `/data`.
+
+**The repository is public, so a model's own words are a privacy surface too.** Identification reads plates, and a label can come back carrying an address or a licence number. `npm run proposals` writes under `/data` by default and scans what it wrote — ⚑ **a clean scan is not permission to commit**, it cannot see a person's name, and moving anything derived from real photographs into the repo is a deliberate human act.
+
 ## 15. What this file describes that nothing yet implements
 
 **The rule, and it is the reason this section exists:** ⚑ ***stale doctrine that nothing is built against cannot fail on contact, so it is believed rather than caught.***
@@ -216,3 +220,24 @@ A wrong sentence about the import path dies the first time somebody imports. A w
 **None of these is a defect.** Every one is real, wanted, and correctly not built yet. **What was a defect is that only one of them said so.**
 
 ⚑ **Keep this table honest by deleting rows, never by adding qualifiers.** A row leaves when the thing is built. If a row has been here through three increments, that is information about the plan rather than about the code.
+
+## 16. What binds here that this file does not carry
+
+**§15's inverse, and it comes from the field side.** Field Code put two rulings into its own `CLAUDE.md` unasked, on an argument that holds here identically: **the roadmap and the register are design-session files, and a code session never opens them.** So a decision that exists, is correct, and is invisible at the point where it becomes binding **has not been made** — it has been written down somewhere nobody reads at the moment it applies.
+
+⚑ **This is the same failure as §15 approached from the other side.** §15 is *doctrine here that nothing implements*; this is *decisions that bind here and live only somewhere else*. **Both are invisible for the same reason: nothing fails on contact.**
+
+**This section is pointers, not doctrine.** Nothing below is decided here — each row names where the decision actually lives, so a fresh session's first read knows the file exists.
+
+| What binds | Where it lives | Why a first read needs it |
+|---|---|---|
+| **The verification rules — sixteen of them** | `docs/…Note_Verification-Discipline_2026-07-28.md` | ⚑ **The largest gap.** *A check whose two sides cannot disagree has not been passing* · *a fix for a class of wording is tested on the class* · *a check whose output does not depend on what it checks is not a check*. These decide how work is checked here, and this file has never named them |
+| ⚠ **Rules numbered past 16, which are in use and unwritten** | **nowhere** | *A measurement is validated against known answers before its number is used* has been cited as "rule 18" in committed code and **the note stops at 16.** The rule is real and load-bearing; the number is not. ⚑ **Numbering is the owner's — a code session citing a rule number past the end of the file is asserting a document says something it does not** |
+| **Identification is four passes, not one** | `docs/…Amendment-11_2026-08-10.md` | §9 describes AI assist as though identification were a single act. It is **read → resolve → match → condition**, three built and one not, and pass 4 does not exist |
+| **The commands** | each script's own header | `npm run passes` · `proposals` · `score` · `binder` · `import-export`. §13 lists directories; a session that wants to *run* something has to go looking |
+| **The build sequence and its stages** | `docs/…Note_Build-Sequence_2026-08-11.md` | Work arrives as numbered stages. Nothing here says the numbering exists |
+| **The runner-session arrangement** | `docs/…Runner-Session-Brief_2026-08-08.md` | ⚑ **A whole operating mechanism.** Anything needing real photographs, an API key or money runs in a second bounded session that clones, runs and reports — and **never commits.** A session that does not know this concludes such work is impossible |
+| **One session, one branch** | the task framing each session is given | Two sessions on one branch is the fork this arrangement exists to prevent |
+| **Economics is not the code session's to decide** | the owner, in conversation | Model tier, spend, what a run is worth: **ask, never infer.** A code session that prices a decision has made a business call it cannot defend |
+
+⚑ **Same discipline as §15: a row leaves by moving its content here or by the decision dying, never by being qualified.** And a row is added the moment a session has to be *told* something it should have read.

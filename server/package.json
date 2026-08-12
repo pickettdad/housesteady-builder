@@ -17,6 +17,7 @@
     "preflight": "tsx scripts/preflight.ts",
     "smoke": "tsx scripts/smoke.ts",
     "compare": "tsx scripts/compare.ts",
+    "proposals": "tsx scripts/proposals.ts",
     "score": "tsx scripts/score.ts",
     "read": "tsx scripts/read.ts",
     "resolve": "tsx scripts/resolve.ts",
