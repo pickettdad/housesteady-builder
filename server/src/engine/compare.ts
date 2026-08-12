@@ -55,6 +55,15 @@ export interface Proposal {
   label: string
   /** Every photograph cited as evidence. */
   mediaIds: readonly string[]
+  /**
+   * Which pass and lane wrote this object — `objects.derived_from`.
+   *
+   * ⚑ **Carried because `objects` holds the output of more than one pass**, and a
+   * consumer that cannot tell them apart reports a number naming neither.
+   * `plate` and `appearance` are Amendment 11 pass 3's two lanes; **`null` is the
+   * old identification pass**, which wrote no lane.
+   */
+  derivedFrom: string | null
 }
 
 /**
@@ -278,7 +287,7 @@ function groupBySignal(proposals: readonly Proposal[]): Candidate[] {
 export function proposalsForImport(db: Db, importId: string, zoneId?: string): Proposal[] {
   const rows = db
     .prepare(
-      `SELECT o.id, o.zone_id AS zoneId, o.class_id AS classId, o.label
+      `SELECT o.id, o.zone_id AS zoneId, o.class_id AS classId, o.label, o.derived_from AS derivedFrom
          FROM objects o
         WHERE o.import_id = ?${zoneId ? ' AND o.zone_id = ?' : ''}
         ORDER BY o.zone_id, o.label`,
@@ -288,6 +297,7 @@ export function proposalsForImport(db: Db, importId: string, zoneId?: string): P
     zoneId: string
     classId: string | null
     label: string
+    derivedFrom: string | null
   }[]
 
   const media = db.prepare('SELECT media_id AS mediaId FROM object_media WHERE object_id = ?')

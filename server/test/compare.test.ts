@@ -22,6 +22,7 @@ const p = (label: string, classId: string | null, mediaIds: string[] = [`m${n++}
   classId,
   label,
   mediaIds,
+  derivedFrom: null,
 })
 
 describe('the derivation runs both ways, and the second way is the one that matters', () => {
