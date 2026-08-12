@@ -19,6 +19,7 @@ import {
 } from './nameplate.js'
 import { PIN_TYPE_TASK, queuePinTypes, runPinType } from './pinType.js'
 import { READ_TASK, runReadSurfaces } from './readSurfaces.js'
+import { RESOLVE_TASK, runResolveProduct } from './resolveProduct.js'
 import { queuePhotoRouting, ROUTING_TASK, runRoute } from './routing.js'
 
 /** What every runner needs. Injected so a test can supply all of it. */
@@ -44,6 +45,11 @@ export const TASK_RUNNERS: Record<string, TaskRunner> = {
   // **Narrower than identification — no canvas, no room shot — but the gate is
   // about whose house it is, not how wide the frame is.**
   [READ_TASK]: runReadSurfaces,
+  // Pass 2. **Out of `queueAssists` for a different reason from the other two:**
+  // it sends no photographs at all, so the addendum's gate does not apply — but
+  // it can only run once pass 1 has produced readings, and queueing a pass whose
+  // input does not exist yet would skip every job with a reason nobody asked for.
+  [RESOLVE_TASK]: runResolveProduct,
 }
 
 export class UnknownTask extends Error {

@@ -42,7 +42,9 @@ A field visit populates maybe eight of the binder's twenty-three sections. The r
 
 The loop: **ingest → organize → audit against the spec → enrich → draft → human writes → render.**
 
-The audit is the heart of it. The Home Binder Master Spec defines what a complete binder contains; the builder continuously compares what exists against that and surfaces what's missing. Its first output is the **gap report** — one page, three columns, to the client within a week of the visit: **missing from you** (documents owed), **missing from us** (what the visit couldn't reach), **triggered flags** (specialist assessments the visit tripped).
+The audit is the heart of it. The Home Binder Master Spec defines what a complete binder contains; the builder continuously compares what exists against that and surfaces what's missing. Its output is the **gap report** — one page, three columns: **missing from you** (documents owed), **missing from us** (what the visit couldn't reach), **triggered flags** (specialist assessments the visit tripped).
+
+**The gap report belongs to the Inspection Visit, not to Discovery.** *This sentence used to read "to the client within a week of the visit", and Baseline Service Design v1.3 §4.4 ruled otherwise: after a capture-only visit nearly every checklist item is unresolved, and **a client document saying "we did not cover 380 things" is not a document.*** So **Discovery produces the session plan; the gap report belongs to the visit that was genuinely trying to complete things.** ⚑ *The old sentence survived a service redesign because **nothing is built against it** — the gap report exists and works, and no code anywhere knows which visit it is for. See §15.*
 
 ## 4. Doctrine (non-negotiable — outranks convenience)
 
@@ -142,7 +144,8 @@ Full plan, including which task lands in which increment: `/docs/HouseSteady_Bin
 
 ## 10. Design decisions already made (don't relitigate; ask if they seem wrong)
 
-- **Working surface:** the binder's table of contents is the spine. Two workspaces sit on it — **Triage** (fast, keyboard-driven, photo-heavy: verify what the field captured) and the **Section Workbench** (slow, text-heavy: assemble and write). Renders are outputs, not places.
+- **Working surface: the desk pass** — assemble the house, place the captures, identify, confirm. The binder's table of contents is still the spine and renders are outputs, not places.
+  ~~*Two workspaces sit on it — **Triage** (fast, keyboard-driven, photo-heavy: verify what the field captured) and the **Section Workbench** (slow, text-heavy: assemble and write).*~~ **Replaced by Baseline Service Design v1.3 §5**, which says plainly that Triage *was designed for a different job*. ⚑ *Neither word appears anywhere in the code — only in three comments — so this described a surface the service no longer wants and nothing could notice. See §15.*
 - **One state, many views.** A missing item appears as a dashed slot in the workbench, a status pip in the table of contents, and a row in the gap report — all reading the same state. Nothing tracked twice.
 - **Stack:** local-first. Node + SQLite + media on disk, Vite/React front end, runs on the owner's machine. Longitudinal schema from the first commit — many visits per property, and **the field-minted uuid is the identity that carries across visits.** The human-facing *number* is session-scoped: the counter lives on the session row and restarts at 1 every visit. It is a display label, never a join key. Moves to hosted database and object storage when a second operator, a client portal, or backup risk forces it. Not before.
 - **Editions:** a delivered binder is a dated snapshot with a changelog. Late results produce a new edition. In-flight items render as *underway* with dates — never omitted, never claimed done.
@@ -188,3 +191,28 @@ Real exports are structurally clean and substantively messy. The reference expor
 ## 14. Privacy
 
 This repo will hold complete records of real people's homes — interior photos, documents, addresses. Test data from friends' houses gets the same treatment as client data. `/data` is gitignored and stays that way. Nothing goes to a third-party service without an explicit decision recorded in `/docs`.
+
+## 15. What this file describes that nothing yet implements
+
+**The rule, and it is the reason this section exists:** ⚑ ***stale doctrine that nothing is built against cannot fail on contact, so it is believed rather than caught.***
+
+A wrong sentence about the import path dies the first time somebody imports. A wrong sentence about a surface nobody has built survives a service redesign, gets read first by every new session, and is repeated into a cut. **That is how §3's gap-report timing and §10's Triage both went stale unnoticed** — not because anyone was careless, but because there was no contact to fail on.
+
+**So the fix is not vigilance, it is labelling.** §2 already does this correctly for the equipment registry — *"Future, concept only, not built."* The failure was applying that convention to one row and not the rest.
+
+**Derived by stripping comments and searching the code, because prose in a header is not an implementation:**
+
+| Described here | In the code |
+|---|---|
+| **Concerns** as a stream (§5) and as this repo's own record (§7) | **Nothing.** `sessionPlan.ts` carries `openConcerns: never[]` — typed so it can never hold anything |
+| **Capture** as an entity (§7) | **Nothing** under that name. Media and notes carry the job |
+| **Triage** · **Section Workbench** (§10) | **Nothing.** Three comments, zero code — and both are now superseded |
+| The **dashboard** and the **project register** (§5's *Feeds* column) | **Nothing** |
+| **Lab results** as an input (§3) and as an edition trigger (§10) | **Nothing.** Editions exist; nothing knows a result is late |
+| An edition's **changelog** (§10) | **Nothing.** `report_editions` exists; the changelog does not |
+| **Rendering the binder itself** (§10) | **Nothing.** The gap report and the session plan render; the binder does not |
+| The **equipment registry** (§2) | **Nothing — and §2 says so**, which is the convention the rest of this table is applying |
+
+**None of these is a defect.** Every one is real, wanted, and correctly not built yet. **What was a defect is that only one of them said so.**
+
+⚑ **Keep this table honest by deleting rows, never by adding qualifiers.** A row leaves when the thing is built. If a row has been here through three increments, that is information about the plan rather than about the code.
