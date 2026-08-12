@@ -176,6 +176,7 @@ Real exports are structurally clean and substantively messy. The reference expor
 - **Ask before expanding scope.** If a task seems to need something outside the current spec, say so and wait. An unrequested feature is a cost, not a gift.
 - **When the spec and this file disagree,** this file wins on doctrine, the spec wins on detail. Flag the conflict either way.
 - **Tests are part of done,** not a follow-up.
+- ⚑ **A document the owner or the design session needs is PRESENTED in the chat reply, in full — committing it is not delivering it.** They read the chat and the PR notes. They do not go looking in `/docs` for something a session put there. *Ruled 2026-08-12, after a runner brief written to be executed was left sitting in the repo where the people who had to execute it never saw it.* **Which document? The test is whether someone has to act on it** — an operating brief, a spec, a decision they must ratify. A record of an event that only explains work already described in the reply does not need reprinting.
 
 ## 13. Repo layout
 
