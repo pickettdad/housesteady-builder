@@ -20,7 +20,8 @@
     "smoke": "npm run smoke --workspace server --",
     "compare": "npm run compare --workspace server --",
     "score": "npm run score --workspace server --",
-    "read": "npm run read --workspace server --"
+    "read": "npm run read --workspace server --",
+    "resolve": "npm run resolve --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

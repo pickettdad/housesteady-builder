@@ -3079,6 +3079,7 @@ describe('a prompt version cannot go live by being added', () => {
     photo_routing: 'v002',
     pin_type: 'v001',
     read_surfaces: 'v001',
+    resolve_product: 'v001',
   }
 
   it('the live version of every task is the one recorded here', () => {
