@@ -3080,6 +3080,8 @@ describe('a prompt version cannot go live by being added', () => {
     pin_type: 'v001',
     read_surfaces: 'v001',
     resolve_product: 'v001',
+    match_known: 'v001',
+    enumerate_room: 'v001',
   }
 
   it('the live version of every task is the one recorded here', () => {

@@ -19,7 +19,8 @@
     "compare": "tsx scripts/compare.ts",
     "score": "tsx scripts/score.ts",
     "read": "tsx scripts/read.ts",
-    "resolve": "tsx scripts/resolve.ts"
+    "resolve": "tsx scripts/resolve.ts",
+    "match": "tsx scripts/match.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
