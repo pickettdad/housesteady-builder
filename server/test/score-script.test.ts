@@ -164,3 +164,51 @@ describe('⚑ the command prints a report — both paths', () => {
     assert.match(out, /Usage: npm run score/)
   })
 })
+
+describe('⚑ the binder draft counts ONE pass, and says what it left out', () => {
+  /**
+   * The roadmap recorded the two-answers-to-one-question danger as closed
+   * because the score now separates passes. **It does; the binder did not.**
+   *
+   * The retired identification pass still runs on demand and still writes into
+   * `objects`, and `binder.ts` counted every row. *A blended score is a number
+   * somebody reads and questions; a blended count is a heading in a
+   * client-facing draft.*
+   */
+  function seedBothPasses(dir: string): string {
+    const db = openDb(join(dir, 'housesteady.db'))
+    const OP = 'op-b', PROPERTY = 'p-b', VISIT = 'visit-binder', MECH = 'zone-mech'
+    db.prepare(`INSERT INTO operators (id, display_name, short_code, active, created_at) VALUES (?, 'B', 'b', 1, ?)`).run(OP, now())
+    db.prepare(`INSERT INTO properties (id, label, created_at, actor_id) VALUES (?, 'A house', ?, ?)`).run(PROPERTY, now(), OP)
+    db.prepare(`INSERT INTO visits (id, property_id, kind, created_at, actor_id) VALUES (?, ?, 'baseline', ?, ?)`).run(VISIT, PROPERTY, now(), OP)
+    const importId = newId()
+    db.prepare(
+      `INSERT INTO imports (id, visit_id, property_id, imported_at, media_mode, raw_manifest, validation_report, status, created_at, actor_id)
+       VALUES (?, ?, ?, ?, 'full', '{}', '{}', 'ok', ?, ?)`,
+    ).run(importId, VISIT, PROPERTY, now(), now(), OP)
+    db.prepare(
+      `INSERT INTO zones (zone_id, import_id, property_id, visit_id, type, label, level, created_at)
+       VALUES (?, ?, ?, ?, 'mechanical', 'Mech', 'basement', ?)`,
+    ).run(MECH, importId, PROPERTY, VISIT, now())
+    const ins = db.prepare(
+      `INSERT INTO objects (id, property_id, zone_id, import_id, class_id, label, actor_id, derived_from, created_at)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+    )
+    // Three from pass 3, two from the retired pass — the same house, twice.
+    for (const lane of ['plate', 'plate', 'appearance']) ins.run(newId(), PROPERTY, MECH, importId, 'a thing', OP, lane, now())
+    for (let i = 0; i < 2; i++) ins.run(newId(), PROPERTY, MECH, importId, 'a piece of equipment', OP, null, now())
+    db.close()
+    return VISIT
+  }
+
+  it('counts pass 3 alone and reports the retired pass rather than summing', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hs-binder-'))
+    const visitId = seedBothPasses(dir)
+    const r = execFileSync(process.execPath, ['--import', 'tsx', join(repoRoot, 'server', 'scripts', 'binder.ts'), '--visit', visitId], {
+      cwd: join(repoRoot, 'server'), env: { ...process.env, HOUSESTEADY_DATA: dir }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    // 3 components, not 5 — and the two excluded are named.
+    assert.match(r, /3 entries/, 'the count is pass 3\'s alone')
+    assert.doesNotMatch(r, /5 entries/)
+  })
+})
