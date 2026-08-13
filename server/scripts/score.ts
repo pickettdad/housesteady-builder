@@ -323,7 +323,9 @@ for (const m of plateModels(claimsForImport(db, importId))) {
 }
 
 const proposals: ScoredProposal[] = zones.flatMap((z) =>
-  proposalsForImport(db, importId, z.zoneId).map((p) => ({
+  // `every-pass` is a promise to split downstream, and `report()` keeps it —
+  // `splitByPass` scores each pass apart and refuses to add them.
+  proposalsForImport(db, importId, 'every-pass', z.zoneId).map((p) => ({
     id: p.id,
     label: p.label,
     classId: p.classId,

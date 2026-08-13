@@ -91,7 +91,10 @@ for (const m of plateModels(claimsForImport(db, importId))) {
 }
 
 const proposals: ScoredProposal[] = zones.flatMap((z) =>
-  proposalsForImport(db, importId, z.zoneId).map((p) => ({
+  // `every-pass` on purpose: a fixture is evidence of what an import held, so
+  // dropping a pass at write time would put the choice beyond the scorer's
+  // reach. The lane rides on every proposal and `score --pass` splits on it.
+  proposalsForImport(db, importId, 'every-pass', z.zoneId).map((p) => ({
     id: p.id,
     label: p.label,
     classId: p.classId,

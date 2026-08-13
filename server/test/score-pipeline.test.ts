@@ -125,7 +125,7 @@ function writeRun(
 
 /** Exactly what `scripts/score.ts` builds, minus the plate models. */
 const proposalsOf = (db: Db, importId: string): ScoredProposal[] =>
-  proposalsForImport(db, importId, MECH).map((p) => ({
+  proposalsForImport(db, importId, 'every-pass', MECH).map((p) => ({
     id: p.id, label: p.label, classId: p.classId, mediaIds: p.mediaIds, lane: p.derivedFrom,
   }))
 
@@ -319,7 +319,7 @@ describe('⚑ two passes are scored apart, because their union names neither', (
   it('reads the lane out of the database rather than inferring it from a label', () => {
     const { db, importId } = seed()
     writeRun(db, importId, { label: (role, product) => role ?? product ?? '', lane: () => 'plate' })
-    assert.ok(proposalsForImport(db, importId, MECH).every((p) => p.derivedFrom === 'plate'))
+    assert.ok(proposalsForImport(db, importId, 'every-pass', MECH).every((p) => p.derivedFrom === 'plate'))
   })
 
   it('splits an import both passes wrote into two runs, each with the whole key', () => {

@@ -168,7 +168,17 @@ try {
     .prepare(`SELECT model, input_tokens AS i, output_tokens AS o, cost_estimate AS c FROM ai_generations
               WHERE visit_id = ? ORDER BY created_at DESC LIMIT 1`)
     .get(visitId) as { model: string; i: number; o: number; c: number } | undefined
-  const objects = db.prepare('SELECT COUNT(*) AS n FROM objects WHERE import_id = ?').get(importId) as { n: number }
+  // ⚑ The identification pass's own lane — `derived_from IS NULL`.
+  //
+  // **Benign here and scoped anyway.** This is a scratch database this script
+  // builds and deletes, and nothing in it runs Amendment 11's pass 3, so the
+  // unscoped count was right by accident. *An unscoped read of `objects` that
+  // happens to be correct is the one that gets copied into a script where it is
+  // not* — which is how the same defect reached `binder.ts` and this file's own
+  // sibling. The count says which pass it is counting.
+  const objects = db
+    .prepare('SELECT COUNT(*) AS n FROM objects WHERE import_id = ? AND derived_from IS NULL')
+    .get(importId) as { n: number }
 
   console.log(`\nGeneration: ${gen?.model} — ${gen?.i} in, ${gen?.o} out.`)
   const spend = visitSpend(db, visitId)

@@ -46,6 +46,7 @@
  */
 
 import type { Db } from '../db/index.js'
+import { laneClause, type LaneScope } from './lanes.js'
 
 /** One proposed object, as much of it as comparison needs. */
 export interface Proposal {
@@ -300,13 +301,33 @@ function groupBySignal(proposals: readonly Proposal[]): Candidate[] {
 
 // ------------------------------------------------------------- reading rows
 
-/** Every proposed object of one import, with its evidence. */
-export function proposalsForImport(db: Db, importId: string, zoneId?: string): Proposal[] {
+/**
+ * Every proposed object of one import, with its evidence.
+ *
+ * ⚑ **`scope` is required, and that is the point of it.** `objects` holds two
+ * passes' answers to the same question, so *which pass* is a decision every
+ * caller has to make — and an optional parameter is a decision most callers make
+ * by not noticing. `scripts/compare.ts` read this function for a fortnight and
+ * measured a residue across both passes, which is a number naming neither.
+ *
+ * The blend happens in memory here, where no amount of scanning the SQL can see
+ * it. **The typechecker is the only mechanism that reaches it**, which is why
+ * this is an argument rather than a convention. See `lanes.ts`.
+ *
+ * `every-pass` is legitimate — the score and the fixture writer both take it —
+ * and it is a promise to split downstream, not a synonym for "all of them".
+ */
+export function proposalsForImport(
+  db: Db,
+  importId: string,
+  scope: LaneScope,
+  zoneId?: string,
+): Proposal[] {
   const rows = db
     .prepare(
       `SELECT o.id, o.zone_id AS zoneId, o.class_id AS classId, o.label, o.derived_from AS derivedFrom, o.model_read AS modelRead, o.generation_id AS generationId
          FROM objects o
-        WHERE o.import_id = ?${zoneId ? ' AND o.zone_id = ?' : ''}
+        WHERE o.import_id = ? AND ${laneClause(scope, 'o')}${zoneId ? ' AND o.zone_id = ?' : ''}
         ORDER BY o.zone_id, o.label`,
     )
     .all(...(zoneId ? [importId, zoneId] : [importId])) as {
