@@ -292,3 +292,61 @@ describe('the pass', () => {
     assert.match(facts, /`resolved: false` is a complete answer/)
   })
 })
+
+describe('⚑ stranded queries — the plan grew and its batches already ran', () => {
+  /** A visit with one readable label, which is enough to plan a query. */
+  function seeded(): { db: Db; importId: string } {
+    const db = freshDb()
+    db.prepare(`INSERT INTO properties (id, label, created_at, actor_id) VALUES (?, 'A house', ?, ?)`)
+      .run(PROPERTY, now(), TEST_OPERATOR)
+    db.prepare(`INSERT INTO visits (id, property_id, kind, created_at, actor_id) VALUES (?, ?, 'baseline', ?, ?)`)
+      .run(VISIT, PROPERTY, now(), TEST_OPERATOR)
+    const importId = newId()
+    db.prepare(
+      `INSERT INTO imports (id, visit_id, property_id, imported_at, media_mode, raw_manifest,
+                            validation_report, status, created_at, actor_id)
+       VALUES (?, ?, ?, ?, 'full', '{}', '{}', 'ok', ?, ?)`,
+    ).run(importId, VISIT, PROPERTY, now(), now(), TEST_OPERATOR)
+    writeReadings(db, {
+      propertyId: PROPERTY, importId, zoneId: ZONE, actorId: TEST_OPERATOR,
+      labels: [{
+        mediaId: 'm1', surface: 'nameplate', whereItIs: '',
+        fields: [
+          { field: 'Model', value: '600545B', unreadable: false },
+          { field: 'brand', value: 'Burcam', unreadable: false },
+        ],
+      }],
+    })
+    return { db, importId }
+  }
+
+  it('says how many queries can never be asked, rather than reporting a clean re-plan', () => {
+    // The 2026-08-13 defect. A retried pass-1 batch adds labels; pass 2 re-plans
+    // to cover them; `enqueue` is idempotent on a POSITIONAL target id, so the
+    // new labels land in a batch whose job is already `done` and are never sent.
+    // The run reported "planned 45 queries, ran 0" and read as success.
+    const { db } = seeded()
+
+    const first = queueResolution(db, PROPERTY, VISIT, TEST_OPERATOR)
+    assert.ok(first.jobs > 0, 'there is something to resolve')
+    assert.equal(first.strandedQueries, 0, 'nothing is stranded while the work is still queued')
+
+    // The batch reaches a terminal state having written no resolutions — what a
+    // completed job leaves behind when the queries it covered arrived later.
+    db.prepare(`UPDATE ai_jobs SET status = 'done' WHERE task = ?`).run(RESOLVE_TASK)
+
+    const second = queueResolution(db, PROPERTY, VISIT, TEST_OPERATOR)
+    assert.equal(second.strandedQueries, second.queries, 'every query is stranded, and it is counted')
+    assert.match(second.note, /STRANDED/)
+    assert.match(second.note, /--again/)
+  })
+
+  it('says nothing while a batch is still queued, because the work is coming', () => {
+    // The half that lets the check fail. Without the terminal-status test this
+    // would warn on every first run, and a warning that always fires is noise.
+    const { db } = seeded()
+    const q = queueResolution(db, PROPERTY, VISIT, TEST_OPERATOR)
+    assert.equal(q.strandedQueries, 0)
+    assert.doesNotMatch(q.note, /STRANDED/)
+  })
+})

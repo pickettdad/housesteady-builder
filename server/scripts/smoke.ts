@@ -189,7 +189,18 @@ try {
   console.log(`\nPass 1: queued ${read.jobs} calls, ${read.photographs} photographs. ${read.note}`)
   if (read.jobs === 0) throw new Error('Pass 1 queued nothing from a fixture that has detail photographs.')
 
-  const readRun = await drainVisit(db, visitId, { limit: 1 })
+  // ⚑ `task: READ_TASK`, and the missing filter is what broke this check.
+  //
+  // `limit: 1` alone means *one job of whatever is oldest*. Two identification
+  // jobs are still queued from the phase above, so the plain form claimed one of
+  // THOSE and then asserted a `read_surfaces` generation existed. **The check
+  // reported "pass 1 recorded no generation" for a pass 1 that had never been
+  // asked to run** — a false negative a runner session had to diagnose mid-run
+  // on 2026-08-13, at the one moment the answer mattered most.
+  //
+  // *Draining fully instead would also have worked and would have cost three
+  // more calls every time somebody proves their key is valid.*
+  const readRun = await drainVisit(db, visitId, { limit: 1, task: READ_TASK })
   if (readRun.ran === 0) {
     console.error(`\nSMOKE FAILED — pass 1 completed no call. ${JSON.stringify(queueProgress(db, visitId).failures)}\n`)
     cleanUp()

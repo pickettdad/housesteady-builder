@@ -128,7 +128,26 @@ export function requeueFailed(db: Db, visitId: string): number {
  *
  * The whole claim is one transaction: two workers cannot take the same row.
  */
-export function claimNext(db: Db, visitId: string, leaseMs = LEASE_MS, atMs = Date.now()): AiJob | undefined {
+/**
+ * Claim the next runnable job for a visit.
+ *
+ * ⚑ **`task` narrows it, and a caller draining ONE job almost always wants it.**
+ * Ordering is by `created_at, id` and says nothing about task, so a caller that
+ * queues phase A, drains one, then queues phase B and drains one **gets A's
+ * leftover, not B's first.** *That is not hypothetical:* `smoke.ts` did exactly
+ * this and reported "pass 1 recorded no generation" for a pass 1 that had never
+ * been asked to run — a false negative that cost a runner session a diagnosis
+ * mid-run on 2026-08-13.
+ *
+ * Omitted, the behaviour is unchanged: any task, oldest first.
+ */
+export function claimNext(
+  db: Db,
+  visitId: string,
+  leaseMs = LEASE_MS,
+  atMs = Date.now(),
+  task?: string,
+): AiJob | undefined {
   const at = new Date(atMs).toISOString()
   const staleBefore = new Date(atMs - leaseMs).toISOString()
 
@@ -139,10 +158,11 @@ export function claimNext(db: Db, visitId: string, leaseMs = LEASE_MS, atMs = Da
           WHERE visit_id = ?
             AND ( (status = 'queued' AND (run_after IS NULL OR run_after <= ?))
                OR (status = 'running' AND leased_at IS NOT NULL AND leased_at <= ?) )
+            ${task ? 'AND task = ?' : ''}
           ORDER BY created_at, id
           LIMIT 1`,
       )
-      .get(visitId, at, staleBefore) as AiJob | undefined
+      .get(...(task ? [visitId, at, staleBefore, task] : [visitId, at, staleBefore])) as AiJob | undefined
     if (!job) return undefined
 
     db.prepare(

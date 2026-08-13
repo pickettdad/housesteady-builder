@@ -472,3 +472,33 @@ describe('preparing a photograph for a model', () => {
     assert.match(note, /4032px to 1568px/)
   })
 })
+
+describe('⚑ claiming one job means one job of WHICH task', () => {
+  beforeEach(seed)
+
+  it('claims the oldest of the named task, not the oldest overall', () => {
+    // The smoke defect of 2026-08-13, as a test. Queue phase A, leave some of it
+    // runnable, queue phase B, then ask for one of B — and get one of B.
+    job('phase_a', 'a1')
+    job('phase_a', 'a2')
+    job('phase_b', 'b1')
+
+    // ⚑ No unfiltered claim here, and the reason is the bug this test is about.
+    // Three rows written in one millisecond share `created_at`, so
+    // `ORDER BY created_at, id` breaks the tie on a uuid — arbitrary. An earlier
+    // version claimed once unfiltered before claiming `phase_b`, and about one
+    // run in three that first claim TOOK the phase_b job, leaving the assertion
+    // below nothing to find. *The test was demonstrating its own subject.*
+    // Unfiltered claiming is covered above; this test is only about the filter.
+    assert.equal(claimNext(db, VISIT, undefined, undefined, 'phase_b')!.task, 'phase_b')
+    assert.equal(claimNext(db, VISIT, undefined, undefined, 'phase_b'), undefined, 'and there was only one')
+  })
+
+  it('returns nothing rather than another task\'s job when its own has none', () => {
+    // The half that makes the check able to fail: without it, a filter that was
+    // silently ignored would still pass the test above.
+    job('phase_a', 'a1')
+    assert.equal(claimNext(db, VISIT, undefined, undefined, 'phase_b'), undefined)
+    assert.ok(claimNext(db, VISIT, undefined, undefined, 'phase_a'), 'and phase_a was claimable all along')
+  })
+})
