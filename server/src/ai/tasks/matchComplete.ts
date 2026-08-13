@@ -198,6 +198,25 @@ export interface StoredMatch extends MatchOutput {
   /** `partOf` naming nothing in this answer. Kept, never guessed at. */
   danglingParents: { child: string; named: string }[]
   /**
+   * ⚑ Top-level keys in the answer that this build does not model.
+   *
+   * **Ruled 2026-08-13: stop discarding.** Until now an answer key outside
+   * `located` / `couldNotLocate` / `additional` / `unsure` was **silently
+   * ignored** — read past, never counted, gone. *Doctrine 6 with the drop
+   * happening one layer above where anyone was looking for it.*
+   *
+   * ⚑ **This is where a hypothesis lands first, and it is why the channel's
+   * opening content already exists in runs that have been paid for.** The
+   * hypothesis channel is unbuilt; every wall in this repo constrains
+   * *assertion*, and the model has exactly one output shape — a claim about an
+   * object — so *these two proposals are probably one thing* has nowhere to go.
+   *
+   * **Nothing here becomes an object.** The key and a short preview of its value
+   * are recorded so a human can see the model tried to say something, and the
+   * shape of what it tried to say is the specification for the channel.
+   */
+  unmodelledKeys: { key: string; preview: string }[]
+  /**
    * ⚑ Entries whose every cited photograph belonged to another batch.
    *
    * **Not written as objects, and that is doctrine 3 rather than tidiness.** An
@@ -421,6 +440,19 @@ export function normaliseMatch(
   const strayEvidence: StoredMatch['strayEvidence'] = []
   const evidenceless: string[] = []
 
+  /**
+   * Keys the answer carried that this build has no home for. **Reported, never
+   * acted on.** A preview rather than the value, because the value may be an
+   * array of objects and this is a signal that something was said.
+   */
+  const MODELLED = new Set(['located', 'couldNotLocate', 'additional', 'unsure'])
+  const unmodelledKeys = Object.entries(output as unknown as Record<string, unknown>)
+    .filter(([k]) => !MODELLED.has(k))
+    .map(([key, v]) => ({
+      key,
+      preview: (typeof v === 'string' ? v : JSON.stringify(v) ?? String(v)).slice(0, 200),
+    }))
+
   /** A model reading, or null. **Doctrine 4 — a blank is not a model number.** */
   const modelOf = (v: unknown): string | null => {
     const t = typeof v === 'string' ? v.trim() : ''
@@ -490,6 +522,7 @@ export function normaliseMatch(
     question: known.question,
     located,
     evidenceless,
+    unmodelledKeys,
     couldNotLocate: (output.couldNotLocate ?? []).filter(
       (c): c is NotLocated => typeof c?.product === 'string' && known.products.has(c.product.trim()),
     ).map((c) => ({ product: c.product.trim(), whereExpected: String(c.whereExpected ?? '') })),

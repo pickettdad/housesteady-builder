@@ -20,6 +20,22 @@
  * *"pressure tank"* against *"pressure tank"* would score the four-tank bug as
  * four correct answers. **A photograph is the only thing both sides observed.**
  *
+ * > ### ⚑ And on 2026-08-13 it caught something written a week after it
+ * >
+ * > **Rule 8's model comparison was hours old.** A proposal carried a model
+ * > reading **exactly** matching the key's chlorine contact tank — a free correct
+ * > answer by any reading of the new rule, and reported as one.
+ * >
+ * > **It cites the photograph of a different tank.** It read the contact tank's
+ * > plate out of the frame of the Burcam beside it, and nothing that actually
+ * > looks at the contact tank read that model at all. **Without the photograph
+ * > gate, the new rule would have credited an exactly-right number to a proposal
+ * > looking at the wrong object.**
+ * >
+ * > ⚑ **A failure arriving through a field that did not exist when this rule was
+ * > written, caught by this rule anyway.** *That is what a load-bearing wall
+ * > looks like, and it is the argument for every other one in this file.*
+ *
  * **3 · Three outcomes, and `role: null` lands in the third automatically.**
  * `correct` · `wrong` · `key-uncertain`. Two of the room's objects have a
  * confirmed product and an unresolved role — **the key does not know what they
