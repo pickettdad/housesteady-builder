@@ -76,7 +76,7 @@ function seededRun(): { db: Db; importId: string } {
 }
 
 const fromDb = (db: Db, importId: string): ScoredProposal[] =>
-  proposalsForImport(db, importId, MECH).map((p) => ({
+  proposalsForImport(db, importId, 'every-pass', MECH).map((p) => ({
     id: p.id, label: p.label, classId: p.classId, mediaIds: p.mediaIds, lane: p.derivedFrom, models: [],
   }))
 

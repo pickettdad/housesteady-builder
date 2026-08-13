@@ -350,11 +350,25 @@ console.log(`Queue: ${JSON.stringify(progress)}`)
 
 // ------------------------------------------------------------ what came out
 
+/**
+ * ⚑ **This pass's own objects — `derived_from IS NULL`.**
+ *
+ * The listing was unscoped, so a run of the retired pass printed *its own
+ * proposals plus every one Amendment 11's pass 3 had already written*, under the
+ * heading "N objects proposed". **The most misleading place of all for the blend
+ * to land:** this is the report a person reads immediately after a run, to judge
+ * whether the run was any good. Pass 3's work would have been read as this
+ * pass's output and inflated the very comparison stage 4 was retired over.
+ *
+ * Same defect as `binder.ts` carried, in the mirror — that one counted pass 3
+ * and swallowed this pass; this one counted this pass and swallowed pass 3.
+ * Pass 3's objects are reported below rather than dropped.
+ */
 const objects = db
   .prepare(
     `SELECT o.zone_id AS zoneId, o.class_id AS classId, o.label,
             (SELECT COUNT(*) FROM object_media om WHERE om.object_id = o.id) AS evidence
-       FROM objects o WHERE o.import_id = ? ORDER BY o.zone_id, o.label`,
+       FROM objects o WHERE o.import_id = ? AND o.derived_from IS NULL ORDER BY o.zone_id, o.label`,
   )
   .all(importId) as { zoneId: string; classId: string | null; label: string; evidence: number }[]
 
@@ -375,6 +389,21 @@ if (unclassed > 0) {
   console.log(
     `\n${unclassed} of them matched no class. That is a gap in the FRAME, not a failure of the object — ` +
       `it is what the review queue is for.`,
+  )
+}
+
+// ⚑ Doctrine 6 — what the listing above deliberately left out.
+const fromPass3 = (
+  db
+    .prepare(`SELECT COUNT(*) AS n FROM objects WHERE import_id = ? AND derived_from IS NOT NULL`)
+    .get(importId) as { n: number }
+).n
+if (fromPass3 > 0) {
+  console.log(
+    `\n⚑ ${fromPass3} object(s) in this import came from Amendment 11's pass 3 and are NOT listed above.\n` +
+      `  This listing is the identification pass's own output. Both passes answer the same question,\n` +
+      `  so showing them together would read as one run finding twice as much — and this is exactly\n` +
+      `  the report someone judges a run by. Nothing is deleted; they are excluded and said out loud.`,
   )
 }
 console.log(`\nRun \`${IDENTIFY_TASK}\` again after a prompt change and compare, before ratifying anything.\n`)
