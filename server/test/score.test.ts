@@ -371,3 +371,67 @@ describe('⚑ rule 8 · the third field — MODEL, exact only', () => {
     assert.equal(r.judged[0]!.matchedOn, undefined)
   })
 })
+
+describe('⚑ rule 2 gates rule 8, and the first real run proved it was needed', () => {
+  it('refuses an exactly-correct model number read off the WRONG object', () => {
+    /**
+     * From the 2026-08-13 re-run, and it is the strongest thing in that fixture.
+     *
+     * Proposal `e9a9030c` carries `modelRead: "UT-450 CE"` — **exactly** the
+     * key's chlorine contact tank. It looks like a free correct answer, and the
+     * runner reported it as "the one remaining known-good match the harness
+     * declines".
+     *
+     * **It is not a known-good match.** That proposal cites the photograph of a
+     * *different* tank — the Burcam 600545B — and read the UT-450's number off
+     * a plate in the frame. The third `modelRead` bleed in one run.
+     *
+     * ⚑ **Rule 2 caught it, and only rule 2 could have.** Without the
+     * photograph gate the model rule would have credited a right number to a
+     * proposal looking at the wrong object — *the exact failure "matching is on
+     * photograph overlap, never on names" was written to prevent, arriving
+     * through a field that did not exist when it was written.*
+     */
+    const key: RoomKey = {
+      confirmed_objects: [
+        { product: 'Pentair WellMate UT-450 universal retention tank', role: 'chlorine contact tank',
+          model: 'UT-450 CE', photographs: ['tank-a.jpg'] },
+        { product: 'Burcam captive-air tank', role: 'well-water pressure tank',
+          model: '600545B', photographs: ['tank-b.jpg'] },
+      ],
+    }
+    const r = scoreRun(
+      key,
+      // Cites tank B's photograph, carrying tank A's model number.
+      [proposal({ id: 'p1', label: 'blue cylindrical pressure tank', modelRead: 'UT-450 CE', mediaIds: ['tank-b'], lane: 'appearance' })],
+      matches,
+    )
+
+    const contact = r.missed.find((m) => m.expected === 'chlorine contact tank')
+    assert.ok(contact, 'the contact tank is MISSED — nothing cited its photograph')
+    assert.equal(r.counts.correct, 0, 'and the right model number earns nothing on the wrong object')
+
+    const burcam = r.judged.find((j) => j.expected === 'well-water pressure tank')!
+    assert.equal(burcam.outcome, 'wrong')
+    assert.equal(burcam.matchedOn, undefined, "and it is not credited for the other tank's model either")
+  })
+
+  it('scores it when the SAME proposal cites the right photograph', () => {
+    // The half that makes the check able to fail: move the citation and the
+    // identical model reading scores. The gate is the photograph, not the lane.
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: 'Pentair WellMate UT-450 universal retention tank', role: 'chlorine contact tank',
+        model: 'UT-450 CE', photographs: ['tank-a.jpg'],
+      }],
+    }
+    const r = scoreRun(
+      key,
+      [proposal({ id: 'p1', label: 'blue cylindrical pressure tank', modelRead: 'UT-450 CE', mediaIds: ['tank-a'], lane: 'appearance' })],
+      matches,
+    )
+    assert.equal(r.counts.correct, 1)
+    assert.equal(r.judged[0]!.matchedOn, 'model')
+    assert.equal(r.byLane.appearance!.correctOnModel, 1, '⚑ and the APPEARANCE lane can earn it — there is no lane restriction')
+  })
+})
