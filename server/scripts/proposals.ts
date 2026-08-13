@@ -155,21 +155,66 @@ console.log(`${kept.length} proposals — ${split.match.length} from pass 3, ${s
 const generationDetail = db.prepare(
   `SELECT id, task, created_at AS at FROM ai_generations WHERE id = ?`,
 )
-console.log(`\nRuns in this import — objects.generation_id, oldest first:`)
+/**
+ * ⚑ Generations grouped into RUNS — and the grouping is stated, not guessed.
+ *
+ * **A "run" is not a concept the schema has.** One drain of a pass produces
+ * several generations, one per batch, and nothing ties them together — so this
+ * groups them by **task and a time gap**, and ⚠ *that is a heuristic, printed
+ * with its threshold so a reader can disagree with it.* Every generation is
+ * listed individually underneath for exactly that reason.
+ *
+ * *Same-task contiguity alone is NOT enough and the first version of this got it
+ * wrong:* run 1 and run 2 of the 2026-08-13 re-run are both `match_known`, so
+ * grouping on task merged them back into one. **Calls within a drain are
+ * seconds apart; runs are hours.**
+ *
+ * **And this exists because the first version of the hint named only the newest
+ * generation.** The 2026-08-13 re-run's second pass spanned **three** — 18, 17
+ * and 15 objects — so following the hint would have scoped **15 of 50** and
+ * scored a third of a run while looking complete. *The runner caught it by
+ * reading the list rather than the hint.*
+ */
 const listed = [...runs].map(([g, n]) => {
   const row = g === '(no generation)' ? undefined : (generationDetail.get(g) as { task: string; at: string } | undefined)
   return { g, n, task: row?.task ?? '(none)', at: row?.at ?? '' }
 }).sort((a, b) => a.at.localeCompare(b.at))
+
+/** Same task, and no longer than this between consecutive calls. */
+const RUN_GAP_MINUTES = 15
+const blocks: { task: string; at: string; from: string; ids: string[]; objects: number }[] = []
 for (const r of listed) {
-  console.log(`  ${r.at.slice(0, 19).padEnd(20)} ${r.task.padEnd(16)} ${String(r.n).padStart(4)} objects  ${r.g}`)
+  const last = blocks[blocks.length - 1]
+  const gapMin = last && r.at && last.at ? (Date.parse(r.at) - Date.parse(last.at)) / 60000 : Infinity
+  if (last && last.task === r.task && gapMin <= RUN_GAP_MINUTES) {
+    last.ids.push(r.g); last.objects += r.n; last.at = r.at
+  } else {
+    blocks.push({ task: r.task, at: r.at, from: r.at, ids: [r.g], objects: r.n })
+  }
 }
-if (runs.size > 1 && !wantRuns) {
+
+console.log(
+  `\nRuns in this import — grouped by task, split where more than ${RUN_GAP_MINUTES} minutes\n` +
+    `passed between calls. ⚠ That grouping is a guess; every generation is listed so\nyou can disagree with it.`,
+)
+blocks.forEach((b, i) => {
   console.log(
-    `\n⚑ ${runs.size} runs are in this fixture and they are NOT separable afterwards by lane —\n` +
+    `\n  run ${i + 1}  ${b.from.slice(0, 19).padEnd(20)} ${b.task.padEnd(16)} ` +
+      `${String(b.objects).padStart(4)} objects across ${b.ids.length} generation${b.ids.length === 1 ? '' : 's'}`,
+  )
+  for (const id of b.ids) console.log(`          ${id}`)
+})
+
+if (blocks.length > 1 && !wantRuns) {
+  const newest = blocks[blocks.length - 1]!
+  console.log(
+    `\n⚑ ${blocks.length} runs are in this fixture and they are NOT separable afterwards by lane —\n` +
       `  a re-run appends, and its objects carry the same import and the same lane as the first.\n` +
-      `  Scoring this mixes them into one number naming neither. Re-run with:\n` +
-      `    npm run proposals -- --visit <id> --zone <z> --generation ${listed[listed.length - 1]!.g}\n` +
-      `  naming the generation(s) you want. Nothing is deleted either way.`,
+      `  Scoring this mixes them into one number naming neither.\n\n` +
+      `  The newest run is ${newest.objects} objects across ${newest.ids.length} generation(s). To scope to it:\n\n` +
+      `    npm run proposals -- --visit ${visitId}${needle ? ` --zone ${needle}` : ''} \\\n` +
+      `      --generation ${newest.ids.join(',')}\n\n` +
+      `  ⚑ ALL of those ids, not just the last — one run is several calls. Nothing is deleted either way.`,
   )
 }
 

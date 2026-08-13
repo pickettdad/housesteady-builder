@@ -96,14 +96,14 @@ export function enqueue(args: EnqueueArgs): AiJob {
  * The second run writes a second `ai_generations` row, and that pair — same
  * target, two models — is the comparison.
  */
-export function requeueBatch(db: Db, visitId: string, targetId: string): boolean {
+export function requeueBatch(db: Db, visitId: string, task: string, targetId: string): boolean {
   const r = db
     .prepare(
       `UPDATE ai_jobs SET status = 'queued', attempts = 0, run_after = NULL, last_error = NULL,
                           leased_at = NULL, updated_at = ?
-        WHERE visit_id = ? AND target_id = ? AND status IN ('done', 'skipped', 'failed')`,
+        WHERE visit_id = ? AND task = ? AND target_id = ? AND status IN ('done', 'skipped', 'failed')`,
     )
-    .run(now(), visitId, targetId)
+    .run(now(), visitId, task, targetId)
   return r.changes > 0
 }
 

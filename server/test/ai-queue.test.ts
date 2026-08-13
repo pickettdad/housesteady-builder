@@ -19,7 +19,7 @@ import {
 } from '../src/ai/models.js'
 import { currentPrompt, loadPrompts, PromptRefused, promptAt } from '../src/ai/prompts.js'
 import {
-  claimNext, completeJob, enqueue, failJob, MAX_ATTEMPTS, queueProgress, recordGeneration,
+  claimNext, completeJob, enqueue, failJob, MAX_ATTEMPTS, queueProgress, recordGeneration, requeueBatch,
   requeueFailed, skipJob, visitSpend, wouldExceedCap,
 } from '../src/ai/queue.js'
 
@@ -500,5 +500,42 @@ describe('⚑ claiming one job means one job of WHICH task', () => {
     job('phase_a', 'a1')
     assert.equal(claimNext(db, VISIT, undefined, undefined, 'phase_b'), undefined)
     assert.ok(claimNext(db, VISIT, undefined, undefined, 'phase_a'), 'and phase_a was claimable all along')
+  })
+})
+
+describe('⚑ re-queueing one task does not re-queue another that shares its target id', () => {
+  beforeEach(seed)
+
+  it('leaves the other task alone, and costs nothing', () => {
+    // The 2026-08-13 money bug. `identify_objects`, `read_surfaces` and
+    // `match_known` all build their target id as `${zoneId}#${index}` — three
+    // tasks, identical ids — and `requeueBatch` filtered on visit and target
+    // alone. So `match --again` re-ran three pass-1 read calls: ~$0.10 re-paid,
+    // readings 54 -> 89, reading_fields 295 -> 524, and a second --again would
+    // have doubled it again.
+    job('read_surfaces', 'zone-mech#1')
+    job('match_known', 'zone-mech#1')
+    db.prepare(`UPDATE ai_jobs SET status = 'done'`).run()
+
+    assert.equal(requeueBatch(db, VISIT, 'match_known', 'zone-mech#1'), true)
+
+    const byTask = Object.fromEntries(
+      (db.prepare('SELECT task, status FROM ai_jobs').all() as { task: string; status: string }[])
+        .map((r) => [r.task, r.status]),
+    )
+    assert.equal(byTask.match_known, 'queued', 'the task asked for is back in the queue')
+    assert.equal(byTask.read_surfaces, 'done', '⚑ and the one that merely shares an id is NOT')
+  })
+
+  it('returns false rather than re-queueing something when its own task has no such batch', () => {
+    // The half that makes the check able to fail: a filter silently ignored
+    // would still pass the assertion above.
+    job('read_surfaces', 'zone-mech#1')
+    db.prepare(`UPDATE ai_jobs SET status = 'done'`).run()
+    assert.equal(requeueBatch(db, VISIT, 'match_known', 'zone-mech#1'), false)
+    assert.equal(
+      (db.prepare('SELECT status FROM ai_jobs').get() as { status: string }).status, 'done',
+      'and nothing moved',
+    )
   })
 })

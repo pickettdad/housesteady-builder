@@ -157,7 +157,7 @@ export function queueResolution(
 
   const plan = planResolution(db, importId)
   for (let i = 0; i < plan.batches.length; i++) {
-    if (again) requeueBatch(db, visitId, resolveTargetId(i + 1))
+    if (again) requeueBatch(db, visitId, RESOLVE_TASK, resolveTargetId(i + 1))
     enqueue({
       db, propertyId, visitId,
       task: RESOLVE_TASK,

@@ -96,6 +96,24 @@
  * matching on **role** is right. *The cross-tab of lane against matched-field is
  * how you see which half of the pass did the work* — which one blended number
  * never could.
+ *
+ * ### ⚑ And then MODEL, added 2026-08-13 after the re-run
+ *
+ * **Rule 8 as first built returned `0 on product` for the plate lane** — on the
+ * very run it was written to measure. The runner diagnosed it and was right:
+ * **the key's products are brand-level** (*"Pentair WellMate UT-450 universal
+ * retention tank"*) and pass 3's model reading is `UT-450 CE`. *The every-word
+ * rule cannot bridge those, so the lane that read the plate exactly still scored
+ * nothing.*
+ *
+ * **`model` is the third field the key has carried all along.** Reading it is
+ * the same act as reading `product` was — a field already in the record, not a
+ * loosening of the wording rule.
+ *
+ * ⚠ **EXACT only.** One character out remains rule 6's plate legibility, and the
+ * two cannot collide because `nearlySameModel` returns false for identical
+ * strings. *This is an extension of the owner's ruling of 2026-08-13 rather than
+ * a separate decision, and it is reversible by deleting `onModel`.*
  */
 
 /** One confirmed object from the room record. */
@@ -197,7 +215,7 @@ export interface Judgement {
    *
    * Absent when nothing matched.
    */
-  matchedOn?: 'role' | 'product'
+  matchedOn?: 'role' | 'product' | 'model'
   /**
    * Rule 7 — which lane(s) this outcome is credited to.
    *
@@ -261,6 +279,7 @@ export interface LaneTally {
   /** Rule 8 — of this lane's correct answers, how many matched each field. */
   correctOnRole: number
   correctOnProduct: number
+  correctOnModel: number
 }
 
 // ---------------------------------------------------------------- matching
@@ -370,7 +389,7 @@ export function scoreRun(
   const tally = (lane: string): LaneTally =>
     (byLane[lane] ??= {
       correct: 0, wrong: 0, 'key-uncertain': 0, 'plate-legibility': 0,
-      falsePositives: 0, proposals: 0, correctOnRole: 0, correctOnProduct: 0,
+      falsePositives: 0, proposals: 0, correctOnRole: 0, correctOnProduct: 0, correctOnModel: 0,
     })
   for (const p of proposals) tally(laneOf(p)).proposals++
 
@@ -459,14 +478,37 @@ export function scoreRun(
      */
     const onRole = hits.filter((h) => matches(k.role!, h))
     const onProduct = onRole.length > 0 || !k.product ? [] : hits.filter((h) => matches(k.product!, h))
-    const answering = onRole.length > 0 ? onRole : onProduct
-    const matchedOn: 'role' | 'product' | undefined =
-      onRole.length > 0 ? 'role' : onProduct.length > 0 ? 'product' : undefined
+    /**
+     * ⚑ The third field, and it is the one the plate lane can actually hit.
+     *
+     * **The key's products are brand-level** — *"Pentair WellMate UT-450
+     * universal retention tank"* — and pass 3's `modelRead` is *"UT-450 CE"*. The
+     * every-word rule cannot bridge those, so rule 8 returned **0 on product for
+     * the plate lane** on the run it was built to measure. *The lane read the
+     * model exactly and the harness still could not see it.*
+     *
+     * **The key has carried `model` all along.** Matching on it is the same act
+     * as reading `product` was: a field already in the record, not a loosening
+     * of the wording rule.
+     *
+     * **EXACT only, and that is what keeps rule 6 intact.** One character out
+     * stays plate legibility — `nearlySameModel` returns false for identical
+     * strings, so the two rules cannot both fire on one proposal.
+     */
+    const sameModel = (a: string, b: string): boolean =>
+      a.toUpperCase().replace(/[^A-Z0-9]/g, '') === b.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    const onModel = onRole.length > 0 || onProduct.length > 0 || !k.model
+      ? []
+      : hits.filter((h) => typeof h.modelRead === 'string' && h.modelRead !== '' && sameModel(k.model!, h.modelRead))
+
+    const answering = onRole.length > 0 ? onRole : onProduct.length > 0 ? onProduct : onModel
+    const matchedOn: 'role' | 'product' | 'model' | undefined =
+      onRole.length > 0 ? 'role' : onProduct.length > 0 ? 'product' : onModel.length > 0 ? 'model' : undefined
     const right = answering.length > 0
 
     const lanes = credit(right ? 'correct' : 'wrong', right ? answering : hits)
     if (right && matchedOn) {
-      const field = matchedOn === 'role' ? 'correctOnRole' : 'correctOnProduct'
+      const field = matchedOn === 'role' ? 'correctOnRole' : matchedOn === 'product' ? 'correctOnProduct' : 'correctOnModel'
       for (const l of lanes) tally(l)[field]++
     }
 
@@ -478,8 +520,11 @@ export function scoreRun(
       why: right
         ? matchedOn === 'role'
           ? `Matched on a shared photograph and the role agrees.`
-          : `Matched on a shared photograph and the PRODUCT agrees — the key's role is "${k.role}", ` +
-            `and this proposal names what the thing is rather than what it is for.`
+          : matchedOn === 'product'
+            ? `Matched on a shared photograph and the PRODUCT agrees — the key's role is "${k.role}", ` +
+              `and this proposal names what the thing is rather than what it is for.`
+            : `Matched on a shared photograph and the MODEL NUMBER is exactly the key's "${k.model}" — ` +
+              `read off the plate, which is the strongest identification available.`
         : `${hits.length} proposal(s) cite this object's photographs and none matches the role "${k.role}"` +
           `${k.product ? ` or the product "${k.product}"` : ''}.`,
     })

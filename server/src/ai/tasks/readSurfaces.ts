@@ -183,7 +183,7 @@ export function queueSurfaceReading(
   const plan = planSurfaceReads(db, importId)
   const batches = only ? plan.batches.filter((b) => only(b.zoneId)) : plan.batches
   for (const b of batches) {
-    if (again) requeueBatch(db, visitId, batchTargetId(b.zoneId, b.index))
+    if (again) requeueBatch(db, visitId, READ_TASK, batchTargetId(b.zoneId, b.index))
     enqueue({
       db, propertyId, visitId,
       task: READ_TASK,
