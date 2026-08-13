@@ -103,9 +103,25 @@ const one = (sql: string, ...p: unknown[]): number =>
   (db.prepare(sql).get(...p) as { n: number } | undefined)?.n ?? 0
 
 const counts = new Map<string, number>([
-  ['s7.components', one('SELECT COUNT(*) AS n FROM objects WHERE import_id = ?', importId)],
+  /**
+   * ⚑ Pass 3's objects only — `derived_from IS NOT NULL`.
+   *
+   * **The count was unscoped, and the roadmap recorded the two-answers danger as
+   * closed because the SCORE now separates passes.** It does. *This does not.*
+   * The retired identification pass still runs on demand and still writes into
+   * `objects`, so an unscoped count adds its proposals to pass 3's and renders
+   * the sum as the number of components in the house.
+   *
+   * **The score was the loud surface and the binder is the quiet one** — a
+   * blended score is a number somebody reads and questions; a blended count is a
+   * heading in a client-facing draft. *Same failure, further downstream, and
+   * nobody was looking at it.*
+   *
+   * **Excluded objects are reported below rather than dropped.**
+   */
+  ['s7.components', one(`SELECT COUNT(*) AS n FROM objects WHERE import_id = ? AND derived_from IS NOT NULL`, importId)],
   ['s4.profile', one('SELECT COUNT(*) AS n FROM zones WHERE import_id = ?', importId)],
-  ['s12.alarms', one(`SELECT COUNT(*) AS n FROM objects WHERE import_id = ? AND class_id LIKE '%alarm%'`, importId)],
+  ['s12.alarms', one(`SELECT COUNT(*) AS n FROM objects WHERE import_id = ? AND derived_from IS NOT NULL AND class_id LIKE '%alarm%'`, importId)],
   ['s10.findings', one('SELECT COUNT(*) AS n FROM audit_slots WHERE 1 = 0')],
 ])
 
@@ -145,6 +161,22 @@ console.error(
   `\n${c.sections} sections · ${c.slots} slots · ${c.filled} filled · ` +
     `${c.gaps} gaps · ${c.correctlyEmpty} correctly empty · ${c.outOfScope} out of scope`,
 )
+/**
+ * ⚑ Doctrine 6 — what the counts above deliberately left out.
+ *
+ * Silence here would be the exact failure this scoping fixes: a draft that
+ * counted one pass and read as though it had counted the house.
+ */
+const unlaned = one(`SELECT COUNT(*) AS n FROM objects WHERE import_id = ? AND derived_from IS NULL`, importId)
+if (unlaned > 0) {
+  console.error(
+    `\n⚑ ${unlaned} object(s) from the retired identification pass are in this import and are NOT counted above.\n` +
+      `  The counts are pass 3's alone. Both passes answer the same question, so summing them would\n` +
+      `  render one house's components as two — the blended-score failure, arriving in a client-facing draft.\n` +
+      `  Nothing is deleted; they are excluded from the count and said out loud here.`,
+  )
+}
+
 const noProducerGaps = draft.sections
   .flatMap((s) => s.slots)
   .filter((s) => s.emptyReason === 'no-producer').length
