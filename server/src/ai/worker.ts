@@ -40,6 +40,14 @@ export interface DrainOptions {
   limit?: number
   /** Injected whole in tests, so the loop is exercised without a network. */
   deps?: AssistDeps
+  /**
+   * Drain only this task.
+   *
+   * ⚑ **Pair it with `limit`.** `limit: 1` alone means *one job of whatever is
+   * oldest*, which is rarely what a caller draining a phase it just queued
+   * means — see `claimNext`.
+   */
+  task?: string
 }
 
 /**
@@ -122,7 +130,7 @@ export async function drainVisit(db: Db, visitId: string, options: DrainOptions 
       }
     }
 
-    const job = claimNext(db, visitId)
+    const job = claimNext(db, visitId, undefined, undefined, options.task)
     if (!job) {
       return { ran, failed, stopped: 'empty', reason: describeEmpty(ran, failed) }
     }

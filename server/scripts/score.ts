@@ -64,7 +64,7 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import { openDb } from '../src/db/index.js'
 import { latestImport } from '../src/ai/tasks/identify.js'
 import { claimsForImport } from '../src/ai/tasks/readSurfaces.js'
@@ -90,8 +90,21 @@ const arg = (name: string): string | undefined => {
 const repoRoot = join(import.meta.dirname, '..', '..')
 const DEFAULT_KEY = join(repoRoot, 'fixtures', 'room-records', 'mechanical-room_2026-08-10.json')
 
+/**
+ * A path the caller typed, resolved against **where they typed it**.
+ *
+ * ⚑ `npm run` sets the working directory to `server/`, so a repo-root-relative
+ * path handed to `--key` or `--proposals` resolves under `server/` and fails to
+ * open. **The header already described this bug for the default key and the
+ * fix only reached the default** — a caller-supplied path had the same problem
+ * one line later. `INIT_CWD` is what npm sets to the directory the user was
+ * actually standing in; without it, `process.cwd()` is the honest fallback.
+ */
+const fromCaller = (p: string): string =>
+  isAbsolute(p) ? p : resolve(process.env.INIT_CWD ?? process.cwd(), p)
+
 const visitId = arg('visit')
-const keyPath = arg('key') ?? DEFAULT_KEY
+const keyPath = arg('key') ? fromCaller(arg('key')!) : DEFAULT_KEY
 if (!visitId && !arg('proposals')) {
   console.error(
     'Usage: npm run score -- --visit <visitId> [--key <room-record.json>] [--zone <needle>] [--pass match|identify|all]\n' +
@@ -252,7 +265,7 @@ function report(proposals: readonly ScoredProposal[], header: string): void {
  */
 const fixturePath = arg('proposals')
 if (fixturePath) {
-  const fixture = parseFixture(JSON.parse(readFileSync(fixturePath, 'utf8')))
+  const fixture = parseFixture(JSON.parse(readFileSync(fromCaller(fixturePath), 'utf8')))
   report(
     proposalsOf(fixture),
     `${fixture.provenance.visitId}${fixture.provenance.zone ? ` · zone ${fixture.provenance.zone}` : ''}` +
@@ -317,4 +330,20 @@ const proposals: ScoredProposal[] = zones.flatMap((z) =>
     models: [...new Set(p.mediaIds.flatMap((id) => platedModels.get(id) ?? []))],
   })),
 )
+
+/**
+ * ⚑ **The call this file was missing for a day.**
+ *
+ * The `--proposals` branch above calls `report()` and exits; **this line did not
+ * exist**, so `npm run score --visit` built its proposals, fell off the end of
+ * the file, printed nothing and exited 0. *A silent success is the worst
+ * available failure* — the runner session ran the documented command, got a
+ * clean exit and no output, and had to read the source to find out why.
+ *
+ * **It was introduced by moving the reporting into a function and wiring only
+ * the branch being added.** `test/score-script.test.ts` now runs both paths as
+ * processes, because every test this file had called `scoreRun` directly and
+ * none of them could see a script that never calls it.
+ */
+report(proposals, `visit ${visitId}${needle ? ` · zone ${needle}` : ''}`)
 

@@ -117,6 +117,24 @@ export interface QueuedResolve {
   queries: number
   skipped: number
   note: string
+  /**
+   * ⚑ Queries this plan asks for that no completed job can have covered.
+   *
+   * **A job's target id is its POSITION in the plan — `queries#1`, `queries#2` —
+   * and a plan grows when pass 1 produces more labels.** So batch 1 of a
+   * 45-label plan carries the same id as batch 1 of the 35-label plan that
+   * already ran, `enqueue` is idempotent, and **the ten new labels are silently
+   * never asked about.**
+   *
+   * *That is not hypothetical.* On 2026-08-13 a runner retried one truncated
+   * pass-1 batch; pass 2 then re-planned 45 queries, ran 0, and **pass 3's
+   * scaffold was built from 35 of them** with nothing in any output saying so.
+   *
+   * **Doctrine 6 — this surfaces rather than being fixed silently.** The
+   * deeper fix is a content-derived target id, which changes what a re-run
+   * costs and is therefore the owner's call, not this file's.
+   */
+  strandedQueries: number
 }
 
 /**
@@ -135,7 +153,7 @@ export function queueResolution(
   again = false,
 ): QueuedResolve {
   const importId = latestImport(db, visitId)
-  if (!importId) return { jobs: 0, queries: 0, skipped: 0, note: `No import for visit ${visitId}.` }
+  if (!importId) return { jobs: 0, queries: 0, skipped: 0, strandedQueries: 0, note: `No import for visit ${visitId}.` }
 
   const plan = planResolution(db, importId)
   for (let i = 0; i < plan.batches.length; i++) {
@@ -148,7 +166,42 @@ export function queueResolution(
       actorId,
     })
   }
-  return { jobs: plan.batches.length, queries: plan.asked, skipped: plan.skipped.length, note: plan.note }
+  /**
+   * How much of this plan cannot reach a model, because its batch already ran.
+   *
+   * Counted rather than inferred: **what the plan asks for, minus what pass 2
+   * has actually written**, and only when every batch's job is already terminal.
+   * *If a batch is still queued the work is coming and there is nothing to say.*
+   */
+  let strandedQueries = 0
+  const terminal = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM ai_jobs
+        WHERE visit_id = ? AND task = ? AND status IN ('done','skipped')`,
+    )
+    .get(visitId, RESOLVE_TASK) as { n: number }
+  if (plan.batches.length > 0 && terminal.n >= plan.batches.length) {
+    const written = db
+      .prepare('SELECT COUNT(*) AS n FROM product_resolutions WHERE import_id = ?')
+      .get(importId) as { n: number }
+    strandedQueries = Math.max(0, plan.asked - written.n)
+  }
+
+  const note =
+    strandedQueries > 0
+      ? `${plan.note}\n\n⚑ ${strandedQueries} of ${plan.asked} queries are STRANDED: every batch in this plan ` +
+        `already has a completed job, so they will never be asked. This happens when pass 1 produces more labels ` +
+        `after pass 2 has run — a retried batch, or a re-import. Re-run with --again to ask them; pass 3's ` +
+        `scaffold is incomplete until you do.`
+      : plan.note
+
+  return {
+    jobs: plan.batches.length,
+    queries: plan.asked,
+    skipped: plan.skipped.length,
+    note,
+    strandedQueries,
+  }
 }
 
 export interface ResolvePlan {

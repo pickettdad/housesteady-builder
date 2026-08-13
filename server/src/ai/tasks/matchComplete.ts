@@ -167,6 +167,22 @@ export interface StoredMatch extends MatchOutput {
   strayEvidence: { label: string; mediaId: string }[]
   /** `partOf` naming nothing in this answer. Kept, never guessed at. */
   danglingParents: { child: string; named: string }[]
+  /**
+   * ⚑ Entries whose every cited photograph belonged to another batch.
+   *
+   * **Not written as objects, and that is doctrine 3 rather than tidiness.** An
+   * object citing no photograph has no provenance: nothing can verify it,
+   * nothing can score it — it cannot overlap a key object by construction — and
+   * a binder would render it as a fact about the house with no evidence behind
+   * it at all.
+   *
+   * *Found in the first real run:* `Pressurized bladder tank isolation hardware`
+   * was written from the mechanical room with an empty `mediaIds`, and became
+   * the run's only false positive. **Its citations are in `strayEvidence`, so
+   * nothing is lost by refusing the object** — the answer is kept, it just does
+   * not become a thing in the house.
+   */
+  evidenceless: string[]
 }
 
 // ---------------------------------------------------------------- the planning
@@ -370,6 +386,7 @@ export function normaliseMatch(
   const unknownProducts: string[] = []
   const unknownClasses: StoredMatch['unknownClasses'] = []
   const strayEvidence: StoredMatch['strayEvidence'] = []
+  const evidenceless: string[] = []
 
   const evidence = (label: string, ids: unknown): string[] => {
     const out: string[] = []
@@ -388,9 +405,11 @@ export function normaliseMatch(
     // located entry. It is an appearance guess wearing the plate lane's badge,
     // and it is the one thing that would silently merge the two lanes.
     if (!known.products.has(product)) { unknownProducts.push(product); continue }
+    const locatedEvidence = evidence(product, raw.mediaIds)
+    if (locatedEvidence.length === 0) { evidenceless.push(product); continue }
     located.push({
       product,
-      mediaIds: evidence(product, raw.mediaIds),
+      mediaIds: locatedEvidence,
       whereItIs: typeof raw.whereItIs === 'string' ? raw.whereItIs.trim() : '',
       partOf: typeof raw.partOf === 'string' && raw.partOf.trim() !== '' ? raw.partOf.trim() : null,
     })
@@ -405,10 +424,12 @@ export function normaliseMatch(
       if (known.classIds.has(id)) classId = id
       else unknownClasses.push({ label, classId: id })
     }
+    const additionalEvidence = evidence(label, raw.mediaIds)
+    if (additionalEvidence.length === 0) { evidenceless.push(label); continue }
     additional.push({
       label,
       classId,
-      mediaIds: evidence(label, raw.mediaIds),
+      mediaIds: additionalEvidence,
       whatYouCanSee: typeof raw.whatYouCanSee === 'string' ? raw.whatYouCanSee : '',
       whatMakesItDifferent: typeof raw.whatMakesItDifferent === 'string' ? raw.whatMakesItDifferent : '',
       partOf: typeof raw.partOf === 'string' && raw.partOf.trim() !== '' ? raw.partOf.trim() : null,
@@ -427,6 +448,7 @@ export function normaliseMatch(
   return {
     question: known.question,
     located,
+    evidenceless,
     couldNotLocate: (output.couldNotLocate ?? []).filter(
       (c): c is NotLocated => typeof c?.product === 'string' && known.products.has(c.product.trim()),
     ).map((c) => ({ product: c.product.trim(), whereExpected: String(c.whereExpected ?? '') })),
