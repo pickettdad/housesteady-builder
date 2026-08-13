@@ -134,6 +134,46 @@ console.log(
     : `${spend.generations} calls, ${spend.inputTokens.toLocaleString()} input tokens. No rates configured.`,
 )
 console.log(`Queue: ${JSON.stringify(queueProgress(db, visitId))}`)
+
+/**
+ * ⚑ What the model said that this build has no home for.
+ *
+ * **Ruled 2026-08-13: stop discarding.** A key outside the four modelled ones
+ * used to be read past and gone. It is now recorded — *and a bucket that is
+ * reported into a variable nobody prints is the same drop one layer up*, so it
+ * is printed here.
+ *
+ * **This is the hypothesis channel's specification writing itself.** Whatever
+ * turns up in this list is what the model wanted to say and had nowhere to put.
+ */
+function reportUnmodelled(): void {
+  const rows = db
+    .prepare(
+      `SELECT output FROM ai_generations
+        WHERE visit_id = ? AND task IN ('match_known','enumerate_room') AND output IS NOT NULL
+        ORDER BY created_at DESC LIMIT 20`,
+    )
+    .all(visitId) as { output: string }[]
+  const MODELLED = new Set(['located', 'couldNotLocate', 'additional', 'unsure'])
+  const seen = new Map<string, string>()
+  for (const r of rows) {
+    let o: Record<string, unknown>
+    try { o = JSON.parse(r.output) as Record<string, unknown> } catch { continue }
+    for (const [k, v] of Object.entries(o)) {
+      if (MODELLED.has(k) || seen.has(k)) continue
+      seen.set(k, (typeof v === 'string' ? v : JSON.stringify(v) ?? '').slice(0, 160))
+    }
+  }
+  if (seen.size === 0) return
+  console.log(`\n⚑ ${seen.size} answer key(s) this build does not model. NOTHING here became an object:`)
+  for (const [k, preview] of seen) console.log(`    ${k}: ${preview}`)
+  console.log(
+    `\n  These are where a hypothesis lands first — the channel is unbuilt, so the model\n` +
+      `  has one output shape and anything that is not a claim about an object has nowhere\n` +
+      `  to go. Reported rather than dropped.`,
+  )
+}
+reportUnmodelled()
 report()
 
 /** The two lanes, printed apart — because that is the whole point of the pass. */

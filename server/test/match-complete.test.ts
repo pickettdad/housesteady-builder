@@ -400,3 +400,37 @@ describe('the call and the two lanes', () => {
     }
   })
 })
+
+describe('⚑ stop discarding — an answer key with no home is reported, not dropped', () => {
+  it('records a top-level key this build does not model', () => {
+    // Ruled 2026-08-13. Until now anything outside the four modelled keys was
+    // read past and gone. ⚑ This is where a hypothesis lands first: every wall
+    // in this repo constrains ASSERTION, so the model has one output shape — a
+    // claim about an object — and "these two are probably one thing" has
+    // nowhere to go. The channel's opening content is already sitting in runs
+    // that have been paid for.
+    const out = {
+      located: [], couldNotLocate: [], additional: [], unsure: [],
+      possibleDuplicates: [{ a: 'the Vanée', b: 'the ventilator', why: 'same unit, two angles' }],
+      note: 'two vessels and one pressure switch, so something may be missing',
+    } as unknown as MatchOutput
+
+    const stored = normaliseMatch(out, {
+      question: MATCH_TASK, products: new Set<string>(), classIds: new Set<string>(), mediaIds: new Set<string>(),
+    })
+
+    assert.deepEqual(stored.unmodelledKeys.map((u) => u.key).sort(), ['note', 'possibleDuplicates'])
+    assert.match(stored.unmodelledKeys.find((u) => u.key === 'note')!.preview, /pressure switch/)
+    assert.equal(stored.located.length, 0, 'and nothing it said became an object')
+    assert.equal(stored.additional.length, 0)
+  })
+
+  it('reports nothing when the answer carries only modelled keys', () => {
+    // The half that lets the check fail: a reporter that always fires is noise.
+    const stored = normaliseMatch(
+      { located: [], couldNotLocate: [], additional: [], unsure: [] } as unknown as MatchOutput,
+      { question: MATCH_TASK, products: new Set<string>(), classIds: new Set<string>(), mediaIds: new Set<string>() },
+    )
+    assert.deepEqual(stored.unmodelledKeys, [])
+  })
+})
