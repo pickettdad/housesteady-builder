@@ -66,6 +66,21 @@ export interface Proposal {
   derivedFrom: string | null
   /** Pass 3's own model reading — `objects.model_read`. What rule 6 scores. */
   modelRead: string | null
+  /**
+   * ⚑ Which model call proposed this — `objects.generation_id`.
+   *
+   * **The run discriminator, and it has been in the schema since 2026-08-09.**
+   * `--again` re-runs a pass by re-queueing the JOB; it deletes nothing, because
+   * the log is append-only and the first run is evidence. So a re-run *appends* a
+   * second set of proposals beside the first, and **`import_id` and
+   * `derived_from` are identical across both** — the lane split cannot separate
+   * them.
+   *
+   * *Without this, a fixture written after a re-run mixes two runs and scores a
+   * number naming neither* — the same failure `splitByPass` exists to prevent,
+   * one level down.
+   */
+  generationId: string | null
 }
 
 /**
@@ -289,7 +304,7 @@ function groupBySignal(proposals: readonly Proposal[]): Candidate[] {
 export function proposalsForImport(db: Db, importId: string, zoneId?: string): Proposal[] {
   const rows = db
     .prepare(
-      `SELECT o.id, o.zone_id AS zoneId, o.class_id AS classId, o.label, o.derived_from AS derivedFrom, o.model_read AS modelRead
+      `SELECT o.id, o.zone_id AS zoneId, o.class_id AS classId, o.label, o.derived_from AS derivedFrom, o.model_read AS modelRead, o.generation_id AS generationId
          FROM objects o
         WHERE o.import_id = ?${zoneId ? ' AND o.zone_id = ?' : ''}
         ORDER BY o.zone_id, o.label`,
@@ -301,6 +316,7 @@ export function proposalsForImport(db: Db, importId: string, zoneId?: string): P
     label: string
     derivedFrom: string | null
     modelRead: string | null
+    generationId: string | null
   }[]
 
   const media = db.prepare('SELECT media_id AS mediaId FROM object_media WHERE object_id = ?')

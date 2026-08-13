@@ -66,6 +66,13 @@ export interface FixtureProposal {
   models: string[]
   /** Pass 3's own model reading for THIS object — `objects.model_read`. */
   modelRead?: string | null
+  /**
+   * ⚑ Which model call proposed it — the run discriminator.
+   *
+   * **A re-run appends rather than replaces**, and `import_id` and the lane are
+   * identical across runs, so this is the only thing that tells run 1 from run 2.
+   */
+  generationId?: string | null
 }
 
 /**
@@ -106,6 +113,7 @@ export function buildFixture(provenance: FixtureProvenance, proposals: readonly 
       lane: p.lane ?? null,
       models: [...(p.models ?? [])],
       ...(p.modelRead ? { modelRead: p.modelRead } : {}),
+      ...(p.generationId ? { generationId: p.generationId } : {}),
     })),
   }
 }
@@ -147,6 +155,7 @@ export function parseFixture(raw: unknown): ProposalFixture {
       lane: typeof q.lane === 'string' ? q.lane : null,
       models: Array.isArray(q.models) ? (q.models as unknown[]).filter((m): m is string => typeof m === 'string') : [],
       ...(typeof q.modelRead === 'string' && q.modelRead !== '' ? { modelRead: q.modelRead } : {}),
+      ...(typeof q.generationId === 'string' && q.generationId !== '' ? { generationId: q.generationId } : {}),
     }
   })
 
@@ -167,7 +176,7 @@ export function parseFixture(raw: unknown): ProposalFixture {
 export const proposalsOf = (f: ProposalFixture): ScoredProposal[] =>
   f.proposals.map((p) => ({
     id: p.id, label: p.label, classId: p.classId, mediaIds: p.mediaIds, lane: p.lane, models: p.models,
-    modelRead: p.modelRead ?? null,
+    modelRead: p.modelRead ?? null, generationId: p.generationId ?? null,
   }))
 
 // --------------------------------------------------------- the personal-data scan

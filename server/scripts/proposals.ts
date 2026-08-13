@@ -52,9 +52,14 @@ const arg = (name: string): string | undefined => {
 const visitId = arg('visit')
 if (!visitId) {
   console.error(
-    'Usage: npm run proposals -- --visit <visitId> [--zone <needle>] [--out <path>] [--note "..."]\n\n' +
+      'Usage: npm run proposals -- --visit <visitId> [--zone <needle>] [--out <path>]\n' +
+      '                              [--note "..."] [--generation <id>[,<id>]]\n\n' +
       'Writes the proposals the scoring harness reads, so scoring never needs the\n' +
-      'photographs, the API key or this database again.',
+      'photographs, the API key or this database again.\n\n' +
+      '⚑ --generation scopes the fixture to one RUN. A re-run APPENDS rather than\n' +
+      'replacing, and its objects carry the same import and the same lane as the\n' +
+      'first — so after any --again, a fixture written blind mixes two runs. The\n' +
+      'runs present are always printed, whether or not you filter.',
   )
   process.exit(1)
 }
@@ -93,9 +98,39 @@ const proposals: ScoredProposal[] = zones.flatMap((z) =>
     mediaIds: p.mediaIds,
     lane: p.derivedFrom,
     modelRead: p.modelRead,
+    generationId: p.generationId,
     models: [...new Set(p.mediaIds.flatMap((id) => platedModels.get(id) ?? []))],
   })),
 )
+
+/**
+ * ⚑ Which RUN to write out — `objects.generation_id`.
+ *
+ * **A re-run appends; it does not replace.** `--again` re-queues the job and
+ * `writeMatched` inserts; nothing is deleted, because the log is append-only and
+ * the first run is evidence. So after a re-run this import holds two sets of
+ * proposals with **the same `import_id` and the same lane** — and a fixture
+ * written blind mixes them and scores a number naming neither.
+ *
+ * *This is the failure `splitByPass` exists to prevent, one level down: not two
+ * passes, but two runs of one pass.* **Found by the runner session on
+ * 2026-08-13 before it cost anything.**
+ *
+ * **The report below is always printed.** The filter is optional; knowing is not.
+ */
+const runs = new Map<string, number>()
+for (const p of proposals) runs.set(p.generationId ?? '(no generation)', (runs.get(p.generationId ?? '(no generation)') ?? 0) + 1)
+
+const wantRuns = arg('generation')?.split(',').map((x) => x.trim()).filter(Boolean)
+if (wantRuns) {
+  const unknown = wantRuns.filter((g) => !runs.has(g))
+  if (unknown.length > 0) {
+    console.error(`\n--generation names ${unknown.length} id(s) this import has no objects for: ${unknown.join(', ')}\n`)
+    process.exit(1)
+  }
+}
+
+const kept = wantRuns ? proposals.filter((p) => wantRuns.includes(p.generationId ?? '')) : proposals
 
 const fixture = buildFixture(
   {
@@ -105,20 +140,43 @@ const fixture = buildFixture(
     producedAt: new Date().toISOString(),
     ...(arg('note') ? { note: arg('note')! } : {}),
   },
-  proposals,
+  kept,
 )
 
 const out = arg('out') ?? join(dataRoot, 'proposals', `${visitId}${needle ? `-${needle}` : ''}.json`)
 mkdirSync(dirname(out), { recursive: true })
 writeFileSync(out, `${JSON.stringify(fixture, null, 2)}\n`, 'utf8')
 
-const split = splitByPass(proposals)
+const split = splitByPass(kept)
 console.log(`\nWrote ${out}`)
-console.log(`${proposals.length} proposals — ${split.match.length} from pass 3, ${split.identify.length} from the identification pass.`)
-if (proposals.length === 0) {
+console.log(`${kept.length} proposals — ${split.match.length} from pass 3, ${split.identify.length} from the identification pass.`)
+
+// ⚑ Always. A mixed fixture must never be written without the writer knowing.
+const generationDetail = db.prepare(
+  `SELECT id, task, created_at AS at FROM ai_generations WHERE id = ?`,
+)
+console.log(`\nRuns in this import — objects.generation_id, oldest first:`)
+const listed = [...runs].map(([g, n]) => {
+  const row = g === '(no generation)' ? undefined : (generationDetail.get(g) as { task: string; at: string } | undefined)
+  return { g, n, task: row?.task ?? '(none)', at: row?.at ?? '' }
+}).sort((a, b) => a.at.localeCompare(b.at))
+for (const r of listed) {
+  console.log(`  ${r.at.slice(0, 19).padEnd(20)} ${r.task.padEnd(16)} ${String(r.n).padStart(4)} objects  ${r.g}`)
+}
+if (runs.size > 1 && !wantRuns) {
+  console.log(
+    `\n⚑ ${runs.size} runs are in this fixture and they are NOT separable afterwards by lane —\n` +
+      `  a re-run appends, and its objects carry the same import and the same lane as the first.\n` +
+      `  Scoring this mixes them into one number naming neither. Re-run with:\n` +
+      `    npm run proposals -- --visit <id> --zone <z> --generation ${listed[listed.length - 1]!.g}\n` +
+      `  naming the generation(s) you want. Nothing is deleted either way.`,
+  )
+}
+
+if (kept.length === 0) {
   // Doctrine 6 — an empty fixture is a fact, said out loud rather than written
   // quietly and discovered when a score reports nothing.
-  console.log(`\n⚑ No objects for this import${needle ? ` in a zone matching "${needle}"` : ''}. The fixture is empty and a score of it will be too.`)
+  console.log(`\n⚑ No objects for this import${needle ? ` in a zone matching "${needle}"` : ''}${wantRuns ? ' in the named generation(s)' : ''}. The fixture is empty and a score of it will be too.`)
 }
 
 // ------------------------------------------------------------------- the scan

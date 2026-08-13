@@ -149,6 +149,16 @@ export interface ScoredProposal {
    */
   modelRead?: string | null
   /**
+   * Which model call proposed this — `objects.generation_id`, the RUN
+   * discriminator.
+   *
+   * ⚑ **A re-run appends; it does not replace.** `import_id` and the lane are
+   * identical across runs, so this is the only thing that separates run 1 from
+   * run 2 — the same failure `splitByPass` prevents between passes, one level
+   * down. Found by the runner session on 2026-08-13, before it cost anything.
+   */
+  generationId?: string | null
+  /**
    * Which lane produced this proposal — `objects.derived_from`.
    *
    * ⚑ **Rule 7 — a score that cannot name the lane cannot test pass 3's claim.**
