@@ -60,6 +60,28 @@ npm run smoke                          # proves the key is valid. A few cents.
 
 ---
 
+## 2a · Environment — v1 §2's block stands, with one change and one caveat
+
+**Set the nine variables exactly as v1 §2 lists them**, with a fresh key created for this run and revoked when it finishes. ⚑ *A key that has appeared in a screenshot, a chat, or a log is already spent — revoke it and mint a new one; do not reason about who saw it.*
+
+### ⚑ The spend cap is `5.00` for this run, not v1's `2.00`
+
+**Ruled by the owner, 2026-08-13.** Where v1 §2 and this line disagree, **this one wins.**
+
+**The reason is the shape of the failure, not the price.** v1's `2.00` was about six times a *measured* single-pass cost. **v2 runs three passes and nobody has measured them** — so the old figure is no longer a margin over a known number, it is a guess wearing one.
+
+> ⚑ **A cap firing mid-run is the expensive outcome, not the safe one.** It leaves some zones read and some not — and **pass 3's gate then correctly refuses to match the unread ones**, so the money is spent, nothing is scoreable, and a clean total needs a re-import.
+>
+> **A cap set against a number nobody has is protecting against runaway, not against a known price.** `5.00` is sized for the first job only.
+
+### ⚠ The tokenizer note — strong tier only, and not this run
+
+**Sonnet 5 emits roughly 30% more tokens for the same input than the previous generation.** So **a cumulative cap fires about 30% earlier** than an estimate carried over from Sonnet 4.6.
+
+**Irrelevant here** — `npm run passes` defaults to the fast tier and §4's command passes no `--tier`. **Relevant the first time anything goes strong**, which is why it is written down before then rather than after.
+
+---
+
 ## 3 · Import — unchanged from v1 §3
 
 ```bash
@@ -145,10 +167,10 @@ npm run score -- --visit <visitId> --zone mech
 
 ## 7 · What to report, in this order
 
-1. **`TREE OK`**, and the test count you saw.
-2. **What `npm run passes` printed** — per pass: queued, ran, failed, and the blocked list if any.
-3. **Pass 3's lane split** — how many plate-derived, how many appearance-derived, how many matched no class.
-4. **Spend and tokens.** If rates are unset it prints that the cost is unknown; ⚑ **say that rather than reporting zero.**
+1. ⚑ **ACTUAL SPEND AND TOKEN COUNTS, first and prominently.** `npm run passes` prints `visitSpend`. **This is the most valuable number the run produces** — the real cap gets set from it, and it is **the first real input to job costing this business has.** If rates are unset it prints that the cost is unknown; ⚑ **say that rather than reporting zero.** *Break it down per pass if the output allows.*
+2. **`TREE OK`**, and the test count you saw.
+3. **What `npm run passes` printed** — per pass: queued, ran, failed, and the blocked list if any.
+4. **Pass 3's lane split** — how many plate-derived, how many appearance-derived, how many matched no class.
 5. **The scan result**, in full.
 6. **The proposals fixture**, pasted, if the scan is clean and you have read the labels.
 7. **The score output**, verbatim.
