@@ -312,3 +312,62 @@ describe('⚑ rule 8 — the key has two fields and both are read', () => {
     assert.match(r.judged[0]!.why, /does name its product/)
   })
 })
+
+describe('⚑ rule 8 · the third field — MODEL, exact only', () => {
+  const key: RoomKey = {
+    confirmed_objects: [{
+      product: 'Pentair WellMate UT-450 universal retention tank',
+      role: 'well contact tank',
+      model: 'UT-450 CE',
+      photographs: ['a.jpg'],
+      confirmed_by: { product: 'plate', role: 'household' },
+    }],
+  }
+
+  it('scores a plate proposal whose modelRead is exactly the key model', () => {
+    // The case the re-run produced and the harness could not see: the key's
+    // product is brand-level, the lane's reading is `UT-450 CE`, and the
+    // every-word rule cannot bridge them.
+    const r = scoreRun(
+      key,
+      [proposal({ id: 'p1', label: 'bladder pressure tank', modelRead: 'UT-450 CE', mediaIds: ['a'], lane: 'plate' })],
+      matches,
+    )
+    assert.equal(r.counts.correct, 1)
+    assert.equal(r.judged[0]!.matchedOn, 'model')
+    assert.match(r.judged[0]!.why, /MODEL NUMBER is exactly/)
+    assert.equal(r.byLane.plate!.correctOnModel, 1)
+  })
+
+  it('ignores punctuation and case, because a plate is not a string literal', () => {
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'a tank', modelRead: 'ut450ce', mediaIds: ['a'], lane: 'plate' })], matches)
+    assert.equal(r.judged[0]!.matchedOn, 'model')
+  })
+
+  it('⚑ leaves a one-character miss as rule 6, not as correct', () => {
+    // The half that keeps rules 6 and 8 from colliding. `UT-451 CE` is one edit
+    // out, so it is the PLATE that is unclear — scoring it correct would launder
+    // a legibility problem into an identification, which is what rule 6 exists
+    // to prevent.
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'a tank', modelRead: 'UT-451 CE', mediaIds: ['a'], lane: 'plate' })], matches)
+    assert.equal(r.counts.correct, 0)
+    assert.equal(r.counts['plate-legibility'], 1)
+    assert.equal(r.judged[0]!.matchedOn, undefined)
+  })
+
+  it('prefers role, then product, then model — model never outranks a role match', () => {
+    const r = scoreRun(
+      key,
+      [proposal({ id: 'p1', label: 'well contact tank', modelRead: 'UT-450 CE', mediaIds: ['a'], lane: 'plate' })],
+      matches,
+    )
+    assert.equal(r.judged[0]!.matchedOn, 'role')
+    assert.equal(r.byLane.plate!.correctOnModel, 0)
+  })
+
+  it('is still wrong when the model differs entirely', () => {
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'a tank', modelRead: '600545B', mediaIds: ['a'], lane: 'plate' })], matches)
+    assert.equal(r.counts.wrong, 1)
+    assert.equal(r.judged[0]!.matchedOn, undefined)
+  })
+})

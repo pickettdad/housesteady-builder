@@ -213,18 +213,18 @@ function report(proposals: readonly ScoredProposal[], header: string): void {
     const lanes = Object.entries(r.byLane).sort(([a], [b]) => a.localeCompare(b))
     if (lanes.length > 1) {
       console.log(`\n  by lane — which half of the pass earned each outcome:`)
-      console.log(`    ${'lane'.padEnd(14)}${'props'.padStart(7)}${'correct'.padStart(9)}${'wrong'.padStart(7)}${'uncert'.padStart(8)}${'legib'.padStart(7)}${'false+'.padStart(8)}${'on role'.padStart(8)}${'on prod'.padStart(9)}`)
+      console.log(`    ${'lane'.padEnd(14)}${'props'.padStart(7)}${'correct'.padStart(9)}${'wrong'.padStart(7)}${'uncert'.padStart(8)}${'legib'.padStart(7)}${'false+'.padStart(8)}${'on role'.padStart(8)}${'on prod'.padStart(9)}${'on model'.padStart(10)}`)
       for (const [l, t] of lanes) {
         console.log(
           `    ${l.padEnd(14)}${String(t.proposals).padStart(7)}${String(t.correct).padStart(9)}` +
             `${String(t.wrong).padStart(7)}${String(t['key-uncertain']).padStart(8)}` +
             `${String(t['plate-legibility']).padStart(7)}${String(t.falsePositives).padStart(8)}` +
-            `${String(t.correctOnRole).padStart(8)}${String(t.correctOnProduct).padStart(9)}`,
+            `${String(t.correctOnRole).padStart(8)}${String(t.correctOnProduct).padStart(9)}${String(t.correctOnModel).padStart(10)}`,
         )
       }
       console.log(
-        `\n    ⚑ The last two columns are rule 8, and they are the diagnostic this run\n` +
-          `    exists for: a PLATE proposal matching on PRODUCT is right, and an\n` +
+        `\n    ⚑ The last three columns are rule 8, and they are the diagnostic this run\n` +
+          `    exists for: a PLATE proposal matching on PRODUCT or MODEL is right, and an\n` +
           `    APPEARANCE proposal matching on ROLE is right. Which column carries a\n` +
           `    lane's correct answers is how you see what that half of the pass did.\n\n` +
           `    These rows are attributions, not a partition — two lanes can cite one\n` +

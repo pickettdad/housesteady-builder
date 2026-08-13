@@ -324,7 +324,10 @@ export function queueMatch(
 
   for (const b of batches) {
     const task = questionFor(b)
-    if (again) requeueBatch(db, visitId, batchTargetId(b.zoneId, b.index))
+    // The question we are ABOUT to ask, which is the job this re-queues. A batch
+    // that changed question — enumerate to match, because the scaffold filled —
+    // correctly leaves the old job alone: it answered a different question.
+    if (again) requeueBatch(db, visitId, task, batchTargetId(b.zoneId, b.index))
     enqueue({
       db, propertyId, visitId, task,
       targetKind: MATCH_TARGET_KIND,

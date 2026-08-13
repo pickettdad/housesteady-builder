@@ -351,7 +351,7 @@ export function queueIdentification(
   const all = planIdentificationCalls(mediaForImport(db, importId), zoneRoutes(db, importId))
   const plan = only ? { ...all, batches: all.batches.filter((b) => only(b.zoneId)) } : all
   for (const b of plan.batches) {
-    if (again) requeueBatch(db, visitId, batchTargetId(b.zoneId, b.index))
+    if (again) requeueBatch(db, visitId, IDENTIFY_TASK, batchTargetId(b.zoneId, b.index))
     enqueue({
       db,
       propertyId,
