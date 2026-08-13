@@ -64,6 +64,8 @@ export interface Proposal {
    * old identification pass**, which wrote no lane.
    */
   derivedFrom: string | null
+  /** Pass 3's own model reading — `objects.model_read`. What rule 6 scores. */
+  modelRead: string | null
 }
 
 /**
@@ -287,7 +289,7 @@ function groupBySignal(proposals: readonly Proposal[]): Candidate[] {
 export function proposalsForImport(db: Db, importId: string, zoneId?: string): Proposal[] {
   const rows = db
     .prepare(
-      `SELECT o.id, o.zone_id AS zoneId, o.class_id AS classId, o.label, o.derived_from AS derivedFrom
+      `SELECT o.id, o.zone_id AS zoneId, o.class_id AS classId, o.label, o.derived_from AS derivedFrom, o.model_read AS modelRead
          FROM objects o
         WHERE o.import_id = ?${zoneId ? ' AND o.zone_id = ?' : ''}
         ORDER BY o.zone_id, o.label`,
@@ -298,6 +300,7 @@ export function proposalsForImport(db: Db, importId: string, zoneId?: string): P
     classId: string | null
     label: string
     derivedFrom: string | null
+    modelRead: string | null
   }[]
 
   const media = db.prepare('SELECT media_id AS mediaId FROM object_media WHERE object_id = ?')

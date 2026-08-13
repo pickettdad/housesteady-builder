@@ -1,0 +1,15 @@
+-- Pass 3's OWN model reading, on the object rather than on the photograph.
+--
+-- ⚑ **`models[]` in the scoring path is a photograph-level fact wearing an
+-- object-level name, and the first real run proved it:** the proposal
+-- "Fire extinguisher (red cylinder)" carried `TTV049BGC01ARKS` — the geothermal
+-- unit's model number — because both were visible in the frame it cited.
+--
+-- Rule 6 of the scoring harness asks *was this model number one character out,
+-- or is the engine wrong?* **That question is about THIS object's plate**, so it
+-- cannot be answered from a list of every plate in the picture. Rule 6 read that
+-- list and fired once in a run containing at least two of its cases.
+--
+-- **Nullable, and null means the pass did not read one** — which is an ordinary
+-- state for an appearance-derived object and must not read as an empty string.
+ALTER TABLE objects ADD COLUMN model_read TEXT;

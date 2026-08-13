@@ -96,6 +96,12 @@ export const MATCH_SCHEMA: Record<string, unknown> = {
         properties: {
           product: { type: 'string' },
           mediaIds: { type: 'array', items: { type: 'string' }, minItems: 1 },
+          model: {
+            type: ['string', 'null'],
+            description:
+              'The model or part number printed on THIS object, exactly as it reads, or null. ' +
+              'Never a number read off a different thing in the same photograph, and never a guess.',
+          },
           whereItIs: { type: 'string' },
           partOf: { type: ['string', 'null'] },
         },
@@ -120,6 +126,12 @@ export const MATCH_SCHEMA: Record<string, unknown> = {
           label: { type: 'string' },
           classId: { type: ['string', 'null'] },
           mediaIds: { type: 'array', items: { type: 'string' }, minItems: 1 },
+          model: {
+            type: ['string', 'null'],
+            description:
+              'The model or part number printed on THIS object, exactly as it reads, or null. ' +
+              'Never a number read off a different thing in the same photograph, and never a guess.',
+          },
           whatYouCanSee: { type: 'string' },
           // The duplicate guard. Required, because an entry that cannot say how
           // it differs from a known product is probably that product.
@@ -136,6 +148,15 @@ export const MATCH_SCHEMA: Record<string, unknown> = {
 export interface Located {
   product: string
   mediaIds: string[]
+  /**
+   * The model or part number printed on THIS object, or null.
+   *
+   * ⚑ **Object-level, which is the whole point.** The photograph-level list
+   * bleeds — a fire extinguisher carried the geothermal unit's model number in
+   * the first real run, because both were in the frame. Scoring rule 6 asks a
+   * question about *this thing's plate* and cannot answer it from that list.
+   */
+  modelRead?: string | null
   whereItIs: string
   partOf?: string | null
 }
@@ -144,6 +165,15 @@ export interface Additional {
   label: string
   classId: string | null
   mediaIds: string[]
+  /**
+   * The model or part number printed on THIS object, or null.
+   *
+   * ⚑ **Object-level, which is the whole point.** The photograph-level list
+   * bleeds — a fire extinguisher carried the geothermal unit's model number in
+   * the first real run, because both were in the frame. Scoring rule 6 asks a
+   * question about *this thing's plate* and cannot answer it from that list.
+   */
+  modelRead?: string | null
   whatYouCanSee: string
   whatMakesItDifferent: string
   partOf?: string | null
@@ -388,6 +418,12 @@ export function normaliseMatch(
   const strayEvidence: StoredMatch['strayEvidence'] = []
   const evidenceless: string[] = []
 
+  /** A model reading, or null. **Doctrine 4 — a blank is not a model number.** */
+  const modelOf = (v: unknown): string | null => {
+    const t = typeof v === 'string' ? v.trim() : ''
+    return t === '' ? null : t
+  }
+
   const evidence = (label: string, ids: unknown): string[] => {
     const out: string[] = []
     for (const m of Array.isArray(ids) ? ids : []) {
@@ -410,6 +446,7 @@ export function normaliseMatch(
     located.push({
       product,
       mediaIds: locatedEvidence,
+      modelRead: modelOf((raw as { model?: unknown }).model),
       whereItIs: typeof raw.whereItIs === 'string' ? raw.whereItIs.trim() : '',
       partOf: typeof raw.partOf === 'string' && raw.partOf.trim() !== '' ? raw.partOf.trim() : null,
     })
@@ -430,6 +467,7 @@ export function normaliseMatch(
       label,
       classId,
       mediaIds: additionalEvidence,
+      modelRead: modelOf((raw as { model?: unknown }).model),
       whatYouCanSee: typeof raw.whatYouCanSee === 'string' ? raw.whatYouCanSee : '',
       whatMakesItDifferent: typeof raw.whatMakesItDifferent === 'string' ? raw.whatMakesItDifferent : '',
       partOf: typeof raw.partOf === 'string' && raw.partOf.trim() !== '' ? raw.partOf.trim() : null,
@@ -480,8 +518,8 @@ export function writeMatched(
   const at = now()
   const insert = db.prepare(
     `INSERT INTO objects (id, property_id, zone_id, import_id, class_id, label, confirmed_by, confirmed_at,
-                          actor_id, generation_id, derived_from, resolution_id, parent_object_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, NULL, ?)`,
+                          actor_id, generation_id, derived_from, resolution_id, model_read, parent_object_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, NULL, ?)`,
   )
   const link = db.prepare('INSERT OR IGNORE INTO object_media (object_id, media_id, created_at) VALUES (?, ?, ?)')
   const setParent = db.prepare('UPDATE objects SET parent_object_id = ? WHERE id = ?')
@@ -496,7 +534,7 @@ export function writeMatched(
       const id = randomUUID()
       insert.run(
         id, args.propertyId, args.zoneId, args.importId, null, l.product, args.actorId,
-        args.generationId ?? null, 'plate', args.resolutionOf.get(l.product) ?? null, at,
+        args.generationId ?? null, 'plate', args.resolutionOf.get(l.product) ?? null, l.modelRead ?? null, at,
       )
       for (const m of l.mediaIds) link.run(id, m, at)
       idByName.set(l.product, id)
@@ -507,7 +545,7 @@ export function writeMatched(
       const id = randomUUID()
       insert.run(
         id, args.propertyId, args.zoneId, args.importId, a.classId, a.label, args.actorId,
-        args.generationId ?? null, 'appearance', null, at,
+        args.generationId ?? null, 'appearance', null, a.modelRead ?? null, at,
       )
       for (const m of a.mediaIds) link.run(id, m, at)
       idByName.set(a.label, id)

@@ -92,6 +92,7 @@ const proposals: ScoredProposal[] = zones.flatMap((z) =>
     classId: p.classId,
     mediaIds: p.mediaIds,
     lane: p.derivedFrom,
+    modelRead: p.modelRead,
     models: [...new Set(p.mediaIds.flatMap((id) => platedModels.get(id) ?? []))],
   })),
 )
