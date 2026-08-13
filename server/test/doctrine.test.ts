@@ -3080,8 +3080,14 @@ describe('a prompt version cannot go live by being added', () => {
     pin_type: 'v001',
     read_surfaces: 'v001',
     resolve_product: 'v001',
-    match_known: 'v001',
-    enumerate_room: 'v001',
+    // v002, 2026-08-13 — each proposal now carries its OWN `model` reading.
+    // ⚑ **A deliberate go-live, which is what this pin exists to force.** Rule 6
+    // of the scoring harness asks whether THIS object's model was one character
+    // out, and until now it read a photograph-level list that bleeds — a fire
+    // extinguisher carried the geothermal unit's number in the first real run.
+    // ⚠ *A run at v002 is a new measurement, not a comparison with 2026-08-13.*
+    match_known: 'v002',
+    enumerate_room: 'v002',
   }
 
   it('the live version of every task is the one recorded here', () => {

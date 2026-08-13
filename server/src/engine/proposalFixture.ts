@@ -56,8 +56,16 @@ export interface FixtureProposal {
   mediaIds: string[]
   /** `objects.derived_from` — pass 3's lane, or null for the identification pass. */
   lane: string | null
-  /** Model strings read off a NAMEPLATE by pass 1, for score rule 6. */
+  /**
+   * Model strings pass 1 read off a nameplate **in the photographs this proposal
+   * cites**. Photograph-level, and it bleeds across the objects in a frame.
+   *
+   * ⚑ *Kept, and no longer what rule 6 reads.* The name has always overstated
+   * it; the key is unchanged so the committed 2026-08-13 fixture still parses.
+   */
   models: string[]
+  /** Pass 3's own model reading for THIS object — `objects.model_read`. */
+  modelRead?: string | null
 }
 
 /**
@@ -97,6 +105,7 @@ export function buildFixture(provenance: FixtureProvenance, proposals: readonly 
       mediaIds: [...p.mediaIds],
       lane: p.lane ?? null,
       models: [...(p.models ?? [])],
+      ...(p.modelRead ? { modelRead: p.modelRead } : {}),
     })),
   }
 }
@@ -137,6 +146,7 @@ export function parseFixture(raw: unknown): ProposalFixture {
       // Open vocabulary: any string is a lane this fixture may carry.
       lane: typeof q.lane === 'string' ? q.lane : null,
       models: Array.isArray(q.models) ? (q.models as unknown[]).filter((m): m is string => typeof m === 'string') : [],
+      ...(typeof q.modelRead === 'string' && q.modelRead !== '' ? { modelRead: q.modelRead } : {}),
     }
   })
 
@@ -157,6 +167,7 @@ export function parseFixture(raw: unknown): ProposalFixture {
 export const proposalsOf = (f: ProposalFixture): ScoredProposal[] =>
   f.proposals.map((p) => ({
     id: p.id, label: p.label, classId: p.classId, mediaIds: p.mediaIds, lane: p.lane, models: p.models,
+    modelRead: p.modelRead ?? null,
   }))
 
 // --------------------------------------------------------- the personal-data scan

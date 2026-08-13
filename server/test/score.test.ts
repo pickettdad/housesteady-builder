@@ -169,10 +169,32 @@ describe('rule 6 — a model number off by a character is the plate, not the eng
         photographs: ['a.jpg'], confirmed_by: { product: 'plate', role: 'household' },
       }],
     }
-    const r = scoreRun(key, [proposal({ id: 'p1', label: 'circulation pump', models: ['UP26-99U'], mediaIds: ['a'] })], matches)
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'circulation pump', modelRead: 'UP26-99U', mediaIds: ['a'] })], matches)
     assert.equal(r.counts['plate-legibility'], 1)
     assert.equal(r.counts.wrong, 0)
     assert.match(r.judged[0]!.why, /one character/)
+  })
+
+  it('⚑ ignores a model number read off something else in the same photograph', () => {
+    // The bleed, as a test. `models` is photograph-level: in the first real run
+    // the proposal "Fire extinguisher (red cylinder)" carried the geothermal
+    // unit's `TTV049BGC01ARKS` because both were in the frame. Rule 6 asks a
+    // question about THIS object's plate, so the photograph's list must not
+    // answer it — a legibility verdict earned by someone else's plate excuses an
+    // identification that was simply wrong.
+    const key: RoomKey = {
+      confirmed_objects: [{
+        product: 'Grundfos circulator', role: 'left circulator', model: 'UP26-99F',
+        photographs: ['a.jpg'], confirmed_by: { product: 'plate', role: 'household' },
+      }],
+    }
+    const r = scoreRun(
+      key,
+      [proposal({ id: 'p1', label: 'fire extinguisher', models: ['UP26-99U'], mediaIds: ['a'] })],
+      matches,
+    )
+    assert.equal(r.counts['plate-legibility'], 0, 'the photograph-level list is not this object\'s plate')
+    assert.equal(r.counts.wrong, 1)
   })
 
   it('does not swallow two genuinely different pumps', () => {
@@ -232,5 +254,61 @@ describe('rules 1 and 5 — it gates nothing, and every disagreement resolves bo
     assert.equal(r.counts.correct, 1)
     assert.deepEqual(r.falsePositives.map((f) => f.classId), ['reverse-osmosis'])
     assert.match(r.note, /complete for existence/)
+  })
+})
+
+describe('⚑ rule 8 — the key has two fields and both are read', () => {
+  const key: RoomKey = {
+    confirmed_objects: [{
+      product: 'automatic storage water heater',
+      role: 'geothermal preheat store with its breaker off',
+      photographs: ['a.jpg'],
+      confirmed_by: { product: 'plate', role: 'household' },
+    }],
+  }
+
+  it('scores a proposal naming the PRODUCT correct, and says it was the product', () => {
+    // The plate lane's whole job. On the first real run it read three model
+    // numbers exactly and scored 0, because only `role` was ever compared.
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'automatic storage water heater', mediaIds: ['a'], lane: 'plate' })], matches)
+    assert.equal(r.counts.correct, 1)
+    assert.equal(r.judged[0]!.matchedOn, 'product')
+    assert.match(r.judged[0]!.why, /PRODUCT agrees/)
+    assert.equal(r.byLane.plate!.correctOnProduct, 1)
+    assert.equal(r.byLane.plate!.correctOnRole, 0)
+  })
+
+  it('prefers role when both would match, because role is the stronger statement', () => {
+    const r = scoreRun(
+      key,
+      [proposal({ id: 'p1', label: 'geothermal preheat store with its breaker off — automatic storage water heater', mediaIds: ['a'], lane: 'appearance' })],
+      matches,
+    )
+    assert.equal(r.judged[0]!.matchedOn, 'role')
+    assert.equal(r.byLane.appearance!.correctOnRole, 1)
+    assert.equal(r.byLane.appearance!.correctOnProduct, 0)
+  })
+
+  it('is still wrong when neither field matches, and names both in the reason', () => {
+    // The half that lets this fail. Without it, reading a second field would
+    // look like an improvement while simply making everything correct.
+    const r = scoreRun(key, [proposal({ id: 'p1', label: 'a cardboard box', mediaIds: ['a'] })], matches)
+    assert.equal(r.counts.wrong, 1)
+    assert.equal(r.judged[0]!.matchedOn, undefined)
+    assert.match(r.judged[0]!.why, /or the product/)
+  })
+
+  it('records a product match on a key object whose role is unresolved, without changing rule 3', () => {
+    // Rule 3 is ratified: the key does not know what this is for, so the engine
+    // cannot be marked wrong about it. That outcome is untouched — what is new
+    // is noticing that a proposal did name the product.
+    const noRole: RoomKey = {
+      confirmed_objects: [{ product: 'universal retention tank', role: null, photographs: ['a.jpg'] }],
+    }
+    const r = scoreRun(noRole, [proposal({ id: 'p1', label: 'universal retention tank', mediaIds: ['a'] })], matches)
+    assert.equal(r.counts['key-uncertain'], 1, 'rule 3 outcome is unchanged')
+    assert.equal(r.counts.correct, 0)
+    assert.equal(r.judged[0]!.matchedOn, 'product')
+    assert.match(r.judged[0]!.why, /does name its product/)
   })
 })

@@ -53,7 +53,7 @@ ls server/scripts/passes.ts server/scripts/proposals.ts server/scripts/score.ts 
 Then, as in v1:
 
 ```bash
-npm run typecheck && npm test          # expect clean, and 1167 tests passing
+npm run typecheck && npm test          # expect clean, and 1181 tests passing
 npm run preflight                      # proves the variables arrived. Free.
 npm run smoke                          # proves the key is valid. A few cents.
 ```
@@ -118,6 +118,41 @@ npm run passes -- --visit <visitId> --zone mech --run --owner-property
 > **Two edges that are correct and look wrong:** a zone with no detail photographs plans no pass-1 call and counts as **complete**, not pending. And a **skipped** read counts as settled while a **failed** one does not.
 
 **Report what pass 3 printed** — it groups its output by lane, and the lane split is the single most informative thing in the run. ⚑ *Plate-derived is close to deterministic; appearance-derived is every one a guess. A run that is all appearance means the scaffold was empty, which is a finding about passes 1 and 2, not about pass 3.*
+
+---
+
+## 4a · ⚑ THE RE-RUN — 2026-08-13, and this is what the next session is for
+
+**The 2026-08-13 run built pass 3's scaffold from 35 of 45 queries.** A truncated
+pass-1 batch was retried, pass 2 re-planned to cover the new labels, and every
+batch it needed already had a completed job — so ten queries were never asked.
+
+⚑ **That makes those numbers a floor rather than a measurement**, and it costs
+about forty cents to stop being one.
+
+```bash
+# 1 · fill the stranded queries. Pass 2 refuses to re-ask without --again.
+npm run resolve -- --visit <visitId> --run --again
+
+# 2 · re-run pass 3 against the COMPLETE scaffold.
+npm run match -- --visit <visitId> --zone mech --run --owner-property --again
+```
+
+**`npm run resolve` now tells you if queries are stranded** — it counts what the
+plan asks for against what pass 2 has written. **If it reports none, say so**;
+that is a finding about the fix rather than about the room.
+
+> ### ⚠ This is a NEW measurement, not a comparison with 2026-08-13
+>
+> **The `match_known` and `enumerate_room` prompts went to v002**, so pass 3 now
+> returns a `model` field per object rather than burying the model in the label.
+> *Two things changed at once — the scaffold and the prompt — and the honest
+> reading is that this run replaces the last one rather than being compared to
+> it.* v1 §8's rule stands: **do not read the difference between the two as a
+> finding.**
+
+**Everything after this is unchanged** — write the proposals out, read the
+labels, score, report.
 
 ---
 
@@ -189,6 +224,12 @@ npm run score -- --visit <visitId> --zone mech
 
 ## 9 · What is honestly unknown going in
 
-**No pass of Amendment 11 has ever run against a real photograph.** Passes 1, 2 and 3 are built and tested — 1167 tests — **against fixtures.** The model-call half has never met a nameplate.
+~~**No pass of Amendment 11 has ever run against a real photograph.**~~ **Superseded 2026-08-13 — it has now, and four defects came out of it**, three of which the runner found and reported rather than fixing. *The original sentence stands struck rather than deleted: it was true, and what replaced it is the reason this section exists.*
 
-**And the scoring harness has never produced a number.** It was built 2026-08-11, and until 2026-08-12 it could not be run the documented way at all. ⚑ *So this run is the first time any of it touches a house, and the first honest expectation is that something breaks.* **That is a good outcome, and it is why the deliverable is a file** — whatever breaks in the harness afterwards is fixable without you.
+**What is still honestly unknown:**
+
+- **The scaffold has never been complete on a real run.** 35 of 45 queries reached a model; §4a is what fixes that.
+- **Pass 3's `model` field has never been populated.** The prompt went to v002 on 2026-08-13 and no run has used it.
+- **The scoring harness has produced exactly one number, and it is a floor** — measured on an incomplete scaffold, by a matcher that until 2026-08-13 read only one of the key's two fields.
+
+⚑ *Something will still break. That is a good outcome, and it is why the deliverable is a file* — whatever breaks in the harness afterwards is fixable without you.

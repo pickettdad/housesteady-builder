@@ -35,7 +35,8 @@
  * being ground truth the first time it is wrong.
  *
  * **6 · A model number off by a character is plate legibility, not an engine
- * error.** `UP26-99U` against `UPS26-99U` came from one photograph holding two
+ * error.** *(Reads the object's OWN model reading, never the photograph-level
+ * list — see `ScoredProposal.modelRead`.)* `UP26-99U` against `UPS26-99U` came from one photograph holding two
  * plates at an angle. **Scoring that as a wrong identification blames the engine
  * for a photograph**, and the fix is a capture rule.
  *
@@ -76,6 +77,25 @@
  *
  * **The plate says what the product is. The household says what it is for.**
  * A harness that scores the first is measuring whether the model can read.
+ *
+ * ### ⚑ Rule 8 — and it reads BOTH, added 2026-08-13
+ *
+ * **Everything above survives intact. One field started being read.**
+ *
+ * The first real pass-3 run scored the plate lane **0 correct out of 43
+ * proposals** on a room where it read `TTV049BGC01ARKS`, `DMF150` and `45MHP2`
+ * exactly and `UP26-99F` one character off. *Not because it was wrong* — because
+ * **the key records what a thing is for and the plate lane names what it is**,
+ * and only `role` was ever compared.
+ *
+ * **`product` was in the record from the first day.** So a judgement now tries
+ * role, then product, and **records which one answered**.
+ *
+ * ⚑ **The field that matched is itself the diagnostic this run was for.** A
+ * `plate` proposal matching on **product** is right; an `appearance` proposal
+ * matching on **role** is right. *The cross-tab of lane against matched-field is
+ * how you see which half of the pass did the work* — which one blended number
+ * never could.
  */
 
 /** One confirmed object from the room record. */
@@ -115,6 +135,20 @@ export interface ScoredProposal {
    */
   models?: readonly string[]
   /**
+   * ⚑ The model number THIS object's own plate carries — `objects.model_read`.
+   *
+   * **What rule 6 reads.** `models` above is photograph-level and bleeds: in the
+   * first real run the proposal *"Fire extinguisher (red cylinder)"* carried
+   * `TTV049BGC01ARKS`, the geothermal unit's number, because both were in the
+   * frame it cited. **Rule 6 asks whether THIS object's model was one character
+   * out**, and that question cannot be answered from a list of every plate in
+   * the picture.
+   *
+   * *Null or absent means the pass read no model for it* — ordinary for an
+   * appearance-derived object, and never an empty string.
+   */
+  modelRead?: string | null
+  /**
    * Which lane produced this proposal — `objects.derived_from`.
    *
    * ⚑ **Rule 7 — a score that cannot name the lane cannot test pass 3's claim.**
@@ -139,6 +173,21 @@ export interface Judgement {
   proposalLabels: string[]
   /** Rule 4 — how the key knows, so the weights are not averaged away. */
   weight: { product: string | null; role: string | null }
+  /**
+   * ⚑ Rule 8 — which FIELD of the key this proposal answered.
+   *
+   * `role` is what the thing is for; `product` is what it is. **Both are already
+   * in the room record and only `role` was ever read**, so the plate lane — which
+   * names products by design — scored zero on a run where it read three model
+   * numbers exactly.
+   *
+   * *This is itself the diagnostic the run was for:* a plate proposal matching on
+   * **product** is right, an appearance proposal matching on **role** is right,
+   * and which one matched is how you see which lane did the work.
+   *
+   * Absent when nothing matched.
+   */
+  matchedOn?: 'role' | 'product'
   /**
    * Rule 7 — which lane(s) this outcome is credited to.
    *
@@ -199,6 +248,9 @@ export interface LaneTally {
   falsePositives: number
   /** Proposals this lane contributed, matched or not. */
   proposals: number
+  /** Rule 8 — of this lane's correct answers, how many matched each field. */
+  correctOnRole: number
+  correctOnProduct: number
 }
 
 // ---------------------------------------------------------------- matching
@@ -306,7 +358,10 @@ export function scoreRun(
 
   const byLane: Record<string, LaneTally> = {}
   const tally = (lane: string): LaneTally =>
-    (byLane[lane] ??= { correct: 0, wrong: 0, 'key-uncertain': 0, 'plate-legibility': 0, falsePositives: 0, proposals: 0 })
+    (byLane[lane] ??= {
+      correct: 0, wrong: 0, 'key-uncertain': 0, 'plate-legibility': 0,
+      falsePositives: 0, proposals: 0, correctOnRole: 0, correctOnProduct: 0,
+    })
   for (const p of proposals) tally(laneOf(p)).proposals++
 
   /** Credit an outcome to each distinct lane behind it. Rule 7. */
@@ -340,7 +395,20 @@ export function scoreRun(
 
     // Rule 3 — an unresolved role cannot make the engine wrong about it.
     if (k.role === null) {
-      judged.push({ ...base, lanes: credit('key-uncertain', hits), outcome: 'key-uncertain', why: 'The key records no role for this object.' })
+      // Rule 3 is unchanged and the outcome stays `key-uncertain`. **What is new
+      // is that a proposal naming the PRODUCT is recorded as having done so** —
+      // rule 3 says the engine cannot be marked wrong about a role the key does
+      // not know, and says nothing against noticing that it got the product.
+      const onProduct = k.product ? hits.filter((h) => matches(k.product!, h)) : []
+      judged.push({
+        ...base,
+        lanes: credit('key-uncertain', hits),
+        ...(onProduct.length > 0 ? { matchedOn: 'product' as const } : {}),
+        outcome: 'key-uncertain',
+        why: onProduct.length > 0
+          ? 'The key records no role for this object — but a proposal does name its product.'
+          : 'The key records no role for this object.',
+      })
       counts['key-uncertain']++
       continue
     }
@@ -348,9 +416,11 @@ export function scoreRun(
     // Rule 6, before the verdict — a one-character model difference is the
     // photograph's fault and must not be counted against identification.
     // Any plate the run read, not one of them — see `ScoredProposal.models`.
+    // ⚑ The object's OWN reading, never the photograph's list. See `modelRead`.
     const near = k.model
       ? hits
-          .flatMap((h) => (h.models ?? []).map((m) => ({ proposal: h, model: m })))
+          .filter((h) => typeof h.modelRead === 'string' && h.modelRead !== '')
+          .map((h) => ({ proposal: h, model: h.modelRead as string }))
           .find((c) => nearlySameModel(k.model!, c.model))
       : undefined
     if (near && !hits.some((h) => matches(k.role!, h))) {
@@ -368,15 +438,40 @@ export function scoreRun(
 
     // The hits that actually answer the key, kept apart from the hits that
     // merely share a photograph. Rule 7 credits the first; the outcome uses both.
-    const answering = hits.filter((h) => matches(k.role!, h))
+    /**
+     * ⚑ Rule 8 — role first, then product. **Both fields, one at a time.**
+     *
+     * Role is tried first deliberately: it is the stronger statement and the one
+     * §"Product and role are separate" argues for. **Product is not a fallback
+     * to a weaker answer** — it is the other half of a key that always had two
+     * fields and was only ever read on one, which is why the plate lane scored
+     * zero on a run where it read three model numbers exactly.
+     */
+    const onRole = hits.filter((h) => matches(k.role!, h))
+    const onProduct = onRole.length > 0 || !k.product ? [] : hits.filter((h) => matches(k.product!, h))
+    const answering = onRole.length > 0 ? onRole : onProduct
+    const matchedOn: 'role' | 'product' | undefined =
+      onRole.length > 0 ? 'role' : onProduct.length > 0 ? 'product' : undefined
     const right = answering.length > 0
+
+    const lanes = credit(right ? 'correct' : 'wrong', right ? answering : hits)
+    if (right && matchedOn) {
+      const field = matchedOn === 'role' ? 'correctOnRole' : 'correctOnProduct'
+      for (const l of lanes) tally(l)[field]++
+    }
+
     judged.push({
       ...base,
-      lanes: credit(right ? 'correct' : 'wrong', right ? answering : hits),
+      lanes,
+      ...(matchedOn ? { matchedOn } : {}),
       outcome: right ? 'correct' : 'wrong',
       why: right
-        ? `Matched on a shared photograph and the role agrees.`
-        : `${hits.length} proposal(s) cite this object's photographs and none matches the role "${k.role}".`,
+        ? matchedOn === 'role'
+          ? `Matched on a shared photograph and the role agrees.`
+          : `Matched on a shared photograph and the PRODUCT agrees — the key's role is "${k.role}", ` +
+            `and this proposal names what the thing is rather than what it is for.`
+        : `${hits.length} proposal(s) cite this object's photographs and none matches the role "${k.role}"` +
+          `${k.product ? ` or the product "${k.product}"` : ''}.`,
     })
     counts[right ? 'correct' : 'wrong']++
   }
