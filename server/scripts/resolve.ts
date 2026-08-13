@@ -82,7 +82,8 @@ if (plan.skipped.length > 0) {
 
 if (!flag('run')) {
   console.log('\nThis was the plan only. Add --run to send it.\n')
-  report()
+  // Nothing ran by construction, and the table has to say so.
+  report(0, 0)
   process.exit(0)
 }
 
@@ -139,10 +140,18 @@ console.log(
 )
 console.log(`Queue: ${JSON.stringify(queueProgress(db, visitId))}`)
 
-report()
+report(result.ran, result.failed)
 
-/** The known inventory — what passes 1 and 2 together produced. */
-function report(): void {
+/**
+ * The known inventory — what passes 1 and 2 together produced.
+ *
+ * ⚑ **Stored state, NOT this run's outcome, and it says so when they differ.**
+ * On 2026-08-13 a runner watched this print a healthy-looking *21 products from
+ * 35 labels asked* while **both of its jobs were failing 401** — the table was
+ * the previous run's, read back verbatim. *A report that cannot tell "ran and
+ * found this" from "did not run" is the silent-score failure wearing a table.*
+ */
+function report(ran: number, failed: number): void {
   const rows = db
     .prepare(
       `SELECT resolved, product, kind, specificity, recognised_from AS why, query
@@ -160,6 +169,16 @@ function report(): void {
   if (rows.length === 0) {
     console.log(`\nNothing resolved for this import yet. Pass 2 has not run against it.\n`)
     return
+  }
+
+  if (ran === 0) {
+    console.log(
+      `\n⚠ NOTHING RAN THIS TIME${failed > 0 ? ` and ${failed} job(s) failed` : ''}. Everything below is what was ` +
+        `already stored\n  from an EARLIER run — read it as history, not as the outcome of this command.\n` +
+        `  ⚑ If you were expecting new resolutions, the number below will not have moved.`,
+    )
+  } else if (failed > 0) {
+    console.log(`\n⚠ ${failed} job(s) failed this run. The table below is complete storage, so it includes work those jobs did not do.`)
   }
 
   const yes = rows.filter((r) => r.resolved === 1)

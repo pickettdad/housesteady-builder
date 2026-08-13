@@ -197,3 +197,31 @@ describe('the personal-data scan, validated against known answers', () => {
     assert.deepEqual(scanForPersonalData(f.proposals), [])
   })
 })
+
+describe('⚑ a re-run appends, and the fixture can name which run it holds', () => {
+  it('carries the generation that proposed each object', () => {
+    // The run discriminator. `import_id` and the lane are identical across runs,
+    // so without this a fixture written after `--again` mixes two runs and
+    // scores a number naming neither — `splitByPass`'s failure one level down.
+    const f = buildFixture({ visitId: 'v', importId: 'i', zone: null, producedAt: 'x' }, [
+      { id: 'a', label: 'run one', classId: null, mediaIds: ['m1'], lane: 'plate', generationId: 'gen-1' },
+      { id: 'b', label: 'run two', classId: null, mediaIds: ['m1'], lane: 'plate', generationId: 'gen-2' },
+    ])
+    assert.deepEqual(f.proposals.map((p) => p.generationId), ['gen-1', 'gen-2'])
+    const back = parseFixture(JSON.parse(JSON.stringify(f)))
+    assert.deepEqual(back.proposals.map((p) => p.generationId), ['gen-1', 'gen-2'])
+    assert.deepEqual(proposalsOf(back).map((p) => p.generationId), ['gen-1', 'gen-2'])
+  })
+
+  it('reads a fixture with no generations at all, because the 2026-08-13 one has none', () => {
+    // Fail closed on structure, not on a field that post-dates a committed
+    // artifact. The first real run's fixture predates this column.
+    const f = parseFixture({
+      schemaVersion: 1,
+      provenance: { visitId: 'v', importId: 'i' },
+      proposals: [{ id: 'a', label: 'x', mediaIds: [] }],
+    })
+    assert.equal(f.proposals[0]!.generationId, undefined)
+    assert.equal(proposalsOf(f)[0]!.generationId, null)
+  })
+})

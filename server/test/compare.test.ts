@@ -24,6 +24,7 @@ const p = (label: string, classId: string | null, mediaIds: string[] = [`m${n++}
   mediaIds,
   derivedFrom: null,
   modelRead: null,
+  generationId: null,
 })
 
 describe('the derivation runs both ways, and the second way is the one that matters', () => {
