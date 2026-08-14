@@ -25,7 +25,8 @@
     "resolve": "npm run resolve --workspace server --",
     "match": "npm run match --workspace server --",
     "passes": "npm run passes --workspace server --",
-    "binder": "npm run binder --workspace server --"
+    "binder": "npm run binder --workspace server --",
+    "plan-fixture": "npm run plan-fixture --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
