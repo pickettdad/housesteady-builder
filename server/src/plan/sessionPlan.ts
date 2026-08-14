@@ -60,8 +60,15 @@
  * and said no. It does not.** Zone creation writes
  * `attributes[a.id] = attrs.has(a.id)` for every `askAtCreation: true`
  * attribute and there is no skip path, so an untouched toggle and a considered
- * *no* produce the same `false`. The bedroom's three falses are almost
- * certainly three toggles nobody moved.
+ * *no* produce the same `false`. The REFERENCE export's bedroom — three falses,
+ * on a room labelled bedroom that is not `sleeping` — is almost certainly three
+ * toggles nobody moved.
+ *
+ * ⚑ **The export is named on purpose.** Two fixtures now carry a bedroom and
+ * they disagree: the walk fixture's is `finished: true, sleeping: true`, and its
+ * thirty-two attribute values are all correct about the house. An unqualified
+ * *"the bedroom's falses"* is what let one file's true observation get carried
+ * onto another where it is false — contract §3b records the retraction.
  *
  * The verbatim map is still right — **it preserves the field's own ambiguity
  * faithfully**, which is the most any emitter can do. But the earlier reason
@@ -165,6 +172,31 @@ export interface PlanTypedPin {
   pinId: string
   componentType: string | null
   label: string | null
+  /**
+   * ⚑ The field's own flag on this pin, **verbatim and uninterpreted**.
+   *
+   * **Added 2026-08-14 on Cloud Field's review, and the argument is about what
+   * survives a visit.** The plan carried only `monitorsDue` — a *derivation* of
+   * this value — so visit two could say *check this one* and could never say
+   * *you flagged this an issue last time.* The field app cannot recover it
+   * either: **nothing about a house survives a visit on that side**, which is
+   * the whole reason the return leg exists.
+   *
+   * **The raw value outlives the derivation, and that is the point of carrying
+   * both.** At Increment 5 `monitorsDue` is re-sourced from this repo's own
+   * `openConcerns` and stops reading flags entirely (contract §9a). This field
+   * is unaffected: it is what the field recorded, not what this repo concluded.
+   *
+   * **Not filtered to the values this build knows.** `fine`, `monitor`, `issue`
+   * and anything the field adds next all travel — doctrine 7, fail open on
+   * vocabulary. `monitorsDue` is where interpretation happens; this is evidence.
+   *
+   * **Always present, `null` where the pin carries no flag** — rather than the
+   * optional key Cloud Field asked for. An absent key would mean *this pin has
+   * no flag* and *this emitter does not send flags* identically, and telling
+   * those apart is the distinction §3 spends its whole length on.
+   */
+  flag: string | null
   /**
    * §B3 — the prior whole-unit photograph, to display beside the capture prompt.
    *
@@ -398,6 +430,9 @@ export function buildSessionPlan(args: {
       pinId: pin.pinId,
       componentType: pin.componentType,
       label: pin.freeformLabel,
+      // Verbatim. `monitorsDue` below decides what a flag MEANS; this carries
+      // what the field wrote, including values this build has never met.
+      flag: pin.flag,
       priorUnitPhoto,
     }
   })
@@ -548,6 +583,12 @@ export function buildSessionPlan(args: {
     )
   }
 
+  /**
+   * Live pins carrying a flag that `typedPins` cannot hold — see that section's
+   * note. Computed rather than remembered, so it cannot go stale.
+   */
+  const flaggedUntyped = evidence.pins.filter((p) => !p.retired && p.componentType === null && p.flag).length
+
   const comparisonPositionsDue = typedPins
     .filter((o) => o.priorUnitPhoto !== null)
     .map((o) => ({ pinId: o.pinId, itemId: o.priorUnitPhoto!.itemId }))
@@ -591,14 +632,64 @@ export function buildSessionPlan(args: {
     sections: {
       zones: {
         count: zones.length,
+        /**
+         * ⚑ **This sentence used to end *"a recorded false is a decision and
+         * must not arrive as an absence"*, and the second half is right while
+         * the first half was an overclaim.**
+         *
+         * Cloud Field, F-20: on the July walk the bedroom recorded
+         * `finished: false, sleeping: false` **from toggles nobody touched.**
+         * Capture mode now refuses to ask attributes at zone creation for that
+         * reason, so a post-fix export leaves an unset attribute honestly
+         * absent. **Every export written before that fix carries both kinds of
+         * false and no way to tell them apart** — including the walk fixture
+         * this repo validates against, on all eight zones.
+         *
+         * The verbatim map is unchanged and still correct: carrying the false
+         * preserves the field's own ambiguity, which is the most an emitter can
+         * do. **What was wrong was the sentence claiming the ambiguity was not
+         * there** — and it was in the payload, which is the one place an
+         * overclaim reaches a reader who never opens the contract.
+         */
         note: zones.length === 0
           ? 'no zone has been walked on this property'
-          : `${decidedTrue} attribute(s) decided true and ${decidedFalse} decided false travel explicitly; ` +
-            'a recorded false is a decision and must not arrive as an absence',
+          : `${decidedTrue} attribute(s) recorded true and ${decidedFalse} recorded false travel explicitly, ` +
+            'verbatim. A recorded key and an absent key are different things and the difference must survive. ' +
+            'A recorded FALSE is not necessarily a decision: exports written before the field-side capture-mode ' +
+            'fix wrote a false for every unset toggle, so a considered no and an untouched control are ' +
+            'indistinguishable in them. From exports written after that fix, an unset attribute is absent ' +
+            'rather than false and a recorded false is a decision.',
       },
       typedPins: {
         count: typedPins.length,
-        note: typedPins.length === 0 ? 'no live typed pin on this property' : 'live typed pins, by field-minted uuid',
+        /**
+         * ⚑ **`typedPins[].flag` is not the property's whole flag record, and
+         * saying so is the difference between a gap and a wrong answer.**
+         *
+         * This array is live **typed** pins. A live pin with no component type
+         * is not in it — so a flag on an untyped pin does not travel here at
+         * all, while `monitorsDue` reads every live pin and would carry it.
+         * **The walk export has exactly this case**, not a hypothetical one:
+         * six live pins carry `fine` and only three of them are typed.
+         *
+         * A receiver reading `typedPins[].flag` as the complete record would
+         * conclude those three pins were never flagged. Counted here rather
+         * than fixed with a new array, because *which* pins the plan should
+         * carry is the field side's call and inventing a second array to answer
+         * it would be this repo deciding a seam question on its own.
+         */
+        note: typedPins.length === 0
+          ? 'no live typed pin on this property'
+          : [
+            `live typed pins, by field-minted uuid. Each carries the field's own \`flag\` verbatim — ` +
+              'uninterpreted, including values this build has never met. `monitorsDue` is the derivation; ' +
+              'this is the evidence, and it outlives the derivation when Increment 5 stops reading flags',
+            flaggedUntyped > 0
+              ? `${flaggedUntyped} live pin(s) carry a flag and have no component type, so they are NOT in ` +
+                'this array and their flags do not travel with it. This array is not the property\'s whole ' +
+                'flag record; `monitorsDue` reads every live pin, typed or not'
+              : 'every live pin carrying a flag is typed, so this array is the whole flag record for this property',
+          ].join(' · '),
       },
       carriedGaps: {
         count: carriedGaps.length,
