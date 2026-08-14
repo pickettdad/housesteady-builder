@@ -1,7 +1,9 @@
 # Session Plan v0 — the contract
 
-**Date:** 2026-07-31 · revised three times the same day — the design session's four answers, Field Code's review of those, then Field Code's four findings and the `since` ruling
-**Emitted by:** the binder builder, at `GET /api/properties/:id/session-plan`
+**Date:** 2026-07-31 · revised three times the same day — the design session's four answers, Field Code's review of those, then Field Code's four findings and the `since` ruling · **revised 2026-08-14: the golden fixture (§11), the `planSchemaVersion` proposal (§12), `priorUnitPhoto`'s non-null shape (§4), and all seven `sections` keys instead of four by example (§8)**
+**Emitted by:** the binder builder, at `GET /api/properties/:id/session-plan` — `?download` sets a `Content-Disposition`. **There is no CLI command; HTTP is the only way out.** The route resolves an acting operator and answers 409 if none is set.
+**Built by:** `buildSessionPlan()` — `server/src/plan/sessionPlan.ts`. **That interface is the executable truth; build a receiver against it.** This document is the reasoning.
+**Bound by:** `fixtures/session-plan/session-plan_walk-2026-07-31_v1.json` — see §11, and §11a for what it does not do.
 **Consumed by:** nothing yet. `PLAN-STAGE-1` §7a and §7a-ii scope the field-side import in detail but it is not built.
 **Status:** **specified and emitting.** Increment 4 §3 says to emit as though no receiver exists, and that is the correct sequencing — the import cannot be built until something emits an artifact to build against. **This document is the thing to review before the receiver is written**, and the field session should disagree with it here rather than after both halves exist.
 
@@ -136,7 +138,20 @@ The verbatim map is what makes that derivation possible, and it is all the emitt
     "pinId": "…",
     "componentType": "smoke-alarm",
     "label": null,
-    "priorUnitPhoto": null      // §B3 — see §6 below
+
+    // §B3 — see §6. NULL on every pin in both fixtures, and a receiver that
+    // only ever sees the null has still not seen the shape. The non-null form:
+    //
+    //   "priorUnitPhoto": {
+    //     "mediaId": "…",           // the photograph to display beside the prompt
+    //     "capturedAt": "…"|null,   // when it was taken; null where the manifest carried none
+    //     "itemId": "wh.unit"       // the `.unit` item it satisfies
+    //   }
+    //
+    // Resolved through the component-type graph, so a softener's unit item may
+    // be its PARENT type's id — the `itemId` here is the one that matched, not
+    // one derived from `componentType`.
+    "priorUnitPhoto": null
   }],
 
   // The §1b stream, with the config's own reason verbatim.
@@ -268,14 +283,23 @@ The third is the live one. It is a warning a person reads and acts on, and it ca
 
 **Three of five sections are empty on the reference export**, and an empty section is identical whether the mechanism works and found nothing, was never built, or cannot be expressed by this config. That is Verification Discipline rule 7 at the payload level.
 
-So `sections` carries a count **and a sentence** per section, and the sentence distinguishes the cases:
+So `sections` carries a count **and a sentence** per section, and the sentence distinguishes the cases.
 
-| Section | On the reference export |
-|---|---|
-| `carriedGaps` | *"…`since` basis: 20 dated · each date is the first visit of the item's current unbroken run of being outstanding — not the first time it was ever due, which would age a reopened item by the months it spent closed"* |
-| `monitorsDue` | *"no live pin carries the monitor flag — the mechanism ran and found none, which is not the same as it being unbuilt · flags on live pins: 2 issue"* |
-| `comparisonPositionsDue` | *"this config declares no `.unit` items, so there is no comparison position to be due — unexercised rather than empty"* |
-| `openConcerns` | *"recorded, not specced — concerns are Increment 5 and gated on manifest v4"* |
+**There are seven keys, and all seven are listed here.** An earlier revision showed four as examples, which read as the whole set to anybody building a receiver from this document rather than from the interface — the field session would have written a type with three keys missing and found out at parse time.
+
+| Section key | Counts | On the walk export *(the golden fixture, §11)* |
+|---|---|---|
+| `zones` | zones carried | *"7 attribute(s) decided true and 25 decided false travel explicitly; a recorded false is a decision and must not arrive as an absence"* |
+| `typedPins` | live typed pins | *"live typed pins, by field-minted uuid"* |
+| `carriedGaps` | carried gaps | *"…`since` basis: 208 dated · each date is the first visit of the item's current unbroken run of being outstanding — not the first time it was ever due, which would age a reopened item by the months it spent closed"* |
+| `monitorsDue` | pins flagged `monitor` | *"no live pin carries the monitor flag — the mechanism ran and found none, which is not the same as it being unbuilt · flags on live pins: 6 fine · 1 issue · 6 pin(s) carry a flag this builder does not recognise (fine) — not treated as monitors"* |
+| `comparisonPositionsDue` | positions with a prior photograph | *"27 `.unit` item(s) declared; positions with a prior photograph to compare against"* |
+| `priorUnitPhotographs` | pins carrying one | *"a prior whole-unit photograph to display beside the capture prompt, so the same object is photographed from the same position rather than differently every month"* |
+| `openConcerns` | always 0 | *"recorded, not specced — concerns are Increment 5 and gated on manifest v4. The key exists so the shape has room; nothing writes to it."* |
+
+**`priorUnitPhotographs` has no array of its own.** It counts a field on `typedPins`, which is why a receiver reading only the top-level arrays would not find it. It is a section because the reason it is zero needs saying.
+
+⚑ **On the walk export, `comparisonPositionsDue` is empty for a reason the reference export never showed.** At config v1.2.1 it was *"this config declares no `.unit` items"* — the mechanism could not run. At v1.11 the config declares **27**, so the mechanism ran and found none: the walk is a **baseline**, and there is no prior visit to compare against. Same empty array, two different facts, and the sentence is the only thing that separates them. **A second visit populates it; no code change will.**
 
 `carriedGaps` reports **a count per `sinceBasis`, always** — not only when something is missing — and spells out each silence in words. A count alone cannot say whether the mechanism ran. A scan asserts `SectionReport` carries both.
 
@@ -331,7 +355,58 @@ So `sections` carries a count **and a sentence** per section, and the sentence d
 1. **Whether the three desk-facing `visit_date` read sites get pointed at `walkedAt()`** (§7d). Not built — outside the current slice, and the owner's call. One of the three renders the typed date into a sentence.
 2. **`monitorsDue` reads the field's `flag` vocabulary without interpreting it** until Increment 5 re-sources it. A value this build has not met is counted and reported, never guessed into being a monitor. If the field app expects a new flag to behave like one, it has to say so — the builder will not infer it.
 3. **`fine` will surface as unmet vocabulary the first time it is tapped** (§9). Expected, correct, and written down here so it is not read as a fault. **The change request is §9b** — the full versioned form, not a third value, because a contract listing three today goes stale at v4.
+4. **What `planSchemaVersion` bumps on** (§12). Proposed here, needs the field side's agreement, and **it is the one item on this list where both sides guessing differently produces a silent wrong answer** rather than a loud one.
+
+## 11. The golden fixture — the binding artifact
+
+> **Added 2026-08-14.** Until now this seam was described in four places — the `SessionPlan` interface, this document, the field receiver, and the field's copy of this document — and **nothing bound any of them.** A fifth description would have made it worse.
+
+```
+fixtures/session-plan/session-plan_walk-2026-07-31_v1.json
+```
+
+**One artifact, emitted from `fixtures/walk-2026-07-31/` — eight zones, nine typed pins, 208 carried gaps, one warning.** This repo commits it and tests that the emitter still reproduces it byte for byte. The field side commits a copy and tests that its receiver still parses it.
+
+| | |
+|---|---|
+| **Regenerate** | `npm run plan-fixture` — `--check` diffs and writes nothing |
+| **This repo's test** | `server/test/session-plan-fixture.test.ts` |
+| **Emitted from** | the walk export, through the real import and audit — not hand-written |
+
+**Run-dependent values are substituted, not the fields carrying them.** Minted uuids and wall-clock timestamps become fixed stand-ins of the same shape, so a regenerate produces a byte-identical file unless the *shape* moved and the diff stays readable. Substitution is by value across the whole payload rather than by a list of field paths: a path list only covers the fields somebody remembered, and a value landing in a new field would churn the file silently. A genuinely new volatile value fails the comparison — **that is the tripwire working, and the fix is to extend the substitution, never to loosen the check.**
+
+### ⚑ 11a · It is a tripwire, not a cross-repo guarantee
+
+Stated plainly because a green tick is exactly how the distinction gets lost:
+
+- **Nothing on either side can see, run, or fail the other's build.**
+- The whole mechanism is: **when the emitted shape changes, the emitting side's own suite fails first.** That forces a regenerate. The regenerate is what forces a note to the other side.
+- **That note is a person's.** If nobody sends it, or the other side does not update its copy, the fixture does nothing at all.
+
+What it buys is *when*: a drift fails on the side that drifted, on the day it drifts, naming the key that moved — instead of surfacing as a parse failure weeks later with no way to tell which side changed.
+
+## 12. `planSchemaVersion` — proposed, not yet agreed
+
+**The honest current answer is that nothing specifies it.** `PLAN_SCHEMA_VERSION = 1` carries one comment — *"the plan's own version, independent of the manifest's"* — and no policy about when it moves. That gap is invisible until the first bump, and then both sides act on their own reading of it.
+
+**Proposed, and this needs the field session's yes before it binds:**
+
+> **`planSchemaVersion` bumps on breaking changes only.** A change is breaking if a receiver correct at version *N* would be wrong at *N+1* — a field removed, renamed, retyped, or given a new meaning under the same name. **Adding a field is not breaking and does not bump it.**
+
+The receiver rule that pairs with it is doctrine 7 — *fail open on vocabulary, fail closed on structure*:
+
+| What arrives | What a receiver does |
+|---|---|
+| **An unknown `planSchemaVersion`** | **Refuse the import, loudly.** Structure. Do not attempt a best-effort parse — a plan half-understood seeds a visit with decisions half-carried, which is §2's failure with extra steps |
+| **An unknown field at a known version** | **Ignore it, and count it.** Additive changes must never break a receiver, and a silent ignore is not fail-open — the rule is preserve, display, count, mark unrecognised |
+| **An unknown value inside a known field** — a new `sinceBasis`, a new pin flag | **Preserve, display, count, mark unrecognised.** Never coerce to a default. `monitorsDue` already does exactly this with `fine` |
+
+**And the version is deliberately not carrying the whole job — §11 is the other half.** An additive change does not bump the version, so the version alone would let a field appear with nothing announcing it. It fails the golden fixture instead. **The version tells a receiver whether it can parse at all; the fixture tells both sides that anything moved.** Neither covers the other's case.
 
 ---
 
-**Status:** emitting, unreviewed by a receiver. **This document is the review surface.**
+**Status:** **emitting, unreviewed by a receiver. This document is the review surface**, and §11's fixture is the artifact to review it against.
+
+**On review, this line changes** — it is not true once the field session has read it, and leaving it would misdescribe a reviewed contract as an open draft. What it becomes:
+
+> **Status:** reviewed and bound. **The standing contract is `fixtures/session-plan/session-plan_walk-2026-07-31_v1.json`, with this document as the reasoning behind it.** A shape change fails the emitting side's suite first; §11a says exactly how far that reaches and where a person is still required.

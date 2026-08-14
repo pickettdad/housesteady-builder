@@ -367,4 +367,27 @@ describe('what a plan is and is not', () => {
     assert.ok(!/\bcompilePlan\b/.test(source.replace(/\/\*[\s\S]*?\*\//g, '')),
       'compilePlan belongs to the field\'s slot-model compiler and means something else there')
   })
+
+  /**
+   * ⚑ **The contract names every `sections` key, not four as examples.**
+   *
+   * §8 listed four in a table and read as the whole set. **Field Code builds
+   * against the interface, so nothing would have broken** — but a reader who
+   * trusted the document would have written a type three keys short, and this is
+   * the document the field session was told to review the seam against.
+   *
+   * **The fixture binds the payload; this binds the prose to the payload.** One
+   * assertion rather than a second description, and it is here because the same
+   * omission can happen again the moment a section is added.
+   */
+  it('is described by a contract that names all seven sections', async () => {
+    const { db, propertyId } = await walked()
+    const doc = readFileSync(
+      join(repoRoot, 'docs', 'HouseSteady_Binder-Builder_Session-Plan-v0_Contract_2026-07-31.md'),
+      'utf8',
+    )
+    const missing = Object.keys(plan(db, propertyId).sections).filter((k) => !doc.includes(`\`${k}\``))
+    assert.deepEqual(missing, [],
+      'a section the emitter sends and the contract never names is a key a receiver built from the document would not know exists')
+  })
 })
