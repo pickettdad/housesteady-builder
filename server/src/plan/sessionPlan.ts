@@ -60,8 +60,15 @@
  * and said no. It does not.** Zone creation writes
  * `attributes[a.id] = attrs.has(a.id)` for every `askAtCreation: true`
  * attribute and there is no skip path, so an untouched toggle and a considered
- * *no* produce the same `false`. The bedroom's three falses are almost
- * certainly three toggles nobody moved.
+ * *no* produce the same `false`. The REFERENCE export's bedroom — three falses,
+ * on a room labelled bedroom that is not `sleeping` — is almost certainly three
+ * toggles nobody moved.
+ *
+ * ⚑ **The export is named on purpose.** Two fixtures now carry a bedroom and
+ * they disagree: the walk fixture's is `finished: true, sleeping: true`, and its
+ * thirty-two attribute values are all correct about the house. An unqualified
+ * *"the bedroom's falses"* is what let one file's true observation get carried
+ * onto another where it is false — contract §3b records the retraction.
  *
  * The verbatim map is still right — **it preserves the field's own ambiguity
  * faithfully**, which is the most any emitter can do. But the earlier reason
@@ -168,7 +175,7 @@ export interface PlanTypedPin {
   /**
    * ⚑ The field's own flag on this pin, **verbatim and uninterpreted**.
    *
-   * **Added 2026-08-15 on Cloud Field's review, and the argument is about what
+   * **Added 2026-08-14 on Cloud Field's review, and the argument is about what
    * survives a visit.** The plan carried only `monitorsDue` — a *derivation* of
    * this value — so visit two could say *check this one* and could never say
    * *you flagged this an issue last time.* The field app cannot recover it

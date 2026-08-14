@@ -66,7 +66,9 @@ The reference export's ensuite carries `finished: true`. Lose that on replay and
 
 **A recorded key and an absent key are different things. That is all the record supports, and it is enough.**
 
-> **Corrected 2026-07-31, and the correction matters more than the conclusion.** An earlier version of this section said the bedroom's `sleeping: false` meant *somebody was asked and said no.* **It does not.** Field Code: zone creation writes `attributes[a.id] = attrs.has(a.id)` for every `askAtCreation: true` attribute and **there is no skip path**, so an untouched toggle and a considered *no* produce the same `false`. The bedroom's three falses are almost certainly three toggles nobody moved.
+> **Corrected 2026-07-31, and the correction matters more than the conclusion.** An earlier version of this section said the bedroom's `sleeping: false` meant *somebody was asked and said no.* **It does not.** Field Code: zone creation writes `attributes[a.id] = attrs.has(a.id)` for every `askAtCreation: true` attribute and **there is no skip path**, so an untouched toggle and a considered *no* produce the same `false`. **The REFERENCE export's bedroom** — `finished: false, sleeping: false, has_stairs: false`, and a bedroom that is not `sleeping` — is almost certainly three toggles nobody moved.
+>
+> ⚑ **Which export is named on purpose, added 2026-08-14.** There are now two fixtures with a bedroom in them and they disagree: the reference bedroom is three falses, and **the walk fixture's bedroom is `finished: true, sleeping: true`.** An unqualified *"the bedroom's falses"* is what let this session carry a true observation about one file onto another where it is flatly false — see §3b.
 >
 > The verbatim map is still right — **it preserves the field's own ambiguity faithfully**, which is the most any emitter can do. But the earlier reason licensed rendering `false` as *"we established there is none"*, which is the proposed error a third time: a value read as more definite than its provenance supports.
 
@@ -79,9 +81,24 @@ An emitter that carries truthy keys only would collapse those two, and the recei
 
 A doctrine scan forbids filtering the map to its true values, and asserts the positive form — the test is `typeof value === 'boolean'`, not whether the value is true, which is the part that survives somebody optimising the payload later.
 
-### ⚑ 3b · The guarantee begins with post-fix exports, and the fixture is not one
+### ⚑ 3b · The guarantee begins with post-fix exports — and the fixture's data is sound
 
-> **Added 2026-08-15 on Cloud Field's review (field-side F-20).** The correction above said a recorded `false` does not tell you whether anybody moved the toggle. **This says when that stops being true**, and the answer is *not yet*.
+> **Added 2026-08-14 on Cloud Field's review (field-side F-20). ⚑ Corrected the same day, and the correction is the more useful half.**
+>
+> The first version of this section claimed the walk fixture's bedroom recorded `finished: false, sleeping: false` **from toggles nobody touched**, and concluded that *"the artifact that proves the emitter works carries decisions that were never made."*
+>
+> **Cloud Field retracted that after reading the fixture, and the file says the opposite.** The bedroom is **`finished: true, sleeping: true`**. Read across all eight zones, **thirty-two values, every one correct about the house**:
+>
+> | | |
+> |---|---|
+> | `sleeping: true` | on **exactly** the bedroom |
+> | `has_stairs: true` | on **exactly** the mudroom |
+> | `has_mechanicals: true` | on **exactly** the mechanical room |
+> | `finished: false` | on **exactly** the entry, mechanical room, attic and exterior |
+>
+> **That is a walk somebody did carefully, not a screen of defaults.** The claim was withdrawn, and the withdrawal is recorded here rather than deleted — a retraction that leaves no trace is how the original gets repeated.
+
+**The mechanism stands and is unaffected by any of that.** Zone creation writes `attributes[a.id] = attrs.has(a.id)` for every `askAtCreation: true` attribute and **there is no skip path**, so an untouched toggle and a considered *no* produce the same byte. That is a fact about the code, read from the source. **What was wrong was a claim about one file's data**, inferred from the mechanism rather than checked against the file.
 
 **Capture mode no longer asks zone attributes at creation** (`CaptureModeScreen.tsx:508`) — an unset attribute is now **honestly absent** rather than a false false. That is the fix, and it is on the field side where it belongs.
 
@@ -92,13 +109,24 @@ So there are two eras of export and the payload cannot tell them apart:
 | **Before the capture-mode fix** | **Either.** A considered *no* and an untouched control are the same byte, and nothing in the manifest separates them |
 | **After the capture-mode fix** | **A decision.** An attribute nobody set is absent, not false |
 
-⚑ **The golden fixture is a pre-fix export, on all eight zones.** `fixtures/session-plan/session-plan_walk-2026-07-31_v1.json` is emitted from the July walk — the same walk whose bedroom recorded `finished: false, sleeping: false` from toggles nobody touched. **The artifact that proves the emitter works carries decisions that were never made.**
+**The walk fixture is a pre-fix export**, so its 25 falses are formally ambiguous — *and there is no evidence any of them is spurious, and the seven trues are exactly right.* The ambiguity is a property of the era, not a finding about this file.
+
+### ⚑ 3b-i · The rule this cost, and it is general
+
+> **The payload carries what is structurally certain. The contract carries what is empirically argued.**
+
+**The payload is the hardest place to correct a claim, precisely because it is the one nobody can avoid reading.** A wrong sentence in this document is read by whoever opens it; a wrong sentence in `sections.zones.note` travels into every plan, into a receiver's logs, and into whatever a field session renders from it — and a correction has to chase all of them.
+
+Both halves of that showed up in one afternoon:
+
+- **`sections.zones.note` carries the mechanism** — no skip path, so a false may be either. Read from the source, true of every export, no file needed. **It needed no change and stays as written.**
+- **The bedroom's falses were an empirical claim about one file.** It belonged here, where it could be argued and — as it turned out — withdrawn. Had it been put in the payload it would have shipped in every session plan this repo emits.
 
 **Nothing about the format changes and nothing is being asked for.** The verbatim map is right, `boolean` is the right type, and both falses must keep travelling — an emitter that dropped or reinterpreted them would destroy the ambiguity rather than report it. What changed is that **the claim is now scoped**:
 
 - **The emitter says it in the payload.** `sections.zones.note` used to end *"a recorded false is a decision and must not arrive as an absence."* The second half was right; the first half was an overclaim, and it was sitting in the payload — **the one place a wrong claim reaches a reader who never opens this document.** It now states both eras and which one it cannot identify.
 - **This emitter cannot detect the era.** A post-fix absent key and an `askAtCreation: false` absent key are also identical, so there is no signal to read. If the field side ever publishes a version boundary, that is a contract change routed through them — not something inferred here from an app version this repo does not hold the mapping for.
-- `fixtures/session-plan/README.md` says it beside the file, so a reader who opens the JSON does not have to find this section.
+- `fixtures/session-plan/README.md` says it beside the file, so a reader who opens the JSON does not have to find this section — **including the retraction above**, because that README carried the withdrawn claim too.
 
 *(Third time this distinction has decided a design here, after declared-and-false in the trigger evaluator and typed/stub/undeclared for component types.)*
 
@@ -377,7 +405,7 @@ So `sections` carries a count **and a sentence** per section, and the sentence d
 
 ### 9c · The raw flag travels too, on `typedPins`
 
-> **Added 2026-08-15 on Cloud Field's review.** The plan carried `monitorsDue` and nothing else — **a derivation of the flag with the flag thrown away.**
+> **Added 2026-08-14 on Cloud Field's review.** The plan carried `monitorsDue` and nothing else — **a derivation of the flag with the flag thrown away.**
 
 The consequence is one visit deep: visit two could say *check this one* and could **never** say *you flagged this an issue last time.* And the field app cannot recover it, because **nothing about a house survives a visit on that side** — which is the reason the return leg exists at all.
 
@@ -399,7 +427,7 @@ Found while building it, and it is the field session's call rather than this rep
 
 ## 10. Open, and what a receiver does for itself
 
-**Settled:** the `planSchemaVersion` policy is **accepted as proposed** — breaking-only, with refuse-loudly on an unknown version, ignore-and-count on an unknown field, preserve-and-mark on an unknown value (§12, ratified by Cloud Field 2026-08-15); the raw pin flag travels on `typedPins` (§9c); the attribute guarantee is scoped to post-fix exports (§3b); `unanswered` left the payload (§3a); `since` is the current unbroken run with four bases (§7); `sinceImportedAt` is renamed `firstDueImportedAt` (§7c); the typed-visit-date question is answered — the import does not reconcile, and the recommendation is a single accessor rather than an overwrite (§7d); the changelog is not built (§1); the `.unit` count is 27 at v1.11 (§6); the flag vocabulary is three values (§9); `monitorsDue` is re-sourced from `openConcerns` at Increment 5 (§9a); the bedroom's reason is corrected (§3); §2 is rewritten around the `base:mechanical-base` list gate (§2a).
+**Settled:** the `planSchemaVersion` policy is **accepted as proposed** — breaking-only, with refuse-loudly on an unknown version, ignore-and-count on an unknown field, preserve-and-mark on an unknown value (§12, ratified by Cloud Field 2026-08-14); the raw pin flag travels on `typedPins` (§9c); the attribute guarantee is scoped to post-fix exports (§3b); `unanswered` left the payload (§3a); `since` is the current unbroken run with four bases (§7); `sinceImportedAt` is renamed `firstDueImportedAt` (§7c); the typed-visit-date question is answered — the import does not reconcile, and the recommendation is a single accessor rather than an overwrite (§7d); the changelog is not built (§1); the `.unit` count is 27 at v1.11 (§6); the flag vocabulary is three values (§9); `monitorsDue` is re-sourced from `openConcerns` at Increment 5 (§9a); the bedroom's reason is corrected (§3); §2 is rewritten around the `base:mechanical-base` list gate (§2a).
 
 **The receiver derives `unanswered` itself** — its own declared attributes minus `keys(zone.attributes)`. Stated here as a derivation rather than sent as a field, because an emitter reads a past config and its answer is systematically under-inclusive.
 
@@ -438,7 +466,7 @@ Stated plainly because a green tick is exactly how the distinction gets lost:
 
 What it buys is *when*: a drift fails on the side that drifted, on the day it drifts, naming the key that moved — instead of surfacing as a parse failure weeks later with no way to tell which side changed.
 
-## 12. `planSchemaVersion` — ratified 2026-08-15
+## 12. `planSchemaVersion` — ratified 2026-08-14
 
 > **Accepted as proposed by Cloud Field and confirmed separately.** Until 2026-08-14 **nothing specified it**: `PLAN_SCHEMA_VERSION = 1` carried one comment — *"the plan's own version, independent of the manifest's"* — and no policy about when it moves. That gap is invisible until the first bump, and then both sides act on their own reading of it.
 
@@ -454,13 +482,13 @@ The receiver rule that pairs with it is doctrine 7 — *fail open on vocabulary,
 | **An unknown field at a known version** | **Ignore it, and count it.** Additive changes must never break a receiver, and a silent ignore is not fail-open — the rule is preserve, display, count, mark unrecognised |
 | **An unknown value inside a known field** — a new `sinceBasis`, a new pin flag | **Preserve, display, count, mark unrecognised.** Never coerce to a default. `monitorsDue` already does exactly this with `fine` |
 
-**First exercised 2026-08-15.** Adding `typedPins[].flag` (§9c) is additive, so `planSchemaVersion` stayed at 1 and the golden fixture caught the change instead — `Changed at the top level: sections, typedPins`. That is the pairing working as designed on its first real use.
+**First exercised 2026-08-14.** Adding `typedPins[].flag` (§9c) is additive, so `planSchemaVersion` stayed at 1 and the golden fixture caught the change instead — `Changed at the top level: sections, typedPins`. That is the pairing working as designed on its first real use.
 
 **And the version is deliberately not carrying the whole job — §11 is the other half.** An additive change does not bump the version, so the version alone would let a field appear with nothing announcing it. It fails the golden fixture instead. **The version tells a receiver whether it can parse at all; the fixture tells both sides that anything moved.** Neither covers the other's case.
 
 ## 13. The payload takes no position on rendering
 
-> **Added 2026-08-15 on Cloud Field's review.** Not a disagreement — a hazard worth naming before somebody reads one as the other.
+> **Added 2026-08-14 on Cloud Field's review.** Not a disagreement — a hazard worth naming before somebody reads one as the other.
 
 **`carriedGaps` is 208 items on the walk export, and that is correct as payload.** Every one is a real unanswered item and dropping any of them would be the thing this whole document argues against.
 
@@ -474,7 +502,7 @@ The only thing the contract asks is the thing it asks everywhere else: **whateve
 
 ---
 
-**Status:** **reviewed and bound**, 2026-08-15 — Cloud Field's review is in, two findings taken (§3b, §9c) and §12 ratified.
+**Status:** **reviewed and bound**, 2026-08-14 — Cloud Field's review is in, two findings taken (§3b, §9c) and §12 ratified.
 
 **The standing contract is `fixtures/session-plan/session-plan_walk-2026-07-31_v1.json`, with this document as the reasoning behind it.** A shape change fails the emitting side's suite first; **§11a says exactly how far that reaches and where a person is still required.**
 

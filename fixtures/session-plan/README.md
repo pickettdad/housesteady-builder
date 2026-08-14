@@ -21,20 +21,24 @@ Nothing on either side can see, run, or fail the other's build. The whole mechan
 
 What it buys is *when* — a drift fails on the side that drifted, on the day it drifts, naming the key that moved.
 
-## ⚑ Read this before trusting a `false` in `zones[].attributes`
+## Reading a `false` in `zones[].attributes`
 
-**This is a pre-fix export, and every `false` in it is ambiguous.**
-
-On the July walk the bedroom recorded `finished: false, sleeping: false` **from toggles nobody touched** — the field app wrote a `false` for every unset attribute at zone creation, so a considered *no* and an untouched control are the same byte. Capture mode has since been fixed (field-side F-20) and now leaves an unset attribute **absent** rather than false.
-
-So:
+**This is a pre-fix export, so a `false` here is formally ambiguous** — the field app wrote one for every unset attribute at zone creation, with no skip path, so a considered *no* and an untouched control are the same byte. Capture mode has since been fixed (field-side F-20) and now leaves an unset attribute **absent** rather than false.
 
 | Written | A recorded `false` means |
 |---|---|
-| **Before the fix** — including this file | **Either.** Nothing separates them |
+| **Before the fix** — including this file | **Either.** Nothing in the manifest separates them |
 | **After the fix** | **A decision.** An unset attribute is absent |
 
-⚑ **The artifact that proves the emitter works therefore carries decisions that were never made, on all eight zones.** The format is right and unchanged; the *guarantee* about what a `false` means begins with post-fix exports. `sections.zones.note` in the payload says the same thing, and contract **§3b** is the full argument.
+That is a fact about the *era*, read from the field app's source. **It is not a finding about this file.**
+
+> ⚑ **Retracted 2026-08-14.** An earlier version of this section said the walk's bedroom recorded `finished: false, sleeping: false` from toggles nobody touched, and concluded that *"the artifact that proves the emitter works carries decisions that were never made."*
+>
+> **The file says the opposite.** The bedroom is `finished: true, sleeping: true`. Across all eight zones, **thirty-two values, every one correct about the house**: `sleeping: true` on exactly the bedroom · `has_stairs: true` on exactly the mudroom · `has_mechanicals: true` on exactly the mechanical room · `finished: false` on exactly the entry, mechanical room, attic and exterior.
+>
+> **This is a carefully walked house, not a screen of defaults.** The claim came from carrying a true observation about the *reference* export's bedroom — which really is three falses — onto this one without opening it. The withdrawal is recorded rather than deleted, because a retraction that leaves no trace is how the original gets repeated.
+
+The format is right and unchanged; the *guarantee* about what a `false` means begins with post-fix exports. `sections.zones.note` in the payload carries the mechanism, and contract **§3b** is the full argument.
 
 ## Values that are stand-ins
 
