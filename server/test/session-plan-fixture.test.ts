@@ -108,6 +108,60 @@ describe('the artifact says what it is', () => {
     assert.ok(golden.zones.some((z) => Object.values(z.attributes).includes(false)), 'and a decided-false one')
   })
 
+  it('carries the field\'s flag on every typed pin, verbatim and uninterpreted', () => {
+    /**
+     * Cloud Field's review: the plan carried only `monitorsDue`, a *derivation*
+     * of the flag. So visit two could say *check this one* and never *you
+     * flagged this an issue last time* — and the field app cannot recover it,
+     * because nothing about a house survives a visit on that side.
+     *
+     * **The raw value outlives the derivation.** At Increment 5 `monitorsDue`
+     * stops reading flags entirely; this field is unaffected, because it is what
+     * the field recorded rather than what this repo concluded.
+     */
+    const flags = golden.typedPins.map((p) => p.flag)
+    assert.equal(flags.filter((f) => f === 'fine').length, 3)
+    assert.equal(flags.filter((f) => f === 'issue').length, 1)
+    assert.equal(flags.filter((f) => f === null).length, 5, 'null where there is no flag — never an absent key')
+    assert.ok(golden.typedPins.every((p) => 'flag' in p), 'always present, so absent and none are not one state')
+
+    // `fine` is not in KNOWN_FLAGS and travels anyway. The filtering happens in
+    // `monitorsDue`, which is a conclusion; this array is evidence.
+    assert.deepEqual(golden.monitorsDue, [], 'and none of them is promoted to a monitor')
+  })
+
+  it('says that flags on UNTYPED pins do not travel in this array', () => {
+    // ⚑ Six live pins carry `fine`; only three are typed. A receiver reading
+    // `typedPins[].flag` as the property's whole flag record would conclude the
+    // other three were never flagged.
+    assert.match(golden.sections.typedPins.note, /3 live pin\(s\) carry a flag and have no component type/)
+    assert.match(golden.sections.typedPins.note, /not the property's whole flag record/)
+  })
+
+  it('does not claim a recorded false was a decision', () => {
+    /**
+     * ⚑ **This one was an overclaim in the payload, not a missing caveat.**
+     *
+     * The sentence read *"a recorded false is a decision and must not arrive as
+     * an absence"* — half right. Cloud Field F-20: the July walk's bedroom
+     * recorded `finished: false, sleeping: false` **from toggles nobody
+     * touched**, and capture mode now refuses to ask attributes at zone creation
+     * for that reason. So this fixture — the artifact that proves the emitter
+     * works — carries decisions that were never made, on all eight zones.
+     *
+     * The format is unchanged and still right. What was wrong was the sentence
+     * asserting an ambiguity away, **in the payload**, which is the one place an
+     * overclaim reaches a reader who never opens the contract.
+     */
+    const note = golden.sections.zones.note
+    assert.doesNotMatch(note, /a recorded false is a decision and/i)
+    assert.match(note, /A recorded FALSE is not necessarily a decision/)
+    assert.match(note, /before the field-side capture-mode fix/)
+    assert.match(note, /a considered no and an untouched control are indistinguishable/)
+    // And the half that was always right survives.
+    assert.match(note, /A recorded key and an absent key are different things/)
+  })
+
   it('carries the empty sections a receiver must not read as working mechanisms', () => {
     /**
      * Four sections are empty here and they are empty for **four different
