@@ -10,7 +10,7 @@
  * out loud rather than leaving you to notice.**
  */
 
-import { openDb } from '../src/db/index.js'
+import { now, openDb } from '../src/db/index.js'
 import { latestImport } from '../src/ai/tasks/identify.js'
 import { ENUMERATE_TASK, MATCH_TASK, planMatch, queueMatch, questionFor } from '../src/ai/tasks/matchComplete.js'
 import { assistsBlocked, drainVisit, liveDeps } from '../src/ai/worker.js'
@@ -18,6 +18,7 @@ import type { AssistDeps } from '../src/ai/tasks/index.js'
 import { ModelNotConfigured, requireModel } from '../src/ai/models.js'
 import { queueProgress, visitSpend } from '../src/ai/queue.js'
 import { currentOperator, OperatorRefused } from '../src/operators/registry.js'
+import { describeRun, partitionByRun, PLAN_ONLY, type RunOutcome } from '../src/ai/runReport.js'
 
 const ACKNOWLEDGEMENT = `
 This run sends the photographic interior of a house to an AI service — the room,
@@ -93,7 +94,8 @@ if (plan.withScaffold === 0 && plan.batches.length > 0) {
 
 if (!flag('run')) {
   console.log('\nThis was the plan only. Add --run --owner-property to send it.\n')
-  report()
+  // Nothing was called: a third state, not a run with zero calls.
+  report(PLAN_ONLY)
   process.exit(0)
 }
 
@@ -123,6 +125,9 @@ if (tier === 'strong') {
 }
 
 const limit = arg('limit') ? Number(arg('limit')) : undefined
+// ⚑ Captured BEFORE the drain, so a row written during the run can be told
+// from one that was already there.
+const runStartedAt = now()
 const result = await drainVisit(db, visitId, { ...(limit ? { limit } : {}), ...(deps ? { deps } : {}) })
 console.log(`\n${result.reason}`)
 console.log(`Ran ${result.ran}, failed ${result.failed}, stopped: ${result.stopped}.`)
@@ -174,26 +179,30 @@ function reportUnmodelled(): void {
   )
 }
 reportUnmodelled()
-report()
+report({ since: runStartedAt, ran: result.ran, failed: result.failed })
 
 /** The two lanes, printed apart — because that is the whole point of the pass. */
-function report(): void {
+function report(outcome: RunOutcome): void {
   const rows = db
     .prepare(
       `SELECT o.zone_id AS zoneId, o.label, o.class_id AS classId, o.derived_from AS lane,
               o.parent_object_id AS parent,
+              o.created_at AS createdAt,
               (SELECT COUNT(*) FROM object_media m WHERE m.object_id = o.id) AS photos
          FROM objects o WHERE o.import_id = ? AND o.derived_from IS NOT NULL
         ORDER BY o.zone_id, o.derived_from DESC, o.label`,
     )
     .all(importId) as {
-    zoneId: string; label: string; classId: string | null; lane: string; parent: string | null; photos: number
+    zoneId: string; label: string; classId: string | null; lane: string; parent: string | null
+    createdAt: string; photos: number
   }[]
 
-  if (rows.length === 0) {
-    console.log(`\nNo pass-3 objects for this import yet.\n`)
-    return
-  }
+  // ⚑ Said "no pass-3 objects yet" whatever had just happened — including a run
+  // where every call failed. The state of the tables reported as the state of
+  // the run.
+  const part = partitionByRun(rows, outcome, (r) => r.createdAt)
+  console.log(describeRun(outcome, part, 'objects'))
+  if (rows.length === 0) return
 
   const plate = rows.filter((r) => r.lane === 'plate')
   const appearance = rows.filter((r) => r.lane === 'appearance')

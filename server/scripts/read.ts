@@ -29,7 +29,7 @@
  * rather than a list of things — because that is what was found.
  */
 
-import { openDb } from '../src/db/index.js'
+import { now, openDb } from '../src/db/index.js'
 import { latestImport, mediaForImport } from '../src/ai/tasks/identify.js'
 import {
   claimsForImport, planSurfaceReads, queueSurfaceReading, READ_TASK,
@@ -40,6 +40,7 @@ import type { AssistDeps } from '../src/ai/tasks/index.js'
 import { ModelNotConfigured, requireModel } from '../src/ai/models.js'
 import { queueProgress, visitSpend } from '../src/ai/queue.js'
 import { currentOperator, OperatorRefused } from '../src/operators/registry.js'
+import { describeRun, partitionByRun, PLAN_ONLY, type RunOutcome } from '../src/ai/runReport.js'
 
 const ACKNOWLEDGEMENT = `
 This run sends detail photographs from the inside of a house to an AI service.
@@ -136,7 +137,9 @@ if (missing > 0) console.log(`${missing} are recorded and not on this machine.`)
 
 if (!flag('run')) {
   console.log('\nThis was the plan only. Add --run --owner-property to send it.\n')
-  report()
+  // PLAN_ONLY, not a run with zero calls. Nothing was called, so everything the
+  // report shows predates this invocation by definition — a third state.
+  report(PLAN_ONLY)
   process.exit(0)
 }
 
@@ -194,6 +197,9 @@ if (tier === 'strong') {
 }
 
 const limit = arg('limit') ? Number(arg('limit')) : undefined
+// ⚑ Captured BEFORE the drain. A row written during the run sorts at or after
+// it, which is what lets the report tell its own output from what was there.
+const runStartedAt = now()
 const result = await drainVisit(db, visitId, { ...(limit ? { limit } : {}), ...(deps ? { deps } : {}) })
 console.log(`\n${result.reason}`)
 console.log(`Ran ${result.ran}, failed ${result.failed}, stopped: ${result.stopped}.`)
@@ -206,7 +212,7 @@ console.log(
 )
 console.log(`Queue: ${JSON.stringify(queueProgress(db, visitId))}`)
 
-report()
+report({ since: runStartedAt, ran: result.ran, failed: result.failed })
 
 // ---------------------------------------------------------------- what came out
 
@@ -217,10 +223,11 @@ report()
  * that is what this pass produces, and a report that grouped them into things
  * would be doing pass 3's job in a print statement.
  */
-function report(): void {
+function report(outcome: RunOutcome): void {
   const labels = db
     .prepare(
       `SELECT r.id, r.media_id AS mediaId, r.zone_id AS zoneId, r.surface, r.surface_note AS whereItIs,
+              r.created_at AS createdAt,
               (SELECT COUNT(*) FROM reading_fields f WHERE f.reading_id = r.id) AS fields
          FROM readings r WHERE r.import_id = ? ORDER BY r.zone_id, r.created_at, r.id`,
     )
@@ -230,13 +237,18 @@ function report(): void {
     zoneId: string | null
     surface: string
     whereItIs: string | null
+    createdAt: string
     fields: number
   }[]
 
-  if (labels.length === 0) {
-    console.log(`\nNo labels are stored for this import yet. Pass 1 has not run against it.\n`)
-    return
-  }
+  /**
+   * ⚑ **This said "Pass 1 has not run against it" — after a run in which pass 1
+   * ran sixteen times and failed sixteen times.** A blank reported as a fact
+   * about the house rather than a fact about the run.
+   */
+  const part = partitionByRun(labels, outcome, (r) => r.createdAt)
+  console.log(describeRun(outcome, part, 'labels'))
+  if (labels.length === 0) return
 
   const claims = claimsForImport(db, importId)
   const bySurface = new Map<string, number>()
