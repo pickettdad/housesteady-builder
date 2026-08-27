@@ -136,8 +136,35 @@ function* renderedText(dir: string): Generator<[string, string]> {
 /** The roots any scan walks. Kept here so the audit below can walk them all. */
 const SCANNED_ROOTS = [
   join(repoRoot, 'server', 'src'),
+  join(repoRoot, 'server', 'scripts'),
   join(repoRoot, 'web', 'src'),
 ]
+
+const serverScripts = join(repoRoot, 'server', 'scripts')
+
+/**
+ * ⚑ Every file a scan claiming *the codebase* must walk — `server/src` **and
+ * `server/scripts`.**
+ *
+ * **`server/scripts` was outside every root until 2026-08-26**, so eighteen scans
+ * saying *anywhere in the codebase* could not see **3,834 lines of
+ * database-touching code**: the import path, all three passes, the binder draft,
+ * the scoring harness. *Doctrine 1's own scan — "never UPDATEs or DELETEs a
+ * captured row, anywhere in the codebase" — walked `server/src` alone.*
+ *
+ * ⛑ **Nothing was actually violating doctrine 1 there. That is the point.** It
+ * held by luck rather than by check, and a scan that reports clean on a scope
+ * nobody chose is this repo's signature failure wearing a green tick.
+ *
+ * ⚑ **Widening it produced four exemptions, and the exemptions are the argument
+ * for widening.** Before this change those four files were not *allowed* — they
+ * were *invisible*. **An exemption is a decision somebody can read and disagree
+ * with; invisibility is not.**
+ *
+ * *Found by the audit of 2026-08-26 as `doctrine.test.ts:137`, and ordered first
+ * in its band because it is why two of the band's other findings survived.*
+ */
+const codebaseFiles = (): string[] => [...sourceFiles(serverSrc), ...sourceFiles(serverScripts)]
 
 /** Source with comments and template-literal prose stripped, so prose never trips a scan. */
 const codeOf = (file: string): string =>
@@ -159,7 +186,7 @@ describe('doctrine 1 — the manifest is immutable evidence', () => {
 
   it('never UPDATEs or DELETEs a captured row, anywhere in the codebase', () => {
     const offenders: string[] = []
-    for (const file of sourceFiles(serverSrc)) {
+    for (const file of codebaseFiles()) {
       const code = codeOf(file)
       for (const table of CAPTURED_TABLES) {
         const update = new RegExp(`UPDATE\\s+${table}\\b`, 'i')
@@ -279,7 +306,7 @@ describe('doctrine 1 — the overlay layer is the only way anything changes', ()
   it('writes overlays from exactly one place', () => {
     // One INSERT means one set of rules. Two means the second one forgets the
     // prior value, or the supersession, or the forbidden-field gate.
-    const offenders = sourceFiles(serverSrc)
+    const offenders = codebaseFiles()
       .filter((f) => /INSERT\s+INTO\s+overlays/i.test(codeOf(f)))
       .map((f) => f.replace(repoRoot, ''))
     assert.deepEqual(offenders, ['/server/src/overlay/store.ts'])
@@ -289,7 +316,7 @@ describe('doctrine 1 — the overlay layer is the only way anything changes', ()
     // Undo is a superseding row. If this ever fails, the trail has stopped being
     // able to read "assigned, unassigned, reassigned".
     const offenders: string[] = []
-    for (const file of sourceFiles(serverSrc)) {
+    for (const file of codebaseFiles()) {
       const code = codeOf(file)
       if (/UPDATE\s+overlays\b/i.test(code)) offenders.push(`UPDATE in ${file.replace(repoRoot, '')}`)
       if (/DELETE\s+FROM\s+overlays\b/i.test(code)) offenders.push(`DELETE in ${file.replace(repoRoot, '')}`)
@@ -555,7 +582,7 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
    */
   it('lets no model call use an inline prompt string', () => {
     // Every file that talks to a model must get its wording from the library.
-    const offenders = sourceFiles(serverSrc).filter((f) => {
+    const offenders = codebaseFiles().filter((f) => {
       const code = codeOf(f)
       if (!/messages\.create|@anthropic-ai\/sdk/i.test(code)) return false
       return !/from '\.\/prompts\.js'|from '\.\.\/ai\/prompts\.js'/.test(code)
@@ -567,9 +594,27 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
     // §5: pinned model IDs live in environment variables, and an upgrade is a
     // deliberate config change with a golden-set run behind it. A literal here
     // would make the upgrade invisible.
-    const offenders = sourceFiles(serverSrc).filter((f) =>
-      /['"`](claude|gpt|gemini|llama|mistral)-[a-z0-9][a-z0-9.-]*['"`]/i.test(codeOf(f)),
-    )
+    /**
+     * ⚑ **One exemption, and it turns on configuration versus data.**
+     *
+     * `make-fixture.ts` writes `model: 'claude-sonnet-5'` into a synthetic
+     * `ChatReplyRecorded` event — **fabricating the record of a call the FIELD
+     * app made**, not configuring one this repo makes. The rule's own reason is
+     * that a literal makes *our* model upgrade invisible; nothing here is
+     * upgradeable.
+     *
+     * ⛑ **And the real export carries that exact string** — `fixtures/
+     * walk-2026-07-31/`'s chat thread records `claude-sonnet-5`. Replacing it
+     * with a placeholder would make the synthetic fixture diverge from the thing
+     * it exists to imitate, which is a worse defect than the one it would fix.
+     *
+     * *The real fixture is `.json` and no scan reads it, because these scans are
+     * about source. This file is the one place that data is written in TypeScript.*
+     */
+    const DATA_NOT_CONFIG = [join('scripts', 'make-fixture.ts')]
+    const offenders = codebaseFiles()
+      .filter((f) => /['"`](claude|gpt|gemini|llama|mistral)-[a-z0-9][a-z0-9.-]*['"`]/i.test(codeOf(f)))
+      .filter((f) => !DATA_NOT_CONFIG.some((a) => f.endsWith(a)))
     assert.deepEqual(offenders, [], 'model IDs are configuration — HOUSESTEADY_MODEL_FAST, not a string literal')
   })
 
@@ -588,8 +633,26 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
       join('ai', 'accept.ts'),      // owns the pending → accepted/edited/discarded transitions
       join('ai', 'queue.ts'),       // writes the row, and sums cost off it
       join('overlay', 'store.ts'),  // validates the proposal an accept overlay cites
+      /**
+       * ⚑ **Three operator-facing scripts, visible here for the first time on
+       * 2026-08-26** — `server/scripts` was outside every scanned root, so these
+       * were never allowed, only unseen.
+       *
+       * **They are diagnostics printing to a terminal, and the doctrine's stated
+       * failure is *a value appearing on screen that nobody signed*.** A script an
+       * operator runs deliberately is not that screen. **But they are genuine
+       * readers, and the audit found one of them printing the wrong thing** — so
+       * they belong on a list somebody can argue with rather than outside the
+       * scan's reach.
+       *
+       * ⛑ **This list is not a licence to widen.** A NEW reader of
+       * `ai_generations` under `scripts/` fails here and has to earn a line.
+       */
+      join('scripts', 'match.ts'),      // groups a run's generations; audit Band 2 names its report as wrong
+      join('scripts', 'proposals.ts'),  // splits a fixture by generation id, so a re-run is not mixed into the first
+      join('scripts', 'smoke.ts'),      // reads model, tokens and cost off the one call it makes
     ]
-    const offenders = sourceFiles(serverSrc)
+    const offenders = codebaseFiles()
       .filter((f) => /\bai_generations\b/.test(codeOf(f)))
       .filter((f) => !ALLOWED.some((a) => f.endsWith(a)))
     assert.deepEqual(offenders, [],
@@ -640,7 +703,7 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
     ]
     const offenders: string[] = []
 
-    for (const file of sourceFiles(serverSrc)) {
+    for (const file of codebaseFiles()) {
       const code = codeOf(file)
       for (const m of code.matchAll(/INSERT\s+(?:OR\s+\w+\s+)?INTO\s+(\w+)\s*\(([^)]*)\)/gis)) {
         const [, table, columns] = m
@@ -668,7 +731,7 @@ describe('doctrine 5 — the AI provenance shape exists before anything writes t
    */
   it('never lets new work be filed under the legacy operator', () => {
     const offenders: string[] = []
-    for (const file of sourceFiles(serverSrc)) {
+    for (const file of codebaseFiles()) {
       // The registry defines the constant and the guard that refuses it; every
       // other mention would be a use.
       if (file.endsWith(join('operators', 'registry.ts'))) continue
@@ -1120,7 +1183,7 @@ describe('doctrine — the checklist master is reference, never an input', () =>
    * was absent from the 48-type list only by being newer than it.
    */
   it('is not read by any code path', () => {
-    const offenders = sourceFiles(serverSrc)
+    const offenders = codebaseFiles()
       .concat(sourceFiles(join(repoRoot, 'web', 'src')))
       .filter((f) => /docs\/reference|Checklist-Master/i.test(codeOf(f)))
       .map((f) => f.replace(repoRoot, ''))
@@ -1606,7 +1669,7 @@ describe('Increment 4 §8 — the client-facing boundary', () => {
     // The FILENAME, not the words. `/api/client-names` is a route path and a
     // scan matching the substring reports the API surface as a second reader of
     // the config file — which is how the first version of this failed.
-    const offenders = sourceFiles(serverSrc)
+    const offenders = codebaseFiles()
       .filter((f) => !f.endsWith(join('report', 'names.ts')))
       .filter((f) => /client-names-v1\.json/.test(codeOf(f)))
       .map((f) => f.replace(repoRoot, ''))
@@ -1669,7 +1732,7 @@ describe('Increment 4 §5 — the editor, and the brand it renders under', () =>
   /** Append-only, like every other decision log here. A correction adds a layer. */
   it('never updates or deletes an editorial decision', () => {
     const offenders: string[] = []
-    for (const file of sourceFiles(serverSrc)) {
+    for (const file of codebaseFiles()) {
       const code = codeOf(file)
       for (const table of ['report_row_edits', 'client_names']) {
         if (new RegExp(`UPDATE\\s+${table}\\b`, 'i').test(code)) offenders.push(`UPDATE ${table} in ${file.replace(repoRoot, '')}`)
@@ -1690,7 +1753,7 @@ describe('Increment 4 §5 — the editor, and the brand it renders under', () =>
    */
   it('lets nothing on the write path ratify a name', () => {
     const offenders: string[] = []
-    for (const file of sourceFiles(serverSrc)) {
+    for (const file of codebaseFiles()) {
       const code = codeOf(file)
       // Any INSERT or UPDATE putting a non-NULL value into ratified_at.
       for (const m of code.matchAll(/ratified_at\s*=\s*([^\s,)]+)/g)) {
@@ -1823,7 +1886,7 @@ describe('Increment 4 §8 — nothing renders client-facing without a signature'
       'and the NAME as well as the id — an operator id in a client\'s document is internal vocabulary')
 
     // Nothing else anywhere composes a document. `<!doctype` is the tell.
-    const offenders = sourceFiles(serverSrc)
+    const offenders = codebaseFiles()
       .filter((f) => !f.endsWith(join('report', 'render.ts')))
       .filter((f) => /<!doctype|<html/i.test(codeOf(f)))
       .map((f) => f.replace(repoRoot, ''))
@@ -1867,7 +1930,7 @@ describe('Increment 4 §8 — nothing renders client-facing without a signature'
    */
   it('never updates or deletes an edition', () => {
     const offenders: string[] = []
-    for (const file of sourceFiles(serverSrc)) {
+    for (const file of codebaseFiles()) {
       const code = codeOf(file)
       if (/UPDATE\s+report_editions\b/i.test(code)) offenders.push(`UPDATE in ${file.replace(repoRoot, '')}`)
       if (/DELETE\s+FROM\s+report_editions\b/i.test(code)) offenders.push(`DELETE in ${file.replace(repoRoot, '')}`)
@@ -2020,7 +2083,7 @@ describe('Increment 4 §3 — the session plan is session data, never config', (
 
     // The old name is gone from the source entirely. A migration is the record
     // of the rename and may name it; nothing else may.
-    const revived = sourceFiles(serverSrc)
+    const revived = codebaseFiles()
       .filter((f) => !f.endsWith('.sql') && /\bvisit_date\b|\bvisitDate\b/.test(codeOf(f)))
       .map((f) => f.replace(repoRoot, ''))
     assert.deepEqual(revived, [],
@@ -2173,7 +2236,7 @@ describe('rule 9 — checks that re-derive rather than remember', () => {
    */
   it('lets nothing test a default label for truthiness', () => {
     const offenders: string[] = []
-    for (const file of sourceFiles(serverSrc)) {
+    for (const file of codebaseFiles()) {
       const code = codeOf(file)
       // `if (slot.defaultLabel)`, `x.defaultLabel ? a : b`, `defaultLabel &&` —
       // every shape that reads a declared null as though the key were absent.
@@ -2363,7 +2426,7 @@ describe('Increment 4 §4 and §7', () => {
    */
   it('lets nothing default an absent lineage to an empty successor list', () => {
     const offenders: string[] = []
-    for (const file of sourceFiles(serverSrc)) {
+    for (const file of codebaseFiles()) {
       const code = codeOf(file)
       // `lineageFor(...) ?? []`, `.successors ?? []`, `?.successors ?? []` —
       // every shape that turns "never told" into "told there are none".
@@ -2849,7 +2912,7 @@ describe('doctrine — a scan says what it did not look at', () => {
     const web = sourceFiles(join(repoRoot, 'web', 'src'))
     assert.ok(web.filter((f) => f.endsWith('.tsx')).length >= 13,
       'the components are in scope, which they were not before 2026-08-04')
-    assert.ok(sourceFiles(serverSrc).length > 50)
+    assert.ok(codebaseFiles().length > 50)
   })
 
   it('reads migrations through a named walker rather than a reinvented one', () => {
