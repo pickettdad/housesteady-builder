@@ -18,7 +18,7 @@ import { runnerFor } from '../src/ai/tasks/index.js'
 import { queueSurfaceReading, READ_TASK, writeReadings } from '../src/ai/tasks/readSurfaces.js'
 import { writeResolutions } from '../src/ai/tasks/resolveProduct.js'
 import {
-  ENUMERATE_TASK, MATCH_SCHEMA, MATCH_TASK, matchFacts, normaliseMatch, planMatch, queueMatch,
+  ENUMERATE_TASK, MATCH_SCHEMA, MATCH_TASK, matchFacts, MODELLED_KEYS, normaliseMatch, planMatch, queueMatch,
   questionFor, runMatchComplete, type MatchOutput,
 } from '../src/ai/tasks/matchComplete.js'
 import { readState } from '../src/ai/tasks/readSurfaces.js'
@@ -432,5 +432,45 @@ describe('⚑ stop discarding — an answer key with no home is reported, not dr
       { question: MATCH_TASK, products: new Set<string>(), classIds: new Set<string>(), mediaIds: new Set<string>() },
     )
     assert.deepEqual(stored.unmodelledKeys, [])
+  })
+})
+
+// ------------------------- Band 2 · the un-modelled bucket, and what it holds
+
+describe('⚑ the un-modelled key set is the schema, not a copy of it', () => {
+  /**
+   * **The hand-written list said four keys; the schema requires five.**
+   * `roomNote` was missing, so every real call recorded a false entry in
+   * `unmodelledKeys` — the bucket documented as *where a hypothesis lands first*
+   * firing on a fully modelled field, on every generation.
+   */
+  it('covers every property the schema declares, including roomNote', () => {
+    const declared = Object.keys((MATCH_SCHEMA.properties ?? {}) as Record<string, unknown>)
+    assert.ok(declared.includes('roomNote'), 'the schema declares it')
+    for (const k of declared) {
+      assert.ok(MODELLED_KEYS.has(k), `${k} is declared by MATCH_SCHEMA and must not read as un-modelled`)
+    }
+  })
+
+  it('records nothing un-modelled for an answer carrying only declared keys', () => {
+    // The regression: this returned [{ key: 'roomNote', ... }] on every call.
+    const stored = normaliseMatch(
+      { located: [], couldNotLocate: [], additional: [], unsure: [], roomNote: 'a tidy mechanical room' },
+      { question: MATCH_TASK, products: new Set<string>(), classIds: new Set<string>(), mediaIds: new Set<string>() },
+    )
+    assert.deepEqual(stored.unmodelledKeys, [],
+      'a fully modelled answer has nothing the build has no home for')
+  })
+
+  it('still records a key the schema does not declare', () => {
+    // And the guard discriminates: it must not have been silenced.
+    const stored = normaliseMatch(
+      {
+        located: [], couldNotLocate: [], additional: [], unsure: [], roomNote: '',
+        possibleDuplicates: ['proposals 3 and 7 are probably one unit'],
+      } as never,
+      { question: MATCH_TASK, products: new Set<string>(), classIds: new Set<string>(), mediaIds: new Set<string>() },
+    )
+    assert.deepEqual(stored.unmodelledKeys.map((u) => u.key), ['possibleDuplicates'])
   })
 })

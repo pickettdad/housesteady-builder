@@ -94,6 +94,16 @@ if (plan.withScaffold === 0 && plan.batches.length > 0) {
 
 if (!flag('run')) {
   console.log('\nThis was the plan only. Add --run --owner-property to send it.\n')
+  /**
+   * ⚑ **`reportUnmodelled()` used to sit below this exit, so it printed only
+   * inside a paid run — which is part of why it printed the wrong thing for as
+   * long as it did.**
+   *
+   * It reports STORED state from previous generations. That needs no call, and
+   * putting it behind one meant the only way to see the bucket was to spend
+   * money first. **Beyond the audit's finding and named as such.**
+   */
+  reportUnmodelled()
   // Nothing was called: a third state, not a run with zero calls.
   report(PLAN_ONLY)
   process.exit(0)
@@ -159,14 +169,41 @@ function reportUnmodelled(): void {
         ORDER BY created_at DESC LIMIT 20`,
     )
     .all(visitId) as { output: string }[]
-  const MODELLED = new Set(['located', 'couldNotLocate', 'additional', 'unsure'])
+
+  /**
+   * ⚑ **READ the stored bucket. Do not re-derive it.**
+   *
+   * This re-computed the un-modelled set over `output` — **which holds a
+   * `StoredMatch`, not the model's `MatchOutput`.** `StoredMatch extends
+   * MatchOutput` and adds seven of this builder's own bookkeeping fields, so the
+   * loop printed `question`, `evidenceless`, `unknownProducts`, `unknownClasses`,
+   * `strayEvidence`, `danglingParents` and `unmodelledKeys` itself **as things
+   * the model said** — eight rows on every visit, none of them from the model.
+   *
+   * ⛑ **And the genuine signal was the one that could be lost.** A real
+   * un-modelled key survives only inside the stored `unmodelledKeys` value, whose
+   * preview this then truncated to 160 characters **on top of the 200 already
+   * applied when it was stored** — so the one thing the mechanism exists to
+   * surface could be cut off mid-string while seven bookkeeping rows printed in
+   * full.
+   *
+   * **`normaliseMatch` already computed this correctly and stored it.** Reading
+   * it is both the fix and the smaller code.
+   *
+   * *Audit finding `match.ts:157`, Band 2, 2026-08-26.*
+   */
   const seen = new Map<string, string>()
   for (const r of rows) {
-    let o: Record<string, unknown>
-    try { o = JSON.parse(r.output) as Record<string, unknown> } catch { continue }
-    for (const [k, v] of Object.entries(o)) {
-      if (MODELLED.has(k) || seen.has(k)) continue
-      seen.set(k, (typeof v === 'string' ? v : JSON.stringify(v) ?? '').slice(0, 160))
+    let o: { unmodelledKeys?: unknown }
+    try { o = JSON.parse(r.output) as { unmodelledKeys?: unknown } } catch { continue }
+    if (!Array.isArray(o.unmodelledKeys)) continue
+    for (const entry of o.unmodelledKeys) {
+      if (typeof entry !== 'object' || entry === null) continue
+      const { key, preview } = entry as { key?: unknown; preview?: unknown }
+      if (typeof key !== 'string' || seen.has(key)) continue
+      // Stored at 200 characters. NOT truncated again — the second cut was
+      // applied to the only content worth reading.
+      seen.set(key, typeof preview === 'string' ? preview : '')
     }
   }
   if (seen.size === 0) return
