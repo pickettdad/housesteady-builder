@@ -161,3 +161,77 @@ describe('⚑ `npm run match` prints the distinction — the command, not the mo
     assert.match(out, /a water heater/)
   })
 })
+
+describe('⚑ the un-modelled report reads the stored bucket, not the whole record', () => {
+  /**
+   * **It re-derived the un-modelled set over `ai_generations.output` — which
+   * holds a `StoredMatch`, not the model's `MatchOutput`.** `StoredMatch extends
+   * MatchOutput` and adds seven of the builder's own bookkeeping fields, so the
+   * report printed `question`, `evidenceless`, `unknownProducts`,
+   * `unknownClasses`, `strayEvidence`, `danglingParents` and `unmodelledKeys`
+   * itself **as things the model said** — on every visit.
+   *
+   * ⛑ **And the genuine signal was the one that could be lost**: a real key
+   * survives only inside the stored value, which was then truncated to 160
+   * characters on top of the 200 already applied at storage.
+   *
+   * **That bucket is documented as the specification for the unbuilt hypothesis
+   * channel** — so the evidence a channel was to be designed from was
+   * contaminated by the tool reporting it.
+   */
+  function seedGeneration(dir: string): string {
+    const db = openDb(join(dir, 'housesteady.db'))
+    const OP = 'op-um', PROPERTY = 'p-um', VISIT = 'visit-um', ZONE = 'zone-mech'
+    db.prepare(`INSERT INTO operators (id, display_name, short_code, active, created_at) VALUES (?, 'U', 'u', 1, ?)`).run(OP, now())
+    db.prepare(`INSERT INTO properties (id, label, created_at, actor_id) VALUES (?, 'A house', ?, ?)`).run(PROPERTY, now(), OP)
+    db.prepare(`INSERT INTO visits (id, property_id, kind, created_at, actor_id) VALUES (?, ?, 'baseline', ?, ?)`).run(VISIT, PROPERTY, now(), OP)
+    const importId = newId()
+    db.prepare(
+      `INSERT INTO imports (id, visit_id, property_id, imported_at, media_mode, raw_manifest, validation_report, status, created_at, actor_id)
+       VALUES (?, ?, ?, ?, 'full', '{}', '{}', 'ok', ?, ?)`,
+    ).run(importId, VISIT, PROPERTY, now(), now(), OP)
+    db.prepare(
+      `INSERT INTO zones (zone_id, import_id, property_id, visit_id, type, label, level, created_at)
+       VALUES (?, ?, ?, ?, 'mechanical', 'Mech', 'basement', ?)`,
+    ).run(ZONE, importId, PROPERTY, VISIT, now())
+
+    // A realistic StoredMatch: the five modelled keys, the builder's seven
+    // bookkeeping fields, and ONE genuine un-modelled key inside the bucket.
+    const stored = {
+      located: [], couldNotLocate: [], additional: [], unsure: [], roomNote: 'a tidy mechanical room',
+      question: 'match_known',
+      unknownProducts: [], unknownClasses: [], strayEvidence: [], danglingParents: [], evidenceless: [],
+      unmodelledKeys: [{ key: 'possibleDuplicates', preview: '["proposals 3 and 7 are probably one unit"]' }],
+    }
+    db.prepare(
+      `INSERT INTO ai_generations
+         (id, property_id, visit_id, import_id, task, target_kind, target_id, model,
+          prompt_id, prompt_version, prompt_hash, input_refs, output, abstained, confidence,
+          input_tokens, output_tokens, cost_estimate, human_decision, actor_id, created_at)
+       VALUES (?, ?, ?, ?, 'match_known', 'zone', ?, 'a-model', 'p', 'v', 'h', '{}', ?, 0, NULL,
+               1, 1, 0, 'pending', ?, ?)`,
+    ).run(newId(), PROPERTY, VISIT, importId, ZONE, JSON.stringify(stored), OP, now())
+    db.close()
+    return VISIT
+  }
+
+  it('prints the genuine key and none of the builder\'s bookkeeping', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hs-unmodelled-'))
+    const visitId = seedGeneration(dir)
+    const out = execFileSync(
+      process.execPath,
+      ['--import', 'tsx', join(repoRoot, 'server', 'scripts', 'match.ts'), '--visit', visitId],
+      { cwd: join(repoRoot, 'server'), env: { ...process.env, HOUSESTEADY_DATA: dir }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    )
+
+    assert.match(out, /1 answer key\(s\) this build does not model/)
+    assert.match(out, /possibleDuplicates/)
+    assert.match(out, /proposals 3 and 7 are probably one unit/, 'the content survives, untruncated a second time')
+
+    for (const bookkeeping of ['question:', 'evidenceless:', 'unknownProducts:', 'unknownClasses:',
+      'strayEvidence:', 'danglingParents:', 'unmodelledKeys:', 'roomNote:']) {
+      assert.doesNotMatch(out, new RegExp(bookkeeping.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+        `${bookkeeping} is this builder's own field, never something the model said`)
+    }
+  })
+})

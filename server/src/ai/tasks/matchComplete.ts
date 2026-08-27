@@ -145,6 +145,47 @@ export const MATCH_SCHEMA: Record<string, unknown> = {
   },
 }
 
+/**
+ * ⚑ **What the model may return, taken FROM THE SCHEMA rather than listed beside it.**
+ *
+ * **The hand-written list said `located · couldNotLocate · additional · unsure`
+ * and the schema requires five.** `roomNote` was missing, so every real call
+ * recorded a false entry in `unmodelledKeys` — *the bucket documented as "where a
+ * hypothesis lands first" fired on a fully modelled field, on every generation.*
+ *
+ * **A list beside a schema is a second copy of the schema with nobody
+ * maintaining it.** Deriving it means the next field added to `MATCH_SCHEMA`
+ * cannot reintroduce this: the set moves when the schema does, because it *is*
+ * the schema.
+ *
+ * *Audit finding `matchComplete.ts:448`, Band 2, 2026-08-26.*
+ */
+export const MODELLED_KEYS: ReadonlySet<string> = new Set(
+  Object.keys((MATCH_SCHEMA.properties ?? {}) as Record<string, unknown>),
+)
+
+/**
+ * ⛑ **And a finding this fix does NOT close, recorded where it will be read.**
+ *
+ * `MATCH_SCHEMA` sets `additionalProperties: false` and reaches the API as a
+ * structured-output constraint — `output_config: { format: { type:
+ * 'json_schema', schema } }`, `client.ts:170`. **If the provider enforces that
+ * strictly, the model CANNOT return a key outside the five**, and
+ * `unmodelledKeys` can never collect anything real.
+ *
+ * ⚑ **Which would mean the bucket described as *the hypothesis channel's
+ * specification writing itself* is structurally unable to collect the thing it
+ * was built for** — its only possible entry was the false `roomNote` this change
+ * removes.
+ *
+ * **Not fixed here, because the fix would be relaxing a wall**, and a schema that
+ * accepts arbitrary keys is a different decision from a channel that accepts
+ * hypotheses. *The channel likely needs its own declared field rather than an
+ * escape hatch.* **Design session's call — flagged, not taken.**
+ *
+ * **Falsifiable:** a live run with a prompt inviting an extra key either yields
+ * it in `unmodelledKeys` or is stripped by the schema. Nobody has run it.
+ */
 export interface Located {
   product: string
   mediaIds: string[]
@@ -445,9 +486,8 @@ export function normaliseMatch(
    * acted on.** A preview rather than the value, because the value may be an
    * array of objects and this is a signal that something was said.
    */
-  const MODELLED = new Set(['located', 'couldNotLocate', 'additional', 'unsure'])
   const unmodelledKeys = Object.entries(output as unknown as Record<string, unknown>)
-    .filter(([k]) => !MODELLED.has(k))
+    .filter(([k]) => !MODELLED_KEYS.has(k))
     .map(([key, v]) => ({
       key,
       preview: (typeof v === 'string' ? v : JSON.stringify(v) ?? String(v)).slice(0, 200),
