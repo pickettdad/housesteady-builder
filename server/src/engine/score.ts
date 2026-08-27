@@ -132,6 +132,47 @@
  * a separate decision, and it is reversible by deleting `onModel`.*
  */
 
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+/**
+ * ⚑ **The hash of this file's own rules, so two scores can never be compared
+ * silently across a harness change.**
+ *
+ * **Run 1 scored `3` under one version of this file and `1` under another, on
+ * identical data, twice in one week.** Reading `unconfirmed_objects` moves every
+ * false-positive count again, and those are the numbers the identification
+ * passes are judged on. *The risk is somebody comparing a pre-fix number to a
+ * post-fix one and concluding capture quality changed when the harness moved
+ * underneath them.*
+ *
+ * ⛑ **Derived from the source, never a hand-maintained literal.** The same audit
+ * found `house_style_version` recorded as *a hardcoded string literal that no
+ * code derives, hashes, or checks* — a version nobody derives is a version
+ * nobody can trust, and writing one here would be that defect in the file whose
+ * whole job is making a number checkable.
+ *
+ * **Comments are stripped, so prose does not move it.** *Refactors that change
+ * no behaviour will still move it, and that is the safe direction:* over-flagging
+ * says *these may not be comparable* when they are; under-flagging compares two
+ * numbers that are not. **The fixtures are committed and rescoring is one
+ * command — so the cost of a false move is a re-run, and the cost of a missed
+ * one is a wrong conclusion about the camera.**
+ */
+export const HARNESS_VERSION: string = (() => {
+  try {
+    const src = readFileSync(fileURLToPath(import.meta.url), 'utf8')
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    return `score-${createHash('sha256').update(code).digest('hex').slice(0, 12)}`
+  } catch {
+    // A bundled or transpiled context where the source is not on disk. Naming
+    // the unknown beats inventing a version — an unknown stamp compares equal to
+    // nothing, which is the failing-safe answer.
+    return 'score-unknown'
+  }
+})()
+
 /** One confirmed object from the room record. */
 export interface KeyObject {
   product: string | null
@@ -268,6 +309,27 @@ export interface ScoreReport {
    * different and much weaker statement.
    */
   falsePositives: { id: string; label: string; classId: string | null; lane: string }[]
+  /**
+   * ⚑ Unmatched proposals that DO cite a photograph of an `unconfirmed_objects`
+   * entry — **reported beside `falsePositives`, never added to it.**
+   *
+   * Not correct and not a phantom. See the note where these are computed.
+   */
+  matchedUnconfirmed: { id: string; label: string; classId: string | null; lane: string; keyEntry: string }[]
+  /**
+   * ⚑ **The hash of the rules that produced these numbers, so two scores can
+   * never be compared silently across a harness change.**
+   *
+   * *Run 1 scored `3` under one version of this file and `1` under another, on
+   * identical data, twice in one week.* Reading `unconfirmed_objects` moves
+   * every false-positive count again — and those are the numbers the
+   * identification passes are judged on.
+   *
+   * **Derived from this file's own code, never a literal.** A hand-maintained
+   * version string is the `house_style_version` defect the same audit found:
+   * *a hardcoded literal that no code derives, hashes, or checks.*
+   */
+  harnessVersion: string
   counts: Record<Outcome, number>
   /**
    * Rule 7 — the same outcomes, attributed to the lane that produced them.
@@ -290,6 +352,8 @@ export interface LaneTally {
   'plate-legibility': number
   /** Proposals from this lane matching no key object at all. */
   falsePositives: number
+  /** Beside `falsePositives`, never summed into it. */
+  matchedUnconfirmed: number
   /** Proposals this lane contributed, matched or not. */
   proposals: number
   /** Rule 8 — of this lane's correct answers, how many matched each field. */
@@ -405,7 +469,7 @@ export function scoreRun(
   const tally = (lane: string): LaneTally =>
     (byLane[lane] ??= {
       correct: 0, wrong: 0, 'key-uncertain': 0, 'plate-legibility': 0,
-      falsePositives: 0, proposals: 0, correctOnRole: 0, correctOnProduct: 0, correctOnModel: 0,
+      falsePositives: 0, matchedUnconfirmed: 0, proposals: 0, correctOnRole: 0, correctOnProduct: 0, correctOnModel: 0,
     })
   for (const p of proposals) tally(laneOf(p)).proposals++
 
@@ -547,10 +611,54 @@ export function scoreRun(
     counts[right ? 'correct' : 'wrong']++
   }
 
-  const falsePositives = proposals
-    .filter((p) => !claimed.has(p.id))
-    .map((p) => ({ id: p.id, label: p.label, classId: p.classId, lane: laneOf(p) }))
+  /**
+   * ⚑ **Two kinds of unmatched proposal, and calling them one number biased
+   * every accuracy figure this project holds against itself.**
+   *
+   * `unconfirmed_objects` has been in the committed room record since 2026-08-10
+   * — **nine entries** — and `scoreRun` read `confirmed_objects` and nothing
+   * else. So a proposal citing the photograph of *"Possible well-pump pressure
+   * switch"* or *"Branch breakers in Siemens loadcentre"* scored as a **false
+   * positive against the key's own list of things that are probably there.**
+   *
+   * **These are not phantoms and the difference is categorical:**
+   *
+   * | | |
+   * |---|---|
+   * | **phantom** | a reverse osmosis in a room with none. The engine invented an object |
+   * | **unconfirmed** | *branch breakers* where the key says *electrical panel*. A real thing at a finer grain, which the owner did not attest as a separate object |
+   *
+   * ⛑ **Neither is promoted to `correct`, and that is deliberate.** The owner
+   * attested `confirmed_objects` complete **for existence**; he did not attest
+   * these. *Scoring them right would be the overclaim in the other direction* —
+   * this repo's own discipline is four streams never collapsed, and this is a
+   * third stream rather than a reclassification into the first.
+   *
+   * **Matched on photograph overlap, exactly as `confirmed_objects` is** — rule
+   * 2. A name never decides.
+   *
+   * *Audit finding `score.ts:148`, Band 2, 2026-08-26.*
+   */
+  const unclaimed = proposals.filter((p) => !claimed.has(p.id))
+  const unconfirmed = key.unconfirmed_objects ?? []
+  const hitsUnconfirmed = (p: ScoredProposal): string | null => {
+    for (const u of unconfirmed) {
+      const ids = new Set((u.photographs ?? []).map(mediaIdOf))
+      if (p.mediaIds.some((m) => ids.has(m))) return u.proposal ?? '(an unconfirmed entry)'
+    }
+    return null
+  }
+
+  const falsePositives: ScoreReport['falsePositives'] = []
+  const matchedUnconfirmed: ScoreReport['matchedUnconfirmed'] = []
+  for (const p of unclaimed) {
+    const u = hitsUnconfirmed(p)
+    const row = { id: p.id, label: p.label, classId: p.classId, lane: laneOf(p) }
+    if (u === null) falsePositives.push(row)
+    else matchedUnconfirmed.push({ ...row, keyEntry: u })
+  }
   for (const f of falsePositives) tally(f.lane).falsePositives++
+  for (const m of matchedUnconfirmed) tally(m.lane).matchedUnconfirmed++
 
   return {
     keyObjects: key.confirmed_objects.length,
@@ -558,13 +666,19 @@ export function scoreRun(
     missed,
     judged,
     falsePositives,
+    matchedUnconfirmed,
+    harnessVersion: HARNESS_VERSION,
     counts,
     byLane,
     note:
       `Scored against ${key.confirmed_objects.length} confirmed objects on photograph overlap, never on names. ` +
       `Role decides, not product — a key recording only the product would score "electric water heater" on the ` +
-      `GSW as correct and lose that its breaker is off on purpose. ${falsePositives.length} proposal(s) matched no key ` +
-      `object; those are scoreable only because the owner attested the key complete for existence. ` +
+      `GSW as correct and lose that its breaker is off on purpose. ${falsePositives.length} proposal(s) matched NO key ` +
+      `entry at all; those are scoreable as phantoms only because the owner attested the confirmed list complete ` +
+      `for existence. A further ${matchedUnconfirmed.length} cite a photograph of an \`unconfirmed_objects\` entry — ` +
+      `real things at a finer grain than the owner attested, reported here and NEVER added to the false positives ` +
+      `or promoted to correct. Harness ${HARNESS_VERSION}: a score from a different harness is not comparable ` +
+      `with this one and the stamp is how you tell. ` +
       `**This report gates nothing.** Every disagreement is resolvable in both directions.`,
   }
 }
