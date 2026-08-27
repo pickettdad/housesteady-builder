@@ -339,3 +339,53 @@ describe('editions', () => {
       'no item id in the rendered text')
   })
 })
+
+// ------------------------------------------------- Band 1 · the label is linted
+
+describe('⚑ every client-facing name is linted, not whichever one is non-null', () => {
+  /**
+   * **The lint read `args.property.address ?? args.property.label`.** So a
+   * property carrying an address had its **label checked by nothing** — and the
+   * label is what titles the document: `<title>Gap report — ${label}</title>`.
+   *
+   * *`??` is a fallback between two ways of naming one thing. These are two
+   * separate fields and both render.* Found by the audit of 2026-08-26, which
+   * signed an edition as *"The Smith place — recurring damp issue"* and got no
+   * refusal at all.
+   */
+  it('refuses a property LABEL carrying a banned construction, with an address present', async () => {
+    const { db, propertyId } = await ready()
+    const draft = buildDraft({ db, propertyId, describe: describeItems(db, NAMES), labels: LABELS })
+    assert.throws(
+      () => signEdition({
+        db, propertyId, draft,
+        describe: describeItems(db, NAMES), labels: LABELS, frames: NAMES.frames,
+        signedBy: TEST_OPERATOR, signedByName: 'Test Operator',
+        clientNames: { version: NAMES.version, hash: NAMES.hash },
+        houseStyleVersion: 'house-style/v001',
+        // The address is clean. Under `??` the label was never reached.
+        property: { label: 'The Smith place — recurring damp issue', address: '14 Dundas Street West' },
+        walkedDate: '2026-07-24',
+      }),
+      (e: unknown) => e instanceof HouseStyleRefused,
+      'a label reaching the document title must be linted even when an address is present',
+    )
+  })
+
+  it('still refuses a bad ADDRESS, so the fix did not trade one field for the other', async () => {
+    const { db, propertyId } = await ready()
+    const draft = buildDraft({ db, propertyId, describe: describeItems(db, NAMES), labels: LABELS })
+    assert.throws(
+      () => signEdition({
+        db, propertyId, draft,
+        describe: describeItems(db, NAMES), labels: LABELS, frames: NAMES.frames,
+        signedBy: TEST_OPERATOR, signedByName: 'Test Operator',
+        clientNames: { version: NAMES.version, hash: NAMES.hash },
+        houseStyleVersion: 'house-style/v001',
+        property: { label: 'A house', address: '14 Dundas Street West — damp issue' },
+        walkedDate: '2026-07-24',
+      }),
+      (e: unknown) => e instanceof HouseStyleRefused,
+    )
+  })
+})

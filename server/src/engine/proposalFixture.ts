@@ -186,7 +186,7 @@ export interface PersonalDataHit {
   proposalId: string
   kind: 'address' | 'phone' | 'postal-code' | 'email' | 'licence-or-registration'
   /** The field it was found in. */
-  where: 'label' | 'model'
+  where: 'label' | 'model' | 'model-read'
   /** The matched text. **Shown to the reviewer, never logged anywhere durable.** */
   matched: string
 }
@@ -210,6 +210,59 @@ export interface PersonalDataHit {
  * pretending otherwise would be the more dangerous error — *a scan that appears
  * to cover names produces a reviewer who stops looking for them.*
  */
+/**
+ * ⚑ Every text a proposal carries, and the ONLY place that list is written down.
+ *
+ * **This existed inline and did not include `modelRead`.** The scan read `label`
+ * and `models[]`, printed *the personal-data scan found nothing*, and told the
+ * operator the file was ready to look at — while `modelRead`, **which is a string
+ * read straight off a plate**, went unexamined. Proved rather than argued: a
+ * planted `"Gas fitter licence 12345 613-555-0142 at 1 Nowhere Road"` produced
+ * **zero hits** in `modelRead` and three in `models[]`.
+ *
+ * ⚑ **Reading the field is the smaller half of the fix.** *A scan that reports
+ * "found nothing" is indistinguishable from a scan that is not looking* — which
+ * is this repo's signature failure arriving inside the guard built against it.
+ *
+ * **So the field list is extracted here, exported, and covered by a test that
+ * plants data in every string a proposal can hold.** Add a text-bearing field to
+ * `FixtureProposal`, forget to add it here, and `proposal-fixture.test.ts` fails
+ * — instead of the scan quietly going blind on one more field.
+ */
+/**
+ * Fields deliberately NOT scanned, each with the reason it cannot carry plate text.
+ *
+ * ⚑ **A path goes in here with a sentence, never on its own** — same discipline as
+ * `lanes.ts`'s `LANE_EXEMPT`. An exempt list of bare names is how a real field
+ * gets parked: the next reader cannot tell an argued exemption from one somebody
+ * added to make the suite green.
+ *
+ * **The test pairs this with the extractor and requires the two to cover every
+ * string-bearing key between them.** Add a field to `FixtureProposal` and you must
+ * either scan it or say why not — which is the only version of this guard that
+ * survives the next field.
+ */
+export const NOT_SCANNED: ReadonlyMap<string, string> = new Map([
+  ['id', 'A minted uuid. Never touched by a model and never read off a photograph.'],
+  ['classId', 'A vocabulary term from this repo\'s own class frame, not free text.'],
+  ['lane', 'One of `plate` / `appearance` / null — this builder\'s own word for which pass wrote the row.'],
+  ['generationId', 'A minted uuid identifying the model call.'],
+  // Caught by the coverage test on its first run rather than reasoned about,
+  // which is the difference between this guard and the one it replaces.
+  ['mediaIds', 'Field-minted media uuids. A filename, never a reading of one.'],
+])
+
+export function personalDataFields(p: FixtureProposal): { where: PersonalDataHit['where']; text: string }[] {
+  return [
+    { where: 'label', text: p.label },
+    ...p.models.map((m) => ({ where: 'model' as const, text: m })),
+    // Optional and nullable, and it is the one that was missed.
+    ...(typeof p.modelRead === 'string' && p.modelRead !== ''
+      ? [{ where: 'model-read' as const, text: p.modelRead }]
+      : []),
+  ]
+}
+
 export function scanForPersonalData(proposals: readonly FixtureProposal[]): PersonalDataHit[] {
   const RULES: { kind: PersonalDataHit['kind']; re: RegExp }[] = [
     // A number, then words, then a road word. The road word is what makes it an
@@ -228,10 +281,7 @@ export function scanForPersonalData(proposals: readonly FixtureProposal[]): Pers
 
   const hits: PersonalDataHit[] = []
   for (const p of proposals) {
-    const fields: { where: PersonalDataHit['where']; text: string }[] = [
-      { where: 'label', text: p.label },
-      ...p.models.map((m) => ({ where: 'model' as const, text: m })),
-    ]
+    const fields = personalDataFields(p)
     for (const f of fields) {
       for (const rule of RULES) {
         for (const m of f.text.matchAll(rule.re)) {
