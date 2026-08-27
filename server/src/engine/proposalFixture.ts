@@ -241,6 +241,27 @@ export interface PersonalDataHit {
  * string-bearing key between them.** Add a field to `FixtureProposal` and you must
  * either scan it or say why not — which is the only version of this guard that
  * survives the next field.
+ *
+ * ---
+ *
+ * ## ⛑ How this list decays, and the tell
+ *
+ * **An escape hatch defeats its own guard when somebody adds a field, sees the
+ * test fail, and writes a lazy reason to make it pass.** *Recorded 2026-08-26,
+ * the day the list was created, because a caution that lives only in a session
+ * reply does not survive a handover.*
+ *
+ * ⚑ **The tell is a reason that RESTATES THE FIELD NAME rather than arguing from
+ * what the field can hold:**
+ *
+ * | | |
+ * |---|---|
+ * | *"a minted uuid, never read off a photograph"* | **argues** — it says where the value comes from, and that source cannot carry plate text |
+ * | *"not text"* · *"internal"* · *"an id"* | **restates** — it describes the field rather than its provenance, and would be equally true of a field that DID carry plate text |
+ *
+ * **The question a reason must answer is not *what is this field* but *what is
+ * the furthest thing a model could ever write into it*.** A field a model
+ * populates from a photograph is scanned, whatever it is called.
  */
 export const NOT_SCANNED: ReadonlyMap<string, string> = new Map([
   ['id', 'A minted uuid. Never touched by a model and never read off a photograph.'],

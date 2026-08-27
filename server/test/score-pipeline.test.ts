@@ -386,3 +386,54 @@ describe('the duplicated matcher, guarded', () => {
     assert.ok(norm(inScript[0]).includes('w.length > 3'), "the script still drops words of three characters or fewer")
   })
 })
+
+// -------------------------------- Band 2 · the key's own "possible" entries
+
+describe('⚑ an unconfirmed key entry is a third outcome, not a false positive', () => {
+  /**
+   * **`RoomKey.unconfirmed_objects` has been in the committed room record since
+   * 2026-08-10 — nine entries — and `scoreRun` read `confirmed_objects` alone.**
+   * So a proposal citing the photograph of *"Possible well-pump pressure
+   * switch"* scored as a false positive against the key's own list of things
+   * that are probably there.
+   *
+   * ⛑ **Neither promoted to `correct`.** The owner attested `confirmed_objects`
+   * complete FOR EXISTENCE and did not attest these. Scoring them right would be
+   * the overclaim in the other direction.
+   */
+  const KEY: RoomKey = {
+    confirmed_objects: [{ product: null, role: 'a water heater', photographs: ['a.jpg'] }],
+    unconfirmed_objects: [{ proposal: 'Branch breakers in the loadcentre', photographs: ['b.jpg'] }],
+  }
+
+  it('separates a phantom from a real thing at a finer grain', () => {
+    const r = scoreRun(KEY, [
+      { id: 'p1', label: 'a water heater', classId: null, mediaIds: ['a'], lane: 'plate' },
+      { id: 'p2', label: 'branch breakers', classId: null, mediaIds: ['b'], lane: 'appearance' },
+      { id: 'p3', label: 'a reverse osmosis system', classId: null, mediaIds: ['zz'], lane: 'appearance' },
+    ], matches)
+
+    assert.equal(r.matchedUnconfirmed.length, 1, 'the one citing an unconfirmed entry\'s photograph')
+    assert.equal(r.matchedUnconfirmed[0]!.keyEntry, 'Branch breakers in the loadcentre')
+    assert.deepEqual(r.falsePositives.map((f) => f.id), ['p3'], 'the phantom, and only the phantom')
+    assert.equal(r.counts.correct, 1, 'and the unconfirmed one is NOT promoted to correct')
+  })
+
+  it('never sums the two — they are separate columns per lane', () => {
+    const r = scoreRun(KEY, [
+      { id: 'p2', label: 'branch breakers', classId: null, mediaIds: ['b'], lane: 'appearance' },
+      { id: 'p3', label: 'a phantom', classId: null, mediaIds: ['zz'], lane: 'appearance' },
+    ], matches)
+    assert.equal(r.byLane.appearance!.falsePositives, 1)
+    assert.equal(r.byLane.appearance!.matchedUnconfirmed, 1)
+  })
+
+  it('stamps the harness that produced the numbers, derived rather than declared', () => {
+    // Run 1 scored 3 under one version of this file and 1 under another, on
+    // identical data, twice in one week. The stamp is how two numbers can never
+    // be compared silently across that.
+    const r = scoreRun(KEY, [], matches)
+    assert.match(r.harnessVersion, /^score-[0-9a-f]{12}$/,
+      'derived from the source — a hand-maintained literal is the house_style_version defect')
+  })
+})
