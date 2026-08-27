@@ -20,7 +20,7 @@ import { join } from 'node:path'
 import { newId, now, type Db } from '../src/db/index.js'
 import { proposalsForImport } from '../src/engine/compare.js'
 import {
-  buildFixture, parseFixture, proposalsOf, scanForPersonalData,
+  buildFixture, NOT_SCANNED, parseFixture, personalDataFields, proposalsOf, scanForPersonalData,
   type FixtureProposal,
 } from '../src/engine/proposalFixture.js'
 import { mediaIdOf, scoreRun, type RoomKey, type ScoredProposal } from '../src/engine/score.js'
@@ -223,5 +223,63 @@ describe('⚑ a re-run appends, and the fixture can name which run it holds', ()
     })
     assert.equal(f.proposals[0]!.generationId, undefined)
     assert.equal(proposalsOf(f)[0]!.generationId, null)
+  })
+})
+
+// ------------------------------------ Band 1 · the scan cannot go blind again
+
+describe('⚑ the personal-data scan reads every text a proposal carries', () => {
+  /**
+   * **`modelRead` was never scanned.** The scan read `label` and `models[]`,
+   * printed *the personal-data scan found nothing*, and told the operator the
+   * file was ready to look at — while `modelRead`, **a string read straight off
+   * a plate**, went unexamined. The repo was public at the time.
+   *
+   * *Reading the field is the smaller half.* A scan reporting "found nothing" is
+   * indistinguishable from a scan that is not looking, so these plant real data
+   * and require a hit from every field — and require any field that is NOT
+   * scanned to say why.
+   */
+  const PLANTED = 'Gas fitter licence 12345 613-555-0142 at 1 Nowhere Road'
+  const planted = (): FixtureProposal => ({
+    id: 'o1', label: PLANTED, classId: null, mediaIds: ['m1'], lane: 'plate',
+    models: [PLANTED], modelRead: PLANTED, generationId: 'g1',
+  })
+
+  it('finds it in the label, in models[], and in modelRead', () => {
+    const wheres = [...new Set(scanForPersonalData([planted()]).map((h) => h.where))].sort()
+    assert.deepEqual(wheres, ['label', 'model', 'model-read'],
+      'a field that renders into a fixture and is not scanned is the hole this test exists for')
+  })
+
+  it('catches all three shapes in modelRead specifically — the field that was missed', () => {
+    const kinds = [...new Set(
+      scanForPersonalData([{ ...planted(), label: 'a water heater', models: [] }]).map((h) => h.kind),
+    )].sort()
+    assert.deepEqual(kinds, ['address', 'licence-or-registration', 'phone'])
+  })
+
+  it('⚑ scans or exempts EVERY string-bearing field, so the next one cannot be forgotten', () => {
+    // Derived from the object, not enumerated. Add a text field to
+    // FixtureProposal, forget the extractor and forget NOT_SCANNED, and this
+    // fails — which is the only form of this guard that survives a new field.
+    const p = planted()
+    const stringKeys = Object.entries(p)
+      .filter(([, v]) => typeof v === 'string' || (Array.isArray(v) && v.every((x) => typeof x === 'string')))
+      .map(([k]) => k)
+    const scanned = new Set(personalDataFields(p).map((f) => f.text))
+    const unaccounted = stringKeys.filter((k) => {
+      if (NOT_SCANNED.has(k)) return false
+      const v = (p as unknown as Record<string, unknown>)[k]
+      const texts = Array.isArray(v) ? v : [v]
+      return !texts.every((t) => typeof t === 'string' && scanned.has(t))
+    })
+    assert.deepEqual(unaccounted, [],
+      'these fields can hold text and are neither scanned nor listed in NOT_SCANNED with a reason')
+
+    for (const [k, why] of NOT_SCANNED) {
+      assert.ok(why.length > 30, `${k} is exempt without saying why`)
+      assert.ok(k in p, `${k} is exempt and is not a field of FixtureProposal`)
+    }
   })
 })

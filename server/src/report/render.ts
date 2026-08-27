@@ -203,7 +203,22 @@ export function signEdition(args: {
   // The footer is client-facing too, and the first render proved it needs the
   // same check: it carried an operator id.
   violations.push(...lint(args.signedByName, 'the signature line'))
-  violations.push(...lint(args.property.address ?? args.property.label, 'the address in the header'))
+  /**
+   * ⚑ **Both, never `address ?? label`.**
+   *
+   * This read `args.property.address ?? args.property.label`, so a property with
+   * an address had its **label linted by nothing** — and the label is what the
+   * document is titled with: `<title>Gap report — ${label}</title>` below. An
+   * edition signed as *"The Smith place — recurring damp issue"* passed with no
+   * refusal and the stored HTML carried it.
+   *
+   * *`??` is a fallback between two ways of naming one thing. These are two
+   * separate fields and both render, so the coalesce silently dropped whichever
+   * one was not null.* **A lint that skips a rendered field is worse than no
+   * lint, because the pass is read as a check.**
+   */
+  violations.push(...lint(args.property.label, 'the property label, which titles the document'))
+  if (args.property.address) violations.push(...lint(args.property.address, 'the address in the header'))
   if (violations.length > 0) throw new HouseStyleRefused(violations)
 
   // ----------------------------------------------------------------- store
