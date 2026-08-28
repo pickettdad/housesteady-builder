@@ -19,7 +19,7 @@ import {
   knownInventory, normaliseResolve, planResolution, queueResolution, RESOLVE_SCHEMA, RESOLVE_TASK,
   resolutionFacts, runResolveProduct, type ResolveOutput,
 } from '../src/ai/tasks/resolveProduct.js'
-import { buildQuery, partNumberShaped, shippable, HONESTY_LABELS } from '../src/engine/lookup.js'
+import { buildQuery, partNumberShaped, shippable, MODEL_HONESTY_LABELS } from '../src/engine/lookup.js'
 import { fieldKey, type FieldClaim } from '../src/engine/surfaces.js'
 import { freshDb, TEST_OPERATOR } from './helpers.js'
 
@@ -97,11 +97,13 @@ describe('count the evidence, not the column', () => {
 })
 
 describe('the honesty label is what this build can actually support', () => {
-  it('offers Inferred and nothing else, because there is no search', () => {
-    // Amendment 11 declares `Documented` for a manufacturer's own documentation.
-    // A model recognising text from training has read nothing. `Documented`
-    // arrives with search and a source URL, in the same change, or not at all.
-    assert.deepEqual([...HONESTY_LABELS], ['Inferred'])
+  it('offers Inferred and nothing else, because a model recalling is not a model reading', () => {
+    // ⚑ Binder 6b made `Documented` reachable and did NOT change this.
+    // `engine/sources.ts` offers it to the EVIDENCE; this pass is the MODEL, and
+    // a model recognising text from training has read nothing. A resolution
+    // becomes `Documented` by acquiring a source that qualifies under §8 — never
+    // by this pass saying so.
+    assert.deepEqual([...MODEL_HONESTY_LABELS], ['Inferred'])
   })
 
   it('has no field in the schema where a source could be claimed', () => {

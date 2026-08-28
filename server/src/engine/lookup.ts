@@ -57,6 +57,20 @@ export interface LookupQuery {
   why: string
   /** The fields that built it, so a resolution can be traced to its evidence. */
   from: { field: string; value: string }[]
+  /**
+   * The model-shaped strings on this label, on their own.
+   *
+   * ⚑ **Binder 6b needs these and `text` cannot supply them.** §8a rule 2 —
+   * *a source for the wrong model is not a source* — compares the model on a
+   * page against the model on the plate, and `text` is every field joined. The
+   * classification already happens a few lines below; this stops it being
+   * thrown away and re-guessed by whoever needs it next.
+   *
+   * Usually one. Two means the label prints a model and a part number and a
+   * person picks; none means this plate names no model, which is itself the
+   * answer to *why can this resolution never be `Documented`*.
+   */
+  models: string[]
 }
 
 /**
@@ -142,7 +156,7 @@ export function buildQuery(readingId: string, mediaId: string, surface: string, 
     why = 'A brand or product name with no model number, so this resolves to a family rather than a catalogue entry — which is a real answer.'
   }
 
-  return { readingId, mediaId, surface, text, specificity, why, from }
+  return { readingId, mediaId, surface, text, specificity, why, from, models: models.map((f) => f.value.trim()) }
 }
 
 /** Every query for a set of readings, one per label, in reading order. */
@@ -175,25 +189,28 @@ export const PRODUCT_KINDS = ['equipment', 'consumable', 'part', 'material', 'un
 export type ProductKind = (typeof PRODUCT_KINDS)[number]
 
 /**
- * Honesty labels this pass may assign — **and `Documented` is not among them.**
+ * Honesty labels **this pass** may assign — and `Documented` is still not among
+ * them, after Binder 6b as much as before it.
  *
- * ⚑ **This build has no search, so no resolution here can name a source it
- * actually read.** Amendment 11 is explicit: *a resolution that cannot state
- * its source does not ship*, and *a model number resolved from a retail listing
- * and rendered as `Documented` is the exact failure this project has spent a
- * week naming.*
+ * ⚑ **The name changed in 6b and the value did not.** `engine/sources.ts` now
+ * offers `Documented`, and it would be easy to read that as this constant having
+ * been superseded. It has not: **that one is what the evidence can support and
+ * this one is what the model may claim**, and keeping them apart is the whole
+ * mechanism. A single `HONESTY_LABELS` meaning both would be a model's opinion
+ * and a document's authority sharing a name.
  *
- * **A model recalling a product from training is recall, not a lookup.** It is
- * far better than guessing from a photograph — it is text, it is checkable by a
+ * **A model recalling a product from training is recall, not a lookup.** Far
+ * better than guessing from a photograph — it is text, it is checkable by a
  * person, and abstention is available — but it is `Inferred` and it must say so.
  *
- * **So `Documented` is structurally unreachable rather than discouraged.** The
- * schema does not offer it. When search exists and a resolution can carry the
- * URL it read, `Documented` is added here in the same change that adds the
- * source field — and not before.
+ * Amendment 11: *a resolution that cannot state its source does not ship*, and
+ * *a model number resolved from a retail listing and rendered as `Documented` is
+ * the exact failure this project has spent a week naming.* A resolution becomes
+ * `Documented` by acquiring a source that qualifies under §8 — never by this
+ * pass saying so, and never by anything writing a column.
  */
-export const HONESTY_LABELS = ['Inferred'] as const
-export type Honesty = (typeof HONESTY_LABELS)[number]
+export const MODEL_HONESTY_LABELS = ['Inferred'] as const
+export type ModelHonesty = (typeof MODEL_HONESTY_LABELS)[number]
 
 export interface Resolution {
   readingId: string

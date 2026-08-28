@@ -68,6 +68,23 @@ const UNATTRIBUTED: Readonly<Record<string, string>> = {
   // Ten cells off one plate are one person reading one plate once. Attribution
   // belongs to the act, and the act is the label — `readings` carries it.
   reading_fields: 'derived from the reading, which carries the actor',
+
+  /**
+   * ⚑ **The one exemption that is NOT "nobody acted" — somebody did, and the
+   * column is `ruled_by` rather than `actor_id` because it can be nobody.**
+   *
+   * A host ruling is a person's judgement and every ruling a person makes
+   * records them. **The five rows migration 027 seeds were ruled by a document**
+   * — Honesty-Label-Mapping v1.3 §8b names five organisations — and attributing
+   * those to an operator would claim a decision nobody made, which is the same
+   * failure this whole check exists to prevent, pointing the other way.
+   *
+   * ⛑ **An exemption is a hole, so the guarantee is made elsewhere rather than
+   * dropped:** `sources.test.ts` asserts that every ruling beyond those five
+   * carries an operator, and that the five say in their own text that a document
+   * ruled them.
+   */
+  source_hosts: 'a person\'s ruling, recorded in `ruled_by` — null only for the five §8b hosts a document seeded',
 }
 
 describe('the operator registry', () => {

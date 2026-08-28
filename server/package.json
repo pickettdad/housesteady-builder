@@ -24,7 +24,8 @@
     "match": "tsx scripts/match.ts",
     "passes": "tsx scripts/passes.ts",
     "binder": "tsx scripts/binder.ts",
-    "plan-fixture": "tsx scripts/plan-fixture.ts"
+    "plan-fixture": "tsx scripts/plan-fixture.ts",
+    "sources": "tsx scripts/sources.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
