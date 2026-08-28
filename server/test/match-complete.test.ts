@@ -73,7 +73,7 @@ function knowProduct(product: string, mediaId: string, kind = 'equipment'): void
   })
   writeResolutions(db, {
     propertyId: PROPERTY, importId, actorId: TEST_OPERATOR,
-    queries: [{ readingId: readingId!, mediaId, surface: 'nameplate', text: 'X-1', specificity: 'line', why: '', from: [] }],
+    queries: [{ readingId: readingId!, mediaId, surface: 'nameplate', text: 'X-1', specificity: 'line', why: '', from: [], models: ['X-1'] }],
     resolutions: [{ readingId: readingId!, product, kind: kind as 'equipment', recognisedFrom: 'known', resolved: true, specificity: 'line' }],
   })
 }
