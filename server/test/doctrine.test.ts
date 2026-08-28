@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { describe, it } from 'node:test'
 import { buildReport } from '../src/import/report.js'
 import { runImport } from '../src/import/runImport.js'
@@ -948,6 +948,41 @@ describe('doctrine 7 — fail open on vocabulary, fail closed on structure', () 
     // import — the exact failure the doctrine forbids.
     const migration = readFileSync(join(serverSrc, 'db', 'migrations', '001_initial.sql'), 'utf8')
     assert.ok(!/\bCHECK\s*\(/i.test(migration), 'vocabulary columns are plain TEXT, on purpose')
+  })
+
+  /**
+   * ⚑ **No gate may filter media kind by naming what it skips.**
+   *
+   * *Capture-Kind Contract Note v1.1 §2, and `assembly.ts` already states the
+   * rule in its own header: DECLARE WHAT IS CONSUMED, NEVER WHAT IS SKIPPED.*
+   *
+   * `capture-kind-seam.test.ts` proves the five gates that exist today refuse a
+   * planted kind. **This is the same rule at the level of the class**, and it is
+   * the half that survives the next gate being written: an exclusion list looks
+   * correct on every export until the field ships a word it does not name, and
+   * then it feeds a floorplan to an image model.
+   *
+   * ⛑ **Residual limit, stated rather than left to be found.** This reads two
+   * shapes — a constant whose name says *skip these kinds*, and an inequality on
+   * `m.kind` / `media.kind`. **A gate that filters media kind through a
+   * differently-named variable still slips.** The instance-level proof in
+   * `capture-kind-seam.test.ts` is what covers the five that exist.
+   */
+  it('names no media-kind exclusion list anywhere in the codebase', () => {
+    const NAMED_SKIP_LIST = /\b(?:SKIP|EXCLUDED?|IGNORED?|NON)_[A-Z_]*KINDS?\b/
+    const KIND_INEQUALITY = /\b(?:m|media)\.kind\s*(?:!==|!=|<>)\s*['"]/
+    const SQL_NOT_IN = /\b(?:m|media)\.kind\s+NOT\s+IN\b/i
+
+    const offenders = codebaseFiles().filter((f) => {
+      const code = codeOf(f)
+      return NAMED_SKIP_LIST.test(code) || KIND_INEQUALITY.test(code) || SQL_NOT_IN.test(code)
+    })
+    assert.deepEqual(
+      offenders.map((f) => relative(repoRoot, f)),
+      [],
+      'a media-kind filter says what it consumes; a list of kinds to skip goes stale the first time ' +
+        'the field app ships a new one, and fails by silently feeding it to a model',
+    )
   })
 })
 
