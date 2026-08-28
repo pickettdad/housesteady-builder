@@ -986,6 +986,42 @@ describe('doctrine 7 — fail open on vocabulary, fail closed on structure', () 
   })
 })
 
+describe('a change nobody can read has not been reviewed', () => {
+  /**
+   * ⛑ **No source file may contain a literal NUL byte.**
+   *
+   * *Found 2026-08-27 while diffing `vocabulary.ts` and getting
+   * `Bin 13215 -> 16560 bytes` back instead of a diff.*
+   *
+   * `Collector.note` had built its composite key as `` `${field}\0${v}` `` with
+   * the byte written literally rather than escaped since PR #68. Both spellings
+   * produce the same key. **But git and GitHub both classify a file as binary on
+   * finding a NUL in its first 8 KB, and this one is at offset 5,087** — so
+   * every change to that file across five increments rendered as a byte count.
+   * `vocabulary.ts` is the module that decides which words this build has met,
+   * and its diffs were the ones nobody could read.
+   *
+   * ⚑ **The same failure this repo keeps meeting, one step further out:** *a
+   * value being computed is not the same as a reader being able to reach it* —
+   * here, a change being made is not the same as a reviewer being able to see
+   * it. The code was correct the whole time, which is exactly why nothing failed.
+   *
+   * Fixtures are excluded because a JPEG is legitimately binary. Only files a
+   * person is expected to read are scanned.
+   */
+  it('writes NUL as an escape, never as a byte', () => {
+    const offenders = codebaseFiles()
+      .concat(sourceFiles(join(repoRoot, 'web', 'src')))
+      .concat(sourceFiles(join(repoRoot, 'server', 'test')))
+      .filter((f) => readFileSync(f).includes(0))
+    assert.deepEqual(
+      offenders.map((f) => relative(repoRoot, f)),
+      [],
+      'a literal NUL makes git and GitHub render the whole file as binary — write \\u0000 instead',
+    )
+  })
+})
+
 describe('doctrine 1 — the canonical shape is derived from the raw, never a replacement for it', () => {
   /**
    * The refactor that introduced the canonical shape is exactly when this could
