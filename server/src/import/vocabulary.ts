@@ -59,6 +59,41 @@ const KNOWN = {
   ],
 } as const
 
+/**
+ * ⚑ **What each media kind the builder knows claims its bytes are — and this
+ * exists because the `media.kind` vocabulary check above cannot currently fire.**
+ *
+ * *Capture-Kind Contract Note v1.1 §2.* The field does not assign `kind`; it
+ * derives it from mime, **and the derivation has no fallthrough**:
+ *
+ * > `mime.startsWith("image") ? "photo" : mime.startsWith("video") ? "video" : "voice"`
+ * > *field repo, `src/engine/export/manifestV3.ts:69–70`*
+ *
+ * ⛑ **So everything unrecognised collapses to `voice`, which is a word this
+ * builder knows.** A floorplan at `application/json` arrives filed as a voice
+ * note, counted in `totals.voiceNotes`, and the vocabulary check above says
+ * nothing — because there is no unfamiliar word to say. *The producer defeats
+ * the consumer's guard.*
+ *
+ * **This is the guard that does not depend on the producer.** The field computes
+ * kind from mime one way; this asks whether the answer is consistent. The two
+ * sides can disagree, which is the whole property the vocabulary check lost.
+ *
+ * ⚑ **A claim, never a mapping.** Each kind names the mime family it asserts —
+ * nothing here says what a `geometry` capture ought to be. **A kind this builder
+ * has not met claims nothing and is checked against nothing**, which is doctrine
+ * 7 and is also what stops this going stale the day the field adds a word. The
+ * fix for that case is the vocabulary check, which by then will work.
+ *
+ * *Quiet on real data: all 163 captures in `fixtures/walk-2026-07-31/` agree —
+ * 157 `photo`/`image/jpeg`, 4 `video`/`video/quicktime`, 2 `voice`/`audio/mp4`.*
+ */
+const MIME_FAMILY: Record<string, string> = {
+  photo: 'image/',
+  video: 'video/',
+  voice: 'audio/',
+}
+
 export interface UnrecognizedTerm {
   field: string
   value: string
@@ -275,8 +310,16 @@ export function checkVocabulary(c: CanonicalImport): VocabularyResult {
   }
 
   // ------------------------------------------------------------------ media
+  const kindMimeDisagreements: { mediaId: string; kind: string; mime: string; expected: string }[] = []
   for (const x of c.media) {
     if (!known(KNOWN.mediaKind, x.kind)) collector.note('media.kind', x.kind, String(x.mediaId))
+    // ⚑ **The `media.kind` check above cannot fire on anything the field sends,
+    // and this is the check that can.** See MIME_FAMILY.
+    const family = x.kind === null ? undefined : MIME_FAMILY[x.kind]
+    if (family !== undefined && typeof x.mime === 'string' && x.mime !== ''
+        && !x.mime.toLowerCase().startsWith(family)) {
+      kindMimeDisagreements.push({ mediaId: String(x.mediaId), kind: x.kind!, mime: x.mime, expected: family })
+    }
     if (!known(KNOWN.mediaOwnerKind, x.ownerKind)) {
       collector.note('media.owner.kind', x.ownerKind, String(x.mediaId))
     }
@@ -285,6 +328,25 @@ export function checkVocabulary(c: CanonicalImport): VocabularyResult {
         && !known(KNOWN.mediaIntent, x.captureIntent)) {
       collector.note('media.intent', x.captureIntent, String(x.mediaId))
     }
+  }
+
+  if (kindMimeDisagreements.length > 0) {
+    const n = kindMimeDisagreements.length
+    const shown = kindMimeDisagreements.slice(0, 5)
+      .map((d) => `${d.mediaId} is filed \`${d.kind}\` and carries \`${d.mime}\``)
+    add({
+      code: 'media.kind-mime-disagreement',
+      severity: 'warning',
+      message:
+        `${n} capture${n === 1 ? '' : 's'} ${n === 1 ? 'is' : 'are'} filed under a kind that does not match ` +
+        `${n === 1 ? 'its' : 'their'} own declared mime type (${shown.join('; ')}` +
+        `${n > 5 ? `, and ${n - 5} more` : ''}). Nothing is dropped and the kind is stored exactly as it ` +
+        `arrived — but a capture that is not what it says it is has been filed by every count and every ` +
+        `filter in this build as though it were. The likeliest cause is a capture the field app has no ` +
+        `kind for yet: it derives kind from mime, and anything that is neither an image nor a video ` +
+        `becomes a voice note.`,
+      detail: { disagreements: kindMimeDisagreements },
+    })
   }
 
   // ------------------------------------------------------- notes and chats

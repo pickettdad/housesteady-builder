@@ -258,3 +258,120 @@ describe(`⚑ the five gates refuse a capture kind they have never met — plant
     assert.notEqual(status, 'refused', 'a word the builder has not met never fails an import (doctrine 7)')
   })
 })
+
+/**
+ * ⛑ **The guard above cannot fire on anything the field currently sends, and
+ * this is the one that can.**
+ *
+ * *Note §2: the field derives `kind` from mime with no fallthrough, so a
+ * floorplan at `application/json` arrives as `kind: "voice"` — a word this
+ * builder knows — and the vocabulary check has nothing unfamiliar to report.*
+ * **The producer defeats the consumer's guard.**
+ *
+ * A kind/mime disagreement is the same fact arriving through a channel the
+ * producer does not control. The field computes kind from mime one way; this
+ * asks whether the answer is consistent, so **the two sides can disagree** —
+ * which is the property the vocabulary check lost and the reason it has not
+ * been passing so much as idling.
+ */
+describe('⚑ a capture filed as something it is not — the guard the field cannot defeat', () => {
+  const DISAGREEMENT = 'media.kind-mime-disagreement'
+
+  async function checkCodes(mutate: (m: Record<string, unknown>) => void): Promise<{
+    codes: string[]; message: string; status: string; terms: { field: string; value: string }[]
+  }> {
+    const m = JSON.parse(readWalk()) as Record<string, unknown>
+    ;(m.session as { sessionId: string }).sessionId =
+      `01a02618-0000-7000-8000-00000000${String(++seq).padStart(4, '0')}`
+    mutate(m)
+    const db = freshDb()
+    const ids = makePropertyAndVisit(db)
+    const r = await runImport({
+      actorId: TEST_OPERATOR, db, ...ids, raw: JSON.stringify(m), dataDir: scratchDir(),
+    })
+    const row = db.prepare('SELECT validation_report AS v, status FROM imports WHERE id = ?').get(r.importId) as
+      { v: string; status: string }
+    db.close()
+    const report = JSON.parse(row.v) as {
+      checks: { code: string; message: string }[]
+      unrecognizedTerms?: { field: string; value: string }[]
+    }
+    return {
+      codes: report.checks.map((c) => c.code),
+      message: report.checks.find((c) => c.code === DISAGREEMENT)?.message ?? '',
+      status: row.status,
+      terms: report.unrecognizedTerms ?? [],
+    }
+  }
+
+  /** Rule 44 — the quiet case first. A check that fires on real data is noise. */
+  it('says nothing about the walk as it actually shipped', async () => {
+    const { codes } = await checkCodes(() => {})
+    assert.ok(!codes.includes(DISAGREEMENT),
+      'all 163 captures in the walk agree with their own mime — a warning here would train people past it')
+  })
+
+  it('catches the fallthrough by its signature — a floorplan filed as a voice note', async () => {
+    const { codes, message, status } = await checkCodes((m) => {
+      const x = (m.media as Record<string, unknown>[])[0]!
+      x.kind = 'voice'
+      x.mime = 'application/json'
+    })
+    assert.ok(codes.includes(DISAGREEMENT), 'exactly what `kindOf`\'s missing fallthrough produces')
+    assert.match(message, /voice/)
+    assert.match(message, /application\/json/)
+    assert.notEqual(status, 'refused', 'a mislabel is a warning — it never refuses an import')
+  })
+
+  it('catches it in either direction, not just the one that prompted the check', async () => {
+    // A fix for a class of wording is tested on the class, not on its instance.
+    const { codes, message } = await checkCodes((m) => {
+      const x = (m.media as Record<string, unknown>[])[0]!
+      x.kind = 'photo'
+      x.mime = 'video/quicktime'
+    })
+    assert.ok(codes.includes(DISAGREEMENT))
+    assert.match(message, /video\/quicktime/)
+  })
+
+  it('names every disagreeing capture rather than counting them', async () => {
+    const { message } = await checkCodes((m) => {
+      for (const x of (m.media as Record<string, unknown>[]).slice(0, 2)) {
+        x.kind = 'voice'
+        x.mime = 'application/json'
+      }
+    })
+    const ids = (JSON.parse(readWalk()) as { media: { mediaId: string }[] }).media.slice(0, 2)
+      .map((x) => x.mediaId)
+    for (const id of ids) assert.ok(message.includes(id), 'doctrine 6 — "2 disagreements" is not a finding')
+  })
+
+  /**
+   * ⚑ **The boundary, and it is the half that keeps this from going stale.**
+   *
+   * A kind this builder has not met **claims nothing about its bytes**, so it is
+   * checked against nothing. Inventing an expected mime for `geometry` would be
+   * this file deciding what a capture the field has not shipped ought to contain
+   * — and it would refuse a correct export the day it arrives.
+   */
+  it('claims nothing about a kind it has never met — and the vocabulary check covers that case instead', async () => {
+    const { codes, terms } = await checkCodes((m) => {
+      const x = (m.media as Record<string, unknown>[])[0]!
+      x.kind = NEW_KIND
+      x.mime = 'application/json'
+    })
+    assert.ok(!codes.includes(DISAGREEMENT),
+      `nothing here decides what a \`${NEW_KIND}\` capture ought to be — doctrine 7`)
+    assert.ok(terms.some((t) => t.field === 'media.kind' && t.value === NEW_KIND),
+      'and it is not lost — the vocabulary check is the one that speaks for an unmet word')
+  })
+
+  it('says nothing when there is no mime to disagree with', async () => {
+    const { codes } = await checkCodes((m) => {
+      const x = (m.media as Record<string, unknown>[])[0]!
+      x.kind = 'voice'
+      delete x.mime
+    })
+    assert.ok(!codes.includes(DISAGREEMENT), 'an absent mime is silence, not a contradiction')
+  })
+})
