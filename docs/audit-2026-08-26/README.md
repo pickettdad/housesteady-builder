@@ -26,9 +26,18 @@ self-inflicted, inside the harness built to hunt it.
 
 Survivors by severity: **12 high** · **6 low** · **17 medium**
 
-## The 12 unverified — treat as unknown, not as clean
+## The 12 unverified — ⚑ WORKED 2026-08-28, and none of them is unknown any more
 
-Several are the Field 6 seam, which is the priority work:
+**`twelve-verified.md` in this directory carries the verdicts.** Seven confirmed, three partly, one
+fixed since by PR #123, one refuted. **Nothing came back unknown and nothing was overturned by the
+hostile second reader.**
+
+⚑ **One of twelve was false**, against 8 of 55 among the findings the harness *did* verify — so the
+bucket it could not read was, if anything, slightly better than the population it came from.
+**Treating a dead skeptic as a refutation would have discarded eleven true things**, which is the
+argument for having worked them rather than the argument for having been careful.
+
+The list as the audit left it, kept verbatim so the verdicts can be read against what was claimed:
 
 - `server/src/report/binderDraft.ts` — 34 of the binder schema's 41 slots have no `title`, so the draft meant for an outside reviewer heads them with raw slot ids.
 - `server/src/audit/itemSeries.ts` — `itemSeries` says its purpose is "the surface that lets somebody see the break", and the surface it got is a JSON endpoint no screen calls.
