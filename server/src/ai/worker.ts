@@ -19,13 +19,25 @@
 import { anthropic, ModelCallFailed } from './client.js'
 import { modelFor } from './models.js'
 import { loadPrompts } from './prompts.js'
-import { claimNext, failJob, MAX_ATTEMPTS, recordGeneration, visitSpend, type AiJob } from './queue.js'
+import { claimNext, failJob, MAX_ATTEMPTS, recordGeneration, spendGate, visitSpend, type AiJob } from './queue.js'
 import { runnerFor, UnknownTask, type AssistDeps } from './tasks/index.js'
 import type { Db } from '../db/index.js'
 import { findMedia, originalPath } from '../pass/thumbs.js'
 
 /** Why the loop stopped. Every value carries a sentence with it. */
-export type DrainStop = 'empty' | 'cap' | 'no-model' | 'no-key' | 'limit'
+export type DrainStop =
+  | 'empty'
+  | 'cap'
+  | 'no-model'
+  | 'no-key'
+  | 'limit'
+  /**
+   * ⛑ The ceiling exists and cannot be reached, because no price is configured.
+   * A distinct word from `cap` on purpose: *reached the ceiling* and *the
+   * ceiling is unreachable* are different facts and merging them is the same
+   * dishonesty `ratesKnown` was added to prevent. See `spendGate`.
+   */
+  | 'rates-unknown'
 
 export interface DrainResult {
   ran: number
@@ -121,7 +133,18 @@ export async function drainVisit(db: Db, visitId: string, options: DrainOptions 
     // At the tier actually running. Checking a strong-tier drain against the
     // fast tier's rates is a cap that lets through several times what it says.
     const spend = visitSpend(db, visitId, deps.model?.tier ?? 'fast')
-    if (spend.capReached) {
+    const stop = spendGate(db, visitId, deps.model)
+    if (stop === 'rates-unknown') {
+      return {
+        ran, failed, stopped: 'rates-unknown',
+        reason:
+          `No price is configured for the ${deps.model?.tier ?? 'fast'} tier, so the $${spend.cap.toFixed(2)} ` +
+          `ceiling cannot be reached however much this run spends — a cap denominated in dollars is not a wall ` +
+          `when every call is recorded at $0.00. Set ${deps.model?.tier === 'strong' ? 'HOUSESTEADY_MODEL_STRONG' : 'HOUSESTEADY_MODEL_FAST'}_INPUT_PER_MTOK ` +
+          `and _OUTPUT_PER_MTOK to today's rates. Nothing has been thrown away; the work is still queued.`,
+      }
+    }
+    if (stop === 'cap') {
       return {
         ran, failed, stopped: 'cap',
         reason:

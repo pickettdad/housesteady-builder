@@ -13,7 +13,7 @@
  */
 
 import { newId, now, type Db } from '../db/index.js'
-import { estimateCost, modelFor, type Tier } from './models.js'
+import { estimateCost, modelFor, ratesKnown, type ModelConfig, type Tier } from './models.js'
 
 /** How long a claimed job may sit before another worker may take it. */
 export const LEASE_MS = 5 * 60 * 1000
@@ -280,15 +280,68 @@ export function visitSpend(db: Db, visitId: string, tier: Tier = 'fast'): Spend 
   }
 }
 
+/** Why the spend gate stopped a run, or null to carry on. */
+export type SpendStop = 'cap' | 'rates-unknown'
+
 /**
- * Would this call take the visit over its ceiling?
+ * May this visit make another call?
  *
  * §4: capped, and it "stops the worker and says so rather than quietly burning
  * credits". The check is before the call, not after — a cap noticed afterwards
  * has already been exceeded, which makes it a report rather than a limit.
+ *
+ * ---
+ *
+ * ## ⛑ A cap denominated in dollars is not a wall when the dollars are zero
+ *
+ * **Measured 2026-08-28, and the fix is the second clause below.** `dollars` is
+ * `SUM(cost_estimate)`, `cost_estimate` is tokens × the configured rate, and
+ * **the rates default to 0**. So with a model configured and no rates set —
+ * which is the state of a fresh runner container, because the runner brief names
+ * the model and the key and says nothing about rates — every generation costs
+ * $0.00, the sum stays 0, and `0 >= 5` is false forever.
+ *
+ * **Probed rather than reasoned: 200 generations of 40,000 input tokens each —
+ * eight million input tokens — went through a $5 ceiling with `capReached`
+ * false at the end of it.**
+ *
+ * ⚑ **And the shape of the miss is worth more than the miss.** `ratesKnown` was
+ * already computed, already returned on this very object, and already displayed
+ * honestly by six scripts and one screen — *"the screen must say the cost is
+ * unknown rather than print a confident $0.00"*. **Every reader got it right and
+ * the only gate ignored it.** The honesty was built into the display and not
+ * into the wall, which is this project's signature failure wearing the one set
+ * of clothes where it costs money.
+ *
+ * **So an unpriced run is refused rather than permitted.** An unknown cost and a
+ * zero cost are different facts here exactly as they are on the screen — and of
+ * the two available defaults, *spend nothing until somebody says what it costs*
+ * is the one you can recover from.
  */
+export function spendGate(db: Db, visitId: string, running?: ModelConfig): SpendStop | null {
+  const tier = running?.tier ?? 'fast'
+  const spend = visitSpend(db, visitId, tier)
+  /**
+   * ⚑ **The rates of the model that is RUNNING, not of whatever the environment
+   * names.** `visitSpend` answers for the screen and reads `modelFor(tier)`,
+   * which is the right question for a display and the wrong one for a gate: a
+   * caller that supplies its own model — `--tier strong` does, and so does every
+   * test — is running something the environment may not describe at all.
+   *
+   * *This is the same mistake the tier fix caught in 2026-08: **checking a
+   * strong-tier drain against the fast tier's rates is a cap that lets through
+   * several times what it says.** One layer further out, checking any drain
+   * against the environment's model rather than its own is a cap that answers
+   * about a call nobody made.*
+   */
+  const priced = running ? ratesKnown(running) : spend.ratesKnown
+  if (!priced) return 'rates-unknown'
+  return spend.capReached ? 'cap' : null
+}
+
+/** @deprecated Use `spendGate` — this cannot distinguish a full ceiling from a blind one. */
 export function wouldExceedCap(db: Db, visitId: string, tier: Tier = 'fast'): boolean {
-  return visitSpend(db, visitId, tier).capReached
+  return spendGate(db, visitId, modelFor(tier)) !== null
 }
 
 export interface QueueProgress {

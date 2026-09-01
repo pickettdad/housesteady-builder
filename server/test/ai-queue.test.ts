@@ -20,8 +20,9 @@ import {
 import { currentPrompt, loadPrompts, PromptRefused, promptAt } from '../src/ai/prompts.js'
 import {
   claimNext, completeJob, enqueue, failJob, MAX_ATTEMPTS, queueProgress, recordGeneration, requeueBatch,
-  requeueFailed, skipJob, visitSpend, wouldExceedCap,
+  requeueFailed, skipJob, spendGate, visitSpend, wouldExceedCap,
 } from '../src/ai/queue.js'
+import { drainVisit } from '../src/ai/worker.js'
 
 const scratch: string[] = []
 const tmp = (): string => {
@@ -248,6 +249,74 @@ describe('the spend cap', () => {
     generation(1_000_000, 0)
     const spend = visitSpend(db, VISIT)
     assert.equal(spend.ratesKnown, false, 'with no rates configured the screen must not print a confident $0.00')
+  })
+
+  /**
+   * ⛑ **A cap denominated in dollars is not a wall when the dollars are zero.**
+   *
+   * ⚑ **The state this covers is the one every other test in this block avoids
+   * by setting the rates first**, and it is the only state a fresh runner
+   * container is actually in: a model configured, a key configured, and no
+   * prices — because the runner brief names the model and the key and says
+   * nothing about `_INPUT_PER_MTOK`.
+   *
+   * `dollars` is `SUM(cost_estimate)`, `cost_estimate` is tokens × rate, and the
+   * rate defaults to 0. So every call costs $0.00, the sum stays 0, and
+   * `0 >= 5` is false however long the run goes on.
+   *
+   * ⚑ **The test above this one had the fact and not the consequence.** It
+   * asserts `ratesKnown === false` — the display fact — and deletes the model to
+   * get there, which is the one configuration in which no run can happen at all.
+   * **So `ratesKnown` was covered as something a screen prints and never as
+   * something a gate reads**, and the gate ignored it for as long as it existed.
+   *
+   * *Measured 2026-08-28 before the fix: 8,000,000 input tokens through a $5
+   * ceiling with `capReached` false at the end of it.*
+   */
+  it('refuses to run at all when no price is configured, rather than running unbounded', () => {
+    process.env.HOUSESTEADY_MODEL_FAST = 'a-model'
+    process.env.HOUSESTEADY_VISIT_SPEND_CAP = '5'
+    delete process.env.HOUSESTEADY_FAST_INPUT_PER_MTOK
+    delete process.env.HOUSESTEADY_FAST_OUTPUT_PER_MTOK
+    try {
+      // The blind state, before anything has run.
+      assert.equal(spendGate(db, VISIT), 'rates-unknown')
+      assert.equal(wouldExceedCap(db, VISIT), true, 'an unpriced run is refused, not permitted')
+
+      // And it stays refused however much goes through it — the number is the test.
+      for (let i = 0; i < 200; i++) generation(40_000, 2_000)
+      const spend = visitSpend(db, VISIT)
+      assert.equal(spend.inputTokens, 8_000_000)
+      assert.equal(spend.dollars, 0, 'every call priced at $0.00 — which is why the dollar ceiling cannot fire')
+      assert.equal(spend.capReached, false, 'the ceiling itself is genuinely unreached; that is the defect')
+      assert.equal(spendGate(db, VISIT), 'rates-unknown', 'and the gate stops it anyway')
+    } finally {
+      delete process.env.HOUSESTEADY_MODEL_FAST
+      delete process.env.HOUSESTEADY_VISIT_SPEND_CAP
+    }
+  })
+
+  it('and tells a person which two variables to set, rather than saying the ceiling was reached', async () => {
+    // ⚑ Two different facts: *reached the ceiling* and *the ceiling cannot be
+    // reached*. Merging them would send somebody to raise a limit that was never
+    // the thing stopping them.
+    process.env.HOUSESTEADY_MODEL_FAST = 'a-model'
+    delete process.env.HOUSESTEADY_FAST_INPUT_PER_MTOK
+    try {
+      const r = await drainVisit(db, VISIT, {
+        deps: {
+          prompts: loadPrompts(),
+          model: { tier: 'fast', id: 'a-model', inputPerMTok: 0, outputPerMTok: 0, maxImageEdge: 1568, maxOutputTokens: 4096 },
+          resolvePath: () => { throw new Error('no call should be reached') },
+        },
+      })
+      assert.equal(r.stopped, 'rates-unknown')
+      assert.equal(r.ran, 0)
+      assert.match(r.reason, /HOUSESTEADY_MODEL_FAST_INPUT_PER_MTOK/)
+      assert.match(r.reason, /nothing has been thrown away/i)
+    } finally {
+      delete process.env.HOUSESTEADY_MODEL_FAST
+    }
   })
 })
 
